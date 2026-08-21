@@ -23,8 +23,21 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
-    <main class="container mx-auto mt-28 px-5 flex">
+  <body class="min-h-screen bg-slate-50 text-slate-950 antialiased">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <%= link_to root_path, class: "text-xl font-bold tracking-tight text-slate-950" do %>
+          <%= t("application.name") %>
+        <% end %>
+
+        <nav aria-label="Primary navigation" class="flex items-center gap-2">
+          <%= link_to "Dashboard", root_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+          <%= link_to "Transactions", transactions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-7xl px-5 py-10 lg:px-8">
       <%= yield %>
     </main>
   </body>
