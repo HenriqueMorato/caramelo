@@ -28,4 +28,6 @@
 #       enabled: "ON"
 
 en:
-  hello: "Hello world"
+  application:
+    name: "LocalFolio"
+    description: "Personal portfolio tracking"
