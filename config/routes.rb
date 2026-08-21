@@ -2,7 +2,8 @@ Rails.application.routes.draw do
   resource :session, only: %i[ new create destroy ]
   resources :passwords, param: :token, only: %i[ new create edit update ]
 
-  root "home#index"
+  root "dashboard#index"
+  get "transactions", to: "transactions#index"
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

@@ -23,6 +23,7 @@ module LocalFolio
     #
     config.time_zone = "America/Sao_Paulo"
     config.i18n.default_locale = :en
+    config.x.local_folio.owner_email = ENV.fetch("LOCALFOLIO_OWNER_EMAIL", "admin@localfolio.com").strip.downcase
     config.x.local_folio.reporting_currency = "BRL"
 
     # config.eager_load_paths << Rails.root.join("extras")
