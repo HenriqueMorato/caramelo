@@ -11,5 +11,10 @@ class NavigationTest < ApplicationSystemTestCase
 
     assert_current_path transactions_path
     assert_text "No transaction tracking yet"
+
+    click_on "Dashboard"
+
+    assert_current_path root_path
+    assert_text "Your portfolio overview will live here"
   end
 end
