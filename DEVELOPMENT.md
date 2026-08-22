@@ -58,17 +58,16 @@ bin/ci
 ```
 
 It prepares the application, runs RuboCop, audits Ruby and importmap
-dependencies, scans with Brakeman, runs Rails tests, and verifies test seeds.
-Run the browser suite separately:
-
-```sh
-bin/rails test:system
-```
-
-Individual commands are available when working on a focused change:
+dependencies, scans with Brakeman, runs Rails and browser system tests, and
+verifies test seeds. Individual commands are available when working on a
+focused change:
 
 ```sh
 bin/rails test
+bin/rails test test/models/user_test.rb
+bin/rails test test/models/user_test.rb:10
+bin/rails test -i /owner/
+bin/rails test:system
 bin/rubocop
 bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
 bin/bundler-audit
@@ -102,7 +101,6 @@ Run the complete local acceptance pass:
 bin/setup --skip-server
 bin/rails db:seed
 bin/ci
-bin/rails test:system
 docker build -t local_folio .
 ```
 
