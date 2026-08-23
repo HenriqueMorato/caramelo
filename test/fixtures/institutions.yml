@@ -1,0 +1,17 @@
+owner_xp:
+  user: owner
+  name: XP Investimentos
+  notes: Primary brokerage account.
+  active: true
+
+owner_inactive:
+  user: owner
+  name: Banco do Brasil
+  notes:
+  active: false
+
+other_owner:
+  user: one
+  name: Nu Invest
+  notes:
+  active: true
