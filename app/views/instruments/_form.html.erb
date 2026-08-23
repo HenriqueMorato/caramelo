@@ -1,0 +1,34 @@
+<%= form_with(model: instrument, class: "space-y-6") do |form| %>
+  <% if instrument.errors.any? %>
+    <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-900" role="alert">
+      <p class="font-semibold"><%= pluralize(instrument.errors.count, "error") %> prevented this instrument from being saved:</p>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% instrument.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :ticker, class: "block text-sm font-semibold text-slate-900" %>
+    <p class="mt-1 text-sm text-slate-500">The market symbol, such as PETR4 or VOO.</p>
+    <%= form.text_field :ticker, required: true, autofocus: true, autocapitalize: "characters", spellcheck: false, class: [ "mt-2 block w-full rounded-xl border bg-white px-4 py-3 font-mono uppercase text-slate-950 shadow-sm focus:outline-none focus:ring-2", { "border-slate-300 focus:border-emerald-600 focus:ring-emerald-200": instrument.errors[:ticker].none?, "border-red-400 focus:border-red-600 focus:ring-red-200": instrument.errors[:ticker].any? } ] %>
+  </div>
+
+  <div>
+    <%= form.label :name, class: "block text-sm font-semibold text-slate-900" %>
+    <%= form.text_field :name, required: true, autocomplete: "off", class: [ "mt-2 block w-full rounded-xl border bg-white px-4 py-3 text-slate-950 shadow-sm focus:outline-none focus:ring-2", { "border-slate-300 focus:border-emerald-600 focus:ring-emerald-200": instrument.errors[:name].none?, "border-red-400 focus:border-red-600 focus:ring-red-200": instrument.errors[:name].any? } ] %>
+  </div>
+
+  <div>
+    <%= form.label :currency, class: "block text-sm font-semibold text-slate-900" %>
+    <p class="mt-1 text-sm text-slate-500">A three-letter ISO code such as BRL or USD.</p>
+    <%= form.text_field :currency, required: true, maxlength: 3, autocapitalize: "characters", spellcheck: false, class: [ "mt-2 block w-full rounded-xl border bg-white px-4 py-3 font-mono uppercase text-slate-950 shadow-sm focus:outline-none focus:ring-2 sm:max-w-32", { "border-slate-300 focus:border-emerald-600 focus:ring-emerald-200": instrument.errors[:currency].none?, "border-red-400 focus:border-red-600 focus:ring-red-200": instrument.errors[:currency].any? } ] %>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <%= form.submit class: "cursor-pointer rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>
+    <%= link_to "Cancel", instrument.persisted? ? instrument_path(instrument) : instruments_path, class: "rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+  </div>
+<% end %>

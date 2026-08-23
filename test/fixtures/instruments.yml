@@ -1,0 +1,17 @@
+owner_petr4:
+  user: owner
+  ticker: PETR4
+  name: Petrobras PN
+  currency: BRL
+
+owner_voo:
+  user: owner
+  ticker: VOO
+  name: Vanguard S&P 500 ETF
+  currency: USD
+
+other_owner_petr4:
+  user: one
+  ticker: PETR4
+  name: Petrobras PN
+  currency: BRL
