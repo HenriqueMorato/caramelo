@@ -15,6 +15,7 @@ class InstrumentsTest < ApplicationSystemTestCase
   end
 
   test "shows an empty state without instruments" do
+    Trade.delete_all
     Instrument.delete_all
 
     visit instruments_path

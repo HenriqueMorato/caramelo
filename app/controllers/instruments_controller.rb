@@ -8,6 +8,7 @@ class InstrumentsController < ApplicationController
   end
 
   def show
+    @trades = User.owner.trades.where(instrument: @instrument).includes(:instrument, :institution).reverse_chronological
   end
 
   def new

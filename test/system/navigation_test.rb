@@ -10,7 +10,7 @@ class NavigationTest < ApplicationSystemTestCase
     click_on "Transactions"
 
     assert_current_path transactions_path
-    assert_text "No transaction tracking yet"
+    assert_text "Long-term allocation"
 
     click_on "Dashboard"
 

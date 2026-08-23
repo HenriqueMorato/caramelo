@@ -20,6 +20,18 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", @instrument.ticker
     assert_select "h2", "Trade history"
+    assert_select "p", "No trades for this instrument"
+  end
+
+  test "shows only the configured owner's trades for an instrument" do
+    instrument = instruments(:voo_arcx)
+
+    get instrument_url(instrument)
+
+    assert_response :success
+    assert_select "article", text: /Long-term allocation/
+    assert_select "article", text: /Other owner trade/, count: 0
+    assert_select "a", "Add trade"
   end
 
   test "creates a global instrument" do

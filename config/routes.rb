@@ -3,9 +3,12 @@ Rails.application.routes.draw do
   resources :passwords, param: :token, only: %i[ new create edit update ]
 
   root "dashboard#index"
-  get "transactions", to: "transactions#index"
+  get "transactions", to: "trades#index"
   resources :institutions
-  resources :instruments
+  resources :instruments do
+    resources :trades, only: %i[ new create ]
+  end
+  resources :trades, except: %i[ index show ]
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
