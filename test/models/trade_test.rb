@@ -106,6 +106,22 @@ class TradeTest < ActiveSupport::TestCase
     assert_equal Money.from_cents(1_875, "BRL"), sell.total
   end
 
+  test "calculates a USD trade without converting it to the reporting currency" do
+    trade = build_trade(
+      instrument: instruments(:voo_arcx),
+      institution: nil,
+      quantity: 2,
+      unit_price: BigDecimal("10.25"),
+      fees_cents: 50,
+      currency: "USD"
+    )
+
+    assert_predicate trade, :valid?
+    assert_equal Money.from_cents(2_050, "USD"), trade.gross_value
+    assert_equal Money.from_cents(2_100, "USD"), trade.total
+    refute_equal Money.from_cents(2_100, "BRL"), trade.total
+  end
+
   test "normalizes blank notes to nil" do
     trade = build_trade(notes: "   ")
 

@@ -1,8 +1,9 @@
 # LocalFolio
 
-LocalFolio is a local-first portfolio tracker. It currently provides the
-single-user application foundation; portfolio data, calculations, and market
-integrations will arrive in later milestones.
+LocalFolio is a local-first, single-user portfolio tracker. It currently lets
+you manage financial institutions, a global instrument catalog, and buy or sell
+trades. Positions, portfolio valuation, and market integrations will arrive in
+later milestones.
 
 ## Run locally with Docker
 
@@ -55,8 +56,27 @@ docker exec local_folio bin/rails db:seed
 ```
 
 Login is not activated for the current single-user application. The dashboard
-and transaction placeholder are available without signing in. User, session,
-password hashing, and password-reset foundations are present for future use.
+and Trade Ledger are available without signing in. User, session, password
+hashing, and password-reset foundations are present for future use.
+
+## Use the Trade Ledger
+
+- **Institutions** are optional banks, brokers, or custodians associated with a
+  trade. Deactivate an institution to remove it from new-trade selectors while
+  keeping it in existing history. An institution referenced by a trade cannot
+  be deleted.
+- **Instruments** are shared catalog entries identified by ticker and exchange.
+  Each instrument has one currency. Its currency and the instrument itself
+  cannot be removed while trades reference it.
+- **Transactions** lists the owner's trades. Add a trade there by choosing an
+  instrument, or use **Add trade** on an instrument page to preselect it. Trades
+  record buy or sell side, date, quantity, unit price, fees, an optional
+  institution, and notes; they can be edited or deleted from their history
+  cards.
+
+Trade totals remain in the instrument's currency. LocalFolio does not treat a
+BRL amount and a USD amount as equivalent or convert between them. Exchange-rate
+conversion belongs to a later milestone.
 
 ## Your data
 
@@ -85,9 +105,10 @@ or authentication service is required.
 
 The interface is English, the application time zone is
 `America/Sao_Paulo`, and future portfolio reporting defaults to Brazilian real
-(`BRL`). Currency conversion is outside the current Foundation scope.
+(`BRL`).
 
 ## Development
 
 For native Ruby setup, tests, security checks, contribution conventions, and
-the complete Foundation acceptance commands, see [DEVELOPMENT.md](DEVELOPMENT.md).
+the complete Trade Ledger acceptance commands, see
+[DEVELOPMENT.md](DEVELOPMENT.md).
