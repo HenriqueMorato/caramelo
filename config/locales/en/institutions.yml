@@ -1,0 +1,21 @@
+---
+en:
+  institutions:
+    edit:
+      Introduction: Update the name or notes without changing its trade history.
+      Page title: Edit %{institution} · %{application}
+    form:
+      Inactive institutions: Inactive institutions stay in history but will not appear
+        when recording new trades.
+      Notes help: Optional details about this bank, broker, or custodian.
+    index:
+      Empty state: Add a bank or broker now so it is ready for future trades.
+      Introduction: Manage the banks, brokers, and custodians where you make trades.
+      No institutions yet: No institutions yet
+      Page title: Institutions · %{application}
+    new:
+      Introduction: Add a bank, broker, or custodian to use with future trades.
+      Page title: New institution · %{application}
+    show:
+      No notes added: No notes added.
+      Page title: "%{institution} · %{application}"

@@ -1,0 +1,18 @@
+---
+en:
+  passwords:
+    edit:
+      Confirmation placeholder: Repeat new password
+      Password placeholder: Enter new password
+      Save: Save
+      Update your password: Update your password
+    new:
+      Email placeholder: Enter your email address
+      Email reset instructions: Email reset instructions
+      Forgot your password?: Forgot your password?
+  sessions:
+    new:
+      Email placeholder: Enter your email address
+      Forgot password?: Forgot password?
+      Password placeholder: Enter your password
+      Sign in: Sign in

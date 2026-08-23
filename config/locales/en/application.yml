@@ -1,0 +1,53 @@
+---
+en:
+  All institutions: "← All institutions"
+  All instruments: "← All instruments"
+  Back: "← Back"
+  Buy: Buy
+  Dashboard: Dashboard
+  Institutions: Institutions
+  Instruments: Instruments
+  LocalFolio: LocalFolio
+  None: None
+  Personal portfolio tracking: Personal portfolio tracking
+  Portfolio activity: Portfolio activity
+  Portfolio catalog: Portfolio catalog
+  Primary navigation: Primary navigation
+  Sell: Sell
+  Total: Total
+  Trade settings: Trade settings
+  Transactions: Transactions
+  Transactions link: "← Transactions"
+  actions:
+    Add: Add %{model}
+    Cancel: Cancel
+    Delete: Delete
+    Edit: Edit
+    Edit model: Edit %{model}
+    View details: View details
+  alerts:
+    Invalid credentials: Try another email address or password.
+    Password reset link expired: Password reset link is invalid or has expired.
+    Passwords did not match: Passwords did not match.
+    Try again later: Try again later.
+  confirmations:
+    Delete record: Delete %{record}?
+    Delete trade: Delete this trade?
+  forms:
+    Could not save:
+      one: '1 error prevented this %{model} from being saved:'
+      other: "%{count} errors prevented this %{model} from being saved:"
+    No institution: No institution
+    Required attribute: "%{attribute} *"
+    Required fields: Required fields
+    Select an instrument: Select an instrument
+  notices:
+    Created: "%{model} was created."
+    Deleted: "%{model} was deleted."
+    Password reset instructions sent: Password reset instructions sent (if user with
+      that email address exists).
+    Password was reset: Password has been reset.
+    Updated: "%{model} was updated."
+  statuses:
+    Active: Active
+    Inactive: Inactive

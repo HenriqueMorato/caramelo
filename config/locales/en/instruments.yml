@@ -1,0 +1,25 @@
+---
+en:
+  instruments:
+    edit:
+      Introduction: Update the instrument details before recording or reviewing trades.
+      Page title: Edit %{instrument} · %{application}
+    form:
+      Currency help: A three-letter ISO code such as BRL or USD.
+      Exchange help: A four-character MIC, such as BVMF for B3 or XNAS for Nasdaq.
+      Ticker help: The market symbol, such as PETR4 or VOO.
+    index:
+      Empty state: Add an instrument now so it is ready for your first trade.
+      Introduction: Manage the stocks, funds, and other instruments used by your trades.
+      No instruments yet: No instruments yet
+      Page title: Instruments · %{application}
+    new:
+      Introduction: Add a stock, fund, or other instrument to use with trades.
+      Page title: New instrument · %{application}
+    show:
+      Delete blocked: Delete this instrument's trades before deleting the instrument.
+      Empty history: Add a purchase or sale to begin its history.
+      No trades: No trades for this instrument
+      Page title: "%{instrument} · %{application}"
+      Trade history: Trade history
+      Trade history description: Purchases and sales recorded for this instrument.

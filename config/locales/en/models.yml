@@ -1,0 +1,55 @@
+---
+en:
+  activerecord:
+    attributes:
+      institution:
+        active: Active
+        name: Name
+        notes: Notes
+      instrument:
+        currency: Currency
+        exchange: Exchange
+        name: Name
+        ticker: Ticker
+      trade:
+        currency: Currency
+        fees: Fees
+        fees_cents: Fees
+        institution: Institution
+        institution_id: Institution
+        instrument: Instrument
+        instrument_id: Instrument
+        notes: Notes
+        quantity: Quantity
+        side: Side
+        traded_on: Trade date
+        unit_price: Unit price
+      user:
+        email_address: Email address
+        password: Password
+        password_confirmation: Password confirmation
+    errors:
+      models:
+        instrument:
+          attributes:
+            currency:
+              cannot_change_with_trades: cannot change while trades exist
+        trade:
+          attributes:
+            currency:
+              instrument_mismatch: must match the instrument currency
+            institution:
+              wrong_owner: must belong to the trade owner
+    models:
+      institution:
+        one: Institution
+        other: Institutions
+      instrument:
+        one: Instrument
+        other: Instruments
+      trade:
+        one: Trade
+        other: Trades
+      user:
+        one: User
+        other: Users

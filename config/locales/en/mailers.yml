@@ -1,0 +1,13 @@
+---
+en:
+  passwords_mailer:
+    reset:
+      Password reset page: this password reset page
+      Reset instructions: |-
+        You can reset your password on
+        %{url}
+
+        This link will expire in %{expires_in}.
+      Reset instructions_html: You can reset your password on %{link}.<br><br>This
+        link will expire in %{expires_in}.
+      Subject: Reset your password

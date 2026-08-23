@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || t("application.name") %></title>
+    <title><%= content_for(:title) || t("LocalFolio") %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="<%= t("application.name") %>">
+    <meta name="application-name" content="<%= t("LocalFolio") %>">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
@@ -27,14 +27,14 @@
     <header class="border-b border-slate-200 bg-white">
       <div class="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <%= link_to root_path, class: "text-xl font-bold tracking-tight text-slate-950" do %>
-          <%= t("application.name") %>
+          <%= t("LocalFolio") %>
         <% end %>
 
-        <nav aria-label="Primary navigation" class="flex flex-wrap items-center gap-2">
-          <%= link_to "Dashboard", root_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
-          <%= link_to "Transactions", transactions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
-          <%= link_to "Institutions", institutions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
-          <%= link_to "Instruments", instruments_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+        <nav aria-label="<%= t("Primary navigation") %>" class="flex flex-wrap items-center gap-2">
+          <%= link_to t("Dashboard"), root_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+          <%= link_to t("Transactions"), transactions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+          <%= link_to t("Institutions"), institutions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+          <%= link_to t("Instruments"), instruments_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
         </nav>
       </div>
     </header>

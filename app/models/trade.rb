@@ -37,12 +37,12 @@ class Trade < ApplicationRecord
   def currency_matches_instrument
     return if currency.blank? || instrument.blank? || currency == instrument.currency
 
-    errors.add(:currency, "must match the instrument currency")
+    errors.add(:currency, :instrument_mismatch)
   end
 
   def institution_belongs_to_user
     return if institution.blank? || user.blank? || institution.user == user
 
-    errors.add(:institution, "must belong to the trade owner")
+    errors.add(:institution, :wrong_owner)
   end
 end
