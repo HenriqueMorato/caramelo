@@ -1,4 +1,6 @@
 class Instrument < ApplicationRecord
+  has_many :trades, dependent: :restrict_with_error
+
   normalizes :ticker, with: ->(ticker) { ticker.strip.upcase }
   normalizes :exchange, with: ->(exchange) { exchange.strip.upcase }
   normalizes :name, with: ->(name) { name.strip.squish }
@@ -8,6 +10,15 @@ class Instrument < ApplicationRecord
   validates :exchange, presence: true, format: { with: /\A[A-Z0-9]{4}\z/ }
   validates :name, presence: true
   validates :currency, presence: true, iso_currency: true
+  validate :currency_unchanged_when_traded, if: :will_save_change_to_currency?
 
   scope :alphabetical, -> { order(:ticker, :exchange) }
+
+  private
+
+  def currency_unchanged_when_traded
+    return unless persisted? && trades.exists?
+
+    errors.add(:currency, "cannot change while trades exist")
+  end
 end
