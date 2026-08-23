@@ -33,11 +33,19 @@
         <nav aria-label="Primary navigation" class="flex items-center gap-2">
           <%= link_to "Dashboard", root_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
           <%= link_to "Transactions", transactions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+          <%= link_to "Institutions", institutions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
         </nav>
       </div>
     </header>
 
     <main class="mx-auto w-full max-w-7xl px-5 py-10 lg:px-8">
+      <% if notice %>
+        <p class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900" role="status"><%= notice %></p>
+      <% end %>
+      <% if alert %>
+        <p class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900" role="alert"><%= alert %></p>
+      <% end %>
+
       <%= yield %>
     </main>
   </body>
