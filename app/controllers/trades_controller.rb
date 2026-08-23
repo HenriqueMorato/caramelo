@@ -67,7 +67,7 @@ class TradesController < ApplicationController
     @institutions = owner.institutions.active
     @institutions = @institutions.or(owner.institutions.where(id: @trade.institution_id)) if @trade&.persisted?
     @institutions = @institutions.alphabetical
-    @last_institution_id_by_instrument = last_institution_id_by_instrument
+    @last_institution_id_by_instrument = last_institution_id_by_instrument unless @context_instrument
   end
 
   def assign_trade_attributes
