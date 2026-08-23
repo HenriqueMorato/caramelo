@@ -50,14 +50,13 @@ class TradeTest < ActiveSupport::TestCase
     assert_predicate trade, :invalid?
   end
 
-  test "exposes unit price and fees as Money in the persisted currency" do
-    trade = build_trade(unit_price_cents: 12_345, fees_cents: 67)
+  test "stores unit price to eight decimal places and exposes fees as Money" do
+    trade = build_trade(unit_price: BigDecimal("0.12345678"), fees_cents: 67)
+    trade.save!
 
-    assert_instance_of Money, trade.unit_price
+    assert_equal BigDecimal("0.12345678"), trade.reload.unit_price
     assert_instance_of Money, trade.fees
-    assert_equal 12_345, trade.unit_price.fractional
     assert_equal 67, trade.fees.fractional
-    assert_equal "BRL", trade.unit_price.currency.iso_code
     assert_equal "BRL", trade.fees.currency.iso_code
   end
 
@@ -73,10 +72,10 @@ class TradeTest < ActiveSupport::TestCase
   end
 
   test "requires a positive unit price and nonnegative fees" do
-    trade = build_trade(unit_price_cents: 0, fees_cents: -1)
+    trade = build_trade(unit_price: 0, fees_cents: -1)
 
     assert_predicate trade, :invalid?
-    assert_includes trade.errors[:unit_price_cents], "must be greater than 0"
+    assert_includes trade.errors[:unit_price], "must be greater than 0"
     assert_includes trade.errors[:fees_cents], "must be greater than or equal to 0"
 
     trade = Trade.new(valid_attributes.except(:fees_cents))
@@ -86,17 +85,25 @@ class TradeTest < ActiveSupport::TestCase
   end
 
   test "derives gross value and negative cash effect for buys" do
-    trade = build_trade(quantity: BigDecimal("2.5"), unit_price_cents: 1_000, fees_cents: 125)
+    trade = build_trade(quantity: BigDecimal("2.5"), unit_price: BigDecimal("10"), fees_cents: 125)
 
     assert_equal Money.from_cents(2_500, "BRL"), trade.gross_value
     assert_equal Money.from_cents(-2_625, "BRL"), trade.signed_cash_effect
   end
 
   test "derives gross value and positive cash effect for sells" do
-    trade = build_trade(side: "sell", quantity: BigDecimal("2.5"), unit_price_cents: 1_000, fees_cents: 125)
+    trade = build_trade(side: "sell", quantity: BigDecimal("2.5"), unit_price: BigDecimal("10"), fees_cents: 125)
 
     assert_equal Money.from_cents(2_500, "BRL"), trade.gross_value
     assert_equal Money.from_cents(2_375, "BRL"), trade.signed_cash_effect
+  end
+
+  test "derives a positive total including buy fees and subtracting sell fees" do
+    buy = build_trade(quantity: 2, unit_price: BigDecimal("10"), fees_cents: 125)
+    sell = build_trade(side: "sell", quantity: 2, unit_price: BigDecimal("10"), fees_cents: 125)
+
+    assert_equal Money.from_cents(2_125, "BRL"), buy.total
+    assert_equal Money.from_cents(1_875, "BRL"), sell.total
   end
 
   test "normalizes blank notes to nil" do
@@ -112,7 +119,7 @@ class TradeTest < ActiveSupport::TestCase
     newer = build_trade(traded_on: Date.new(2026, 1, 11))
     newer.save!
 
-    assert_equal [ newer, older ], Trade.reverse_chronological.to_a
+    assert_equal [ newer, older ], Trade.where(id: [ older.id, newer.id ]).reverse_chronological.to_a
   end
 
   test "instruments and institutions cannot be deleted while referenced" do
@@ -147,7 +154,7 @@ class TradeTest < ActiveSupport::TestCase
       side: "buy",
       traded_on: Date.new(2026, 1, 10),
       quantity: 1,
-      unit_price_cents: 1_000,
+      unit_price: BigDecimal("10"),
       fees_cents: 0,
       currency: "BRL",
       created_at: Time.current,
@@ -157,7 +164,7 @@ class TradeTest < ActiveSupport::TestCase
     {
       side: "transfer",
       quantity: 0,
-      unit_price_cents: 0,
+      unit_price: 0,
       fees_cents: -1
     }.each do |attribute, invalid_value|
       assert_raises ActiveRecord::StatementInvalid do
@@ -180,7 +187,7 @@ class TradeTest < ActiveSupport::TestCase
       side: "buy",
       traded_on: Date.new(2026, 1, 10),
       quantity: BigDecimal("10"),
-      unit_price_cents: 3_210,
+      unit_price: BigDecimal("32.10"),
       fees_cents: 150,
       currency: "BRL",
       notes: "Initial position"

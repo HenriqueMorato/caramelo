@@ -20,6 +20,21 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", @instrument.ticker
     assert_select "h2", "Trade history"
+    assert_select "p", "No trades for this instrument"
+  end
+
+  test "shows only the configured owner's trades for an instrument" do
+    instrument = instruments(:voo_arcx)
+
+    get instrument_url(instrument)
+
+    assert_response :success
+    assert_select "article", text: /Long-term allocation/
+    assert_select "article", text: /Other owner trade/, count: 0
+    assert_select "a", "Add trade"
+    assert_select "button[disabled]", "Delete"
+    assert_select "[role='tooltip']", "Delete this instrument's trades before deleting the instrument."
+    assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
   end
 
   test "creates a global instrument" do
@@ -81,5 +96,16 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to instruments_url
+  end
+
+  test "does not delete an instrument with trades" do
+    instrument = instruments(:voo_arcx)
+
+    assert_no_difference("Instrument.count") do
+      delete instrument_url(instrument)
+    end
+
+    assert_redirected_to instrument_url(instrument)
+    assert_match(/dependent trades exist/, flash[:alert])
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_112902) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_120112) do
   create_table "institutions", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
@@ -50,7 +50,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_112902) do
     t.decimal "quantity", precision: 20, scale: 8, null: false
     t.string "side", null: false
     t.date "traded_on", null: false
-    t.integer "unit_price_cents", null: false
+    t.decimal "unit_price", precision: 28, scale: 8, null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["institution_id"], name: "index_trades_on_institution_id"
@@ -60,7 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_112902) do
     t.check_constraint "fees_cents >= 0", name: "trades_fees_nonnegative"
     t.check_constraint "quantity > 0", name: "trades_quantity_positive"
     t.check_constraint "side IN ('buy', 'sell')", name: "trades_side_check"
-    t.check_constraint "unit_price_cents > 0", name: "trades_unit_price_positive"
+    t.check_constraint "unit_price > 0", name: "trades_unit_price_positive"
   end
 
   create_table "users", force: :cascade do |t|

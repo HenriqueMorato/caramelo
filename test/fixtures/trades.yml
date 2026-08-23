@@ -1,0 +1,23 @@
+owner_voo_buy:
+  user: owner
+  instrument: voo_arcx
+  institution: owner_inactive
+  side: buy
+  traded_on: 2026-08-12
+  quantity: 2.5
+  unit_price: 611.20
+  fees_cents: 100
+  currency: USD
+  notes: Long-term allocation.
+
+other_owner_voo_sell:
+  user: one
+  instrument: voo_arcx
+  institution: other_owner
+  side: sell
+  traded_on: 2026-08-13
+  quantity: 1
+  unit_price: 620.00
+  fees_cents: 100
+  currency: USD
+  notes: Other owner trade.

@@ -15,6 +15,7 @@ class InstrumentsTest < ApplicationSystemTestCase
   end
 
   test "shows an empty state without instruments" do
+    Trade.delete_all
     Instrument.delete_all
 
     visit instruments_path
@@ -84,5 +85,19 @@ class InstrumentsTest < ApplicationSystemTestCase
     assert_current_path instruments_path
     assert_text "Instrument was deleted."
     assert_no_text "PETR4"
+  end
+
+  test "explains why an instrument with trades cannot be deleted" do
+    instrument = instruments(:voo_arcx)
+    tooltip_id = "delete_tooltip_instrument_#{instrument.id}"
+
+    visit instrument_path(instrument)
+
+    assert_button "Delete", disabled: true
+    tooltip_trigger = find("[aria-describedby='#{tooltip_id}']")
+    page.execute_script("arguments[0].focus()", tooltip_trigger)
+
+    assert_selector "[aria-describedby='#{tooltip_id}']:focus"
+    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades before deleting the instrument.", visible: true
   end
 end

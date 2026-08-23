@@ -17,13 +17,39 @@
     </div>
   </div>
 
-  <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8">
-    <h2 class="text-lg font-semibold text-slate-950">Trade history</h2>
-    <p class="mt-2 text-sm leading-6 text-slate-600">Trades for this instrument will appear here after trade entry is implemented.</p>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-950">Trade history</h2>
+        <p class="mt-1 text-sm text-slate-600">Purchases and sales recorded for this instrument.</p>
+      </div>
+      <%= link_to "Add trade", new_instrument_trade_path(@instrument), class: "rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>
+    </div>
+
+    <% if @trades.any? %>
+      <div class="space-y-4">
+        <%= render @trades %>
+      </div>
+    <% else %>
+      <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+        <p class="font-medium text-slate-900">No trades for this instrument</p>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Add a purchase or sale to begin its history.</p>
+      </div>
+    <% end %>
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
     <%= link_to "Edit instrument", edit_instrument_path(@instrument), class: "rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>
-    <%= button_to "Delete", @instrument, method: :delete, class: "rounded-xl px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50", data: { turbo_confirm: "Delete #{@instrument.ticker}?" } %>
+    <% if @instrument.trades.exists? %>
+      <% delete_tooltip_id = dom_id(@instrument, :delete_tooltip) %>
+      <span class="group relative inline-flex" tabindex="0" aria-describedby="<%= delete_tooltip_id %>">
+        <button type="button" disabled class="cursor-not-allowed rounded-xl px-5 py-3 text-sm font-semibold text-slate-400">Delete</button>
+        <span id="<%= delete_tooltip_id %>" role="tooltip" class="pointer-events-none invisible absolute bottom-full left-1/2 z-10 mb-2 w-max max-w-64 -translate-x-1/2 rounded-lg bg-slate-950 px-3 py-2 text-center text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
+          Delete this instrument's trades before deleting the instrument.
+        </span>
+      </span>
+    <% else %>
+      <%= button_to "Delete", @instrument, method: :delete, class: "rounded-xl px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50", data: { turbo_confirm: "Delete #{@instrument.ticker}?" } %>
+    <% end %>
   </div>
 </section>

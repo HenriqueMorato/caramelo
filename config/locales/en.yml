@@ -28,6 +28,10 @@
 #       enabled: "ON"
 
 en:
+  activerecord:
+    attributes:
+      trade:
+        fees_cents: Fees
   application:
     name: "LocalFolio"
     description: "Personal portfolio tracking"
