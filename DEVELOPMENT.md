@@ -77,6 +77,20 @@ bin/importmap audit
 GitHub Actions runs lint, Ruby and JavaScript security scans, unit tests, and
 system tests for pull requests and pushes to `main`.
 
+## Money and currencies
+
+Use `money-rails` for monetary model attributes. Persist amounts as integer
+subunits alongside an explicit ISO 4217 currency code: for example,
+`price_cents = 12345` and `price_currency = "BRL"` represent BRL 123.45.
+Declare record-specific currencies with
+`monetize :price_cents, with_model_currency: :price_currency`, and validate
+currency columns with `iso_currency: true` after normalizing them to uppercase.
+
+BRL is the application and migration-helper default, but records may explicitly
+store other supported currencies such as USD. Never use floating-point columns
+for financial values, and never imply that equal subunits in different
+currencies have been converted.
+
 ## Contribution workflow
 
 1. Start from an issue with agreed scope and acceptance criteria.
