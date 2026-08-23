@@ -106,17 +106,36 @@ rendered translation is missing.
 
 ## Money and currencies
 
-Use `money-rails` for monetary model attributes. Persist amounts as integer
-subunits alongside an explicit ISO 4217 currency code: for example,
-`price_cents = 12345` and `price_currency = "BRL"` represent BRL 123.45.
+Use `money-rails` for monetary model attributes. Persist settled amounts such
+as fees as integer subunits alongside an explicit ISO 4217 currency code: for
+example, `fees_cents = 12345` and `currency = "BRL"` represent BRL 123.45.
 Declare record-specific currencies with
-`monetize :price_cents, with_model_currency: :price_currency`, and validate
-currency columns with `iso_currency: true` after normalizing them to uppercase.
+`monetize :fees_cents, with_model_currency: :currency`, and validate currency
+columns with `iso_currency: true` after normalizing them to uppercase.
+
+Trade quantities and unit prices are precise decimals, never floats. Unit
+prices support eight decimal places because an asset price may need more
+precision than its currency's smallest subunit. Calculated totals return
+`Money` in the trade's currency.
 
 BRL is the application and migration-helper default, but records may explicitly
 store other supported currencies such as USD. Never use floating-point columns
 for financial values, and never imply that equal subunits in different
 currencies have been converted.
+
+## Trade Ledger model conventions
+
+- Resolve the single owner through `User.owner`. Scope institutions and trades
+  through that owner; never accept a request-supplied user ID.
+- Instruments form a global catalog. Identify a listing by its normalized
+  exchange and ticker, and derive a trade's currency from its instrument.
+- Institutions are optional on trades. Only active institutions appear for new
+  selections, but inactive institutions remain visible on historical trades.
+- Keep trades durable. Restrict deletion of referenced institutions and
+  instruments, and prevent an instrument's currency from changing after its
+  first trade.
+- Keep current market quotes out of the ledger. They are replaceable cache data
+  until a later milestone explicitly models daily history.
 
 ## Contribution workflow
 
@@ -131,10 +150,10 @@ currencies have been converted.
 5. Run relevant local checks and wait for every required GitHub check to pass
    before merging.
 
-Preserve unrelated changes. Foundation changes must not introduce financial
-domain migrations or behavior.
+Preserve unrelated changes. Keep changes within their issue's agreed milestone
+and acceptance criteria.
 
-## Foundation acceptance
+## Trade Ledger acceptance
 
 Run the complete local acceptance pass:
 
@@ -154,7 +173,9 @@ docker exec local_folio bin/rails runner \
   'abort "owner mismatch" unless User.owner.email_address == Rails.application.config.x.local_folio.owner_email; puts "owner: ok"'
 ```
 
-The production image must boot with only its local `SECRET_KEY_BASE`; it does
-not require a Rails master key, market-data credentials, or authentication
-credentials. The final acceptance requirement is a green GitHub Actions run on
-the Foundation pull request.
+Create an institution, instrument, and trade through the production interface,
+restart the container with the same `local_folio_storage` volume, and confirm
+the trade remains available. The production image must boot with only its local
+`SECRET_KEY_BASE`; it does not require a Rails master key, market-data
+credentials, or authentication credentials. The final acceptance requirement
+is a green GitHub Actions run on the Trade Ledger pull request.
