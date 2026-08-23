@@ -31,14 +31,14 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "cannot assign another owner's institution" do
-    assert_no_difference("Trade.count") do
+  test "clears another owner's institution" do
+    assert_difference("Trade.count") do
       post trades_url, params: {
         trade: valid_trade_params.merge(institution_id: institutions(:other_owner).id)
       }
     end
 
-    assert_response :not_found
+    assert_nil Trade.order(:id).last.institution_id
   end
 
   test "new global trade offers global instruments and active owner institutions" do
@@ -73,6 +73,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "select[name='trade[instrument_id]']", count: 0
+    assert_select "input[type='hidden'][name='trade[instrument_id]'][value='#{instrument.id}']"
     assert_select "input[name='trade[currency]'][value='USD'][disabled]"
     assert_select "p", text: /VOO/
   end

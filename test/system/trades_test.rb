@@ -54,23 +54,6 @@ class TradesTest < ApplicationSystemTestCase
     assert_field "Quantity", with: "1.25"
   end
 
-  test "selecting an instrument defaults to its most recently used active institution" do
-    owner = User.owner
-    btg = owner.institutions.create!(name: "BTG Pactual")
-    petr_trade = trades(:owner_voo_buy).dup
-    petr_trade.assign_attributes(instrument: instruments(:petr4_bvmf), institution: institutions(:owner_xp), currency: "BRL", traded_on: Date.new(2026, 8, 20))
-    petr_trade.save!
-    recent_trade = trades(:owner_voo_buy).dup
-    recent_trade.assign_attributes(institution: btg, traded_on: Date.new(2026, 8, 21))
-    recent_trade.save!
-
-    visit new_trade_path
-
-    assert_select "Institution (optional)", selected: "BTG Pactual"
-    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
-    assert_select "Institution (optional)", selected: "XP Investimentos"
-  end
-
   test "creates a trade from an instrument context" do
     instrument = instruments(:petr4_bvmf)
 
@@ -79,6 +62,7 @@ class TradesTest < ApplicationSystemTestCase
 
     assert_text "PETR4 · BVMF"
     assert_no_select "Instrument"
+    assert_field "trade[instrument_id]", type: "hidden", with: instrument.id, visible: false
     assert_field "Currency", with: "BRL", disabled: true
     select "Buy", from: "Side"
     fill_in "Trade date", with: "2026-08-21"

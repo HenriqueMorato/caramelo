@@ -67,26 +67,26 @@ class TradesController < ApplicationController
     @institutions = owner.institutions.active
     @institutions = @institutions.or(owner.institutions.where(id: @trade.institution_id)) if @trade&.persisted?
     @institutions = @institutions.alphabetical
-    @recent_institution_ids_by_instrument = recent_institution_ids_by_instrument
   end
 
   def assign_trade_attributes
-    attributes = trade_params.to_h.symbolize_keys
-    submitted_instrument_id = attributes.delete(:instrument_id)
-    instrument_id = @context_instrument&.id || submitted_instrument_id
-    institution_id = attributes.delete(:institution_id)
-
-    @trade.instrument = Instrument.find_by(id: instrument_id)
-    @trade.currency = @trade.instrument&.currency
-    @trade.institution = institution_id.present? ? available_institutions.find(institution_id) : nil
+    attributes = trade_params
     fees = attributes.delete(:fees)
     @trade.assign_attributes(attributes)
+    @trade.instrument = @context_instrument if @context_instrument
+    @trade.currency = @trade.instrument&.currency
+    @trade.institution_id = nil unless institution_available?
     assign_money(:fees, fees.presence || "0")
   end
 
   def available_institutions
     scope = owner.institutions.active
-    @trade.persisted? ? scope.or(owner.institutions.where(id: @trade.institution_id)) : scope
+    previous_institution_id = @trade.attribute_in_database("institution_id")
+    @trade.persisted? ? scope.or(owner.institutions.where(id: previous_institution_id)) : scope
+  end
+
+  def institution_available?
+    @trade.institution_id.blank? || available_institutions.exists?(id: @trade.institution_id)
   end
 
   def trade_params
@@ -94,21 +94,11 @@ class TradesController < ApplicationController
   end
 
   def default_institution
-    recent_trade = recent_trade_with_active_institution(instrument: @context_instrument)
-    recent_trade ||= recent_trade_with_active_institution
-    recent_trade&.institution
+    recent_trade_with_active_institution&.institution
   end
 
-  def recent_trade_with_active_institution(instrument: nil)
-    scope = owner.trades.joins(:institution).merge(Institution.active)
-    scope = scope.where(instrument: instrument) if instrument
-    scope.includes(:institution).reverse_chronological.first
-  end
-
-  def recent_institution_ids_by_instrument
-    owner.trades.joins(:institution).merge(Institution.active).reverse_chronological.pluck(:instrument_id, :institution_id).each_with_object({}) do |(instrument_id, institution_id), institutions|
-      institutions[instrument_id] ||= institution_id
-    end
+  def recent_trade_with_active_institution
+    owner.trades.joins(:institution).merge(Institution.active).includes(:institution).reverse_chronological.first
   end
 
   def assign_money(attribute, value)
