@@ -165,6 +165,17 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='trade[quantity]'][value='0']"
   end
 
+  test "preserves an ungrouped high unit price when another validation fails" do
+    assert_no_difference("Trade.count") do
+      post trades_url, params: {
+        trade: valid_trade_params.merge(quantity: "0", unit_price: "1234.56789")
+      }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "input[name='trade[unit_price]'][value='1234.56789']"
+  end
+
   test "renders an error when the global instrument is missing" do
     assert_no_difference("Trade.count") do
       post trades_url, params: {

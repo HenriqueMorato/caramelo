@@ -67,7 +67,7 @@ class TradesController < ApplicationController
     @institutions = owner.institutions.active
     @institutions = @institutions.or(owner.institutions.where(id: @trade.institution_id)) if @trade&.persisted?
     @institutions = @institutions.alphabetical
-    @last_institution_id_by_instrument = last_institution_id_by_instrument unless @context_instrument
+    @last_institution_id_by_instrument = last_institution_id_by_instrument
   end
 
   def assign_trade_attributes
@@ -107,8 +107,10 @@ class TradesController < ApplicationController
   end
 
   def last_institution_id_by_instrument
-    latest_trade_ids = owner.trades.joins(:institution).merge(Institution.active).group(:instrument_id).select("MAX(trades.id)")
+    # we already know the institution based on default_institution
+    return if @context_instrument
 
+    latest_trade_ids = owner.trades.joins(:institution).merge(Institution.active).group(:instrument_id).select("MAX(trades.id)")
     owner.trades.where(id: latest_trade_ids).pluck(:instrument_id, :institution_id).to_h
   end
 

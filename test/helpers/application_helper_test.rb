@@ -14,5 +14,12 @@ class ApplicationHelperTest < ActionView::TestCase
 
     trade.unit_price = BigDecimal("0.12345678")
     assert_equal "$0.12345678", format_unit_price(trade)
+
+    trade.unit_price = BigDecimal("1234.56")
+    assert_equal "$1,234.56", format_unit_price(trade)
+  end
+
+  test "formats unit price inputs without grouping delimiters" do
+    assert_equal "1234.56789", format_unit_price_input(BigDecimal("1234.56789"))
   end
 end

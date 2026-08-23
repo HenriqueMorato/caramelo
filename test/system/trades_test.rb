@@ -23,6 +23,26 @@ class TradesTest < ApplicationSystemTestCase
     assert_link "Add trade"
   end
 
+  test "shows populated and empty transaction states on desktop" do
+    page.current_window.resize_to(1280, 900)
+    trade = trades(:owner_voo_buy)
+
+    visit transactions_path
+
+    within "#trade_#{trade.id}" do
+      assert_text "VOO"
+      assert_text "Banco do Brasil"
+      assert_link "Edit"
+      assert_button "Delete"
+    end
+
+    Trade.where(user: User.owner).delete_all
+    visit transactions_path
+
+    assert_text "No trades yet"
+    assert_link "Add trade"
+  end
+
   test "creates a trade from the global flow" do
     visit new_trade_path
 
@@ -116,6 +136,15 @@ class TradesTest < ApplicationSystemTestCase
     assert_text "1 × $620.00"
     assert_text "Reduced position"
     assert_text "Banco do Brasil"
+  end
+
+  test "edits a trade with a high precise unit price" do
+    trade = trades(:owner_voo_buy)
+    trade.update!(unit_price: BigDecimal("1234.56789"))
+
+    visit edit_trade_path(trade)
+
+    assert_field "Unit price", with: "1234.56789"
   end
 
   test "shows validation errors and preserves values" do
