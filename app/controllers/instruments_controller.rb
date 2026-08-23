@@ -4,18 +4,18 @@ class InstrumentsController < ApplicationController
   before_action :set_instrument, only: %i[ show edit update destroy ]
 
   def index
-    @instruments = owner.instruments.alphabetical
+    @instruments = Instrument.alphabetical
   end
 
   def show
   end
 
   def new
-    @instrument = owner.instruments.new
+    @instrument = Instrument.new
   end
 
   def create
-    @instrument = owner.instruments.new(instrument_params)
+    @instrument = Instrument.new(instrument_params)
 
     if @instrument.save
       redirect_to @instrument, notice: "Instrument was created."
@@ -45,15 +45,11 @@ class InstrumentsController < ApplicationController
 
   private
 
-  def owner
-    @owner ||= User.owner
-  end
-
   def set_instrument
-    @instrument = owner.instruments.find(params.expect(:id))
+    @instrument = Instrument.find(params.expect(:id))
   end
 
   def instrument_params
-    params.expect(instrument: %i[ticker name currency])
+    params.expect(instrument: %i[ticker exchange name currency])
   end
 end

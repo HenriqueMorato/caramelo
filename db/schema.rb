@@ -24,11 +24,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_105305) do
   create_table "instruments", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "currency", default: "BRL", null: false
+    t.string "exchange", default: "BVMF", null: false, collation: "NOCASE"
     t.string "name", null: false
     t.string "ticker", null: false, collation: "NOCASE"
     t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
-    t.index ["user_id", "ticker"], name: "index_instruments_on_user_id_and_ticker", unique: true
+    t.index ["exchange", "ticker"], name: "index_instruments_on_exchange_and_ticker", unique: true
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -49,6 +49,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_105305) do
   end
 
   add_foreign_key "institutions", "users"
-  add_foreign_key "instruments", "users"
   add_foreign_key "sessions", "users"
 end
