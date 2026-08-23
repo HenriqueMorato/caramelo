@@ -54,7 +54,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='trade[quantity]'][step='any']"
   end
 
-  test "new trade defaults to the most recently used active institution" do
+  test "new global trade does not default to an institution" do
     recent_trade = @trade.dup
     recent_trade.institution = institutions(:owner_xp)
     recent_trade.traded_on = Date.new(2026, 8, 20)
@@ -63,11 +63,30 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     get new_trade_url
 
     assert_response :success
-    assert_select "option[value='#{institutions(:owner_xp).id}'][selected]"
+    assert_select "select[name='trade[institution_id]'] option[selected]", count: 0
+  end
+
+  test "new global trade exposes each instrument's last active institution" do
+    recent_trade = @trade.dup
+    recent_trade.assign_attributes(instrument: instruments(:petr4_bvmf), institution: institutions(:owner_xp), currency: "BRL")
+    recent_trade.save!
+
+    get new_trade_url
+
+    assert_response :success
+    assert_select "option[value='#{instruments(:petr4_bvmf).id}'][data-last-institution-id='#{institutions(:owner_xp).id}']"
+    assert_select "option[value='#{instruments(:voo_arcx).id}']:not([data-last-institution-id])"
   end
 
   test "new contextual trade fixes the instrument and its currency" do
     instrument = instruments(:voo_arcx)
+    previous_trade = @trade.dup
+    previous_trade.institution = institutions(:owner_xp)
+    previous_trade.save!
+    latest_institution = User.owner.institutions.create!(name: "BTG Pactual")
+    latest_overall_trade = @trade.dup
+    latest_overall_trade.assign_attributes(instrument: instruments(:petr4_bvmf), institution: latest_institution, currency: "BRL")
+    latest_overall_trade.save!
 
     get new_instrument_trade_url(instrument)
 
@@ -75,7 +94,20 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name='trade[instrument_id]']", count: 0
     assert_select "input[type='hidden'][name='trade[instrument_id]'][value='#{instrument.id}']"
     assert_select "input[name='trade[currency]'][value='USD'][disabled]"
+    assert_select "option[value='#{institutions(:owner_xp).id}'][selected]"
+    assert_select "option[value='#{latest_institution.id}']:not([selected])"
     assert_select "p", text: /VOO/
+  end
+
+  test "new contextual trade does not fall back to another instrument's institution" do
+    trade = @trade.dup
+    trade.assign_attributes(instrument: instruments(:petr4_bvmf), institution: institutions(:owner_xp), currency: "BRL")
+    trade.save!
+
+    get new_instrument_trade_url(instruments(:voo_arcx))
+
+    assert_response :success
+    assert_select "select[name='trade[institution_id]'] option[selected]", count: 0
   end
 
   test "creates a global trade for the owner and derives currency" do

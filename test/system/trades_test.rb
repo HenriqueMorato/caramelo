@@ -27,6 +27,7 @@ class TradesTest < ApplicationSystemTestCase
     visit new_trade_path
 
     assert_select "Side *", selected: "Buy"
+    assert_select "Institution (optional)", selected: "No institution"
     select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
     assert_field "Currency", with: "BRL", disabled: true
     select "Buy", from: "Side"
@@ -54,8 +55,25 @@ class TradesTest < ApplicationSystemTestCase
     assert_field "Quantity", with: "1.25"
   end
 
+  test "selecting an instrument remembers only that instrument's last institution" do
+    remembered_trade = trades(:owner_voo_buy).dup
+    remembered_trade.assign_attributes(instrument: instruments(:petr4_bvmf), institution: institutions(:owner_xp), currency: "BRL")
+    remembered_trade.save!
+
+    visit new_trade_path
+
+    assert_select "Institution (optional)", selected: "No institution"
+    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    assert_select "Institution (optional)", selected: "XP Investimentos"
+    select "VOO · ARCX — Vanguard S&P 500 ETF", from: "Instrument"
+    assert_select "Institution (optional)", selected: "No institution"
+  end
+
   test "creates a trade from an instrument context" do
     instrument = instruments(:petr4_bvmf)
+    remembered_trade = trades(:owner_voo_buy).dup
+    remembered_trade.assign_attributes(instrument: instrument, institution: institutions(:owner_xp), currency: "BRL")
+    remembered_trade.save!
 
     visit instrument_path(instrument)
     click_on "Add trade"
@@ -64,6 +82,7 @@ class TradesTest < ApplicationSystemTestCase
     assert_no_select "Instrument"
     assert_field "trade[instrument_id]", type: "hidden", with: instrument.id, visible: false
     assert_field "Currency", with: "BRL", disabled: true
+    assert_select "Institution (optional)", selected: "XP Investimentos"
     select "Buy", from: "Side"
     fill_in "Trade date", with: "2026-08-21"
     fill_in "Quantity", with: "5"

@@ -67,6 +67,7 @@ class TradesController < ApplicationController
     @institutions = owner.institutions.active
     @institutions = @institutions.or(owner.institutions.where(id: @trade.institution_id)) if @trade&.persisted?
     @institutions = @institutions.alphabetical
+    @last_institution_id_by_instrument = last_institution_id_by_instrument
   end
 
   def assign_trade_attributes
@@ -94,11 +95,21 @@ class TradesController < ApplicationController
   end
 
   def default_institution
-    recent_trade_with_active_institution&.institution
+    return unless @context_instrument
+
+    recent_trade_with_active_institution(instrument: @context_instrument)&.institution
   end
 
-  def recent_trade_with_active_institution
-    owner.trades.joins(:institution).merge(Institution.active).includes(:institution).reverse_chronological.first
+  def recent_trade_with_active_institution(instrument: nil)
+    scope = owner.trades.joins(:institution).merge(Institution.active)
+    scope = scope.where(instrument: instrument) if instrument
+    scope.includes(:institution).order(id: :desc).first
+  end
+
+  def last_institution_id_by_instrument
+    latest_trade_ids = owner.trades.joins(:institution).merge(Institution.active).group(:instrument_id).select("MAX(trades.id)")
+
+    owner.trades.where(id: latest_trade_ids).pluck(:instrument_id, :institution_id).to_h
   end
 
   def assign_money(attribute, value)
