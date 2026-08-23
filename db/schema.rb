@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_105305) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_112902) do
   create_table "institutions", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
@@ -40,6 +40,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_105305) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "trades", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", limit: 3, null: false
+    t.integer "fees_cents", default: 0, null: false
+    t.integer "institution_id"
+    t.integer "instrument_id", null: false
+    t.text "notes"
+    t.decimal "quantity", precision: 20, scale: 8, null: false
+    t.string "side", null: false
+    t.date "traded_on", null: false
+    t.integer "unit_price_cents", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["institution_id"], name: "index_trades_on_institution_id"
+    t.index ["instrument_id"], name: "index_trades_on_instrument_id"
+    t.index ["user_id", "instrument_id", "traded_on"], name: "index_trades_on_user_id_and_instrument_id_and_traded_on"
+    t.index ["user_id", "traded_on"], name: "index_trades_on_user_id_and_traded_on"
+    t.check_constraint "fees_cents >= 0", name: "trades_fees_nonnegative"
+    t.check_constraint "quantity > 0", name: "trades_quantity_positive"
+    t.check_constraint "side IN ('buy', 'sell')", name: "trades_side_check"
+    t.check_constraint "unit_price_cents > 0", name: "trades_unit_price_positive"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email_address", null: false
@@ -50,4 +73,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_105305) do
 
   add_foreign_key "institutions", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "trades", "institutions"
+  add_foreign_key "trades", "instruments"
+  add_foreign_key "trades", "users"
 end
