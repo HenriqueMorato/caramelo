@@ -24,7 +24,7 @@
   <% else %>
     <div>
       <%= form.label :instrument_id, "Instrument *", class: "block text-sm font-semibold text-slate-900" %>
-      <% instrument_options = @instruments.map { |instrument| [ "#{instrument.ticker} · #{instrument.exchange} — #{instrument.name}", instrument.id, { data: { currency: instrument.currency, subunit: Money::Currency.find(instrument.currency).subunit_to_unit } } ] } %>
+      <% instrument_options = @instruments.map { |instrument| [ "#{instrument.ticker} · #{instrument.exchange} — #{instrument.name}", instrument.id, { data: { currency: instrument.currency, subunit: Money::Currency.find(instrument.currency).subunit_to_unit, institution_id: @recent_institution_ids_by_instrument[instrument.id] || trade.institution_id } } ] } %>
       <%= form.select :instrument_id,
                       options_for_select(instrument_options, trade.instrument_id),
                       { include_blank: "Select an instrument" },
@@ -76,7 +76,7 @@
 
   <div>
     <%= form.label :institution_id, "Institution (optional)", class: "block text-sm font-semibold text-slate-900" %>
-    <%= form.collection_select :institution_id, @institutions, :id, :name, { include_blank: "No institution" }, class: "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 shadow-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200" %>
+    <%= form.collection_select :institution_id, @institutions, :id, :name, { include_blank: "No institution" }, class: "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 shadow-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200", data: { trade_form_target: "institution" } %>
   </div>
 
   <div>

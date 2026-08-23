@@ -86,4 +86,15 @@ class InstrumentsTest < ApplicationSystemTestCase
     assert_text "Instrument was deleted."
     assert_no_text "PETR4"
   end
+
+  test "explains why an instrument with trades cannot be deleted" do
+    instrument = instruments(:voo_arcx)
+    tooltip_id = "delete_tooltip_instrument_#{instrument.id}"
+
+    visit instrument_path(instrument)
+
+    assert_button "Delete", disabled: true
+    find("[aria-describedby='#{tooltip_id}']").hover
+    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades before deleting the instrument.", visible: true
+  end
 end
