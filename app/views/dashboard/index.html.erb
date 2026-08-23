@@ -1,26 +1,26 @@
-<% content_for :title, "Dashboard · #{t("application.name")}" %>
+<% content_for :title, t(".Page title", application: t("LocalFolio")) %>
 
 <section class="space-y-8">
   <div class="max-w-3xl space-y-3">
-    <p class="text-sm font-semibold uppercase tracking-wider text-emerald-700">Single-user workspace</p>
-    <h1 class="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">Dashboard</h1>
+    <p class="text-sm font-semibold uppercase tracking-wider text-emerald-700"><%= t(".Single-user workspace") %></p>
+    <h1 class="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl"><%= t("Dashboard") %></h1>
     <p class="text-lg leading-8 text-slate-600">
-      Your portfolio overview will live here, bringing holdings, balances, performance, and recent activity together.
+      <%= t(".Portfolio introduction") %>
     </p>
   </div>
 
   <div class="grid gap-5 md:grid-cols-2">
     <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-semibold text-slate-950">Portfolio overview</h2>
+      <h2 class="text-lg font-semibold text-slate-950"><%= t(".Portfolio overview") %></h2>
       <p class="mt-2 leading-7 text-slate-600">
-        Holdings, balances, and BRL-denominated performance will appear here in a future milestone.
+        <%= t(".Portfolio overview description") %>
       </p>
     </article>
 
     <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-semibold text-slate-950">Recent activity</h2>
+      <h2 class="text-lg font-semibold text-slate-950"><%= t(".Recent activity") %></h2>
       <p class="mt-2 leading-7 text-slate-600">
-        Your latest trades will be summarized here in a future milestone.
+        <%= t(".Recent activity description") %>
       </p>
     </article>
   </div>

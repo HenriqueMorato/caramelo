@@ -19,6 +19,6 @@ class Instrument < ApplicationRecord
   def currency_unchanged_when_traded
     return unless persisted? && trades.exists?
 
-    errors.add(:currency, "cannot change while trades exist")
+    errors.add(:currency, :cannot_change_with_trades)
   end
 end

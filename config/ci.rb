@@ -4,6 +4,7 @@ CI.run do
   step "Setup", "bin/setup --skip-server"
 
   step "Style: Ruby", "bin/rubocop"
+  step "Translations: I18n", "bin/i18n-tasks health"
 
   step "Security: Gem audit", "bin/bundler-audit"
   step "Security: Importmap vulnerability audit", "bin/importmap audit"

@@ -77,6 +77,33 @@ bin/importmap audit
 GitHub Actions runs lint, Ruby and JavaScript security scans, unit tests, and
 system tests for pull requests and pushes to `main`.
 
+## Internationalization
+
+English translations are split by concern under `config/locales/en/`; Rails
+loads locale YAML files recursively. Keep generic reusable strings under the
+locale root and use absolute lookups such as `t("actions.Cancel")`. Use lazy
+lookup for view-specific copy, with concise human-readable keys such as
+`t(".No trades yet")` rather than abstract labels.
+
+Use `activerecord.models` and `activerecord.attributes` for model and form
+names. Interpolate models, records, and other changing values instead of
+assembling translated fragments. Ordinary translations remain escaped; only a
+translation that intentionally contains markup may use an `_html` suffix or an
+`html` key.
+
+Check locale health while editing translations:
+
+```sh
+bin/i18n-tasks health
+bin/i18n-tasks missing
+bin/i18n-tasks unused
+bin/i18n-tasks normalize
+```
+
+The health check rejects missing, unused, inconsistent, or unnormalized keys
+and runs as part of `bin/ci`. Development and test raise immediately when a
+rendered translation is missing.
+
 ## Money and currencies
 
 Use `money-rails` for monetary model attributes. Persist amounts as integer

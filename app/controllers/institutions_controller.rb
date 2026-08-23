@@ -18,7 +18,7 @@ class InstitutionsController < ApplicationController
     @institution = owner.institutions.new(institution_params)
 
     if @institution.save
-      redirect_to @institution, notice: "Institution was created."
+      redirect_to @institution, notice: t("notices.Created", model: Institution.model_name.human)
     else
       render :new, status: :unprocessable_content
     end
@@ -29,7 +29,7 @@ class InstitutionsController < ApplicationController
 
   def update
     if @institution.update(institution_params)
-      redirect_to @institution, notice: "Institution was updated.", status: :see_other
+      redirect_to @institution, notice: t("notices.Updated", model: Institution.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
     end
@@ -37,7 +37,7 @@ class InstitutionsController < ApplicationController
 
   def destroy
     if @institution.destroy
-      redirect_to institutions_path, notice: "Institution was deleted.", status: :see_other
+      redirect_to institutions_path, notice: t("notices.Deleted", model: Institution.model_name.human), status: :see_other
     else
       redirect_to @institution, alert: @institution.errors.full_messages.to_sentence, status: :see_other
     end

@@ -1,0 +1,19 @@
+base_locale: en
+locales: [en]
+
+data:
+  read:
+    - config/locales/%{locale}/**/*.yml
+
+search:
+  paths:
+    - app/
+  relative_roots:
+    - app/views
+
+# Rails resolves these keys through model/form/error conventions rather than
+# explicit translation calls. Their behavior is covered by application tests.
+ignore_unused:
+  - activerecord.attributes.*
+  - activerecord.errors.*
+  - activerecord.models.*

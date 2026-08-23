@@ -1,0 +1,14 @@
+---
+en:
+  dashboard:
+    index:
+      Page title: Dashboard · %{application}
+      Portfolio introduction: Your portfolio overview will live here, bringing holdings,
+        balances, performance, and recent activity together.
+      Portfolio overview: Portfolio overview
+      Portfolio overview description: Holdings, balances, and BRL-denominated performance
+        will appear here in a future milestone.
+      Recent activity: Recent activity
+      Recent activity description: Your latest trades will be summarized here in a
+        future milestone.
+      Single-user workspace: Single-user workspace

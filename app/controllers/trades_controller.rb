@@ -24,7 +24,7 @@ class TradesController < ApplicationController
     assign_trade_attributes
 
     if @trade.save
-      redirect_to transactions_path, notice: "Trade was created."
+      redirect_to transactions_path, notice: t("notices.Created", model: Trade.model_name.human)
     else
       render :new, status: :unprocessable_content
     end
@@ -37,7 +37,7 @@ class TradesController < ApplicationController
     assign_trade_attributes
 
     if @trade.save
-      redirect_to transactions_path, notice: "Trade was updated.", status: :see_other
+      redirect_to transactions_path, notice: t("notices.Updated", model: Trade.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
     end
@@ -45,7 +45,7 @@ class TradesController < ApplicationController
 
   def destroy
     @trade.destroy!
-    redirect_to transactions_path, notice: "Trade was deleted.", status: :see_other
+    redirect_to transactions_path, notice: t("notices.Deleted", model: Trade.model_name.human), status: :see_other
   end
 
   private

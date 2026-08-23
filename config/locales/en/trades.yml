@@ -1,0 +1,20 @@
+---
+en:
+  trades:
+    edit:
+      Page title: Edit trade · %{application}
+    form:
+      Derived currency: Derived from the selected instrument.
+      Institution optional: Institution (optional)
+    index:
+      Empty state: Record your first purchase or sale to start the trade history.
+      Introduction: Review executed purchases and sales across your portfolio.
+      No trades yet: No trades yet
+      Page title: Transactions · %{application}
+    new:
+      Introduction: Record an executed purchase or sale.
+      Page title: New trade · %{application}
+    trade:
+      Currency value: 'Currency: %{currency}'
+      Fees value: 'Fees: %{fees}'
+      Institution value: 'Institution: %{institution}'

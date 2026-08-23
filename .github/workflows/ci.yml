@@ -68,6 +68,9 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+      - name: Check translation health
+        run: bin/i18n-tasks health
+
   test:
     runs-on: ubuntu-latest
 

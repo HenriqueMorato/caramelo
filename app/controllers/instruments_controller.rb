@@ -19,7 +19,7 @@ class InstrumentsController < ApplicationController
     @instrument = Instrument.new(instrument_params)
 
     if @instrument.save
-      redirect_to @instrument, notice: "Instrument was created."
+      redirect_to @instrument, notice: t("notices.Created", model: Instrument.model_name.human)
     else
       render :new, status: :unprocessable_content
     end
@@ -30,7 +30,7 @@ class InstrumentsController < ApplicationController
 
   def update
     if @instrument.update(instrument_params)
-      redirect_to @instrument, notice: "Instrument was updated.", status: :see_other
+      redirect_to @instrument, notice: t("notices.Updated", model: Instrument.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
     end
@@ -38,7 +38,7 @@ class InstrumentsController < ApplicationController
 
   def destroy
     if @instrument.destroy
-      redirect_to instruments_path, notice: "Instrument was deleted.", status: :see_other
+      redirect_to instruments_path, notice: t("notices.Deleted", model: Instrument.model_name.human), status: :see_other
     else
       redirect_to @instrument, alert: @instrument.errors.full_messages.to_sentence, status: :see_other
     end
