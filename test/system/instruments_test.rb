@@ -94,7 +94,10 @@ class InstrumentsTest < ApplicationSystemTestCase
     visit instrument_path(instrument)
 
     assert_button "Delete", disabled: true
-    find("[aria-describedby='#{tooltip_id}']").hover
+    tooltip_trigger = find("[aria-describedby='#{tooltip_id}']")
+    page.execute_script("arguments[0].focus()", tooltip_trigger)
+
+    assert_selector "[aria-describedby='#{tooltip_id}']:focus"
     assert_selector "##{tooltip_id}", text: "Delete this instrument's trades before deleting the instrument.", visible: true
   end
 end
