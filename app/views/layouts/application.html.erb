@@ -30,10 +30,11 @@
           <%= t("application.name") %>
         <% end %>
 
-        <nav aria-label="Primary navigation" class="flex items-center gap-2">
+        <nav aria-label="Primary navigation" class="flex flex-wrap items-center gap-2">
           <%= link_to "Dashboard", root_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
           <%= link_to "Transactions", transactions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
           <%= link_to "Institutions", institutions_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
+          <%= link_to "Instruments", instruments_path, class: "rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950" %>
         </nav>
       </div>
     </header>

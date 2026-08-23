@@ -1,0 +1,13 @@
+<% content_for :title, "Edit #{@instrument.ticker} · #{t("application.name")}" %>
+
+<section class="mx-auto max-w-2xl space-y-8">
+  <div class="space-y-3">
+    <p class="text-sm font-semibold uppercase tracking-wider text-emerald-700">Portfolio catalog</p>
+    <h1 class="text-4xl font-bold tracking-tight text-slate-950">Edit instrument</h1>
+    <p class="text-lg leading-8 text-slate-600">Update the instrument details before recording or reviewing trades.</p>
+  </div>
+
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <%= render "form", instrument: @instrument %>
+  </div>
+</section>
