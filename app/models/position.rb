@@ -1,6 +1,12 @@
 class Position
   ANALYTICAL_DECIMAL_PRECISION = 48
 
+  OverviewEntry = Data.define(:instrument, :position, :error) do
+    def invalid?
+      error.present?
+    end
+  end
+
   class InvalidLongOnlyData < StandardError
     attr_reader :trade
 
@@ -17,6 +23,16 @@ class Position
     trades = User.owner.trades.where(instrument:).order(:traded_on, :id).to_a
 
     new(instrument:, trades:)
+  end
+
+  def self.overview
+    trades_by_instrument = User.owner.trades.includes(:instrument).order(:traded_on, :id).group_by(&:instrument)
+
+    trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
+      OverviewEntry.new(instrument:, position: new(instrument:, trades:), error: nil)
+    rescue InvalidLongOnlyData => error
+      OverviewEntry.new(instrument:, position: nil, error:)
+    end
   end
 
   def open?

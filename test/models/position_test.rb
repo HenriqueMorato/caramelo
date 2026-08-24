@@ -1,6 +1,44 @@
 require "test_helper"
 
 class PositionTest < ActiveSupport::TestCase
+  test "builds an alphabetical overview for instruments traded by the configured owner" do
+    Trade.where(user: users(:owner)).delete_all
+    later_instrument = create_instrument(ticker: "ZZZZ", exchange: "XNAS", currency: "USD")
+    earlier_instrument = create_instrument(ticker: "AAAA", exchange: "BVMF", currency: "BRL")
+    create_trade(instrument: later_instrument, quantity: 2)
+    create_trade(instrument: earlier_instrument, quantity: 3)
+    create_trade(instrument: create_instrument(ticker: "OTHR"), user: users(:one), quantity: 100)
+
+    entries = Position.overview
+
+    assert_equal [ earlier_instrument, later_instrument ], entries.map(&:instrument)
+    assert_equal [ BigDecimal("3"), BigDecimal("2") ], entries.map { |entry| entry.position.quantity }
+    assert entries.none?(&:invalid?)
+  end
+
+  test "loads overview trades and instruments in a bounded number of queries" do
+    create_trade(instrument: create_instrument(ticker: "MORE"))
+
+    assert_queries_count(3) { Position.overview }
+  end
+
+  test "keeps invalid instruments visible in the overview without hiding valid positions" do
+    valid_instrument = create_instrument(ticker: "GOOD")
+    invalid_instrument = create_instrument(ticker: "BAD1")
+    create_trade(instrument: valid_instrument)
+    invalid_trade = create_trade(instrument: invalid_instrument, side: :sell)
+
+    entries = Position.overview
+    valid_entry = entries.find { |entry| entry.instrument == valid_instrument }
+    invalid_entry = entries.find { |entry| entry.instrument == invalid_instrument }
+
+    assert_equal BigDecimal("1"), valid_entry.position.quantity
+    assert_not_predicate valid_entry, :invalid?
+    assert_predicate invalid_entry, :invalid?
+    assert_equal invalid_trade, invalid_entry.error.trade
+    assert_nil invalid_entry.position
+  end
+
   test "calculates one instrument for the configured owner in trade chronology" do
     instrument = create_instrument
     sell = create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2), quantity: 1)

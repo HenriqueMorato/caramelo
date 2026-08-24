@@ -8,6 +8,10 @@ module ApplicationHelper
     "#{currency.symbol}#{format_decimal(trade.unit_price, minimum_precision: 2, maximum_precision: 8)}"
   end
 
+  def format_currency_amount(amount, currency)
+    Money.from_amount(amount, currency).format
+  end
+
   def format_unit_price_input(unit_price)
     format_decimal(unit_price, minimum_precision: 2, maximum_precision: 8, delimiter: false)
   end
