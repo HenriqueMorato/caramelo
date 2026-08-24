@@ -8,8 +8,8 @@ class Position
     end
   end
 
-  attr_reader :instrument, :quantity, :cost_basis, :average_unit_cost,
-    :first_trade_date, :last_trade_date
+  attr_reader :instrument, :quantity, :analytical_cost_basis_amount, :cost_basis,
+    :average_unit_cost, :first_trade_date, :last_trade_date
 
   def self.for(instrument:)
     trades = User.owner.trades.where(instrument:).order(:traded_on, :id).to_a
@@ -43,7 +43,7 @@ class Position
     trades.each do |trade|
       if trade.buy?
         @quantity += trade.quantity
-        cost_basis_amount += trade.unit_price * trade.quantity + trade.fees.to_d
+        cost_basis_amount += trade.total_amount
       else
         remaining_quantity = @quantity - trade.quantity
         raise InvalidLongOnlyData, trade if remaining_quantity.negative?
@@ -53,7 +53,8 @@ class Position
       end
     end
 
-    @cost_basis = Money.from_amount(cost_basis_amount, instrument.currency)
+    @analytical_cost_basis_amount = cost_basis_amount
+    @cost_basis = Money.from_amount(analytical_cost_basis_amount, instrument.currency)
     @average_unit_cost = calculate_average_unit_cost(cost_basis_amount)
   end
 
