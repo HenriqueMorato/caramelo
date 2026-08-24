@@ -14,11 +14,15 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2", text: instruments(:voo_arcx).ticker
   end
 
-  test "shows an instrument with its future trade history area" do
+  test "shows an instrument without trades as a zero-position state" do
     get instrument_url(@instrument)
 
     assert_response :success
     assert_select "h1", @instrument.ticker
+    assert_select "h2", "Current position"
+    assert_select "span", "No trades"
+    assert_select "p", "Record a trade to calculate this position."
+    assert_select "a", "Add trade"
     assert_select "h2", "Trade history"
     assert_select "p", "No trades for this instrument"
   end
@@ -29,12 +33,40 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(instrument)
 
     assert_response :success
+    assert_select "h2", "Current position"
+    assert_select "span", "Open"
+    assert_select "dd", text: "2.5"
+    assert_select "dd", text: "$611.60"
+    assert_select "dd", text: "$1,529.00"
     assert_select "article", text: /Long-term allocation/
     assert_select "article", text: /Other owner trade/, count: 0
     assert_select "a", "Add trade"
     assert_select "button[disabled]", "Delete"
     assert_select "[role='tooltip']", "Delete this instrument's trades before deleting the instrument."
     assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
+  end
+
+  test "shows a closed position" do
+    create_trade(instrument: @instrument, side: :buy, quantity: 2)
+    create_trade(instrument: @instrument, side: :sell, quantity: 2, traded_on: Date.new(2026, 1, 2))
+
+    get instrument_url(@instrument)
+
+    assert_response :success
+    assert_select "span", "Closed"
+    assert_select "dd", text: "0"
+    assert_select "dd", text: "R$0,00", count: 2
+  end
+
+  test "identifies an invalid long-only position without hiding trade history" do
+    create_trade(instrument: @instrument, side: :sell, quantity: 1)
+
+    get instrument_url(@instrument)
+
+    assert_response :success
+    assert_select "span", "Needs attention"
+    assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
+    assert_select "h2", "Trade history"
   end
 
   test "creates a global instrument" do
@@ -107,5 +139,19 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to instrument_url(instrument)
     assert_match(/dependent trades exist/, flash[:alert])
+  end
+
+  private
+
+  def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1))
+    User.owner.trades.create!(
+      instrument:,
+      side:,
+      traded_on:,
+      quantity:,
+      unit_price: 10,
+      fees_cents: 0,
+      currency: instrument.currency
+    )
   end
 end

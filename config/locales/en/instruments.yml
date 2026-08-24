@@ -17,9 +17,15 @@ en:
       Introduction: Add a stock, fund, or other instrument to use with trades.
       Page title: New instrument · %{application}
     show:
+      Current position: Current position
       Delete blocked: Delete this instrument's trades before deleting the instrument.
       Empty history: Add a purchase or sale to begin its history.
+      No position yet: Record a trade to calculate this position.
       No trades: No trades for this instrument
+      No trades status: No trades
       Page title: "%{instrument} · %{application}"
+      Position could not be calculated: Position could not be calculated
+      Sales exceed purchases: Recorded sales exceed purchases on %{date}. Review this
+        instrument's trades.
       Trade history: Trade history
       Trade history description: Purchases and sales recorded for this instrument.
