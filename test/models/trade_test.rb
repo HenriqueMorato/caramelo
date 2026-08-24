@@ -60,6 +60,15 @@ class TradeTest < ActiveSupport::TestCase
     assert_equal "BRL", trade.fees.currency.iso_code
   end
 
+  test "exposes exact analytical amounts separately from rounded Money values" do
+    trade = build_trade(quantity: 1, unit_price: BigDecimal("0.0049"), fees_cents: 1)
+
+    assert_equal BigDecimal("0.0049"), trade.gross_value_amount
+    assert_equal BigDecimal("0.0149"), trade.total_amount
+    assert_equal Money.from_cents(0, "BRL"), trade.gross_value
+    assert_equal Money.from_cents(1, "BRL"), trade.total
+  end
+
   test "normalizes currency and requires it to match the instrument" do
     trade = build_trade(currency: " brl ")
 

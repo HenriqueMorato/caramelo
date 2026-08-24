@@ -20,12 +20,20 @@ class Trade < ApplicationRecord
 
   scope :reverse_chronological, -> { order(traded_on: :desc, id: :desc) }
 
+  def gross_value_amount
+    unit_price * quantity
+  end
+
+  def total_amount
+    buy? ? gross_value_amount + fees.to_d : gross_value_amount - fees.to_d
+  end
+
   def gross_value
-    Money.from_amount(unit_price * quantity, currency)
+    Money.from_amount(gross_value_amount, currency)
   end
 
   def total
-    buy? ? gross_value + fees : gross_value - fees
+    Money.from_amount(total_amount, currency)
   end
 
   def signed_cash_effect

@@ -118,6 +118,14 @@ prices support eight decimal places because an asset price may need more
 precision than its currency's smallest subunit. Calculated totals return
 `Money` in the trade's currency.
 
+Derived financial values distinguish exact analytical decimal amounts from
+currency-rounded `Money`. Use `*_amount` values for calculations and `Money`
+values for conventional currency display. Individually rounded trade totals may
+differ from an exact aggregate rounded once; neither is broker-confirmed cash.
+Position calculations preserve basis as an exact ratio internally and convert
+to a 48-significant-digit decimal only at the public boundary. Currency display
+uses Money's half-up rounding and must never feed back into position arithmetic.
+
 BRL is the application and migration-helper default, but records may explicitly
 store other supported currencies such as USD. Never use floating-point columns
 for financial values, and never imply that equal subunits in different
