@@ -9,14 +9,15 @@ class PositionsTest < ApplicationSystemTestCase
     visit positions_path
 
     assert_text "Positions"
-    assert_text "VOO · ARCX"
+    assert_text "VOO"
+    assert_text "ARCX"
     assert_text "Vanguard S&P 500 ETF"
     assert_text "2.5"
     assert_text "$611.60"
     assert_text "$1,529.00"
     assert_text "USD"
 
-    click_on "VOO · ARCX"
+    click_on "VOO"
 
     assert_current_path instrument_path(instruments(:voo_arcx))
   end
@@ -28,11 +29,12 @@ class PositionsTest < ApplicationSystemTestCase
 
     visit positions_path
 
-    assert_no_text "PETR4 · BVMF"
+    assert_no_text "PETR4"
     click_on "Include closed positions"
 
     assert_current_path positions_path(closed: 1)
-    assert_text "PETR4 · BVMF"
+    assert_text "PETR4"
+    assert_text "BVMF"
     assert_text "Closed"
   end
 

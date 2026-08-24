@@ -2,11 +2,11 @@
 en:
   All institutions: "← All institutions"
   All instruments: "← All instruments"
-  Average unit cost: Average unit cost
+  Average cost: Average cost
   Back: "← Back"
   Buy: Buy
   Closed: Closed
-  Currency: Currency
+  Cost basis: Cost basis
   Dashboard: Dashboard
   Institutions: Institutions
   Instruments: Instruments
@@ -21,7 +21,6 @@ en:
   Positions: Positions
   Primary navigation: Primary navigation
   Quantity: Quantity
-  Remaining cost basis: Remaining cost basis
   Sell: Sell
   Total: Total
   Trade settings: Trade settings

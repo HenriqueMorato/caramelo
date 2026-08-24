@@ -20,13 +20,14 @@
   <% if @visible_entries.any? %>
     <div class="space-y-4">
       <% @visible_entries.each do |entry| %>
-        <article class="rounded-2xl border bg-white p-5 shadow-sm <%= entry.invalid? ? "border-red-300" : "border-slate-200" %>">
-          <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <article class="rounded-2xl border bg-white p-5 shadow-sm transition sm:p-6 <%= entry.invalid? ? "border-red-300" : "border-slate-200 hover:border-slate-300 hover:shadow-md" %>">
+          <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-mono text-xl font-bold text-slate-950">
-                  <%= link_to "#{entry.instrument.ticker} · #{entry.instrument.exchange}", entry.instrument, class: "hover:text-emerald-700" %>
+                  <%= link_to entry.instrument.ticker, entry.instrument, class: "hover:text-emerald-700" %>
                 </h2>
+                <span class="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-semibold text-slate-600"><%= entry.instrument.exchange %></span>
                 <% if entry.invalid? %>
                   <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800"><%= t("Needs attention") %></span>
                 <% elsif entry.position.closed? %>
@@ -35,7 +36,11 @@
                   <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800"><%= t("Open") %></span>
                 <% end %>
               </div>
-              <p class="mt-2 text-sm text-slate-600"><%= entry.instrument.name %></p>
+              <p class="mt-2 flex flex-wrap items-baseline gap-1.5 text-sm text-slate-600">
+                <span><%= entry.instrument.name %></span>
+                <span aria-hidden="true" class="text-slate-300">·</span>
+                <span class="font-mono text-xs font-semibold text-slate-400"><%= entry.instrument.currency %></span>
+              </p>
             </div>
 
             <% if entry.invalid? %>
@@ -44,22 +49,18 @@
                 <p class="mt-1"><%= t(".Sales exceed purchases", date: l(entry.error.trade.traded_on, format: :long)) %></p>
               </div>
             <% else %>
-              <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 lg:min-w-2xl">
-                <div>
-                  <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500"><%= t("Quantity") %></dt>
-                  <dd class="mt-1 font-mono text-sm font-semibold text-slate-950"><%= format_quantity entry.position.quantity %></dd>
+              <dl class="grid grid-cols-3 divide-x divide-slate-200 rounded-xl bg-slate-50 py-3 text-center ring-1 ring-inset ring-slate-100 lg:min-w-[36rem]">
+                <div class="px-2 sm:px-4">
+                  <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs"><%= t("Quantity") %></dt>
+                  <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= format_quantity entry.position.quantity %></dd>
                 </div>
-                <div>
-                  <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500"><%= t("Average unit cost") %></dt>
-                  <dd class="mt-1 font-mono text-sm font-semibold text-slate-950"><%= format_currency_amount entry.position.average_unit_cost, entry.instrument.currency %></dd>
+                <div class="px-2 sm:px-4">
+                  <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs"><%= t("Average cost") %></dt>
+                  <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= format_currency_amount entry.position.average_unit_cost, entry.instrument.currency %></dd>
                 </div>
-                <div>
-                  <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500"><%= t("Remaining cost basis") %></dt>
-                  <dd class="mt-1 font-mono text-sm font-semibold text-slate-950"><%= entry.position.cost_basis.format %></dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500"><%= t("Currency") %></dt>
-                  <dd class="mt-1 font-mono text-sm font-semibold text-slate-950"><%= entry.instrument.currency %></dd>
+                <div class="px-2 sm:px-4">
+                  <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs"><%= t("Cost basis") %></dt>
+                  <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= entry.position.cost_basis.format %></dd>
                 </div>
               </dl>
             <% end %>

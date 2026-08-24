@@ -6,7 +6,12 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Positions"
-    assert_select "h2", text: /VOO · ARCX/
+    assert_select "h2", text: "VOO"
+    assert_select "span", text: "ARCX"
+    assert_select "p", text: /Vanguard S&P 500 ETF · USD/
+    assert_select "dt", "Average cost"
+    assert_select "dt", "Cost basis"
+    assert_select "dt", text: "Currency", count: 0
     assert_select "dd", text: "2.5"
     assert_select "dd", text: "$611.60"
     assert_select "dd", text: "$1,529.00"
@@ -28,7 +33,8 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     get positions_url(closed: 1)
 
     assert_response :success
-    assert_select "h2", text: /PETR4 · BVMF/
+    assert_select "h2", text: "PETR4"
+    assert_select "span", text: "BVMF"
     assert_select "span", "Closed"
     assert_select "a[href=?]", positions_path, text: "Show open positions only"
   end
@@ -50,7 +56,8 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     get positions_url
 
     assert_response :success
-    assert_select "h2", text: /PETR4 · BVMF/
+    assert_select "h2", text: "PETR4"
+    assert_select "span", text: "BVMF"
     assert_select "span", "Needs attention"
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
     assert_select "a[href='#{instrument_path(instrument)}']"
