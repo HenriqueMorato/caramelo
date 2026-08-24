@@ -100,4 +100,54 @@ class InstrumentsTest < ApplicationSystemTestCase
     assert_selector "[aria-describedby='#{tooltip_id}']:focus"
     assert_selector "##{tooltip_id}", text: "Delete this instrument's trades before deleting the instrument.", visible: true
   end
+
+  test "updates an instrument position after contextual trade changes" do
+    instrument = instruments(:petr4_bvmf)
+
+    visit instrument_path(instrument)
+
+    assert_text "No trades"
+    within "[aria-labelledby='position-summary-heading']" do
+      click_on "Add trade"
+    end
+
+    fill_in "Trade date", with: "2026-08-24"
+    fill_in "Quantity", with: "3"
+    fill_in "Unit price", with: "20"
+    fill_in "Fees", with: "0"
+    click_on "Create Trade"
+
+    visit instrument_path(instrument)
+    within "[aria-labelledby='position-summary-heading']" do
+      assert_text "Open"
+      assert_text "3"
+      assert_text "R$20,00"
+      assert_text "R$60,00"
+    end
+
+    within "#trade_#{Trade.where(user: User.owner, instrument:).sole.id}" do
+      click_on "Edit"
+    end
+    fill_in "Quantity", with: "4"
+    click_on "Update Trade"
+
+    visit instrument_path(instrument)
+    within "[aria-labelledby='position-summary-heading']" do
+      assert_text "4"
+      assert_text "R$80,00"
+    end
+
+    trade = Trade.where(user: User.owner, instrument:).sole
+    within "#trade_#{trade.id}" do
+      accept_confirm "Delete this trade?" do
+        click_on "Delete"
+      end
+    end
+
+    visit instrument_path(instrument)
+    within "[aria-labelledby='position-summary-heading']" do
+      assert_text "No trades"
+      assert_link "Add trade"
+    end
+  end
 end
