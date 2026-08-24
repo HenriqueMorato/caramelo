@@ -33,6 +33,7 @@ class MoneyConfigurationTest < ActiveSupport::TestCase
 
   test "configures monetized columns for integer storage and strict parsing" do
     assert_equal :integer, MoneyRails.amount_column[:type]
+    assert_equal BigDecimal::ROUND_HALF_UP, Money.rounding_mode
     assert MoneyRails.raise_error_on_money_parsing
   end
 end

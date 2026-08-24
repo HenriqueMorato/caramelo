@@ -51,10 +51,11 @@ class PositionTest < ActiveSupport::TestCase
     create_trade(instrument:, quantity:, unit_price:, fees_cents: 37)
 
     position = Position.for(instrument:)
+    expected_average = BigDecimal(exact_basis.to_r / quantity.to_r, 48)
 
     assert_equal exact_basis, position.analytical_cost_basis_amount
     assert_equal Money.from_amount(exact_basis, "BRL"), position.cost_basis
-    assert_equal exact_basis / quantity, position.average_unit_cost
+    assert_equal expected_average, position.average_unit_cost
   end
 
   test "calculates a one-satoshi Bitcoin position with a precise price and fee" do
@@ -85,6 +86,19 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("16.6"), position.average_unit_cost
   end
 
+  test "a buy after a partial sale blends with the remaining average" do
+    instrument = create_instrument
+    create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 10, unit_price: "10")
+    create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2), quantity: 4, unit_price: "1000", fees_cents: 200)
+    create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 3), quantity: 2, unit_price: "100")
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("8"), position.quantity
+    assert_equal BigDecimal("260"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("32.5"), position.average_unit_cost
+  end
+
   test "a fully sold position has zero quantity and basis" do
     instrument = create_instrument
     create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: "1.25", unit_price: "8")
@@ -97,6 +111,19 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0"), position.average_unit_cost
     assert_predicate position, :closed?
     assert_not_predicate position, :open?
+  end
+
+  test "a buy after full closure starts a fresh average" do
+    instrument = create_instrument
+    create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 3, unit_price: "40", fees_cents: 30)
+    create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2), quantity: 3, unit_price: "5", fees_cents: 20)
+    create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 3), quantity: 2, unit_price: "100", fees_cents: 10)
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("2"), position.quantity
+    assert_equal BigDecimal("200.1"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("100.05"), position.average_unit_cost
   end
 
   test "an instrument without owner trades has a closed zero position" do
@@ -126,18 +153,23 @@ class PositionTest < ActiveSupport::TestCase
 
   test "uses creation order to break ties between trades on the same date" do
     trade_date = Date.new(2026, 1, 1)
-    closed_instrument = create_instrument(ticker: "SAME")
-    create_trade(instrument: closed_instrument, side: :buy, traded_on: trade_date)
-    create_trade(instrument: closed_instrument, side: :sell, traded_on: trade_date)
+    buy_first = create_instrument(ticker: "SAME")
+    create_trade(instrument: buy_first, side: :buy, traded_on: trade_date - 1, unit_price: "10")
+    create_trade(instrument: buy_first, side: :buy, traded_on: trade_date, unit_price: "30")
+    create_trade(instrument: buy_first, side: :sell, traded_on: trade_date, unit_price: "100")
 
-    assert_predicate Position.for(instrument: closed_instrument), :closed?
+    buy_first_position = Position.for(instrument: buy_first)
+    assert_equal BigDecimal("1"), buy_first_position.quantity
+    assert_equal BigDecimal("20"), buy_first_position.average_unit_cost
 
-    invalid_instrument = create_instrument(ticker: "REVS")
-    first_trade = create_trade(instrument: invalid_instrument, side: :sell, traded_on: trade_date)
-    create_trade(instrument: invalid_instrument, side: :buy, traded_on: trade_date)
+    sell_first = create_instrument(ticker: "REVS")
+    create_trade(instrument: sell_first, side: :buy, traded_on: trade_date - 1, unit_price: "10")
+    create_trade(instrument: sell_first, side: :sell, traded_on: trade_date, unit_price: "100")
+    create_trade(instrument: sell_first, side: :buy, traded_on: trade_date, unit_price: "30")
 
-    error = assert_raises(Position::InvalidLongOnlyData) { Position.for(instrument: invalid_instrument) }
-    assert_equal first_trade, error.trade
+    sell_first_position = Position.for(instrument: sell_first)
+    assert_equal BigDecimal("1"), sell_first_position.quantity
+    assert_equal BigDecimal("30"), sell_first_position.average_unit_cost
   end
 
   test "rounds exact analytical basis at half-cent currency boundaries" do
@@ -215,7 +247,7 @@ class PositionTest < ActiveSupport::TestCase
 
     assert_equal "USD", position.cost_basis.currency.iso_code
     assert_equal Money.from_amount(BigDecimal("30.01"), "USD"), position.cost_basis
-    assert_equal BigDecimal("30.01") / 3, position.average_unit_cost
+    assert_equal BigDecimal(BigDecimal("30.01").to_r / 3, 48), position.average_unit_cost
   end
 
   test "reflects edited and deleted trades without persisting a position" do

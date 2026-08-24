@@ -1,4 +1,6 @@
 class Position
+  ANALYTICAL_DECIMAL_PRECISION = 48
+
   class InvalidLongOnlyData < StandardError
     attr_reader :trade
 
@@ -38,35 +40,39 @@ class Position
   end
 
   def calculate(trades)
-    cost_basis_amount = BigDecimal("0")
+    cost_basis_ratio = 0.to_r
 
     trades.each do |trade|
       if trade.buy?
         @quantity += trade.quantity
-        cost_basis_amount += trade.total_amount
+        cost_basis_ratio += trade.total_amount.to_r
       else
         remaining_quantity = @quantity - trade.quantity
         raise InvalidLongOnlyData, trade if remaining_quantity.negative?
 
-        cost_basis_amount = remaining_cost_basis(cost_basis_amount, remaining_quantity)
+        cost_basis_ratio = remaining_cost_basis(cost_basis_ratio, remaining_quantity)
         @quantity = remaining_quantity
       end
     end
 
-    @analytical_cost_basis_amount = cost_basis_amount
+    @analytical_cost_basis_amount = analytical_decimal(cost_basis_ratio)
     @cost_basis = Money.from_amount(analytical_cost_basis_amount, instrument.currency)
-    @average_unit_cost = calculate_average_unit_cost(cost_basis_amount)
+    @average_unit_cost = calculate_average_unit_cost(cost_basis_ratio)
   end
 
-  def remaining_cost_basis(cost_basis_amount, remaining_quantity)
-    return BigDecimal("0") if remaining_quantity.zero?
+  def remaining_cost_basis(cost_basis_ratio, remaining_quantity)
+    return 0.to_r if remaining_quantity.zero?
 
-    cost_basis_amount * remaining_quantity / quantity
+    cost_basis_ratio * remaining_quantity.to_r / quantity.to_r
   end
 
-  def calculate_average_unit_cost(cost_basis_amount)
+  def calculate_average_unit_cost(cost_basis_ratio)
     return BigDecimal("0") if quantity.zero?
 
-    cost_basis_amount / quantity
+    analytical_decimal(cost_basis_ratio / quantity.to_r)
+  end
+
+  def analytical_decimal(value)
+    BigDecimal(value, ANALYTICAL_DECIMAL_PRECISION)
   end
 end
