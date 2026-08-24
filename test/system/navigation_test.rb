@@ -7,6 +7,11 @@ class NavigationTest < ApplicationSystemTestCase
 
     assert_text "Dashboard"
 
+    click_on "Positions"
+
+    assert_current_path positions_path
+    assert_text "Vanguard S&P 500 ETF"
+
     click_on "Transactions"
 
     assert_current_path transactions_path

@@ -1,0 +1,62 @@
+require "application_system_test_case"
+
+class PositionsTest < ApplicationSystemTestCase
+  setup do
+    page.current_window.resize_to(390, 844)
+  end
+
+  test "shows an open position on a mobile viewport" do
+    visit positions_path
+
+    assert_text "Positions"
+    assert_text "VOO · ARCX"
+    assert_text "Vanguard S&P 500 ETF"
+    assert_text "2.5"
+    assert_text "$611.60"
+    assert_text "$1,529.00"
+    assert_text "USD"
+
+    click_on "VOO · ARCX"
+
+    assert_current_path instrument_path(instruments(:voo_arcx))
+  end
+
+  test "includes a closed position when requested" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy)
+    create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2))
+
+    visit positions_path
+
+    assert_no_text "PETR4 · BVMF"
+    click_on "Include closed positions"
+
+    assert_current_path positions_path(closed: 1)
+    assert_text "PETR4 · BVMF"
+    assert_text "Closed"
+  end
+
+  test "shows the empty state on a desktop viewport" do
+    page.current_window.resize_to(1280, 900)
+    Trade.where(user: User.owner).delete_all
+
+    visit positions_path
+
+    assert_text "No positions yet"
+    assert_link "Add trade"
+  end
+
+  private
+
+  def create_trade(instrument:, side:, traded_on: Date.new(2026, 1, 1))
+    User.owner.trades.create!(
+      instrument:,
+      side:,
+      traded_on:,
+      quantity: 1,
+      unit_price: 10,
+      fees_cents: 0,
+      currency: instrument.currency
+    )
+  end
+end

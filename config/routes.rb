@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   resources :passwords, param: :token, only: %i[ new create edit update ]
 
   root "dashboard#index"
+  resources :positions, only: :index
   get "transactions", to: "trades#index"
   resources :institutions
   resources :instruments do

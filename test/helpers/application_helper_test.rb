@@ -22,4 +22,9 @@ class ApplicationHelperTest < ActionView::TestCase
   test "formats unit price inputs without grouping delimiters" do
     assert_equal "1234.56789", format_unit_price_input(BigDecimal("1234.56789"))
   end
+
+  test "formats a currency amount with useful analytical precision" do
+    assert_equal "$1,234.56789", format_currency_amount(BigDecimal("1234.56789"), "USD")
+    assert_equal "R$10.00", format_currency_amount(BigDecimal("10"), "BRL")
+  end
 end

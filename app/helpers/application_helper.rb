@@ -4,8 +4,12 @@ module ApplicationHelper
   end
 
   def format_unit_price(trade)
-    currency = Money::Currency.find(trade.currency)
-    "#{currency.symbol}#{format_decimal(trade.unit_price, minimum_precision: 2, maximum_precision: 8)}"
+    format_currency_amount(trade.unit_price, trade.currency)
+  end
+
+  def format_currency_amount(amount, currency)
+    symbol = Money::Currency.find(currency).symbol
+    "#{symbol}#{format_decimal(amount, minimum_precision: 2, maximum_precision: 8)}"
   end
 
   def format_unit_price_input(unit_price)

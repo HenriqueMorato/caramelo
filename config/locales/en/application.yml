@@ -2,17 +2,26 @@
 en:
   All institutions: "← All institutions"
   All instruments: "← All instruments"
+  Average unit cost: Average unit cost
   Back: "← Back"
   Buy: Buy
+  Closed: Closed
+  Currency: Currency
   Dashboard: Dashboard
   Institutions: Institutions
   Instruments: Instruments
   LocalFolio: LocalFolio
+  Needs attention: Needs attention
   None: None
+  Open: Open
   Personal portfolio tracking: Personal portfolio tracking
   Portfolio activity: Portfolio activity
   Portfolio catalog: Portfolio catalog
+  Portfolio holdings: Portfolio holdings
+  Positions: Positions
   Primary navigation: Primary navigation
+  Quantity: Quantity
+  Remaining cost basis: Remaining cost basis
   Sell: Sell
   Total: Total
   Trade settings: Trade settings
