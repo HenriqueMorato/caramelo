@@ -36,7 +36,7 @@ class CurrentMarketPrice
     freeze
   end
 
-  def stale?(at:, fresh_for:)
+  def stale?(fresh_for:, at: Time.current)
     fetched_at <= normalize_time(at, name: "current time") - fresh_for
   end
 

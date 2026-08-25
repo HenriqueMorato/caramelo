@@ -171,17 +171,16 @@ precise unit price by the precise position quantity before constructing
 currency-rounded `Money` for display.
 
 `CurrentMarketPriceCache` stores one versioned entry per provider and instrument.
-By default, a quote is fresh for 30 minutes and protected by a short
-refresh-deduplication window. It has no application-level expiration: the last
-known quote remains available as stale fallback until it is replaced or the
-cache evicts it. Consumers must distinguish `fresh`, `stale`, and `missing`
-entries. Cache loss is safe because trades never depend on quotes and providers
-can fetch them again.
+By default, a quote is fresh for 30 minutes. It has no application-level
+expiration: the last known quote remains available as stale fallback until it
+is replaced or the cache evicts it. Consumers must distinguish `fresh`, `stale`,
+and `missing` entries. Cache loss is safe because trades never depend on quotes
+and providers can fetch them again.
 
 Provider adapters must return a quote in the instrument's ISO currency, keep
 HTTP behavior outside these cache objects, and stub all network traffic in
-tests. Use the cache refresh API so fresh values skip provider work and repeated
-refresh requests can share the short-lived result.
+tests. Use the cache refresh API so fresh values skip provider work. Coordinate
+concurrent refreshes in provider jobs rather than this replaceable value cache.
 
 ## Trade Ledger model conventions
 

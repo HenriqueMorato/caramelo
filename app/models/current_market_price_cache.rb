@@ -1,9 +1,8 @@
 class CurrentMarketPriceCache
   CACHE_VERSION = 1
   DEFAULT_FRESH_FOR = 30.minutes
-  DEFAULT_REFRESH_DEDUPLICATION_WINDOW = 15.seconds
 
-  Entry = Data.define(:price, :status) do
+  Entry = Data.define(:current_market_price, :status) do
     def fresh?
       status == :fresh
     end
@@ -21,15 +20,11 @@ class CurrentMarketPriceCache
     end
   end
 
-  def initialize(cache: Rails.cache, fresh_for: DEFAULT_FRESH_FOR,
-    refresh_deduplication_window: DEFAULT_REFRESH_DEDUPLICATION_WINDOW, clock: -> { Time.current })
+  def initialize(cache: Rails.cache, fresh_for: DEFAULT_FRESH_FOR)
     raise ArgumentError, "freshness must be positive" unless fresh_for.positive?
-    raise ArgumentError, "refresh deduplication window must be positive" unless refresh_deduplication_window.positive?
 
     @cache = cache
     @fresh_for = fresh_for
-    @refresh_deduplication_window = refresh_deduplication_window
-    @clock = clock
   end
 
   def read(instrument:, provider:)
@@ -38,48 +33,53 @@ class CurrentMarketPriceCache
     payload = cache.read(key)
     return missing_entry unless payload
 
-    price = CurrentMarketPrice.from_cache_payload(payload)
-    raise CurrentMarketPrice::InvalidPayload, "provider does not match cache key" unless price.provider == normalized_provider
-    raise CurrentMarketPrice::InvalidPayload, "currency does not match instrument" unless price.currency == instrument.currency
+    current_market_price = CurrentMarketPrice.from_cache_payload(payload)
+    unless current_market_price.provider == normalized_provider
+      raise CurrentMarketPrice::InvalidPayload, "provider does not match cache key"
+    end
+    unless current_market_price.currency == instrument.currency
+      raise CurrentMarketPrice::InvalidPayload, "currency does not match instrument"
+    end
 
-    entry_for(price)
+    entry_for(current_market_price)
   rescue CurrentMarketPrice::InvalidPayload
     # Cached quotes are replaceable, so corrupt data is safer to discard.
-    cache.delete(key) if key
+    cache.delete(key)
     missing_entry
   end
 
-  def write(instrument:, price:)
-    raise ArgumentError, "price must be a CurrentMarketPrice" unless price.is_a?(CurrentMarketPrice)
-    raise CurrentMarketPrice::InvalidValue, "currency does not match instrument" unless price.currency == instrument.currency
+  def write(instrument:, current_market_price:)
+    unless current_market_price.is_a?(CurrentMarketPrice)
+      raise ArgumentError, "current market price must be a CurrentMarketPrice"
+    end
+    unless current_market_price.currency == instrument.currency
+      raise CurrentMarketPrice::InvalidValue, "currency does not match instrument"
+    end
 
     # No expiry: the last known quote remains available as stale fallback.
-    cache.write(cache_key(instrument:, provider: price.provider), price.to_cache_payload)
-    entry_for(price)
+    cache.write(
+      cache_key(instrument:, provider: current_market_price.provider),
+      current_market_price.to_cache_payload
+    )
+    entry_for(current_market_price)
   end
 
   def refresh(instrument:, provider:, force: false)
+    provider = CurrentMarketPrice.normalize_provider(provider)
     current_entry = read(instrument:, provider:)
     return current_entry if current_entry.fresh? && !force
 
-    normalized_provider = CurrentMarketPrice.normalize_provider(provider)
-    # Share rapid repeat refreshes; provider jobs add strict concurrency control.
-    cache.fetch(refresh_key(instrument:, provider: normalized_provider), expires_in: refresh_deduplication_window) do
-      price = yield
-      unless price.is_a?(CurrentMarketPrice) && price.provider == normalized_provider
-        raise CurrentMarketPrice::InvalidValue, "provider does not match refresh"
-      end
-
-      write(instrument:, price:)
-      price.to_cache_payload
+    current_market_price = yield
+    unless current_market_price.is_a?(CurrentMarketPrice) && current_market_price.provider == provider
+      raise CurrentMarketPrice::InvalidValue, "provider does not match refresh"
     end
 
-    read(instrument:, provider: normalized_provider)
+    write(instrument:, current_market_price:)
   end
 
   private
 
-  attr_reader :cache, :fresh_for, :refresh_deduplication_window, :clock
+  attr_reader :cache, :fresh_for
 
   def cache_key(instrument:, provider:)
     instrument_id = instrument.id
@@ -88,16 +88,12 @@ class CurrentMarketPriceCache
     "localfolio:current_market_price:v#{CACHE_VERSION}:#{provider}:instrument:#{instrument_id}"
   end
 
-  def refresh_key(instrument:, provider:)
-    "#{cache_key(instrument:, provider:)}:refresh"
-  end
-
-  def entry_for(price)
-    status = price.stale?(at: clock.call, fresh_for:) ? :stale : :fresh
-    Entry.new(price:, status:)
+  def entry_for(current_market_price)
+    status = current_market_price.stale?(fresh_for:) ? :stale : :fresh
+    Entry.new(current_market_price:, status:)
   end
 
   def missing_entry
-    Entry.new(price: nil, status: :missing)
+    Entry.new(current_market_price: nil, status: :missing)
   end
 end
