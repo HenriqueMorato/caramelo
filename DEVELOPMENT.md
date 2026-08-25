@@ -131,6 +131,37 @@ store other supported currencies such as USD. Never use floating-point columns
 for financial values, and never imply that equal subunits in different
 currencies have been converted.
 
+## Position calculation conventions
+
+Positions are derived on read from the configured owner's trades; there is no
+persisted position snapshot. Replay trades chronologically by `traded_on`, then
+`id` for a deterministic same-day tie-break:
+
+- A purchase adds its quantity, precise `quantity * unit_price`, and purchase
+  fee to the position basis.
+- A partial sale removes quantity and the same proportion of the existing
+  basis. Its price and fee do not change the remaining average cost.
+- A full sale resets quantity, basis, and average cost to zero. A later purchase
+  starts a new average.
+- A sale that would make quantity negative is invalid long-only data and must be
+  presented clearly without hiding unaffected positions or trade history.
+
+Keep basis as an exact ratio while replaying trades. Convert it to a
+48-significant-digit `BigDecimal` for analytical values and round only the
+display `Money` to the instrument currency. Do not sum individually rounded
+trade totals to calculate a position. Current price, market value, returns,
+realized gains, and FX conversion are outside the Positions milestone.
+
+Run focused position verification with:
+
+```sh
+bin/rails test test/models/position_test.rb
+bin/rails test test/controllers/positions_controller_test.rb \
+  test/controllers/instruments_controller_test.rb
+bin/rails test test/system/positions_test.rb \
+  test/system/instruments_test.rb
+```
+
 ## Trade Ledger model conventions
 
 - Resolve the single owner through `User.owner`. Scope institutions and trades
@@ -161,7 +192,7 @@ currencies have been converted.
 Preserve unrelated changes. Keep changes within their issue's agreed milestone
 and acceptance criteria.
 
-## Trade Ledger acceptance
+## Trade Ledger and Positions acceptance
 
 Run the complete local acceptance pass:
 
@@ -182,8 +213,13 @@ docker exec local_folio bin/rails runner \
 ```
 
 Create an institution, instrument, and trade through the production interface,
-restart the container with the same `local_folio_storage` volume, and confirm
-the trade remains available. The production image must boot with only its local
-`SECRET_KEY_BASE`; it does not require a Rails master key, market-data
-credentials, or authentication credentials. The final acceptance requirement
-is a green GitHub Actions run on the Trade Ledger pull request.
+open **Positions**, and record its quantity, average cost, and cost basis. Restart
+the container with the same `local_folio_storage` volume, then confirm the trade
+and derived position remain unchanged. This proves the authoritative trade data
+survives and the position can be reconstructed; positions are not separate
+durable records.
+
+The production image must boot with only its local `SECRET_KEY_BASE`; it does
+not require a Rails master key, market-data credentials, or authentication
+credentials. The final acceptance requirement is a green GitHub Actions run on
+the milestone-closing pull request.
