@@ -2,8 +2,8 @@
 
 LocalFolio is a local-first, single-user portfolio tracker. It currently lets
 you manage financial institutions, a global instrument catalog, and buy or sell
-trades. Positions, portfolio valuation, and market integrations will arrive in
-later milestones.
+trades, then derives your current positions from that trade history. Portfolio
+valuation and market integrations will arrive in later milestones.
 
 ## Run locally with Docker
 
@@ -77,6 +77,24 @@ hashing, and password-reset foundations are present for future use.
 Trade totals remain in the instrument's currency. LocalFolio does not treat a
 BRL amount and a USD amount as equivalent or convert between them. Exchange-rate
 conversion belongs to a later milestone.
+
+## Understand your positions
+
+Open **Positions** to see what remains from your recorded purchases and sales.
+Select an instrument to see the same summary beside its complete trade history.
+
+- **Quantity** is the number of units still held after purchases and sales.
+- **Average cost** is the weighted-average cost of each remaining unit. Purchase
+  fees are included.
+- **Cost basis** is the total acquisition cost still assigned to the position.
+  It decreases proportionally when part of a position is sold.
+- An **Open** position has a positive quantity. A **Closed** position has been
+  fully sold and can be included from the Positions page when needed.
+
+Positions are calculated from trades rather than stored separately, so editing
+or deleting a trade updates them immediately. LocalFolio does not fetch current
+prices yet; position amounts are acquisition costs, not current market values,
+and the application does not calculate gains or losses yet.
 
 ## Your data
 
