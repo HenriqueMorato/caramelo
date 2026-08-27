@@ -38,6 +38,19 @@ class PositionsTest < ApplicationSystemTestCase
     assert_text "Closed"
   end
 
+  test "shows a B3 price as refreshing after a manual refresh" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy)
+
+    visit positions_path
+
+    within "#current_market_price_instrument_#{instrument.id}" do
+      assert_text "Price unavailable"
+      click_on "Refresh"
+      assert_text "Refreshing"
+    end
+  end
+
   test "shows the empty state on a desktop viewport" do
     page.current_window.resize_to(1280, 900)
     Trade.where(user: User.owner).delete_all

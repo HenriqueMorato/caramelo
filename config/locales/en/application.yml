@@ -7,6 +7,8 @@ en:
   Buy: Buy
   Closed: Closed
   Cost basis: Cost basis
+  Current: Current
+  Current price: Current price
   Dashboard: Dashboard
   Institutions: Institutions
   Instruments: Instruments
@@ -19,9 +21,15 @@ en:
   Portfolio catalog: Portfolio catalog
   Portfolio holdings: Portfolio holdings
   Positions: Positions
+  Price unavailable: Price unavailable
   Primary navigation: Primary navigation
   Quantity: Quantity
+  Quoted at %{time}: Quoted at %{time}
+  Refresh: Refresh
+  Refresh prices: Refresh prices
+  Refreshing: Refreshing
   Sell: Sell
+  Stale: Stale
   Total: Total
   Trade settings: Trade settings
   Transactions: Transactions
@@ -52,6 +60,7 @@ en:
   notices:
     Created: "%{model} was created."
     Deleted: "%{model} was deleted."
+    Market price refresh started: Market price refresh started.
     Password reset instructions sent: Password reset instructions sent (if user with
       that email address exists).
     Password was reset: Password has been reset.

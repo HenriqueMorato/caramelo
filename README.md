@@ -1,9 +1,10 @@
 # LocalFolio
 
-LocalFolio is a local-first, single-user portfolio tracker. It currently lets
-you manage financial institutions, a global instrument catalog, and buy or sell
-trades, then derives your current positions from that trade history. Portfolio
-valuation and market integrations will arrive in later milestones.
+LocalFolio is a local-first, single-user portfolio tracker. It lets you manage
+financial institutions, a global instrument catalog, and buy or sell trades,
+then derives your current positions from that trade history. It can also fetch
+current prices for Brazilian-market instruments while keeping your portfolio
+data on your own machine.
 
 ## Run locally with Docker
 
@@ -92,9 +93,22 @@ Select an instrument to see the same summary beside its complete trade history.
   fully sold and can be included from the Positions page when needed.
 
 Positions are calculated from trades rather than stored separately, so editing
-or deleting a trade updates them immediately. LocalFolio does not fetch current
-prices yet; position amounts are acquisition costs, not current market values,
-and the application does not calculate gains or losses yet.
+or deleting a trade updates them immediately. Position amounts remain
+acquisition costs: current prices are shown separately and the application does
+not calculate market value, gains, or losses yet.
+
+## Current Brazilian market prices
+
+LocalFolio can refresh the current unit price of B3 instruments from Yahoo
+Finance. Use **Refresh prices** on Positions or **Refresh price** on an
+instrument. Quotes are cached for 30 minutes; the last known quote stays visible
+and is marked stale if it cannot be refreshed.
+
+The Docker image includes the required HTTP transport and needs no market-data
+credentials. The Yahoo integration is unofficial and intended for personal
+use. Fetched quotes remain in your local replaceable cache and are not shipped
+with LocalFolio or exposed as a public data service. You are responsible for
+complying with the provider's terms.
 
 ## Your data
 
@@ -118,8 +132,9 @@ docker cp local_folio:/tmp/local_folio-backup.sqlite3 ./local_folio-backup.sqlit
 ```
 
 The extracted `local_folio-backup.sqlite3` file can be moved to any backup
-location you choose. No external database, cache, queue, market-data provider,
-or authentication service is required.
+location you choose. No external database, cache, queue, market-data
+credentials, or authentication service is required. Refreshing a current B3
+price makes an outbound request to Yahoo Finance.
 
 The interface is English, the application time zone is
 `America/Sao_Paulo`, and future portfolio reporting defaults to Brazilian real

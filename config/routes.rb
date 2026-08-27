@@ -4,9 +4,11 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
   resources :positions, only: :index
+  resource :current_market_price_refresh, only: :create
   get "transactions", to: "trades#index"
   resources :institutions
   resources :instruments do
+    resource :current_market_price_refresh, only: :create, module: :instruments
     resources :trades, only: %i[ new create ]
   end
   resources :trades, except: %i[ index show ]

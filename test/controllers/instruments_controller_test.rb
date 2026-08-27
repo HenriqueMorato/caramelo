@@ -2,6 +2,7 @@ require "test_helper"
 
 class InstrumentsControllerTest < ActionDispatch::IntegrationTest
   setup do
+    Rails.cache.clear
     @instrument = instruments(:petr4_bvmf)
   end
 
@@ -25,6 +26,8 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", "Add trade"
     assert_select "h2", "Trade history"
     assert_select "p", "No trades for this instrument"
+    assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
+    assert_select "form[action=?]", instrument_current_market_price_refresh_path(@instrument)
   end
 
   test "shows only the configured owner's trades for an instrument" do
@@ -44,6 +47,8 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button[disabled]", "Delete"
     assert_select "[role='tooltip']", "Delete this instrument's trades before deleting the instrument."
     assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
+    assert_select "#current_market_price_instrument_#{instrument.id}", text: /Price unavailable/
+    assert_select "form[action=?]", instrument_current_market_price_refresh_path(instrument), count: 0
   end
 
   test "shows a closed position" do
@@ -67,6 +72,27 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "span", "Needs attention"
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
     assert_select "h2", "Trade history"
+  end
+
+  test "shows a retained B3 price as stale" do
+    create_trade(instrument: @instrument, side: :buy, quantity: 1)
+    CurrentMarketPriceCache.new.write(
+      instrument: @instrument,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: "32.45",
+        currency: "BRL",
+        provider: "yahoo_finance",
+        quoted_at: Time.current - 2.hours,
+        fetched_at: Time.current - 1.hour
+      )
+    )
+
+    get instrument_url(@instrument)
+
+    assert_response :success
+    assert_select "#current_market_price_instrument_#{@instrument.id}", text: /R\$32,45/
+    assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Stale/
+    assert_select "form[action=?]", instrument_current_market_price_refresh_path(@instrument)
   end
 
   test "creates a global instrument" do

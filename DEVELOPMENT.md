@@ -264,6 +264,11 @@ HTTP behavior outside these cache objects, and stub all network traffic in
 tests. Use the cache refresh API so fresh values skip provider work. Coordinate
 concurrent refreshes in provider jobs rather than this replaceable value cache.
 
+`MarketPrice::Service.default` owns the active provider strategy. Callers do
+not select or pass providers. The Yahoo adapter currently supports only B3
+listings (`BVMF`), and provider-specific errors must be translated into
+application-level failures before reaching jobs or controllers.
+
 ## Trade Ledger model conventions
 
 - Resolve the single owner through `User.owner`. Scope institutions and trades
