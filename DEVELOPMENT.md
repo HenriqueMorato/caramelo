@@ -131,6 +131,10 @@ Never commit or redistribute fetched market data. Each operator is responsible
 for complying with the market-data provider's terms. Tests must stub the
 transport and must not call the live endpoint.
 
+For the class responsibilities, public entry points, cache states, and complete
+read and refresh flows, see
+[Current Market Price Architecture](docs/current-market-prices.md).
+
 ## Quality and security
 
 Run the repeatable local pipeline:
