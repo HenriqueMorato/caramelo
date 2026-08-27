@@ -1,11 +1,65 @@
 # LocalFolio development
 
-## Requirements
+## Dev Container setup
+
+The Dev Container is the simplest way to get the complete development
+environment, including Ruby, SQLite, Chrome, and the HTTP transport used for
+market-price refreshes. Install Docker, VS Code, and the VS Code Dev Containers
+extension, then open this checkout:
+
+```sh
+code .
+```
+
+Run **Dev Containers: Reopen in Container** from the command palette. The first
+build installs dependencies, prepares the database, and seeds the owner. In the
+container terminal, start Rails and Tailwind:
+
+```sh
+bin/dev
+```
+
+Open <http://localhost:3000>. Application files and the development SQLite
+database remain in the checkout, so rebuilding the container does not remove
+your data. Run `bin/rails test:system` inside the container to use its Selenium
+service. After changing `.devcontainer/Dockerfile`, run **Dev Containers:
+Rebuild Container**.
+
+### Without VS Code
+
+The same environment works directly through Docker Compose; no editor plugin
+or Dev Container CLI is required. From the repository root, build and start the
+development and Selenium containers:
+
+```sh
+docker compose -f .devcontainer/compose.yaml up --build --detach
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/setup --skip-server
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/rails db:seed
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/dev
+```
+
+Leave the last command running and open <http://localhost:3000>. Use another
+terminal for Rails commands and tests, for example:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/rails test
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/rails test:system
+```
+
+Stop the containers when finished; this does not delete the SQLite database in
+the checkout:
+
+```sh
+docker compose -f .devcontainer/compose.yaml down
+```
+
+## Native requirements
 
 - Ruby 4.0.6 with Bundler
 - SQLite 3
 - libvips
 - Chrome or Chromium for system tests
+- `curl_chrome146` for live Yahoo Finance quote refreshes
 - Docker-compatible runtime for production-image verification
 
 ## Native setup
@@ -48,6 +102,34 @@ Future owner-scoped records should resolve their user through `User.owner`.
 Login is intentionally inactive during the single-user phase. Authentication
 models, routes, password hashing, and reset behavior remain covered for future
 activation, while application pages stay public.
+
+## Current market prices
+
+LocalFolio uses the Yahoo Finance chart endpoint for current B3 quotes. This is
+an unofficial, credential-free integration intended for personal use. Provider
+traffic is isolated under `lib/market_data/yahoo_finance`, while application
+code uses the provider-neutral classes under `app/services/market_price`.
+
+The Dev Container and production image already include the required transport.
+Native development requires `curl_chrome146` from
+[`lexiforest/curl-impersonate` v2.1.1](https://github.com/lexiforest/curl-impersonate/releases/tag/v2.1.1).
+Download the archive matching `arm64-macos` or `x86_64-macos`, verify its
+SHA-256 digest against the immutable GitHub release, then install
+`curl-impersonate` and `curl_chrome146` together in a directory on `PATH`:
+
+```sh
+tar -xzf curl-impersonate-v2.1.1.<architecture>-macos.tar.gz
+install curl-impersonate curl_chrome146 /usr/local/bin/
+curl_chrome146 --version
+```
+
+Set `YAHOO_FINANCE_HTTP_EXECUTABLE` when the wrapper is installed elsewhere. A
+missing executable does not prevent Rails from booting; quote refreshes fail
+explicitly and any stale cached quote remains available.
+
+Never commit or redistribute fetched market data. Each operator is responsible
+for complying with the market-data provider's terms. Tests must stub the
+transport and must not call the live endpoint.
 
 ## Quality and security
 

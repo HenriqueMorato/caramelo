@@ -1,0 +1,32 @@
+name: "local_folio"
+
+services:
+  rails-app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+
+    environment:
+      CAPYBARA_SERVER_PORT: 45678
+      SELENIUM_HOST: selenium
+
+    ports:
+    - "3000:3000"
+
+    working_dir: /workspaces/local_folio
+
+    volumes:
+    - ..:/workspaces/local_folio:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Uncomment the next line to use a non-root user for all processes.
+    # user: vscode
+
+    depends_on:
+    - selenium
+
+  selenium:
+    image: selenium/standalone-chromium
+    restart: unless-stopped
