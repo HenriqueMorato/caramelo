@@ -8,19 +8,19 @@ module MarketPrice
     end
 
     def refreshing(instrument:)
-      broadcast(instrument:, entry: service.read(instrument:), refreshing: true)
+      broadcast(instrument:, lookup: service.read(instrument:), refreshing: true)
     end
 
     def current(instrument:)
-      broadcast(instrument:, entry: service.read(instrument:), refreshing: false)
+      broadcast(instrument:, lookup: service.read(instrument:), refreshing: false)
     end
 
     private
 
     attr_reader :service
 
-    def broadcast(instrument:, entry:, refreshing:)
-      market_price = Presenter.new(instrument:, entry:)
+    def broadcast(instrument:, lookup:, refreshing:)
+      market_price = Presenter.new(instrument:, lookup:)
 
       Turbo::StreamsChannel.broadcast_replace_to(
         STREAM_NAME,

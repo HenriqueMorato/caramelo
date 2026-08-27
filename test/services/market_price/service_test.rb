@@ -12,9 +12,9 @@ class MarketPrice::ServiceTest < ActiveSupport::TestCase
   end
 
   test "uses the injected strategy without requiring a provider from callers" do
-    entry = @service.refresh(instrument: @instrument)
+    lookup = @service.refresh(instrument: @instrument)
 
-    assert_predicate entry, :fresh?
+    assert_predicate lookup, :fresh?
     assert_equal 1, @provider.fetch_count
     assert_equal BigDecimal("32.45"), @service.read(instrument: @instrument).current_market_price.unit_price
   end

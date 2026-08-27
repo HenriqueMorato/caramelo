@@ -13,10 +13,10 @@ Use the narrowest entry point for the task:
 | Task | Entry point | Result |
 | --- | --- | --- |
 | Prepare a price for a view | `MarketPrice::Presenter.for(instrument:)` | A presenter for fresh, stale, missing, or unsupported data |
-| Prepare a position and its price | `Position::Presenter.for(entry:)` | One position presenter containing its market-price presenter |
+| Prepare a position and its price | `Position::Presenter.for(position_result:)` | One position presenter containing its market-price presenter |
 | Start a user-requested refresh | `MarketPrice::RefreshEnqueuer#enqueue(instrument:)` | A queued job, or `nil` for an unsupported instrument |
-| Read a cache entry in application logic | `MarketPrice::Service.default.read(instrument:)` | A cache entry, or `nil` for an unsupported instrument |
-| Refresh inside a job or service | `MarketPrice::Service.default.refresh(instrument:, force:)` | A fresh cache entry |
+| Read cached state in application logic | `MarketPrice::Service.default.read(instrument:)` | A cache lookup, or `nil` for an unsupported instrument |
+| Refresh inside a job or service | `MarketPrice::Service.default.refresh(instrument:, force:)` | A fresh cache lookup |
 
 Controllers and views must not instantiate a provider, cache, Yahoo client, or
 transport. They also do not need to ask whether an instrument is supported
@@ -24,10 +24,13 @@ before calling a presenter or refresh enqueuer; those objects own that decision.
 
 ## Class Responsibilities
 
-- `MarketPrice::Presenter` gives every view a renderable state. Unsupported
+- `MarketPrice::Presenter` gives every view a renderable state while keeping
+  cache details private. Unsupported
   instruments become unavailable presenters; supported instruments retain
   fresh, stale, or missing cache state.
-- `Position::Presenter` composes a position overview entry with its
+- `Position::CalculationResult` holds either a calculated position or the error
+  that prevented calculation for one instrument.
+- `Position::Presenter` composes a position calculation result with its
   `MarketPrice::Presenter`. A positions page reuses one market-price service
   while building the collection.
 - `MarketPrice::RefreshEnqueuer` validates support, broadcasts a refreshing
@@ -38,7 +41,7 @@ before calling a presenter or refresh enqueuer; those objects own that decision.
 - `MarketPrice::Providers::YahooFinance` adapts an `Instrument` to the isolated
   Yahoo client, verifies that the returned currency matches the instrument,
   and converts provider errors into application-level errors.
-- `CurrentMarketPriceCache` stores one entry per provider and instrument. It
+- `CurrentMarketPriceCache` returns one lookup per provider and instrument. It
   decides whether a quote is fresh, stale, or missing and prevents a normal
   refresh from replacing a still-fresh quote.
 - `CurrentMarketPrice` is an immutable quote value. It validates precise
@@ -59,15 +62,15 @@ flowchart LR
   Presenter --> Service[MarketPrice::Service]
   Service --> Provider[Configured provider]
   Service --> Cache[CurrentMarketPriceCache]
-  Cache --> Entry[Fresh / stale / missing entry]
-  Entry --> Presenter
+  Cache --> Lookup[Fresh / stale / missing lookup]
+  Lookup --> Presenter
   Presenter --> View
 ```
 
 `MarketPrice::Presenter.for` asks the service to read. The service first checks
 the configured provider's support. Unsupported instruments return `nil`, which
 the presenter converts into a non-refreshable unavailable state. Supported
-instruments receive a cache entry even when no quote exists, so the same partial
+instruments receive a cache lookup even when no quote exists, so the same partial
 can render every state without controller or view conditionals.
 
 ## Refresh Flow
@@ -93,7 +96,7 @@ sequenceDiagram
   P->>Y: quote(identifier)
   Y-->>P: validated Quote
   P-->>K: CurrentMarketPrice
-  K-->>S: fresh Entry
+  K-->>S: fresh Lookup
   J->>B: current(instrument:)
   B-->>V: replace price component over Turbo Streams
 ```

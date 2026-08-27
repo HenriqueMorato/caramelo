@@ -1,26 +1,26 @@
 require "test_helper"
 
 class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
-  EnqueuedJob = Data.define(:successfully_enqueued?)
-
   test "broadcasts refreshing before enqueueing the forced job" do
     events = []
     broadcaster = fake_broadcaster(events:)
-    job_class = fake_job_class(events:, successfully_enqueued: true)
+    job = Object.new
+    job_class = fake_job_class(events:, result: job)
 
-    MarketPrice::RefreshEnqueuer.new(broadcaster:, job_class:).enqueue(
+    result = MarketPrice::RefreshEnqueuer.new(broadcaster:, job_class:).enqueue(
       instrument: instruments(:petr4_bvmf)
     )
 
+    assert_same job, result
     assert_equal %i[ refreshing enqueue ], events
   end
 
   test "restores the current state when enqueueing fails" do
     events = []
     broadcaster = fake_broadcaster(events:)
-    job_class = fake_job_class(events:, successfully_enqueued: false)
+    job_class = fake_job_class(events:, result: false)
 
-    assert_raises(ActiveJob::EnqueueError) do
+    assert_raises(MarketPrice::EnqueueFailure) do
       MarketPrice::RefreshEnqueuer.new(broadcaster:, job_class:).enqueue(
         instrument: instruments(:petr4_bvmf)
       )
@@ -37,7 +37,7 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     result = MarketPrice::RefreshEnqueuer.new(
       service:,
       broadcaster: fake_broadcaster(events:),
-      job_class: fake_job_class(events:, successfully_enqueued: true)
+      job_class: fake_job_class(events:, result: Object.new)
     ).enqueue(instrument: instruments(:voo_arcx))
 
     assert_nil result
@@ -53,11 +53,11 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     end
   end
 
-  def fake_job_class(events:, successfully_enqueued:)
+  def fake_job_class(events:, result:)
     Object.new.tap do |job_class|
       job_class.define_singleton_method(:perform_later) do |instrument, force:|
         events << :enqueue
-        EnqueuedJob.new(successfully_enqueued)
+        result
       end
     end
   end

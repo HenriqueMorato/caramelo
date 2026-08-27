@@ -2,7 +2,7 @@ class CurrentMarketPriceCache
   CACHE_VERSION = 1
   DEFAULT_FRESH_FOR = 30.minutes
 
-  Entry = Data.define(:current_market_price, :status) do
+  Lookup = Data.define(:current_market_price, :status) do
     def fresh?
       status == :fresh
     end
@@ -31,7 +31,7 @@ class CurrentMarketPriceCache
     normalized_provider = CurrentMarketPrice.normalize_provider(provider)
     key = cache_key(instrument:, provider: normalized_provider)
     payload = cache.read(key)
-    return missing_entry unless payload
+    return missing_lookup unless payload
 
     current_market_price = CurrentMarketPrice.from_cache_payload(payload)
     unless current_market_price.provider == normalized_provider
@@ -41,11 +41,11 @@ class CurrentMarketPriceCache
       raise CurrentMarketPrice::InvalidPayload, "currency does not match instrument"
     end
 
-    entry_for(current_market_price)
+    lookup_for(current_market_price)
   rescue CurrentMarketPrice::InvalidPayload
     # Cached quotes are replaceable, so corrupt data is safer to discard.
     cache.delete(key)
-    missing_entry
+    missing_lookup
   end
 
   def write(instrument:, current_market_price:)
@@ -61,13 +61,13 @@ class CurrentMarketPriceCache
       cache_key(instrument:, provider: current_market_price.provider),
       current_market_price.to_cache_payload
     )
-    entry_for(current_market_price)
+    lookup_for(current_market_price)
   end
 
   def refresh(instrument:, provider:, force: false)
     provider = CurrentMarketPrice.normalize_provider(provider)
-    current_entry = read(instrument:, provider:)
-    return current_entry if current_entry.fresh? && !force
+    current_lookup = read(instrument:, provider:)
+    return current_lookup if current_lookup.fresh? && !force
 
     current_market_price = yield
     unless current_market_price.is_a?(CurrentMarketPrice) && current_market_price.provider == provider
@@ -88,12 +88,12 @@ class CurrentMarketPriceCache
     "localfolio:current_market_price:v#{CACHE_VERSION}:#{provider}:instrument:#{instrument_id}"
   end
 
-  def entry_for(current_market_price)
+  def lookup_for(current_market_price)
     status = current_market_price.stale?(fresh_for:) ? :stale : :fresh
-    Entry.new(current_market_price:, status:)
+    Lookup.new(current_market_price:, status:)
   end
 
-  def missing_entry
-    Entry.new(current_market_price: nil, status: :missing)
+  def missing_lookup
+    Lookup.new(current_market_price: nil, status: :missing)
   end
 end

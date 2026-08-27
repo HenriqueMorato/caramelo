@@ -1,21 +1,21 @@
 class Position
   class Presenter
-    attr_reader :entry, :market_price
+    attr_reader :position_result, :market_price
 
-    delegate :instrument, :position, :error, :invalid?, to: :entry
+    delegate :instrument, :position, :error, :invalid?, to: :position_result
 
-    def self.for(entry:, market_price_service: MarketPrice::Service.default)
+    def self.for(position_result:, market_price_service: MarketPrice::Service.default)
       new(
-        entry:,
+        position_result:,
         market_price: MarketPrice::Presenter.for(
-          instrument: entry.instrument,
+          instrument: position_result.instrument,
           service: market_price_service
         )
       )
     end
 
-    def initialize(entry:, market_price:)
-      @entry = entry
+    def initialize(position_result:, market_price:)
+      @position_result = position_result
       @market_price = market_price
       freeze
     end

@@ -11,9 +11,9 @@ module MarketPrice
 
       broadcaster.refreshing(instrument:)
       job = job_class.perform_later(instrument, force: true)
-      return job if job.successfully_enqueued?
+      return job if job
 
-      raise ActiveJob::EnqueueError, "current market price refresh could not be enqueued"
+      raise EnqueueFailure, "current market price refresh could not be enqueued"
     rescue
       broadcaster.current(instrument:)
       raise

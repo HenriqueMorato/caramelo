@@ -9,23 +9,23 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
     @store = CurrentMarketPriceCache.new(cache: @cache)
   end
 
-  test "returns an explicit missing entry" do
-    entry = @store.read(instrument: @instrument, provider: "example")
+  test "returns an explicit missing lookup" do
+    lookup = @store.read(instrument: @instrument, provider: "example")
 
-    assert_predicate entry, :missing?
-    assert_predicate entry, :refresh_needed?
-    assert_nil entry.current_market_price
+    assert_predicate lookup, :missing?
+    assert_predicate lookup, :refresh_needed?
+    assert_nil lookup.current_market_price
   end
 
   test "stores a fresh price under a versioned provider and instrument key" do
     current_market_price = build_current_market_price
 
-    written_entry = @store.write(instrument: @instrument, current_market_price:)
-    read_entry = @store.read(instrument: @instrument, provider: "example")
+    written_lookup = @store.write(instrument: @instrument, current_market_price:)
+    read_lookup = @store.read(instrument: @instrument, provider: "example")
 
-    assert_predicate written_entry, :fresh?
-    assert_predicate read_entry, :fresh?
-    assert_equal current_market_price.to_cache_payload, read_entry.current_market_price.to_cache_payload
+    assert_predicate written_lookup, :fresh?
+    assert_predicate read_lookup, :fresh?
+    assert_equal current_market_price.to_cache_payload, read_lookup.current_market_price.to_cache_payload
     assert @cache.exist?(cache_key(provider: "example"))
   end
 
@@ -35,10 +35,10 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
       current_market_price: build_current_market_price(fetched_at: @now - 30.minutes)
     )
 
-    entry = @store.read(instrument: @instrument, provider: "example")
+    lookup = @store.read(instrument: @instrument, provider: "example")
 
-    assert_predicate entry, :stale?
-    assert_predicate entry, :refresh_needed?
+    assert_predicate lookup, :stale?
+    assert_predicate lookup, :refresh_needed?
   end
 
   test "retains the last price indefinitely as stale fallback" do
@@ -46,19 +46,19 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
     @store.write(instrument: @instrument, current_market_price:)
     travel 30.days
 
-    entry = @store.read(instrument: @instrument, provider: "example")
+    lookup = @store.read(instrument: @instrument, provider: "example")
 
-    assert_predicate entry, :stale?
-    assert_equal current_market_price.to_cache_payload, entry.current_market_price.to_cache_payload
+    assert_predicate lookup, :stale?
+    assert_equal current_market_price.to_cache_payload, lookup.current_market_price.to_cache_payload
   end
 
   test "replaces the current price without appending history" do
     @store.write(instrument: @instrument, current_market_price: build_current_market_price(unit_price: "10"))
     @store.write(instrument: @instrument, current_market_price: build_current_market_price(unit_price: "11"))
 
-    entry = @store.read(instrument: @instrument, provider: "example")
+    lookup = @store.read(instrument: @instrument, provider: "example")
 
-    assert_equal BigDecimal("11"), entry.current_market_price.unit_price
+    assert_equal BigDecimal("11"), lookup.current_market_price.unit_price
     assert @cache.exist?(cache_key(provider: "example"))
   end
 
@@ -72,20 +72,20 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
       current_market_price: build_current_market_price(provider: "two", unit_price: "20")
     )
 
-    first_provider_entry = @store.read(instrument: @instrument, provider: "one")
-    second_provider_entry = @store.read(instrument: @instrument, provider: "two")
+    first_provider_lookup = @store.read(instrument: @instrument, provider: "one")
+    second_provider_lookup = @store.read(instrument: @instrument, provider: "two")
 
-    assert_equal BigDecimal("10"), first_provider_entry.current_market_price.unit_price
-    assert_equal BigDecimal("20"), second_provider_entry.current_market_price.unit_price
+    assert_equal BigDecimal("10"), first_provider_lookup.current_market_price.unit_price
+    assert_equal BigDecimal("20"), second_provider_lookup.current_market_price.unit_price
   end
 
   test "treats malformed or mismatched cached values as missing and removes them" do
     key = cache_key(provider: "example")
     @cache.write(key, { "unit_price" => "not-a-price" })
 
-    entry = @store.read(instrument: @instrument, provider: "example")
+    lookup = @store.read(instrument: @instrument, provider: "example")
 
-    assert_predicate entry, :missing?
+    assert_predicate lookup, :missing?
     assert_not @cache.exist?(key)
   end
 
@@ -111,10 +111,10 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
   end
 
   test "refreshes missing or stale prices and keeps a stale fallback after failure" do
-    refreshed_entry = @store.refresh(instrument: @instrument, provider: "example") do
+    refreshed_lookup = @store.refresh(instrument: @instrument, provider: "example") do
       build_current_market_price(unit_price: "10")
     end
-    assert_equal BigDecimal("10"), refreshed_entry.current_market_price.unit_price
+    assert_equal BigDecimal("10"), refreshed_lookup.current_market_price.unit_price
 
     stale_current_market_price = build_current_market_price(
       provider: "failing",
@@ -127,9 +127,9 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
       @store.refresh(instrument: @instrument, provider: "failing", force: true) { raise "provider unavailable" }
     end
 
-    fallback_entry = @store.read(instrument: @instrument, provider: "failing")
-    assert_predicate fallback_entry, :stale?
-    assert_equal BigDecimal("11"), fallback_entry.current_market_price.unit_price
+    fallback_lookup = @store.read(instrument: @instrument, provider: "failing")
+    assert_predicate fallback_lookup, :stale?
+    assert_equal BigDecimal("11"), fallback_lookup.current_market_price.unit_price
   end
 
   test "rejects a refresh result from another provider" do
@@ -153,21 +153,21 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
       end
     end
 
-    entry = @store.read(instrument: @instrument, provider: "example")
+    lookup = @store.read(instrument: @instrument, provider: "example")
 
     assert_equal 2, refresh_count
-    assert_equal BigDecimal("2"), entry.current_market_price.unit_price
+    assert_equal BigDecimal("2"), lookup.current_market_price.unit_price
   end
 
   test "does not refresh an already fresh price unless forced" do
     @store.write(instrument: @instrument, current_market_price: build_current_market_price(unit_price: "10"))
 
-    entry = @store.refresh(instrument: @instrument, provider: "example") do
+    lookup = @store.refresh(instrument: @instrument, provider: "example") do
       flunk "fresh price should not call the provider"
     end
 
-    assert_predicate entry, :fresh?
-    assert_equal BigDecimal("10"), entry.current_market_price.unit_price
+    assert_predicate lookup, :fresh?
+    assert_equal BigDecimal("10"), lookup.current_market_price.unit_price
   end
 
   test "requires a positive freshness duration" do

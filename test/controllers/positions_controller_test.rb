@@ -67,7 +67,7 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "span", "Needs attention"
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
     assert_select "a[href='#{instrument_path(instrument)}']"
-    assert_equal trade, Position.overview.find { |entry| entry.instrument == instrument }.error.trade
+    assert_equal trade, Position.overview.find { |result| result.instrument == instrument }.error.trade
   end
 
   test "shows the current B3 price and refresh controls" do
