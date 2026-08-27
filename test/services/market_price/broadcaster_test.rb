@@ -6,7 +6,7 @@ class MarketPrice::BroadcasterTest < ActiveSupport::TestCase
 
   setup do
     @instrument = instruments(:petr4_bvmf)
-    @entry = CurrentMarketPriceCache::Entry.new(
+    @lookup = CurrentMarketPriceCache::Lookup.new(
       current_market_price: nil,
       status: :missing
     )
@@ -14,8 +14,8 @@ class MarketPrice::BroadcasterTest < ActiveSupport::TestCase
 
   test "broadcasts refreshing and current replacements to the instrument stream" do
     service = Object.new
-    service.define_singleton_method(:read) { |instrument:| @entry }
-    service.instance_variable_set(:@entry, @entry)
+    service.define_singleton_method(:read) { |instrument:| @lookup }
+    service.instance_variable_set(:@lookup, @lookup)
     broadcaster = MarketPrice::Broadcaster.new(service:)
 
     streams = capture_turbo_stream_broadcasts([ MarketPrice::Broadcaster::STREAM_NAME, @instrument ]) do

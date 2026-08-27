@@ -131,6 +131,10 @@ Never commit or redistribute fetched market data. Each operator is responsible
 for complying with the market-data provider's terms. Tests must stub the
 transport and must not call the live endpoint.
 
+For the class responsibilities, public entry points, cache states, and complete
+read and refresh flows, see
+[Current Market Price Architecture](docs/current-market-prices.md).
+
 ## Quality and security
 
 Run the repeatable local pipeline:
@@ -252,11 +256,11 @@ to `BigDecimal`; never serialize a financial value as a float. Multiply the
 precise unit price by the precise position quantity before constructing
 currency-rounded `Money` for display.
 
-`CurrentMarketPriceCache` stores one versioned entry per provider and instrument.
+`CurrentMarketPriceCache` stores one versioned value per provider and instrument.
 By default, a quote is fresh for 30 minutes. It has no application-level
 expiration: the last known quote remains available as stale fallback until it
 is replaced or the cache evicts it. Consumers must distinguish `fresh`, `stale`,
-and `missing` entries. Cache loss is safe because trades never depend on quotes
+and `missing` lookups. Cache loss is safe because trades never depend on quotes
 and providers can fetch them again.
 
 Provider adapters must return a quote in the instrument's ISO currency, keep

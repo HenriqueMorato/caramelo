@@ -1,17 +1,17 @@
 module MarketPrice
   class Presenter
-    MISSING_ENTRY = CurrentMarketPriceCache::Entry.new(current_market_price: nil, status: :missing)
+    MISSING_LOOKUP = CurrentMarketPriceCache::Lookup.new(current_market_price: nil, status: :missing)
 
-    attr_reader :instrument, :entry
+    attr_reader :instrument
 
     def self.for(instrument:, service: Service.default)
-      entry = service.read(instrument:)
-      new(instrument:, entry:, refreshable: !entry.nil?)
+      lookup = service.read(instrument:)
+      new(instrument:, lookup:, refreshable: !lookup.nil?)
     end
 
-    def initialize(instrument:, entry:, refreshable: true)
+    def initialize(instrument:, lookup:, refreshable: true)
       @instrument = instrument
-      @entry = entry || MISSING_ENTRY
+      @lookup = lookup || MISSING_LOOKUP
       @refreshable = refreshable
       freeze
     end
@@ -21,15 +21,19 @@ module MarketPrice
     end
 
     def current_market_price
-      entry.current_market_price
+      lookup.current_market_price
     end
 
     def fresh?
-      entry.fresh?
+      lookup.fresh?
     end
 
     def stale?
-      entry.stale?
+      lookup.stale?
     end
+
+    private
+
+    attr_reader :lookup
   end
 end

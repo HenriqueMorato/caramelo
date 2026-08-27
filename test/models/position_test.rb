@@ -9,11 +9,11 @@ class PositionTest < ActiveSupport::TestCase
     create_trade(instrument: earlier_instrument, quantity: 3)
     create_trade(instrument: create_instrument(ticker: "OTHR"), user: users(:one), quantity: 100)
 
-    entries = Position.overview
+    results = Position.overview
 
-    assert_equal [ earlier_instrument, later_instrument ], entries.map(&:instrument)
-    assert_equal [ BigDecimal("3"), BigDecimal("2") ], entries.map { |entry| entry.position.quantity }
-    assert entries.none?(&:invalid?)
+    assert_equal [ earlier_instrument, later_instrument ], results.map(&:instrument)
+    assert_equal [ BigDecimal("3"), BigDecimal("2") ], results.map { |result| result.position.quantity }
+    assert results.none?(&:invalid?)
   end
 
   test "loads overview trades and instruments in a bounded number of queries" do
@@ -28,15 +28,15 @@ class PositionTest < ActiveSupport::TestCase
     create_trade(instrument: valid_instrument)
     invalid_trade = create_trade(instrument: invalid_instrument, side: :sell)
 
-    entries = Position.overview
-    valid_entry = entries.find { |entry| entry.instrument == valid_instrument }
-    invalid_entry = entries.find { |entry| entry.instrument == invalid_instrument }
+    results = Position.overview
+    valid_result = results.find { |result| result.instrument == valid_instrument }
+    invalid_result = results.find { |result| result.instrument == invalid_instrument }
 
-    assert_equal BigDecimal("1"), valid_entry.position.quantity
-    assert_not_predicate valid_entry, :invalid?
-    assert_predicate invalid_entry, :invalid?
-    assert_equal invalid_trade, invalid_entry.error.trade
-    assert_nil invalid_entry.position
+    assert_equal BigDecimal("1"), valid_result.position.quantity
+    assert_not_predicate valid_result, :invalid?
+    assert_predicate invalid_result, :invalid?
+    assert_equal invalid_trade, invalid_result.error.trade
+    assert_nil invalid_result.position
   end
 
   test "calculates one instrument for the configured owner in trade chronology" do

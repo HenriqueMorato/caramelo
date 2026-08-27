@@ -1,11 +1,11 @@
 require "test_helper"
 
 class MarketPrice::PresenterTest < ActiveSupport::TestCase
-  test "presents a supported instrument entry" do
+  test "presents a supported instrument lookup" do
     instrument = instruments(:petr4_bvmf)
-    entry = CurrentMarketPriceCache::Entry.new(current_market_price: nil, status: :missing)
+    lookup = CurrentMarketPriceCache::Lookup.new(current_market_price: nil, status: :missing)
     service = Object.new
-    service.define_singleton_method(:read) { |instrument:| entry }
+    service.define_singleton_method(:read) { |instrument:| lookup }
 
     presenter = MarketPrice::Presenter.for(instrument:, service:)
 
@@ -23,7 +23,8 @@ class MarketPrice::PresenterTest < ActiveSupport::TestCase
     presenter = MarketPrice::Presenter.for(instrument: instruments(:voo_arcx), service:)
 
     assert_not presenter.refreshable?
-    assert_predicate presenter.entry, :missing?
     assert_nil presenter.current_market_price
+    assert_not presenter.fresh?
+    assert_not presenter.stale?
   end
 end
