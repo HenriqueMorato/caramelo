@@ -45,6 +45,10 @@
       <% else %>
         <%= render "positions/metrics", position: @position, instrument: @instrument %>
       <% end %>
+
+      <div class="mt-3">
+        <%= render "current_market_prices/current_market_price", market_price: @market_price, refreshing: false %>
+      </div>
     </div>
   </section>
 

@@ -1,6 +1,10 @@
 require "test_helper"
 
 class PositionsControllerTest < ActionDispatch::IntegrationTest
+  setup do
+    Rails.cache.clear
+  end
+
   test "lists open positions derived only from the configured owner's trades" do
     get positions_url
 
@@ -17,6 +21,8 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "$1,529.00"
     assert_select "article", text: /Other owner trade/, count: 0
     assert_select "h2", text: /PETR4/, count: 0
+    assert_select "#current_market_price_instrument_#{instruments(:voo_arcx).id}", text: /Price unavailable/
+    assert_select "form[action=?]", current_market_price_refresh_path, count: 0
   end
 
   test "hides closed positions by default and includes them when requested" do
@@ -64,6 +70,21 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal trade, Position.overview.find { |entry| entry.instrument == instrument }.error.trade
   end
 
+  test "shows the current B3 price and refresh controls" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    write_current_market_price(instrument:, unit_price: "32.45678901")
+
+    get positions_url
+
+    assert_response :success
+    assert_select "#current_market_price_instrument_#{instrument.id}", text: /Current price/
+    assert_select "#current_market_price_instrument_#{instrument.id}", text: /R\$32,46/
+    assert_select "#current_market_price_instrument_#{instrument.id}", text: /Current/
+    assert_select "form[action=?]", instrument_current_market_price_refresh_path(instrument)
+    assert_select "form[action=?]", current_market_price_refresh_path
+  end
+
   private
 
   def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1))
@@ -75,6 +96,19 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
       unit_price: 10,
       fees_cents: 0,
       currency: instrument.currency
+    )
+  end
+
+  def write_current_market_price(instrument:, unit_price:)
+    CurrentMarketPriceCache.new.write(
+      instrument:,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price:,
+        currency: instrument.currency,
+        provider: "yahoo_finance",
+        quoted_at: Time.current - 1.minute,
+        fetched_at: Time.current
+      )
     )
   end
 end
