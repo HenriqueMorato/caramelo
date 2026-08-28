@@ -13,6 +13,14 @@ class CurrentMarketPriceTest < ActiveSupport::TestCase
     assert_equal current_market_price.fetched_at, restored_current_market_price.fetched_at
   end
 
+  test "rejects a non-hash cache payload" do
+    error = assert_raises(CurrentMarketPrice::InvalidPayload) do
+      CurrentMarketPrice.from_cache_payload("not a payload")
+    end
+
+    assert_equal "payload must be a hash", error.message
+  end
+
   test "rounds only after multiplying precise price and quantity" do
     current_market_price = build_current_market_price(unit_price: "0.0049")
 
@@ -38,6 +46,7 @@ class CurrentMarketPriceTest < ActiveSupport::TestCase
     assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(unit_price: 1.23) }
     assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(unit_price: "0") }
     assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(unit_price: "Infinity") }
+    assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(unit_price: "not-a-price") }
     assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(currency: "ZZZ") }
     assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(currency: "840") }
     assert_raises(CurrentMarketPrice::InvalidValue) { build_current_market_price(provider: "bad provider") }

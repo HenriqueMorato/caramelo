@@ -161,6 +161,24 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
     assert_equal "No data found, symbol may be delisted", error.message
   end
 
+  test "maps a non-symbol chart error to an invalid response" do
+    body = JSON.generate(chart: { result: nil, error: "temporarily unavailable" })
+
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      build_client(body:).quote(@identifier)
+    end
+
+    assert_equal "temporarily unavailable", error.message
+  end
+
+  test "rejects a float before decimal conversion" do
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      build_client.send(:normalize_price, 1.25)
+    end
+
+    assert_equal "price must not be a float", error.message
+  end
+
   test "rejects malformed and inconsistent responses" do
     invalid_bodies = [
       "not json",
@@ -168,6 +186,7 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
       chart_body(symbol: "VALE3.SA"),
       chart_body(price: 0),
       chart_body(price: -1),
+      chart_body(price: '"not-a-price"'),
       chart_body(currency: "Brazilian real"),
       chart_body(quoted_at: "not-a-time"),
       chart_body(provider_exchange: "NYQ"),

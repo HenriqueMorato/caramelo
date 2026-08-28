@@ -100,10 +100,9 @@ class TradesController < ApplicationController
     recent_trade_with_active_institution(instrument: @context_instrument)&.institution
   end
 
-  def recent_trade_with_active_institution(instrument: nil)
-    scope = owner.trades.joins(:institution).merge(Institution.active)
-    scope = scope.where(instrument: instrument) if instrument
-    scope.includes(:institution).order(id: :desc).first
+  def recent_trade_with_active_institution(instrument:)
+    owner.trades.joins(:institution).merge(Institution.active).where(instrument:)
+      .includes(:institution).order(id: :desc).first
   end
 
   def last_institution_id_by_instrument

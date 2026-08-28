@@ -89,6 +89,21 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
     assert_not @cache.exist?(key)
   end
 
+  test "discards cached values whose provider or currency does not match the key" do
+    mismatched_values = [
+      build_current_market_price(provider: "other").to_cache_payload,
+      build_current_market_price(currency: "BRL").to_cache_payload
+    ]
+
+    mismatched_values.each do |payload|
+      key = cache_key(provider: "example")
+      @cache.write(key, payload)
+
+      assert_predicate @store.read(instrument: @instrument, provider: "example"), :missing?
+      assert_not @cache.exist?(key)
+    end
+  end
+
   test "raises for an invalid provider identifier supplied by the caller" do
     assert_raises(CurrentMarketPrice::InvalidValue) do
       @store.read(instrument: @instrument, provider: "bad provider")
@@ -100,6 +115,20 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
 
     assert_raises(CurrentMarketPrice::InvalidValue) do
       @store.write(instrument: @instrument, current_market_price:)
+    end
+  end
+
+  test "rejects values that are not current market prices" do
+    assert_raises(ArgumentError) do
+      @store.write(instrument: @instrument, current_market_price: "12.34")
+    end
+  end
+
+  test "requires a persisted instrument" do
+    instrument = Instrument.new(currency: "USD")
+
+    assert_raises(ArgumentError) do
+      @store.read(instrument:, provider: "example")
     end
   end
 

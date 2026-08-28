@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+def run!(*command, env: {})
+  return if system(env, *command)
+
+  abort "Coverage command failed: #{command.join(" ")}"
+end
+
+def report!
+  run! "bin/simplecov", "report", "--no-color"
+  run! "bin/simplecov", "uncovered", "--criterion", "line", "--top", "10", "--no-color"
+  run! "bin/simplecov", "uncovered", "--criterion", "branch", "--top", "10", "--no-color"
+end
+
+if ARGV.empty?
+  run! "bin/simplecov", "clean", "--quiet"
+  run! "bin/rails", "db:test:prepare"
+  run! "bin/rails", "test",
+    env: { "COVERAGE_COMMAND" => "rails-tests", "COVERAGE_RESULTSET_ONLY" => "1" }
+  run! "bin/rails", "test:system",
+    env: { "COVERAGE_APPEND" => "1", "COVERAGE_COMMAND" => "system-tests" }
+  report!
+else
+  run! "bin/simplecov", "clean", "--quiet"
+  run! "bin/rails", "db:test:prepare"
+  run! "bin/rails", "test", *ARGV,
+    env: { "COVERAGE_COMMAND" => "focused-tests" }
+  report!
+end

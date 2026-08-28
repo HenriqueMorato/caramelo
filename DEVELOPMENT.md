@@ -162,6 +162,41 @@ bin/bundler-audit
 bin/importmap audit
 ```
 
+Every Rails test run generates line and branch coverage for Ruby files under
+`app/` and `lib/`. Reports are local, ignored by Git, and available at
+`coverage/index.html`. Configuration, migrations, tests, generated assets, and
+ERB templates are deliberately outside the measured scope.
+
+Run both Rails test processes and merge their results into one report:
+
+```sh
+bin/coverage
+```
+
+Pass normal Rails test arguments for a focused, clean report:
+
+```sh
+bin/coverage test/models/position_test.rb
+bin/coverage test/models/position_test.rb:42
+```
+
+The SimpleCov binstub manages an existing report without rerunning tests:
+
+```sh
+bin/simplecov report --no-color
+bin/simplecov uncovered --criterion branch --top 10 --no-color
+bin/simplecov open
+bin/simplecov clean
+```
+
+The reviewed baseline is 100% line and branch coverage. Ordinary branches
+should preserve both. A feature intentionally split across stacked branches may
+temporarily fall below the baseline when its coverage arrives later in the same
+stack; describe that gap in the pull request. No automated minimum is enforced.
+Review uncovered behavior and meaningful regressions rather than optimizing for
+an arbitrary count. `bin/ci` runs Rails and system tests as separate steps, then
+reports their combined local coverage.
+
 GitHub Actions runs lint, Ruby and JavaScript security scans, unit tests, and
 system tests for pull requests and pushes to `main`.
 
