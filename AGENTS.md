@@ -17,6 +17,7 @@ and Docker setup.
 - `bin/rails test test/models/user_test.rb:10`: run one test line.
 - `bin/rails test -i /owner/`: run tests matching a name.
 - `bin/rails test:system`: iterate on Selenium/Chrome system tests.
+- `bin/herb`: lint all HTML+ERB views; pass a view path for a focused check.
 - `bin/ci`: run setup, lint, security, tests, system tests, and seeds.
 - `docker build -t local_folio .`: verify the production image.
 

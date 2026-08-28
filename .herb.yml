@@ -1,0 +1,111 @@
+# This file configures Herb for the project and takes precedence over individual
+# editor preferences.
+#
+# Herb provides an HTML+ERB linter, formatter, language server, and related
+# development tools. LocalFolio currently adopts only the linter.
+#
+# Website: https://herb-tools.dev
+# Configuration: https://herb-tools.dev/configuration
+# GitHub: https://github.com/marcoroth/herb
+
+version: 0.10.3
+
+# Framework and template-engine configuration.
+#
+# Framework options: ruby | actionview | hanami | sinatra (default: ruby)
+# Template engine options: erubi | erb | herb (default: erubi)
+#
+# LocalFolio uses Rails Action View with its default Erubi template engine.
+framework: actionview
+# template_engine: erubi
+
+# File patterns are useful when Herb is run without a path. The project command
+# already passes app/views, limiting routine checks to application templates.
+# files:
+#   # Additional patterns beyond the defaults (**.html, **.rhtml,
+#   # **.html.erb, etc.).
+#   include:
+#     - '**/*.xml.erb'
+#     - 'custom/**/*.html'
+#
+#   # Patterns to exclude, including exclusions from the defaults.
+#   exclude:
+#     - 'public/**/*'
+#     - 'tmp/**/*'
+
+# Parser validators are enabled by default. Keep them enabled so malformed,
+# insecure, inaccessible, or incorrectly nested markup fails before rendering.
+# engine:
+#   validators:
+#     security: true
+#     nesting: true
+#     accessibility: true
+
+linter:
+  enabled: true
+
+  # Fail CI for warnings and errors while still reporting lower-severity
+  # information. Tighten this to info or hint later if those rules prove useful
+  # and stable for the application.
+  # Options: error (default) | warning | info | hint
+  failLevel: warning
+
+  # Additional linter-specific patterns. Prefer passing a focused path to
+  # bin/herb instead of adding broad permanent exclusions.
+  # include:
+  #   - '**/*.xml.erb'
+  # exclude:
+  #   - 'app/views/admin/**/*'
+
+  # Rules may be disabled, assigned a severity, or scoped to file patterns.
+  # Keep exceptions narrow and document why the affected template cannot follow
+  # the rule.
+  rules:
+    # Rails validates these declarations when rendering partials, turning their
+    # expected locals into an executable interface.
+    erb-strict-locals-required:
+      enabled: true
+    # Rails ships the application layout with an intentionally disabled PWA
+    # manifest tag that should remain available until PWA routes are enabled.
+    erb-no-commented-out-output-tags:
+      exclude:
+        - 'app/views/layouts/application.html.erb'
+
+  # Other rules may be configured in the same way when adopted deliberately:
+  #   erb-no-extra-newline:
+  #     enabled: false
+  #
+  #   some-rule:
+  #     # Additional patterns are additive unless `only` is present.
+  #     include:
+  #       - 'app/components/**/*'
+  #     exclude:
+  #       - 'app/views/admin/**/*'
+  #
+  #   another-rule:
+  #     # `only` replaces the rule's normal include patterns; exclude still
+  #     # applies.
+  #     only:
+  #       - 'app/views/**/*'
+  #     exclude:
+  #       - 'app/views/admin/**/*'
+
+# The formatter is an experimental preview. Keep it disabled until its output
+# is stable enough to review safely, especially around ERB and Tailwind classes.
+formatter:
+  enabled: false
+  indentWidth: 2
+  maxLineLength: 120
+
+  # Additional formatter-specific patterns.
+  # include:
+  #   - '**/*.xml.erb'
+  # exclude:
+  #   - 'app/views/admin/**/*'
+
+  # Rewriters modify templates before or after formatting. Do not enable the
+  # Tailwind sorter until the formatter itself is adopted deliberately.
+  # rewriter:
+  #   pre:
+  #     - tailwind-class-sorter
+  #   post: []

@@ -3,6 +3,7 @@ ARG RUBY_VERSION=4.0.6
 FROM ghcr.io/rails/devcontainer/images/ruby:$RUBY_VERSION
 
 ARG CURL_IMPERSONATE_VERSION=2.1.1
+ARG NODE_VERSION=24.19.0
 ARG TARGETARCH
 
 USER root
@@ -40,6 +41,8 @@ RUN set -eux; \
 COPY vendor/licenses/curl-impersonate-MIT.txt /usr/share/doc/curl-impersonate/LICENSE
 
 USER vscode
+
+RUN /home/vscode/.local/bin/mise use --global node@${NODE_VERSION}
 
 # Bind Rails outside the container and expose mise-managed tools to non-interactive commands.
 ENV BINDING="0.0.0.0" \

@@ -1,3 +1,5 @@
+<%# locals: (institution:) %>
+
 <%= form_with(model: institution, class: "space-y-6") do |form| %>
   <% if institution.errors.any? %>
     <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-900" role="alert">

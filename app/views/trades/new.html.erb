@@ -12,6 +12,11 @@
   </div>
 
   <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-    <%= render "form", trade: @trade %>
+    <%= render "form",
+               trade: @trade,
+               context_instrument: @context_instrument,
+               instruments: @instruments,
+               institutions: @institutions,
+               last_institution_id_by_instrument: @last_institution_id_by_instrument %>
   </div>
 </section>
