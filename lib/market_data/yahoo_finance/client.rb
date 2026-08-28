@@ -66,11 +66,23 @@ module MarketData
         symbol = meta.fetch("symbol")
         raise InvalidResponse, "response symbol does not match request" unless symbol == identifier.value
 
+        provider_exchange = meta.fetch("exchangeName")
+        unless identifier.matches_provider_exchange?(provider_exchange)
+          raise InvalidResponse, "response exchange does not match request"
+        end
+
+        instrument_type = meta.fetch("instrumentType")
+        unless identifier.supports_instrument_type?(instrument_type)
+          raise InvalidResponse, "response instrument type is not supported"
+        end
+
         Quote.new(
           symbol:,
           unit_price: normalize_price(meta.fetch("regularMarketPrice")),
           currency: normalize_currency(meta.fetch("currency")),
-          quoted_at: Time.at(Integer(meta.fetch("regularMarketTime"))).utc
+          quoted_at: Time.at(Integer(meta.fetch("regularMarketTime"))).utc,
+          provider_exchange:,
+          instrument_type:
         )
       end
 

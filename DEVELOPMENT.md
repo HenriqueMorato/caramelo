@@ -105,10 +105,11 @@ activation, while application pages stay public.
 
 ## Current market prices
 
-LocalFolio uses the Yahoo Finance chart endpoint for current B3 quotes. This is
-an unofficial, credential-free integration intended for personal use. Provider
-traffic is isolated under `lib/market_data/yahoo_finance`, while application
-code uses the provider-neutral classes under `app/services/market_price`.
+LocalFolio uses the Yahoo Finance chart endpoint for current B3, NASDAQ, NYSE,
+and NYSE Arca quotes. This is an unofficial, credential-free integration
+intended for personal use. Provider traffic is isolated under
+`lib/market_data/yahoo_finance`, while application code uses the
+provider-neutral classes under `app/services/market_price`.
 
 The Dev Container and production image already include the required transport.
 Native development requires `curl_chrome146` from
@@ -269,8 +270,8 @@ tests. Use the cache refresh API so fresh values skip provider work. Coordinate
 concurrent refreshes in provider jobs rather than this replaceable value cache.
 
 `MarketPrice::Service.default` owns the active provider strategy. Callers do
-not select or pass providers. The Yahoo adapter currently supports only B3
-listings (`BVMF`), and provider-specific errors must be translated into
+not select or pass providers. The Yahoo adapter supports `BVMF`, `XNAS`, `XNYS`,
+and `ARCX` listings, and provider-specific errors must be translated into
 application-level failures before reaching jobs or controllers.
 
 ## Trade Ledger model conventions

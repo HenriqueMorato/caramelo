@@ -13,7 +13,9 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
         symbol: "PETR4.SA",
         unit_price: BigDecimal("32.45678901"),
         currency: "BRL",
-        quoted_at: @quoted_at
+        quoted_at: @quoted_at,
+        provider_exchange: "SAO",
+        instrument_type: "EQUITY"
       )
     )
     provider = MarketPrice::Providers::YahooFinance.new(client:)
@@ -21,13 +23,41 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
     current_market_price = provider.fetch(instrument: @instrument)
 
     assert provider.supports?(instrument: @instrument)
-    assert_not provider.supports?(instrument: instruments(:voo_arcx))
+    assert provider.supports?(instrument: instruments(:voo_arcx))
+    assert_not provider.supports?(instrument: build_instrument(ticker: "VWRA", exchange: "XLON"))
     assert_equal "PETR4.SA", client.identifiers.sole.value
     assert_equal BigDecimal("32.45678901"), current_market_price.unit_price
     assert_equal "BRL", current_market_price.currency
     assert_equal "yahoo_finance", current_market_price.provider
     assert_equal @quoted_at, current_market_price.quoted_at
     assert_equal Time.current, current_market_price.fetched_at
+  end
+
+  test "maps NASDAQ, NYSE, and NYSE Arca listings through the common adapter" do
+    {
+      build_instrument(ticker: "AAPL", exchange: "XNAS") => [ "AAPL", "NMS", "EQUITY" ],
+      build_instrument(ticker: "IBM", exchange: "XNYS") => [ "IBM", "NYQ", "EQUITY" ],
+      instruments(:voo_arcx) => [ "VOO", "PCX", "ETF" ]
+    }.each do |instrument, (symbol, provider_exchange, instrument_type)|
+      client = FakeClient.new(
+        quote: MarketData::YahooFinance::Quote.new(
+          symbol:,
+          unit_price: BigDecimal("123.45678901"),
+          currency: "USD",
+          quoted_at: @quoted_at,
+          provider_exchange:,
+          instrument_type:
+        )
+      )
+      provider = MarketPrice::Providers::YahooFinance.new(client:)
+
+      current_market_price = provider.fetch(instrument:)
+
+      assert provider.supports?(instrument:)
+      assert_equal symbol, client.identifiers.sole.value
+      assert_equal BigDecimal("123.45678901"), current_market_price.unit_price
+      assert_equal "USD", current_market_price.currency
+    end
   end
 
   test "rejects a quote in a different currency" do
@@ -37,7 +67,9 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
           symbol: "PETR4.SA",
           unit_price: BigDecimal("32.45"),
           currency: "USD",
-          quoted_at: @quoted_at
+          quoted_at: @quoted_at,
+          provider_exchange: "SAO",
+          instrument_type: "EQUITY"
         )
       )
     )
@@ -61,6 +93,10 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
   end
 
   private
+
+  def build_instrument(ticker:, exchange:)
+    Instrument.new(ticker:, exchange:, name: "Test listing", currency: "USD")
+  end
 
   FakeClient = Data.define(:result, :error, :identifiers) do
     def initialize(quote: nil, error: nil, identifiers: [])

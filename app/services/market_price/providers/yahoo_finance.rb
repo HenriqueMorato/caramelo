@@ -17,7 +17,7 @@ module MarketPrice
       end
 
       def supports?(instrument:)
-        instrument.exchange == MarketData::YahooFinance::Identifier::B3_MIC
+        MarketData::YahooFinance::Identifier.supports_mic?(instrument.exchange)
       end
 
       def fetch(instrument:)

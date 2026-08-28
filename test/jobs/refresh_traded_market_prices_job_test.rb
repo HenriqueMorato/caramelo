@@ -3,6 +3,7 @@ require "test_helper"
 class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
   test "enqueues each supported instrument traded by the owner including a closed holding" do
     instrument = instruments(:petr4_bvmf)
+    us_instrument = instruments(:voo_arcx)
     create_trade(instrument:, side: :buy, quantity: 1)
     create_trade(instrument:, side: :sell, quantity: 1)
     untraded_instrument = Instrument.create!(
@@ -13,7 +14,9 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     )
 
     assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ instrument ]) do
-      RefreshTradedMarketPricesJob.new.perform
+      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument ]) do
+        RefreshTradedMarketPricesJob.new.perform
+      end
     end
     assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob do
       build_job(service: unsupported_service).perform

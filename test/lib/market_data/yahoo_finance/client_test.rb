@@ -14,6 +14,8 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
     assert_equal BigDecimal("32.45678901"), quote.unit_price
     assert_equal "BRL", quote.currency
     assert_equal Time.at(1_777_000_000).utc, quote.quoted_at
+    assert_equal "SAO", quote.provider_exchange
+    assert_equal "EQUITY", quote.instrument_type
     assert_predicate quote.quoted_at, :utc?
   end
 
@@ -34,6 +36,28 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
     assert_equal "/v8/finance/chart/PETR4.SA", transport.uris.first.path
     assert_equal({ "range" => "1d", "interval" => "1d" }, URI.decode_www_form(transport.uris.first.query).to_h)
     assert_not_includes transport.uris.first.query, "crumb"
+  end
+
+  test "accepts matching NASDAQ, NYSE, and NYSE Arca response venues" do
+    {
+      [ "AAPL", "XNAS" ] => [ "NMS", "EQUITY" ],
+      [ "IBM", "XNYS" ] => [ "NYQ", "EQUITY" ],
+      [ "VOO", "ARCX" ] => [ "PCX", "ETF" ]
+    }.each do |(ticker, mic), (provider_exchange, instrument_type)|
+      identifier = MarketData::YahooFinance::Identifier.build(ticker:, mic:)
+      quote = build_client(
+        body: chart_body(
+          symbol: ticker,
+          currency: "USD",
+          provider_exchange:,
+          instrument_type:
+        )
+      ).quote(identifier)
+
+      assert_equal ticker, quote.symbol
+      assert_equal provider_exchange, quote.provider_exchange
+      assert_equal instrument_type, quote.instrument_type
+    end
   end
 
   test "classifies HTTP failures" do
@@ -77,7 +101,9 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
       chart_body(price: 0),
       chart_body(price: -1),
       chart_body(currency: "Brazilian real"),
-      chart_body(quoted_at: "not-a-time")
+      chart_body(quoted_at: "not-a-time"),
+      chart_body(provider_exchange: "NYQ"),
+      chart_body(instrument_type: "MUTUALFUND")
     ]
 
     invalid_bodies.each do |body|
@@ -110,7 +136,8 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
     MarketData::YahooFinance::Response.new(status:, body:, headers:)
   end
 
-  def chart_body(symbol: "PETR4.SA", price: "32.45", currency: "BRL", quoted_at: 1_777_000_000)
+  def chart_body(symbol: "PETR4.SA", price: "32.45", currency: "BRL", quoted_at: 1_777_000_000,
+    provider_exchange: "SAO", instrument_type: "EQUITY")
     price_json = price.is_a?(String) ? price : price.to_json
     <<~JSON
       {
@@ -120,7 +147,9 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
               "symbol": #{symbol.to_json},
               "regularMarketPrice": #{price_json},
               "currency": #{currency.to_json},
-              "regularMarketTime": #{quoted_at.to_json}
+              "regularMarketTime": #{quoted_at.to_json},
+              "exchangeName": #{provider_exchange.to_json},
+              "instrumentType": #{instrument_type.to_json}
             }
           }],
           "error": null
