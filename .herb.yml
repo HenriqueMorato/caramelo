@@ -61,49 +61,83 @@ linter:
   # Keep exceptions narrow and document why the affected template cannot follow
   # the rule.
   rules:
-    # Rails validates these declarations when rendering partials, turning their
-    # expected locals into an executable interface.
+    # Requires partials to declare their accepted locals.
+    # https://herb-tools.dev/linter/rules/erb-strict-locals-required
     erb-strict-locals-required:
       enabled: true
+
+    # Keeps strict-locals declarations on the first line.
+    # https://herb-tools.dev/linter/rules/actionview-strict-locals-first-line
     actionview-strict-locals-first-line:
       enabled: true
 
-    # Opt in to Herb's accessibility rules so regressions fail alongside its
-    # default HTML and ERB checks.
+    # Rejects vague link text such as "click here."
+    # https://herb-tools.dev/linter/rules/a11y-avoid-generic-link-text
     a11y-avoid-generic-link-text:
       enabled: true
+
+    # Checks correct use of the disabled attribute.
+    # https://herb-tools.dev/linter/rules/a11y-disabled-attribute
     a11y-disabled-attribute:
       enabled: true
+
+    # Prevents nesting interactive controls.
+    # https://herb-tools.dev/linter/rules/a11y-nested-interactive-elements
     a11y-nested-interactive-elements:
       enabled: true
+
+    # Avoids accesskey keyboard shortcut conflicts.
+    # https://herb-tools.dev/linter/rules/a11y-no-accesskey-attribute
     a11y-no-accesskey-attribute:
       enabled: true
+
+    # Checks that aria-label is used on supported elements.
+    # https://herb-tools.dev/linter/rules/a11y-no-aria-label-misuse
     a11y-no-aria-label-misuse:
       enabled: true
+
+    # Rejects ARIA attributes on unsupported elements.
+    # https://herb-tools.dev/linter/rules/a11y-no-aria-unsupported-elements
     a11y-no-aria-unsupported-elements:
       enabled: true
+
+    # Prevents pages from forcing keyboard focus.
+    # https://herb-tools.dev/linter/rules/a11y-no-autofocus-attribute
     a11y-no-autofocus-attribute:
       enabled: true
+
+    # Avoids redundant words such as "image" in alt text.
+    # https://herb-tools.dev/linter/rules/a11y-no-redundant-image-alt
     a11y-no-redundant-image-alt:
       enabled: true
+
+    # Requires SVGs to have accessible text.
+    # https://herb-tools.dev/linter/rules/a11y-svg-has-accessible-text
     a11y-svg-has-accessible-text:
       enabled: true
+
+    # Requires labels for navigation landmarks.
+    # https://herb-tools.dev/linter/rules/html-navigation-has-label
     html-navigation-has-label:
       enabled: true
+
+    # Prevents relying on inaccessible title attributes.
+    # https://herb-tools.dev/linter/rules/html-no-title-attribute
     html-no-title-attribute:
       enabled: true
 
-    # Catch calls whose return value is silently discarded in ERB.
+    # Catches discarded method return values in ERB.
+    # https://herb-tools.dev/linter/rules/erb-no-silent-statement
     erb-no-silent-statement:
       enabled: true
 
-    # Keep this disabled because Herb treats flow content inside links as a
-    # violation even though modern HTML permits anchors around linked cards.
+    # Disabled because modern HTML permits anchors around linked cards.
+    # https://herb-tools.dev/linter/rules/html-no-block-inside-inline
     html-no-block-inside-inline:
       enabled: false
 
-    # Rails ships the application layout with an intentionally disabled PWA
-    # manifest tag that should remain available until PWA routes are enabled.
+    # Allows Rails' intentionally disabled PWA manifest tag.
+    # https://herb-tools.dev/linter/rules/erb-no-commented-out-output-tags
     erb-no-commented-out-output-tags:
       exclude:
         - 'app/views/layouts/application.html.erb'
