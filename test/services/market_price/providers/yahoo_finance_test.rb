@@ -15,7 +15,8 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
         currency: "BRL",
         quoted_at: @quoted_at,
         provider_exchange: "SAO",
-        instrument_type: "EQUITY"
+        instrument_type: "EQUITY",
+        provider_currency: "BRL"
       )
     )
     provider = MarketPrice::Providers::YahooFinance.new(client:)
@@ -24,7 +25,8 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
 
     assert provider.supports?(instrument: @instrument)
     assert provider.supports?(instrument: instruments(:voo_arcx))
-    assert_not provider.supports?(instrument: build_instrument(ticker: "VWRA", exchange: "XLON"))
+    assert provider.supports?(instrument: build_instrument(ticker: "VWRA", exchange: "XLON"))
+    assert_not provider.supports?(instrument: build_instrument(ticker: "VWRA", exchange: "XSWX"))
     assert_equal "PETR4.SA", client.identifiers.sole.value
     assert_equal BigDecimal("32.45678901"), current_market_price.unit_price
     assert_equal "BRL", current_market_price.currency
@@ -46,7 +48,8 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
           currency: "USD",
           quoted_at: @quoted_at,
           provider_exchange:,
-          instrument_type:
+          instrument_type:,
+          provider_currency: "USD"
         )
       )
       provider = MarketPrice::Providers::YahooFinance.new(client:)
@@ -60,6 +63,34 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
     end
   end
 
+  test "maps representative UCITS listings through the common adapter" do
+    {
+      build_instrument(ticker: "VWRA", exchange: "XLON", currency: "USD") => [ "VWRA.L", "USD" ],
+      build_instrument(ticker: "VWCE", exchange: "XETR", currency: "EUR") => [ "VWCE.DE", "EUR" ],
+      build_instrument(ticker: "VWRP", exchange: "XLON", currency: "GBP") => [ "VWRP.L", "GBP" ]
+    }.each do |instrument, (symbol, currency)|
+      client = FakeClient.new(
+        quote: MarketData::YahooFinance::Quote.new(
+          symbol:,
+          unit_price: BigDecimal("123.45678901"),
+          currency:,
+          quoted_at: @quoted_at,
+          provider_exchange: "test",
+          instrument_type: "ETF",
+          provider_currency: currency
+        )
+      )
+      provider = MarketPrice::Providers::YahooFinance.new(client:)
+
+      current_market_price = provider.fetch(instrument:)
+
+      assert provider.supports?(instrument:)
+      assert_equal symbol, client.identifiers.sole.value
+      assert_equal BigDecimal("123.45678901"), current_market_price.unit_price
+      assert_equal currency, current_market_price.currency
+    end
+  end
+
   test "rejects a quote in a different currency" do
     provider = MarketPrice::Providers::YahooFinance.new(
       client: FakeClient.new(
@@ -69,7 +100,8 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
           currency: "USD",
           quoted_at: @quoted_at,
           provider_exchange: "SAO",
-          instrument_type: "EQUITY"
+          instrument_type: "EQUITY",
+          provider_currency: "USD"
         )
       )
     )
@@ -94,8 +126,8 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
 
   private
 
-  def build_instrument(ticker:, exchange:)
-    Instrument.new(ticker:, exchange:, name: "Test listing", currency: "USD")
+  def build_instrument(ticker:, exchange:, currency: "USD")
+    Instrument.new(ticker:, exchange:, name: "Test listing", currency:)
   end
 
   FakeClient = Data.define(:result, :error, :identifiers) do

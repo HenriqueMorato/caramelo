@@ -3,8 +3,8 @@
 LocalFolio is a local-first, single-user portfolio tracker. It lets you manage
 financial institutions, a global instrument catalog, and buy or sell trades,
 then derives your current positions from that trade history. It can also fetch
-current prices for supported Brazilian and US listings while keeping your
-portfolio data on your own machine.
+current prices for supported Brazilian and US listings and selected European
+UCITS ETFs while keeping your portfolio data on your own machine.
 
 ## Run locally with Docker
 
@@ -100,9 +100,11 @@ not calculate market value, gains, or losses yet.
 ## Current market prices
 
 LocalFolio can refresh the current unit price of B3, NASDAQ, NYSE, and NYSE Arca
-instruments from Yahoo Finance. Use **Refresh prices** on Positions or
+instruments, plus UCITS ETFs listed on the London Stock Exchange, Xetra,
+Euronext Amsterdam, and Euronext Paris. Use **Refresh prices** on Positions or
 **Refresh price** on an instrument. Quotes are cached for 30 minutes; the last
-known quote stays visible and is marked stale if it cannot be refreshed.
+known quote stays visible and is marked stale if it cannot be refreshed. London
+prices quoted by the provider in pence are converted to pounds before display.
 
 The Docker image includes the required HTTP transport and needs no market-data
 credentials. The Yahoo integration is unofficial and intended for personal

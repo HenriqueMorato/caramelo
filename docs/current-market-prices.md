@@ -132,11 +132,41 @@ identifies a listing by ticker alone.
 | `XNAS` | bare ticker | `NMS`, `NGM`, or `NCM` |
 | `XNYS` | bare ticker | `NYQ` |
 | `ARCX` | bare ticker | `PCX` |
+| `XLON` | ticker plus `.L` | `LSE` |
+| `XETR` | ticker plus `.DE` | `GER` |
+| `XAMS` | ticker plus `.AS` | `AMS` |
+| `XPAR` | ticker plus `.PA` | `PAR` |
 
 US symbols do not include a venue suffix, so `Client` rejects a response unless
-its venue metadata matches the requested MIC. It also accepts only equity and
-ETF instrument types. This prevents a same-symbol response from silently being
-treated as the requested listing.
+its venue metadata matches the requested MIC. B3 and US listings accept equity
+or ETF responses; the initial European venues accept only ETF responses. This
+prevents a same-symbol or wrong-instrument response from silently being treated
+as the requested listing. Other European venues, including Euronext Brussels,
+Borsa Italiana, and SIX Swiss Exchange, remain unsupported until their listing
+and provider mappings are added deliberately.
+
+Yahoo's `ETF` metadata does not certify that a fund follows UCITS rules.
+LocalFolio therefore relies on the user-maintained instrument catalog to select
+a UCITS listing and validates only the provider's venue and ETF classification.
+Fund discovery and regulatory classification remain outside this integration.
+
+Yahoo reports some London prices in `GBp` (and may use `GBX`), meaning pence
+rather than pounds. `Client` preserves that raw provider denomination on
+`Quote`, divides the amount by 100, and exposes ISO `GBP` to the application.
+A true `GBP` quote is not divided. Cache values therefore always contain an ISO
+currency and a price expressed in that currency's major unit.
+
+### ISIN and listing identity
+
+[ISO 6166](https://www.iso.org/standard/78502.html) identifies the financial
+instrument, while LocalFolio must identify the particular exchange listing.
+Vanguard's official
+[FTSE All-World UCITS ETF factsheet](https://fund-docs.vanguard.com/FTSE_All-World_UCITS_ETF_USD_Accumulating_9679_EU_INT_EN.pdf)
+shows why these are different: ISIN `IE00BK5BQT80` has separate `VWRA` USD and
+`VWRP` GBP London listings and a `VWCE` EUR Xetra listing. ISIN may later be
+stored as supplemental fund metadata, but it must not replace the ticker and
+MIC listing key or be unique across LocalFolio's instrument records. Each
+listing retains its own quote currency.
 
 `Client` builds the fixed chart request, classifies HTTP responses, and parses a
 validated `Quote`. `CurlTransport` is the only process/network layer: it

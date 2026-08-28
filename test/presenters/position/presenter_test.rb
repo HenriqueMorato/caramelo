@@ -21,7 +21,7 @@ class Position::PresenterTest < ActiveSupport::TestCase
   end
 
   test "preserves an invalid calculation result and an unsupported market price state" do
-    instrument = Instrument.new(ticker: "VWRA", exchange: "XLON", name: "Vanguard FTSE All-World", currency: "USD")
+    instrument = Instrument.new(ticker: "VWRA", exchange: "XSWX", name: "Vanguard FTSE All-World", currency: "CHF")
     error = Position::InvalidLongOnlyData.new(trades(:owner_voo_buy))
     position_result = Position::CalculationResult.new(instrument:, position: nil, error:)
     service = Object.new

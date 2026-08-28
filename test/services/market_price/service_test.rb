@@ -40,8 +40,11 @@ class MarketPrice::ServiceTest < ActiveSupport::TestCase
 
     assert service.supports?(instrument: @instrument)
     assert service.supports?(instrument: instruments(:voo_arcx))
-    assert_not service.supports?(
+    assert service.supports?(
       instrument: Instrument.new(ticker: "VWRA", exchange: "XLON", name: "Vanguard FTSE All-World", currency: "USD")
+    )
+    assert_not service.supports?(
+      instrument: Instrument.new(ticker: "VWRA", exchange: "XSWX", name: "Vanguard FTSE All-World", currency: "CHF")
     )
   end
 
