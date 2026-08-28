@@ -74,4 +74,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  # Report line and branch coverage across test processes [https://github.com/simplecov-ruby/simplecov]
+  gem "simplecov", "~> 1.1", require: false
 end
