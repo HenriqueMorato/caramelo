@@ -22,7 +22,8 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "article", text: /Other owner trade/, count: 0
     assert_select "h2", text: /PETR4/, count: 0
     assert_select "#current_market_price_instrument_#{instruments(:voo_arcx).id}", text: /Price unavailable/
-    assert_select "form[action=?]", current_market_price_refresh_path, count: 0
+    assert_select "form[action=?]", instrument_current_market_price_refresh_path(instruments(:voo_arcx))
+    assert_select "form[action=?]", current_market_price_refresh_path
   end
 
   test "hides closed positions by default and includes them when requested" do

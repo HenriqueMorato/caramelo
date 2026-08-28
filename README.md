@@ -3,8 +3,8 @@
 LocalFolio is a local-first, single-user portfolio tracker. It lets you manage
 financial institutions, a global instrument catalog, and buy or sell trades,
 then derives your current positions from that trade history. It can also fetch
-current prices for Brazilian-market instruments while keeping your portfolio
-data on your own machine.
+current prices for supported Brazilian and US listings while keeping your
+portfolio data on your own machine.
 
 ## Run locally with Docker
 
@@ -97,12 +97,12 @@ or deleting a trade updates them immediately. Position amounts remain
 acquisition costs: current prices are shown separately and the application does
 not calculate market value, gains, or losses yet.
 
-## Current Brazilian market prices
+## Current market prices
 
-LocalFolio can refresh the current unit price of B3 instruments from Yahoo
-Finance. Use **Refresh prices** on Positions or **Refresh price** on an
-instrument. Quotes are cached for 30 minutes; the last known quote stays visible
-and is marked stale if it cannot be refreshed.
+LocalFolio can refresh the current unit price of B3, NASDAQ, NYSE, and NYSE Arca
+instruments from Yahoo Finance. Use **Refresh prices** on Positions or
+**Refresh price** on an instrument. Quotes are cached for 30 minutes; the last
+known quote stays visible and is marked stale if it cannot be refreshed.
 
 The Docker image includes the required HTTP transport and needs no market-data
 credentials. The Yahoo integration is unofficial and intended for personal
@@ -133,8 +133,8 @@ docker cp local_folio:/tmp/local_folio-backup.sqlite3 ./local_folio-backup.sqlit
 
 The extracted `local_folio-backup.sqlite3` file can be moved to any backup
 location you choose. No external database, cache, queue, market-data
-credentials, or authentication service is required. Refreshing a current B3
-price makes an outbound request to Yahoo Finance.
+credentials, or authentication service is required. Refreshing a supported
+current price makes an outbound request to Yahoo Finance.
 
 The interface is English, the application time zone is
 `America/Sao_Paulo`, and future portfolio reporting defaults to Brazilian real

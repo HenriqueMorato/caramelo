@@ -35,11 +35,14 @@ class MarketPrice::ServiceTest < ActiveSupport::TestCase
     assert_equal "fake", payload.fetch("provider")
   end
 
-  test "default service supports only the default provider instruments" do
+  test "default service supports B3 and initial US provider instruments" do
     service = MarketPrice::Service.default
 
     assert service.supports?(instrument: @instrument)
-    assert_not service.supports?(instrument: instruments(:voo_arcx))
+    assert service.supports?(instrument: instruments(:voo_arcx))
+    assert_not service.supports?(
+      instrument: Instrument.new(ticker: "VWRA", exchange: "XLON", name: "Vanguard FTSE All-World", currency: "USD")
+    )
   end
 
   test "returns nil when reading an unsupported instrument" do

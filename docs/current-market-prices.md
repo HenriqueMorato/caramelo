@@ -25,8 +25,8 @@ before calling a presenter or refresh enqueuer; those objects own that decision.
 ## Class Responsibilities
 
 - `MarketPrice::Presenter` gives every view a renderable state while keeping
-  cache details private. Unsupported
-  instruments become unavailable presenters; supported instruments retain
+  cache details private. Unsupported instruments become unavailable presenters;
+  supported instruments retain
   fresh, stale, or missing cache state.
 - `Position::CalculationResult` holds either a calculated position or the error
   that prevented calculation for one instrument.
@@ -123,10 +123,33 @@ failure does not delete a previously cached stale quote.
 ## Yahoo Finance Boundary
 
 `MarketData::YahooFinance::Identifier` maps a supported listing to a provider
-symbol. `Client` builds the fixed chart request, classifies HTTP responses, and
-parses a validated `Quote`. `CurlTransport` is the only process/network layer:
-it executes `curl_chrome146` without a shell, accepts only the configured Yahoo
+symbol. It always receives both ticker and exchange MIC; application code never
+identifies a listing by ticker alone.
+
+| Listing MIC | Yahoo symbol | Accepted Yahoo venue metadata |
+| --- | --- | --- |
+| `BVMF` | ticker plus `.SA` | `SAO` |
+| `XNAS` | bare ticker | `NMS`, `NGM`, or `NCM` |
+| `XNYS` | bare ticker | `NYQ` |
+| `ARCX` | bare ticker | `PCX` |
+
+US symbols do not include a venue suffix, so `Client` rejects a response unless
+its venue metadata matches the requested MIC. It also accepts only equity and
+ETF instrument types. This prevents a same-symbol response from silently being
+treated as the requested listing.
+
+`Client` builds the fixed chart request, classifies HTTP responses, and parses a
+validated `Quote`. `CurlTransport` is the only process/network layer: it
+executes `curl_chrome146` without a shell, accepts only the configured Yahoo
 HTTPS host, and returns a small `Response` value.
+
+Yahoo may provide real-time or delayed data depending on the listing, exchange,
+and provider policy; LocalFolio does not promise a real-time feed. The displayed
+quote time is Yahoo's `regularMarketTime`. Fresh and stale cache states describe
+when LocalFolio last fetched the quote, not whether its market is open. During a
+closed session, a successful refresh can retain the last published market price
+and quote time. No API credential is required; the optional
+`YAHOO_FINANCE_HTTP_EXECUTABLE` setting only selects the local transport binary.
 
 No code outside the provider adapter should depend on these classes. This keeps
 the application usable if Yahoo is replaced and makes the low-level client
