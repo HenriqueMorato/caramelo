@@ -147,6 +147,20 @@ class TradesTest < ApplicationSystemTestCase
     assert_field "Unit price", with: "1234.56789"
   end
 
+  test "shows edit validation errors and preserves entered values" do
+    trade = trades(:owner_voo_buy)
+
+    visit edit_trade_path(trade)
+    fill_in "Quantity", with: "0"
+    fill_in "Notes", with: "Keep this edited note"
+    click_on "Update Trade"
+
+    assert_text "1 error prevented this trade from being saved:"
+    assert_text "Quantity must be greater than 0"
+    assert_field "Quantity", with: "0"
+    assert_field "Notes", with: "Keep this edited note"
+  end
+
   test "shows validation errors and preserves values" do
     visit new_trade_path
 

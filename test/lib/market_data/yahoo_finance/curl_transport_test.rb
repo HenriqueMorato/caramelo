@@ -50,6 +50,25 @@ class MarketData::YahooFinance::CurlTransportTest < ActiveSupport::TestCase
       failing_transport(exitstatus: 2, error: "bad option").get(valid_uri)
     end
     assert_equal "bad option", error.message
+
+    error = assert_raises(MarketData::YahooFinance::TransportError) do
+      failing_transport(exitstatus: 2, error: "").get(valid_uri)
+    end
+    assert_equal "curl-impersonate exited with status 2", error.message
+  end
+
+  test "rejects a non-numeric HTTP status" do
+    runner = lambda do |*arguments|
+      File.binwrite(argument_value(arguments, "--dump-header"), "")
+      File.binwrite(argument_value(arguments, "--output"), "")
+      [ "not-a-status", "", ProcessStatus.new(success: true, exitstatus: 0) ]
+    end
+
+    error = assert_raises(MarketData::YahooFinance::TransportError) do
+      build_transport(command_runner: runner).get(valid_uri)
+    end
+
+    assert_match(/invalid HTTP status/, error.message)
   end
 
   test "requires a configured executable and positive timeout" do
@@ -58,6 +77,9 @@ class MarketData::YahooFinance::CurlTransportTest < ActiveSupport::TestCase
     end
     assert_raises(MarketData::YahooFinance::ConfigurationError) do
       build_transport(timeout: 0)
+    end
+    assert_raises(MarketData::YahooFinance::ConfigurationError) do
+      build_transport(timeout: "not-a-timeout")
     end
   end
 

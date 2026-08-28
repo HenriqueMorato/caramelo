@@ -69,11 +69,30 @@ class InstitutionsControllerTest < ActionDispatch::IntegrationTest
     assert_predicate @institution.reload, :active?
   end
 
+  test "renders validation errors when update fails" do
+    patch institution_url(@institution), params: { institution: { name: "" } }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Name can't be blank/
+    assert_not @institution.reload.name.blank?
+  end
+
   test "deletes an unused institution" do
     assert_difference("Institution.count", -1) do
       delete institution_url(@institution)
     end
 
     assert_redirected_to institutions_url
+  end
+
+  test "does not delete an institution referenced by a trade" do
+    institution = institutions(:owner_inactive)
+
+    assert_no_difference("Institution.count") do
+      delete institution_url(institution)
+    end
+
+    assert_redirected_to institution_url(institution)
+    assert_equal "Cannot delete record because dependent trades exist", flash[:alert]
   end
 end

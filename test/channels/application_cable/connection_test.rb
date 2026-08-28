@@ -6,4 +6,14 @@ class ApplicationCable::ConnectionTest < ActionCable::Connection::TestCase
 
     assert_equal User.owner, connection.current_user
   end
+
+  test "connects authenticated clients as their session user" do
+    user = users(:one)
+    session = user.sessions.create!
+    cookies.signed[:session_id] = session.id
+
+    connect
+
+    assert_equal user, connection.current_user
+  end
 end

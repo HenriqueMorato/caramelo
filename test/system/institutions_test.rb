@@ -37,4 +37,18 @@ class InstitutionsTest < ApplicationSystemTestCase
     assert_text "Institution was deleted."
     assert_no_text "BTG Pactual"
   end
+
+  test "shows edit validation errors and preserves entered values" do
+    institution = institutions(:owner_xp)
+
+    visit edit_institution_path(institution)
+    fill_in "Name", with: institutions(:owner_inactive).name
+    fill_in "Notes", with: "Keep these edited notes"
+    click_on "Update Institution"
+
+    assert_text "1 error prevented this institution from being saved:"
+    assert_text "Name has already been taken"
+    assert_field "Name", with: institutions(:owner_inactive).name
+    assert_field "Notes", with: "Keep these edited notes"
+  end
 end

@@ -30,4 +30,11 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
     assert_empty cookies[:session_id]
   end
+
+  test "destroy requires an authenticated session" do
+    delete session_path
+
+    assert_redirected_to new_session_path
+    assert_equal session_url, session[:return_to_after_authenticating]
+  end
 end

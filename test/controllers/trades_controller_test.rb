@@ -216,6 +216,23 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Reduced position", @trade.notes
   end
 
+  test "renders validation errors when update fails" do
+    patch trade_url(@trade), params: { trade: valid_trade_params.merge(quantity: "0") }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Quantity must be greater than 0/
+    assert_not_equal 0, @trade.reload.quantity
+  end
+
+  test "renders invalid fee input as a validation error" do
+    assert_no_difference("Trade.count") do
+      post trades_url, params: { trade: valid_trade_params.merge(fees: "invalid") }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Fees is not a number/
+  end
+
   test "deletes an owner trade" do
     assert_difference("Trade.count", -1) do
       delete trade_url(@trade)
