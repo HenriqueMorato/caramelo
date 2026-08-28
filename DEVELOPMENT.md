@@ -56,6 +56,7 @@ docker compose -f .devcontainer/compose.yaml down
 ## Native requirements
 
 - Ruby 4.0.6 with Bundler
+- Node 24.19.0 with npm 11 or newer for Herb template linting
 - SQLite 3
 - libvips
 - Chrome or Chromium for system tests
@@ -157,9 +158,12 @@ bin/rails test test/models/user_test.rb:10
 bin/rails test -i /owner/
 bin/rails test:system
 bin/rubocop
+bin/herb
+bin/herb app/views/trades/_form.html.erb
 bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
 bin/bundler-audit
 bin/importmap audit
+npm audit --audit-level=high
 ```
 
 Every Rails test run generates line and branch coverage for Ruby files under
@@ -199,6 +203,14 @@ reports their combined local coverage.
 
 GitHub Actions runs lint, Ruby and JavaScript security scans, unit tests, and
 system tests for pull requests and pushes to `main`.
+
+Herb statically checks HTML+ERB structure, accessibility, and Action View
+conventions under `app/views`; request and system tests remain responsible for
+rendered behavior. Its Node dependencies are development-only, locked, and
+subject to the same seven-day release cooldown as Ruby dependencies. The Herb
+formatter is not enabled because its official documentation still labels it an
+experimental preview that may change or corrupt edge-case templates. Revisit it
+separately once its output is stable enough to review safely.
 
 ## Internationalization
 

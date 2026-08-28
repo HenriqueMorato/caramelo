@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+APP_ROOT = File.expand_path("..", __dir__)
+executable = File.join(APP_ROOT, "node_modules", ".bin", "herb-lint")
+
+abort "Herb is not installed. Run bin/setup --skip-server." unless File.executable?(executable)
+
+arguments = ARGV.dup
+path_given = arguments.any? { |argument| File.exist?(File.expand_path(argument, APP_ROOT)) }
+arguments.unshift("app/views") unless path_given
+exec executable, *arguments, chdir: APP_ROOT

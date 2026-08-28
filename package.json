@@ -1,0 +1,10 @@
+{
+  "name": "local-folio-development-tools",
+  "private": true,
+  "scripts": {
+    "herb:lint": "herb-lint app/views"
+  },
+  "devDependencies": {
+    "@herb-tools/linter": "0.10.3"
+  }
+}

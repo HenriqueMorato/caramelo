@@ -1,0 +1,182 @@
+# This file configures Herb for the project and takes precedence over individual
+# editor preferences.
+#
+# Herb provides an HTML+ERB linter, formatter, language server, and related
+# development tools. LocalFolio currently adopts only the linter.
+#
+# Website: https://herb-tools.dev
+# Configuration: https://herb-tools.dev/configuration
+# GitHub: https://github.com/marcoroth/herb
+
+version: 0.10.3
+
+# Framework and template-engine configuration.
+#
+# Framework options: ruby | actionview | hanami | sinatra (default: ruby)
+# Template engine options: erubi | erb | herb (default: erubi)
+#
+# LocalFolio uses Rails Action View with its default Erubi template engine.
+framework: actionview
+# template_engine: erubi
+
+# File patterns are useful when Herb is run without a path. The project command
+# already passes app/views, limiting routine checks to application templates.
+# files:
+#   # Additional patterns beyond the defaults (**.html, **.rhtml,
+#   # **.html.erb, etc.).
+#   include:
+#     - '**/*.xml.erb'
+#     - 'custom/**/*.html'
+#
+#   # Patterns to exclude, including exclusions from the defaults.
+#   exclude:
+#     - 'public/**/*'
+#     - 'tmp/**/*'
+
+# Parser validators are enabled by default. Keep them enabled so malformed,
+# insecure, inaccessible, or incorrectly nested markup fails before rendering.
+# engine:
+#   validators:
+#     security: true
+#     nesting: true
+#     accessibility: true
+
+linter:
+  enabled: true
+
+  # Fail CI for warnings and errors while still reporting lower-severity
+  # information. Tighten this to info or hint later if those rules prove useful
+  # and stable for the application.
+  # Options: error (default) | warning | info | hint
+  failLevel: warning
+
+  # Additional linter-specific patterns. Prefer passing a focused path to
+  # bin/herb instead of adding broad permanent exclusions.
+  # include:
+  #   - '**/*.xml.erb'
+  # exclude:
+  #   - 'app/views/admin/**/*'
+
+  # Rules may be disabled, assigned a severity, or scoped to file patterns.
+  # Keep exceptions narrow and document why the affected template cannot follow
+  # the rule.
+  rules:
+    # Requires partials to declare their accepted locals.
+    # https://herb-tools.dev/linter/rules/erb-strict-locals-required
+    erb-strict-locals-required:
+      enabled: true
+
+    # Keeps strict-locals declarations on the first line.
+    # https://herb-tools.dev/linter/rules/actionview-strict-locals-first-line
+    actionview-strict-locals-first-line:
+      enabled: true
+
+    # Rejects vague link text such as "click here."
+    # https://herb-tools.dev/linter/rules/a11y-avoid-generic-link-text
+    a11y-avoid-generic-link-text:
+      enabled: true
+
+    # Checks correct use of the disabled attribute.
+    # https://herb-tools.dev/linter/rules/a11y-disabled-attribute
+    a11y-disabled-attribute:
+      enabled: true
+
+    # Prevents nesting interactive controls.
+    # https://herb-tools.dev/linter/rules/a11y-nested-interactive-elements
+    a11y-nested-interactive-elements:
+      enabled: true
+
+    # Avoids accesskey keyboard shortcut conflicts.
+    # https://herb-tools.dev/linter/rules/a11y-no-accesskey-attribute
+    a11y-no-accesskey-attribute:
+      enabled: true
+
+    # Checks that aria-label is used on supported elements.
+    # https://herb-tools.dev/linter/rules/a11y-no-aria-label-misuse
+    a11y-no-aria-label-misuse:
+      enabled: true
+
+    # Rejects ARIA attributes on unsupported elements.
+    # https://herb-tools.dev/linter/rules/a11y-no-aria-unsupported-elements
+    a11y-no-aria-unsupported-elements:
+      enabled: true
+
+    # Prevents pages from forcing keyboard focus.
+    # https://herb-tools.dev/linter/rules/a11y-no-autofocus-attribute
+    a11y-no-autofocus-attribute:
+      enabled: true
+
+    # Avoids redundant words such as "image" in alt text.
+    # https://herb-tools.dev/linter/rules/a11y-no-redundant-image-alt
+    a11y-no-redundant-image-alt:
+      enabled: true
+
+    # Requires SVGs to have accessible text.
+    # https://herb-tools.dev/linter/rules/a11y-svg-has-accessible-text
+    a11y-svg-has-accessible-text:
+      enabled: true
+
+    # Requires labels for navigation landmarks.
+    # https://herb-tools.dev/linter/rules/html-navigation-has-label
+    html-navigation-has-label:
+      enabled: true
+
+    # Prevents relying on inaccessible title attributes.
+    # https://herb-tools.dev/linter/rules/html-no-title-attribute
+    html-no-title-attribute:
+      enabled: true
+
+    # Catches discarded method return values in ERB.
+    # https://herb-tools.dev/linter/rules/erb-no-silent-statement
+    erb-no-silent-statement:
+      enabled: true
+
+    # Disabled because modern HTML permits anchors around linked cards.
+    # https://herb-tools.dev/linter/rules/html-no-block-inside-inline
+    html-no-block-inside-inline:
+      enabled: false
+
+    # Allows Rails' intentionally disabled PWA manifest tag.
+    # https://herb-tools.dev/linter/rules/erb-no-commented-out-output-tags
+    erb-no-commented-out-output-tags:
+      exclude:
+        - 'app/views/layouts/application.html.erb'
+
+  # Other rules may be configured in the same way when adopted deliberately:
+  #   erb-no-extra-newline:
+  #     enabled: false
+  #
+  #   some-rule:
+  #     # Additional patterns are additive unless `only` is present.
+  #     include:
+  #       - 'app/components/**/*'
+  #     exclude:
+  #       - 'app/views/admin/**/*'
+  #
+  #   another-rule:
+  #     # `only` replaces the rule's normal include patterns; exclude still
+  #     # applies.
+  #     only:
+  #       - 'app/views/**/*'
+  #     exclude:
+  #       - 'app/views/admin/**/*'
+
+# The formatter is an experimental preview. Keep it disabled until its output
+# is stable enough to review safely, especially around ERB and Tailwind classes.
+formatter:
+  enabled: false
+  indentWidth: 2
+  maxLineLength: 120
+
+  # Additional formatter-specific patterns.
+  # include:
+  #   - '**/*.xml.erb'
+  # exclude:
+  #   - 'app/views/admin/**/*'
+
+  # Rewriters modify templates before or after formatting. Do not enable the
+  # Tailwind sorter until the formatter itself is adopted deliberately.
+  # rewriter:
+  #   pre:
+  #     - tailwind-class-sorter
+  #   post: []

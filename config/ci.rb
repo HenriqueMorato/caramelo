@@ -4,10 +4,12 @@ CI.run do
   step "Setup", "bin/setup --skip-server"
 
   step "Style: Ruby", "bin/rubocop"
+  step "Style: HTML+ERB", "bin/herb"
   step "Translations: I18n", "bin/i18n-tasks health"
 
   step "Security: Gem audit", "bin/bundler-audit"
   step "Security: Importmap vulnerability audit", "bin/importmap audit"
+  step "Security: Development tool audit", "npm audit --audit-level=high"
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"
   step "Coverage: Clean", "bin/simplecov clean --quiet"
   step "Tests: Rails", "env COVERAGE_COMMAND=rails-tests COVERAGE_RESULTSET_ONLY=1 bin/rails test"

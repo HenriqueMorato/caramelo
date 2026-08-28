@@ -1,3 +1,5 @@
+<%# locals: (instrument:) %>
+
 <%= form_with(model: instrument, class: "space-y-6") do |form| %>
   <% if instrument.errors.any? %>
     <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-900" role="alert">
