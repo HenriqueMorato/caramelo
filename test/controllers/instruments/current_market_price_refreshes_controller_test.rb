@@ -34,9 +34,9 @@ class Instruments::CurrentMarketPriceRefreshesControllerTest < ActionDispatch::I
   test "rejects an unsupported instrument" do
     instrument = Instrument.create!(
       ticker: "VWRA",
-      exchange: "XLON",
+      exchange: "XSWX",
       name: "Vanguard FTSE All-World UCITS ETF",
-      currency: "USD"
+      currency: "CHF"
     )
 
     post instrument_current_market_price_refresh_url(instrument), as: :turbo_stream

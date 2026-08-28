@@ -6,7 +6,11 @@ class MarketData::YahooFinance::IdentifierTest < ActiveSupport::TestCase
       [ " petr4 ", " bvmf " ] => "PETR4.SA",
       [ " aapl ", " xnas " ] => "AAPL",
       [ " ibm ", " xnys " ] => "IBM",
-      [ " voo ", " arcx " ] => "VOO"
+      [ " voo ", " arcx " ] => "VOO",
+      [ " vwra ", " xlon " ] => "VWRA.L",
+      [ " vwce ", " xetr " ] => "VWCE.DE",
+      [ " iwda ", " xams " ] => "IWDA.AS",
+      [ " cw8 ", " xpar " ] => "CW8.PA"
     }.each do |(ticker, mic), expected_value|
       identifier = MarketData::YahooFinance::Identifier.build(ticker:, mic:)
 
@@ -30,11 +34,16 @@ class MarketData::YahooFinance::IdentifierTest < ActiveSupport::TestCase
     assert nasdaq.supports_instrument_type?("EQUITY")
     assert nasdaq.supports_instrument_type?("ETF")
     assert_not nasdaq.supports_instrument_type?("MUTUALFUND")
+
+    london = MarketData::YahooFinance::Identifier.build(ticker: "VWRA", mic: "XLON")
+    assert london.matches_provider_exchange?("LSE")
+    assert london.supports_instrument_type?("ETF")
+    assert_not london.supports_instrument_type?("EQUITY")
   end
 
   test "rejects unsupported exchanges and malformed tickers" do
     assert_raises(MarketData::YahooFinance::UnsupportedExchange) do
-      MarketData::YahooFinance::Identifier.build(ticker: "VWRA", mic: "XLON")
+      MarketData::YahooFinance::Identifier.build(ticker: "VWRA", mic: "XSWX")
     end
 
     assert_raises(MarketData::YahooFinance::InvalidIdentifier) do

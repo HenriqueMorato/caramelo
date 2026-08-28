@@ -20,7 +20,7 @@ class MarketPrice::PresenterTest < ActiveSupport::TestCase
     service = Object.new
     service.define_singleton_method(:read) { |instrument:| nil }
 
-    instrument = Instrument.new(ticker: "VWRA", exchange: "XLON", name: "Vanguard FTSE All-World", currency: "USD")
+    instrument = Instrument.new(ticker: "VWRA", exchange: "XSWX", name: "Vanguard FTSE All-World", currency: "CHF")
     presenter = MarketPrice::Presenter.for(instrument:, service:)
 
     assert_not presenter.refreshable?

@@ -3,16 +3,22 @@ module MarketData
     class Identifier
       B3_MIC = "BVMF"
       US_MICS = %w[XNAS XNYS ARCX].freeze
+
+      # suffix builds the Yahoo symbol; provider_exchanges and instrument_types
+      # are the response metadata accepted for that listing MIC.
       EXCHANGES = {
-        B3_MIC => { suffix: ".SA", provider_exchanges: %w[SAO] },
-        "XNAS" => { suffix: "", provider_exchanges: %w[NMS NGM NCM] },
-        "XNYS" => { suffix: "", provider_exchanges: %w[NYQ] },
-        "ARCX" => { suffix: "", provider_exchanges: %w[PCX] }
+        B3_MIC => { suffix: ".SA", provider_exchanges: %w[SAO], instrument_types: %w[EQUITY ETF] },
+        "XNAS" => { suffix: "", provider_exchanges: %w[NMS NGM NCM], instrument_types: %w[EQUITY ETF] },
+        "XNYS" => { suffix: "", provider_exchanges: %w[NYQ], instrument_types: %w[EQUITY ETF] },
+        "ARCX" => { suffix: "", provider_exchanges: %w[PCX], instrument_types: %w[EQUITY ETF] },
+        "XLON" => { suffix: ".L", provider_exchanges: %w[LSE], instrument_types: %w[ETF] },
+        "XETR" => { suffix: ".DE", provider_exchanges: %w[GER], instrument_types: %w[ETF] },
+        "XAMS" => { suffix: ".AS", provider_exchanges: %w[AMS], instrument_types: %w[ETF] },
+        "XPAR" => { suffix: ".PA", provider_exchanges: %w[PAR], instrument_types: %w[ETF] }
       }.freeze
       B3_TICKER_PATTERN = /\A[A-Z0-9]{4,12}\z/
-      US_TICKER_PATTERN = /\A[A-Z0-9]+(?:[.-][A-Z0-9]+)?\z/
+      INTERNATIONAL_TICKER_PATTERN = /\A[A-Z0-9]+(?:[.-][A-Z0-9]+)?\z/
       MAX_TICKER_LENGTH = 12
-      SUPPORTED_INSTRUMENT_TYPES = %w[EQUITY ETF].freeze
 
       attr_reader :mic, :value
 
@@ -46,7 +52,7 @@ module MarketData
       end
 
       def supports_instrument_type?(instrument_type)
-        SUPPORTED_INSTRUMENT_TYPES.include?(instrument_type)
+        EXCHANGES.fetch(mic).fetch(:instrument_types).include?(instrument_type)
       end
 
       private
@@ -54,7 +60,7 @@ module MarketData
       def valid_ticker?(ticker)
         return false if ticker.length > MAX_TICKER_LENGTH
 
-        pattern = mic == B3_MIC ? B3_TICKER_PATTERN : US_TICKER_PATTERN
+        pattern = mic == B3_MIC ? B3_TICKER_PATTERN : INTERNATIONAL_TICKER_PATTERN
         ticker.match?(pattern)
       end
     end

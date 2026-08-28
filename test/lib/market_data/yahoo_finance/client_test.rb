@@ -16,7 +16,75 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
     assert_equal Time.at(1_777_000_000).utc, quote.quoted_at
     assert_equal "SAO", quote.provider_exchange
     assert_equal "EQUITY", quote.instrument_type
+    assert_equal "BRL", quote.provider_currency
     assert_predicate quote.quoted_at, :utc?
+  end
+
+  test "accepts matching London, Xetra, Amsterdam, and Paris ETF venues" do
+    {
+      [ "VWRA", "XLON" ] => [ "VWRA.L", "LSE", "USD" ],
+      [ "VWCE", "XETR" ] => [ "VWCE.DE", "GER", "EUR" ],
+      [ "IWDA", "XAMS" ] => [ "IWDA.AS", "AMS", "EUR" ],
+      [ "CW8", "XPAR" ] => [ "CW8.PA", "PAR", "EUR" ]
+    }.each do |(ticker, mic), (symbol, provider_exchange, currency)|
+      identifier = MarketData::YahooFinance::Identifier.build(ticker:, mic:)
+      quote = build_client(
+        body: chart_body(symbol:, currency:, provider_exchange:, instrument_type: "ETF")
+      ).quote(identifier)
+
+      assert_equal symbol, quote.symbol
+      assert_equal provider_exchange, quote.provider_exchange
+      assert_equal currency, quote.currency
+      assert_equal "ETF", quote.instrument_type
+    end
+  end
+
+  test "normalizes Yahoo pence denominations to pounds without losing the provider value" do
+    identifier = MarketData::YahooFinance::Identifier.build(ticker: "IUSA", mic: "XLON")
+
+    %w[GBp GBX].each do |provider_currency|
+      quote = build_client(
+        body: chart_body(
+          symbol: "IUSA.L",
+          price: "5707.25",
+          currency: provider_currency,
+          provider_exchange: "LSE",
+          instrument_type: "ETF"
+        )
+      ).quote(identifier)
+
+      assert_equal BigDecimal("57.0725"), quote.unit_price
+      assert_equal "GBP", quote.currency
+      assert_equal provider_currency, quote.provider_currency
+    end
+  end
+
+  test "preserves a Yahoo pound quote without pence conversion" do
+    identifier = MarketData::YahooFinance::Identifier.build(ticker: "VWRP", mic: "XLON")
+
+    quote = build_client(
+      body: chart_body(
+        symbol: "VWRP.L",
+        price: "144.22",
+        currency: "GBP",
+        provider_exchange: "LSE",
+        instrument_type: "ETF"
+      )
+    ).quote(identifier)
+
+    assert_equal BigDecimal("144.22"), quote.unit_price
+    assert_equal "GBP", quote.currency
+    assert_equal "GBP", quote.provider_currency
+  end
+
+  test "rejects an equity response for a UCITS ETF venue" do
+    identifier = MarketData::YahooFinance::Identifier.build(ticker: "VOD", mic: "XLON")
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      build_client(
+        body: chart_body(symbol: "VOD.L", currency: "GBP", provider_exchange: "LSE", instrument_type: "EQUITY")
+      ).quote(identifier)
+    end
   end
 
   test "normalizes an integer JSON price to BigDecimal" do
