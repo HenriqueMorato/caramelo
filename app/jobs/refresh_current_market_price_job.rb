@@ -36,6 +36,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     instrument_event(:attempted, instrument:)
     market_price_throttle.wait!(instrument:)
     market_price_service.refresh(instrument:, force:)
+    refresh_exchange_rate(instrument:)
     instrument_event(:succeeded, instrument:)
   rescue MarketPrice::ProviderFailure => error
     scheduled_delay = retry_provider_failure(error)
@@ -66,6 +67,22 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
 
   def market_price_broadcaster
     MarketPrice::Broadcaster.new
+  end
+
+  def exchange_rate_service
+    ExchangeRate::Service.default
+  end
+
+  def refresh_exchange_rate(instrument:)
+    reporting_currency = Rails.configuration.x.local_folio.reporting_currency
+    return if instrument.currency == reporting_currency
+
+    exchange_rate_service.refresh(
+      base_currency: instrument.currency,
+      quote_currency: reporting_currency
+    )
+  rescue ExchangeRate::InvalidValue => error
+    report(error, instrument:)
   end
 
   def broadcast_current(instrument)

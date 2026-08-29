@@ -38,6 +38,16 @@ docker compose -f .devcontainer/compose.yaml exec rails-app bin/rails db:seed
 docker compose -f .devcontainer/compose.yaml exec rails-app bin/dev
 ```
 
+The devcontainer keeps its Linux-native gems in a Docker volume, separate from
+the host checkout's `vendor/bundle`. If native-extension warnings remain after
+changing dependencies, recreate that volume so Bundler installs a clean bundle:
+
+```sh
+docker compose -f .devcontainer/compose.yaml down --volumes
+docker compose -f .devcontainer/compose.yaml up --build --detach
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/setup --skip-server
+```
+
 Leave the last command running and open <http://localhost:3000>. Use another
 terminal for Rails commands and tests, for example:
 
@@ -301,8 +311,11 @@ persisted position snapshot. Replay trades chronologically by `traded_on`, then
 Keep basis as an exact ratio while replaying trades. Convert it to a
 48-significant-digit `BigDecimal` for analytical values and round only the
 display `Money` to the instrument currency. Do not sum individually rounded
-trade totals to calculate a position. Current price, market value, returns,
-realized gains, and FX conversion are outside the Positions milestone.
+trade totals to calculate a position. Current market value is a separate
+calculation through `Valuation::Current`, which uses `ExchangeRate::Service` to
+convert foreign quotes into the configured reporting currency. Returns and
+realized gains remain outside this milestone; see
+[Current Valuation](docs/current-valuations.md).
 
 Run focused position verification with:
 

@@ -35,6 +35,34 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal [ instrument ], broadcasts
   end
 
+  test "refreshes a foreign exchange rate after refreshing a foreign quote" do
+    instrument = instruments(:voo_arcx)
+    market_service = Object.new
+    market_service.define_singleton_method(:refresh) { |**| }
+    exchange_service = Object.new
+    calls = []
+    exchange_service.define_singleton_method(:refresh) { |**arguments| calls << arguments }
+
+    build_job(service: market_service, exchange_rate_service: exchange_service).perform(instrument)
+
+    assert_equal [ { base_currency: "USD", quote_currency: "BRL" } ], calls
+  end
+
+  test "reports an exchange-rate failure without failing the quote refresh" do
+    instrument = instruments(:voo_arcx)
+    market_service = Object.new
+    market_service.define_singleton_method(:refresh) { |**| }
+    exchange_service = Object.new
+    exchange_service.define_singleton_method(:refresh) { |**| raise ExchangeRate::InvalidValue, "FX unavailable" }
+    reports = []
+
+    with_stubbed_method(Rails.error, :report, ->(error, **context) { reports << [ error, context ] }) do
+      build_job(service: market_service, exchange_rate_service: exchange_service).perform(instrument)
+    end
+
+    assert_instance_of ExchangeRate::InvalidValue, reports.sole.first
+  end
+
   test "reports known provider failures without failing the job" do
     instrument = instruments(:petr4_bvmf)
     failure = MarketPrice::ProviderFailure.new(provider_identifier: "fake", message: "invalid response")
@@ -97,6 +125,14 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal 2.minutes, RefreshCurrentMarketPriceJob.concurrency_duration
     assert_equal "RefreshCurrentMarketPriceJob/provider:yahoo_finance",
       RefreshCurrentMarketPriceJob.new(instruments(:petr4_bvmf)).concurrency_key
+  end
+
+  test "builds the default broadcaster" do
+    assert_instance_of MarketPrice::Broadcaster, RefreshCurrentMarketPriceJob.new.send(:market_price_broadcaster)
+  end
+
+  test "builds the default exchange-rate service" do
+    assert_instance_of ExchangeRate::Service, RefreshCurrentMarketPriceJob.new.send(:exchange_rate_service)
   end
 
   test "coalesces duplicate queued refreshes for one instrument" do
@@ -212,9 +248,13 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     object.singleton_class.define_method(method_name, original)
   end
 
-  def build_job(service:, broadcaster: null_broadcaster)
+  def build_job(service:, broadcaster: null_broadcaster, exchange_rate_service: nil)
+    exchange_rate_service ||= Object.new.tap do |exchange_service|
+      exchange_service.define_singleton_method(:refresh) { |**| }
+    end
     RefreshCurrentMarketPriceJob.new.tap do |job|
       job.define_singleton_method(:market_price_service) { service }
+      job.define_singleton_method(:exchange_rate_service) { exchange_rate_service }
       job.define_singleton_method(:market_price_broadcaster) { broadcaster }
       job.define_singleton_method(:market_price_throttle) do
         Object.new.tap { |throttle| throttle.define_singleton_method(:wait!) { |instrument:| } }

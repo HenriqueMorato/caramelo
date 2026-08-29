@@ -86,6 +86,18 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
+  test "shows a foreign market value converted to the reporting currency" do
+    instrument = instruments(:voo_arcx)
+    write_current_market_price(instrument:, unit_price: "100")
+    write_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5")
+
+    get positions_url
+
+    assert_response :success
+    assert_select "dt", "Market value"
+    assert_select "dd", "R$1.250,00"
+  end
+
   private
 
   def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1))
@@ -109,6 +121,15 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
         provider: "yahoo_finance",
         quoted_at: Time.current - 1.minute,
         fetched_at: Time.current
+      )
+    )
+  end
+
+  def write_exchange_rate(base_currency:, quote_currency:, rate:)
+    ExchangeRateCache.new.write(
+      exchange_rate: ExchangeRate::Rate.new(
+        base_currency:, quote_currency:, rate: BigDecimal(rate), observed_on: Date.current,
+        fetched_at: Time.current, provider: "yahoo_finance_fx"
       )
     )
   end
