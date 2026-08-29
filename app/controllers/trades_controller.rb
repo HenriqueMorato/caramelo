@@ -6,7 +6,7 @@ class TradesController < ApplicationController
   before_action :set_form_options, only: %i[ new create edit update ]
 
   def index
-    @trades = owner.trades.includes(:instrument, :institution).reverse_chronological
+    @trades = owner.trades.includes(:instrument, :institution).strict_loading.reverse_chronological
   end
 
   def new
