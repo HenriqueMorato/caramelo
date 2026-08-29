@@ -1,0 +1,28 @@
+---
+en:
+  performances:
+    show:
+      All: All time
+      Cash-flow adjusted: Modified Dietz
+      Daily value: Daily value
+      Empty state: Record trades and capture historical market data to calculate performance.
+      Excluding trade cash flows: Excluding purchases and sale proceeds
+      Gain or loss: Gain / loss
+      Historical data unavailable: Historical data unavailable
+      Historical data unavailable explanation: This period needs a persisted closing
+        price and exchange rate for every held instrument. LocalFolio never substitutes
+        a current quote.
+      Introduction: Review daily portfolio value and returns calculated from recorded
+        trades and durable historical market data.
+      Month: Month
+      Net invested: Net invested
+      No performance yet: No performance yet
+      Page title: Performance · %{application}
+      Period selection: Select reporting period
+      Portfolio value: Portfolio value
+      Price return: Price return
+      Prices through: Prices through %{date}
+      Realized gains to date: Realized gains to date
+      Unrealized gains to date: Unrealized gains to date
+      Week: Week
+      Year: Year
