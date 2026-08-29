@@ -166,6 +166,18 @@ bin/importmap audit
 npm audit --audit-level=high
 ```
 
+### Association loading checks
+
+Read-heavy trade and position collections use Rails strict loading with explicit
+preloads. Bullet is used in development and test to detect N+1 queries and
+unused eager loading through Active Record notifications.
+
+Run the focused request checks with:
+
+```sh
+bin/rails test test/controllers/positions_controller_test.rb test/controllers/instruments_controller_test.rb test/controllers/trades_controller_test.rb
+```
+
 Every Rails test run generates line and branch coverage for Ruby files under
 `app/` and `lib/`. Reports are local, ignored by Git, and available at
 `coverage/index.html`. Configuration, migrations, tests, generated assets, and

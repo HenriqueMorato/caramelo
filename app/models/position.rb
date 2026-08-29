@@ -26,7 +26,7 @@ class Position
   end
 
   def self.overview
-    trades_by_instrument = User.owner.trades.includes(:instrument).order(:traded_on, :id).group_by(&:instrument)
+    trades_by_instrument = User.owner.trades.includes(:instrument).strict_loading.order(:traded_on, :id).group_by(&:instrument)
 
     trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
       CalculationResult.new(instrument:, position: new(instrument:, trades:), error: nil)

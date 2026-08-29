@@ -60,6 +60,9 @@ group :development, :test do
 
   # Check locale files for missing and unused translations [https://github.com/glebm/i18n-tasks]
   gem "i18n-tasks", "~> 1.1.2", require: false
+
+  # Detect N+1 and unused eager-loading queries while exercising request flows.
+  gem "bullet", "~> 8.1"
 end
 
 group :development do
