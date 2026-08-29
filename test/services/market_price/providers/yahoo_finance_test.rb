@@ -124,6 +124,13 @@ class MarketPrice::Providers::YahooFinanceTest < ActiveSupport::TestCase
     assert_instance_of MarketData::YahooFinance::RateLimited, error.cause
   end
 
+  test "does not expose retry metadata for a failure without a cause" do
+    failure = MarketPrice::ProviderFailure.new(provider_identifier: "fake", message: "unavailable")
+
+    assert_not failure.retryable?
+    assert_nil failure.retry_after
+  end
+
   private
 
   def build_instrument(ticker:, exchange:, currency: "USD")

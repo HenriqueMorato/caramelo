@@ -1,6 +1,10 @@
 require "test_helper"
 
 class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
+  setup do
+    Rails.cache.clear
+  end
+
   test "refreshes through the default service" do
     instrument = instruments(:petr4_bvmf)
     calls = []
@@ -33,7 +37,7 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
 
   test "reports known provider failures without failing the job" do
     instrument = instruments(:petr4_bvmf)
-    failure = MarketPrice::ProviderFailure.new(provider_identifier: "fake", message: "unavailable")
+    failure = MarketPrice::ProviderFailure.new(provider_identifier: "fake", message: "invalid response")
     service = Object.new
     service.define_singleton_method(:refresh) { |**| raise failure }
     reports = []
@@ -47,6 +51,27 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal failure, report.first
     assert_equal true, report.second.fetch(:handled)
     assert_equal({ instrument_id: instrument.id }, report.second.fetch(:context))
+  end
+
+  test "retries rate-limited provider failures using Retry-After" do
+    instrument = instruments(:petr4_bvmf)
+    failure = MarketPrice::ProviderFailure.new(
+      provider_identifier: "yahoo_finance",
+      message: "rate limited",
+      cause: MarketData::YahooFinance::RateLimited.new(status: 429, headers: { "retry-after" => "60" })
+    )
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise failure }
+    retries = []
+    job = build_job(service:)
+    job.define_singleton_method(:retry_job) { |**options| retries << options }
+    job.define_singleton_method(:retry_random) { 0 }
+    Rails.cache.write(RefreshCurrentMarketPriceJob.deduplication_key(instrument), true)
+
+    job.perform(instrument)
+
+    assert_equal [ { wait: 60.seconds } ], retries
+    assert Rails.cache.exist?(RefreshCurrentMarketPriceJob.deduplication_key(instrument))
   end
 
   test "reports broadcast failures without failing the job" do
@@ -70,6 +95,111 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal :block, RefreshCurrentMarketPriceJob.concurrency_on_conflict
     assert_equal 1, RefreshCurrentMarketPriceJob.concurrency_limit
     assert_equal 2.minutes, RefreshCurrentMarketPriceJob.concurrency_duration
+    assert_equal "RefreshCurrentMarketPriceJob/provider:yahoo_finance",
+      RefreshCurrentMarketPriceJob.new(instruments(:petr4_bvmf)).concurrency_key
+  end
+
+  test "coalesces duplicate queued refreshes for one instrument" do
+    instrument = instruments(:petr4_bvmf)
+
+    first = RefreshCurrentMarketPriceJob.enqueue_for(instrument:)
+    second = RefreshCurrentMarketPriceJob.enqueue_for(instrument:)
+
+    assert_instance_of RefreshCurrentMarketPriceJob, first
+    assert_equal RefreshCurrentMarketPriceJob::COALESCED, second
+    assert_enqueued_jobs 1, only: RefreshCurrentMarketPriceJob
+  end
+
+  test "releases the duplicate marker when enqueueing fails" do
+    instrument = instruments(:petr4_bvmf)
+
+    with_stubbed_method(RefreshCurrentMarketPriceJob, :perform_later, ->(*) { nil }) do
+      assert_nil RefreshCurrentMarketPriceJob.enqueue_for(instrument:)
+    end
+
+    assert_not Rails.cache.exist?(RefreshCurrentMarketPriceJob.deduplication_key(instrument))
+  end
+
+  test "cleans up the marker when enqueueing raises" do
+    instrument = instruments(:petr4_bvmf)
+    failure = RuntimeError.new("queue unavailable")
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(RefreshCurrentMarketPriceJob, :perform_later, ->(*) { raise failure }) do
+        RefreshCurrentMarketPriceJob.enqueue_for(instrument:)
+      end
+    end
+
+    assert_not Rails.cache.exist?(RefreshCurrentMarketPriceJob.deduplication_key(instrument))
+  end
+
+  test "reports non-retryable market price errors" do
+    instrument = instruments(:petr4_bvmf)
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise MarketPrice::CurrencyMismatch, "wrong currency" }
+    reports = []
+    job = build_job(service:)
+
+    with_stubbed_method(Rails.error, :report, ->(error, **context) { reports << [ error, context ] }) do
+      job.perform(instrument)
+    end
+
+    assert_instance_of MarketPrice::CurrencyMismatch, reports.sole.first
+  end
+
+  test "honors an HTTP-date Retry-After value" do
+    instrument = instruments(:petr4_bvmf)
+    travel_to Time.utc(2026, 8, 28, 15) do
+      failure = MarketPrice::ProviderFailure.new(
+        provider_identifier: "yahoo_finance",
+        message: "rate limited",
+        cause: MarketData::YahooFinance::RateLimited.new(
+          status: 429, headers: { "retry-after" => (Time.current + 60).httpdate }
+        )
+      )
+      service = Object.new
+      service.define_singleton_method(:refresh) { |**| raise failure }
+      retries = []
+      job = build_job(service:)
+      job.define_singleton_method(:retry_job) { |**options| retries << options }
+      job.define_singleton_method(:retry_random) { 0 }
+
+      job.perform(instrument)
+
+      assert_equal [ { wait: 60.seconds } ], retries
+    end
+  end
+
+  test "uses the default retry delay for an invalid Retry-After value" do
+    instrument = instruments(:petr4_bvmf)
+    failure = MarketPrice::ProviderFailure.new(
+      provider_identifier: "yahoo_finance",
+      message: "unavailable",
+      cause: MarketData::YahooFinance::ProviderUnavailable.new(status: 503, headers: { "retry-after" => "later" })
+    )
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise failure }
+    retries = []
+    job = build_job(service:)
+    job.define_singleton_method(:retry_job) { |**options| retries << options }
+    job.define_singleton_method(:retry_random) { 0 }
+
+    job.perform(instrument)
+
+    assert_equal [ { wait: 30.seconds } ], retries
+  end
+
+  test "adds bounded jitter to retry delays" do
+    error = MarketPrice::ProviderFailure.new(
+      provider_identifier: "yahoo_finance",
+      message: "rate limited",
+      cause: MarketData::YahooFinance::RateLimited.new(status: 429, headers: { "retry-after" => "60" })
+    )
+
+    delay = RefreshCurrentMarketPriceJob.new.send(:retry_delay, error)
+
+    assert_operator delay, :>=, 60.seconds
+    assert_operator delay, :<=, 66.seconds
   end
 
   private
@@ -86,6 +216,9 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     RefreshCurrentMarketPriceJob.new.tap do |job|
       job.define_singleton_method(:market_price_service) { service }
       job.define_singleton_method(:market_price_broadcaster) { broadcaster }
+      job.define_singleton_method(:market_price_throttle) do
+        Object.new.tap { |throttle| throttle.define_singleton_method(:wait!) { |instrument:| } }
+      end
     end
   end
 

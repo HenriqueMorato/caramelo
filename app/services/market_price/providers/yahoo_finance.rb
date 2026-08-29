@@ -39,7 +39,7 @@ module MarketPrice
           fetched_at: Time.current
         )
       rescue MarketData::YahooFinance::Error => error
-        raise ProviderFailure.new(provider_identifier: identifier, message: error.message), cause: error
+        raise ProviderFailure.new(provider_identifier: identifier, message: error.message, cause: error), cause: error
       end
 
       private

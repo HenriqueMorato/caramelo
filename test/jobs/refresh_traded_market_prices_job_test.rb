@@ -1,6 +1,10 @@
 require "test_helper"
 
 class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
+  setup do
+    Rails.cache.clear
+  end
+
   test "enqueues each supported instrument traded by the owner including a closed holding" do
     instrument = instruments(:petr4_bvmf)
     us_instrument = instruments(:voo_arcx)
@@ -22,6 +26,25 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
       build_job(service: unsupported_service).perform
     end
     assert_not User.owner.trades.exists?(instrument: untraded_instrument)
+  end
+
+  test "handles a representative 45-instrument refresh without duplicate jobs" do
+    baseline_ids = User.owner.trades.distinct.pluck(:instrument_id)
+    instruments = 45.times.map do |index|
+      instrument = Instrument.create!(
+        ticker: "BULK#{index}", exchange: "XNAS", name: "Bulk ETF #{index}", currency: "USD"
+      )
+      create_trade(instrument:, side: :buy, quantity: 1)
+      instrument
+    end
+
+    assert_enqueued_jobs baseline_ids.length + 45, only: RefreshCurrentMarketPriceJob do
+      RefreshTradedMarketPricesJob.new.perform
+      RefreshTradedMarketPricesJob.new.perform
+    end
+
+    assert_equal (baseline_ids + instruments.map(&:id)).sort,
+      enqueued_jobs.map { |job| job[:args].first["_aj_globalid"].split("/").last.to_i }.sort
   end
 
   private

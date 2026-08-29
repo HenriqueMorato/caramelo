@@ -172,6 +172,11 @@ Read-heavy trade and position collections use Rails strict loading with explicit
 preloads. Bullet is used in development and test to detect N+1 queries and
 unused eager loading through Active Record notifications.
 
+Yahoo refreshes share a provider-wide queue lock and default to at least one
+request per second. Set `YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS` to a larger
+positive value when operating under a stricter provider budget; never set it to
+zero.
+
 Run the focused request checks with:
 
 ```sh

@@ -106,6 +106,50 @@ nested instrument action enqueues one instrument. The recurring job runs every
 30 minutes. Scheduled refreshes use normal cache freshness checks, while a user
 action uses `force: true` because it explicitly requests a new quote.
 
+### Refresh coordination, throttling, and retries
+
+`RefreshCurrentMarketPriceJob.enqueue_for` writes an instrument-specific cache
+marker with a two-minute TTL before enqueueing. A second request for the same
+instrument sees that marker and returns `:coalesced`, so bulk refreshes and
+repeated user actions do not create duplicate jobs. If enqueueing fails, the
+marker is removed immediately.
+
+The job also uses a Solid Queue concurrency limit for the Yahoo provider as a
+whole. Only one Yahoo refresh is allowed to run at a time, regardless of which
+instrument it is refreshing. `MarketPrice::RequestThrottle` adds a minimum
+one-second interval between provider requests and can be made more conservative
+with `YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS`.
+
+Rate-limited and temporarily unavailable provider failures are retried up to
+three executions. The job honors a numeric or HTTP-date `Retry-After` value,
+caps the delay at five minutes, and adds bounded jitter so multiple workers do
+not retry simultaneously. Other provider failures are reported without retry.
+
+When a retry is scheduled, the deduplication marker remains in place while the
+next execution waits in Solid Queue. Removing it at that point would allow a
+new request to enqueue duplicate work alongside the already-scheduled retry.
+The marker is deleted after success or a final failure; its TTL is a safety net
+if a job disappears. Every attempt broadcasts the final quote state, and the
+`market_price.refresh` notification exposes enqueue, coalesced, throttled,
+attempted, retried, succeeded, failed, and skipped events for monitoring.
+
+```mermaid
+flowchart TD
+  request[Refresh request] --> marker{Deduplication marker exists?}
+  marker -->|Yes| coalesced[:coalesced<br/>No new job]
+  marker -->|No| mark[Write marker<br/>2-minute TTL]
+  mark --> enqueue[Enqueue RefreshCurrentMarketPriceJob]
+  enqueue --> lock[Wait for Yahoo provider lock]
+  lock --> throttle[RequestThrottle<br/>wait for minimum interval]
+  throttle --> fetch[Fetch quote from Yahoo]
+  fetch --> result{Provider result}
+  result -->|Success| cleanup[Delete marker<br/>Broadcast final state]
+  result -->|Permanent failure| cleanup
+  result -->|Retryable failure| retry["retry_job(wait: delay)"]
+  retry --> retained[Keep marker while retry waits]
+  retained --> lock
+```
+
 ## Cache and Display States
 
 - **Fresh:** fetched less than 30 minutes ago. Normal scheduled work reuses it.

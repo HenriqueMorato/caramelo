@@ -10,7 +10,7 @@ module MarketPrice
       return unless service.supports?(instrument:)
 
       broadcaster.refreshing(instrument:)
-      job = job_class.perform_later(instrument, force: true)
+      job = job_class.enqueue_for(instrument:, force: true)
       return job if job
 
       raise EnqueueFailure, "current market price refresh could not be enqueued"
