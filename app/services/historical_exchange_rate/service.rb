@@ -51,10 +51,7 @@ class HistoricalExchangeRate
     end
 
     def normalize_currency(currency)
-      iso_code = currency.to_s.strip.upcase
-      raise ArgumentError, "currency is invalid" unless Money::Currency.find(iso_code)
-
-      iso_code
+      CurrencyCode.normalize(currency)
     end
 
     def validate_rate_date!(rate_date)

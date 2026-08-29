@@ -80,10 +80,8 @@ class CurrentMarketPrice
   end
 
   def normalize_currency(currency)
-    iso_code = currency.to_s.strip.upcase
-    money_currency = Money::Currency.find(iso_code) if iso_code.match?(/\A[A-Z]{3}\z/)
-    return iso_code if money_currency&.iso_numeric&.match?(/\A\d{3}\z/)
-
+    CurrencyCode.normalize(currency)
+  rescue ArgumentError
     raise InvalidValue, "currency is invalid"
   end
 

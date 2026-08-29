@@ -30,7 +30,7 @@ class DailyClosingPrice
       def default_client
         MarketData::YahooFinance::HistoryClient.new(
           transport: MarketData::YahooFinance::CurlTransport.from_environment(
-            timeout: MarketData::YahooFinance::MARKET_TIMEOUT
+            timeout: MarketData::YahooFinance::MARKET_CONFIGURATION.timeout
           )
         )
       end

@@ -28,7 +28,7 @@ module ExchangeRate
       def default_client
         MarketData::YahooFinance::FxClient.new(
           transport: MarketData::YahooFinance::CurlTransport.from_environment(
-            timeout: MarketData::YahooFinance::FX_TIMEOUT
+            timeout: MarketData::YahooFinance::FX_CONFIGURATION.timeout
           )
         )
       end

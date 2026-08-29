@@ -39,7 +39,8 @@ closing-price importer. This policy keeps persisted historical dates stable.
 rejects future/inverted ranges, reports missing weekdays, and validates every
 provider observation before persistence. `CaptureHistoricalExchangeRatesJob`
 runs daily through Solid Queue for each non-reporting currency used by the
-owner's trades. Requests share the Yahoo provider throttle, and one provider
-failure is reported without preventing other currency pairs from running.
+owner's trades. Requests share the Yahoo provider lock and throttle with quote
+and daily-price jobs, and one provider failure is reported without preventing
+other currency pairs from running.
 
 Tests stub the transport and provider; they never call Yahoo Finance live.

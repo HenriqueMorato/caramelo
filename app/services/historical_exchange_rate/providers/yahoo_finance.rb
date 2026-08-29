@@ -28,16 +28,13 @@ class HistoricalExchangeRate
       attr_reader :client
 
       def normalize_currency(currency)
-        iso_code = currency.to_s.strip.upcase
-        raise ArgumentError, "currency is invalid" unless Money::Currency.find(iso_code)
-
-        iso_code
+        CurrencyCode.normalize(currency)
       end
 
       def default_client
         MarketData::YahooFinance::FxHistoryClient.new(
           transport: MarketData::YahooFinance::CurlTransport.from_environment(
-            timeout: MarketData::YahooFinance::FX_TIMEOUT
+            timeout: MarketData::YahooFinance::FX_CONFIGURATION.timeout
           )
         )
       end
