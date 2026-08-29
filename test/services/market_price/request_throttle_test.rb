@@ -14,6 +14,31 @@ class MarketData::YahooFinance::RequestThrottleTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { MarketData::RequestThrottle.new(provider: "", interval: 1.second) }
   end
 
+  test "waits for another worker to release the provider lock" do
+    cache = ActiveSupport::Cache::MemoryStore.new
+    cache.write("localfolio:market_data:other_feed:last_request_at:lock", "other-worker")
+    sleeps = []
+    sleeper = lambda do |duration|
+      sleeps << duration
+      cache.delete("localfolio:market_data:other_feed:last_request_at:lock")
+    end
+    throttle = MarketData::RequestThrottle.new(provider: "other_feed", interval: 0.seconds, cache:, sleeper:)
+
+    throttle.wait!
+
+    assert_equal [ 0.05 ], sleeps
+  end
+
+  test "does not release another worker's lock" do
+    cache = ActiveSupport::Cache::MemoryStore.new
+    cache.write("localfolio:market_data:other_feed:last_request_at:lock", "other-worker")
+    throttle = MarketData::RequestThrottle.new(provider: "other_feed", interval: 0.seconds, cache:)
+
+    throttle.send(:release_lock, "this-worker")
+
+    assert_equal "other-worker", cache.read("localfolio:market_data:other_feed:last_request_at:lock")
+  end
+
   test "waits only for the remaining provider interval" do
     cache = ActiveSupport::Cache::MemoryStore.new
     now = Time.utc(2026, 8, 28, 15)

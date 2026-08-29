@@ -1,5 +1,8 @@
 module MarketData
   class RequestThrottle
+    LOCK_RETRY_INTERVAL = 0.05.seconds
+    LOCK_EXPIRY = 30.seconds
+
     def initialize(provider:, interval:, cache: Rails.cache, clock: -> { Time.current }, sleeper: Kernel.method(:sleep))
       @provider = provider.to_s
       raise ArgumentError, "provider is required" if @provider.empty?
@@ -12,6 +15,9 @@ module MarketData
     end
 
     def wait!(instrument: nil)
+      lock_token = SecureRandom.hex
+      acquire_lock(lock_token)
+
       now = clock.call
       last_request_at = cache.read(cache_key)
       delay = interval - (now - last_request_at) if last_request_at
@@ -22,6 +28,8 @@ module MarketData
         ) { sleeper.call(delay) }
       end
       cache.write(cache_key, clock.call)
+    ensure
+      release_lock(lock_token)
     end
 
     private
@@ -34,6 +42,20 @@ module MarketData
 
     def notification_name
       "market_data.#{provider}.request"
+    end
+
+    def lock_key
+      "#{cache_key}:lock"
+    end
+
+    def acquire_lock(lock_token)
+      until cache.write(lock_key, lock_token, expires_in: LOCK_EXPIRY, unless_exist: true)
+        sleeper.call(LOCK_RETRY_INTERVAL)
+      end
+    end
+
+    def release_lock(lock_token)
+      cache.delete(lock_key) if cache.read(lock_key) == lock_token
     end
   end
 end

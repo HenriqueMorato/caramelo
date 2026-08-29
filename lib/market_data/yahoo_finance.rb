@@ -1,6 +1,7 @@
 require "bigdecimal"
 require "json"
 require "open3"
+require "securerandom"
 require "tempfile"
 require "time"
 require "uri"
