@@ -5,24 +5,12 @@ module MarketData
         response = transport.get(history_uri(identifier:, from:, to:))
         classify_status!(response)
 
-        payload = JSON.parse(response.body, decimal_class: BigDecimal)
-        chart = payload.fetch("chart")
-        raise_chart_error!(chart.fetch("error")) if chart["error"]
-
-        results = chart.fetch("result")
-        raise InvalidResponse, "expected exactly one chart result" unless results.is_a?(Array) && results.one?
-
-        parse_daily_closes(results.first, identifier:)
+        parse_daily_closes(chart_result(response), identifier:)
       rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
         raise InvalidResponse, error.message
       end
 
       private
-
-      def raise_chart_error!(error)
-        message = error.is_a?(Hash) ? error["description"] || error["code"] : error.to_s
-        raise InvalidResponse, message
-      end
 
       def parse_daily_closes(result, identifier:)
         meta = result.fetch("meta")

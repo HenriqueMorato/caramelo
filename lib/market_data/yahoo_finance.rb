@@ -7,12 +7,18 @@ require "uri"
 
 module MarketData
   module YahooFinance
+    DEFAULT_EXECUTABLE = "curl_chrome146"
+    MARKET_TIMEOUT = 15
+    FX_TIMEOUT = 10
+    MARKET_PROVIDER_IDENTIFIER = "yahoo_finance"
+    FX_PROVIDER_IDENTIFIER = "yahoo_finance_fx"
   end
 end
 
 require_relative "yahoo_finance/error"
 require_relative "yahoo_finance/response"
 require_relative "yahoo_finance/identifier"
+require_relative "yahoo_finance/currency_pair"
 require_relative "yahoo_finance/quote"
 require_relative "yahoo_finance/curl_transport"
 require_relative "yahoo_finance/base_client"

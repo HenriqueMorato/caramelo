@@ -1,7 +1,7 @@
 class DailyClosingPrice
   module Providers
     class YahooFinance
-      IDENTIFIER = "yahoo_finance"
+      IDENTIFIER = MarketData::YahooFinance::MARKET_PROVIDER_IDENTIFIER
 
       def initialize(client: default_client)
         @client = client
@@ -30,7 +30,8 @@ class DailyClosingPrice
       def default_client
         MarketData::YahooFinance::HistoryClient.new(
           transport: MarketData::YahooFinance::CurlTransport.new(
-            executable: ENV.fetch("YAHOO_FINANCE_HTTP_EXECUTABLE", "curl_chrome146"), timeout: 15
+            executable: ENV.fetch("YAHOO_FINANCE_HTTP_EXECUTABLE", MarketData::YahooFinance::DEFAULT_EXECUTABLE),
+            timeout: MarketData::YahooFinance::MARKET_TIMEOUT
           )
         )
       end

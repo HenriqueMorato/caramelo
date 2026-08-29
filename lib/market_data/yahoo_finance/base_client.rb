@@ -82,6 +82,30 @@ module MarketData
 
         currency
       end
+
+      def chart_result(response, expected: "expected exactly one chart result")
+        payload = JSON.parse(response.body, decimal_class: BigDecimal)
+        chart = payload.fetch("chart")
+        if chart["error"]
+          if block_given?
+            yield(chart.fetch("error"), response)
+          else
+            raise_chart_error!(chart.fetch("error"), response)
+          end
+        end
+
+        results = chart.fetch("result")
+        raise InvalidResponse, expected unless results.is_a?(Array) && results.one?
+
+        results.first
+      rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
+        raise InvalidResponse, error.message
+      end
+
+      def raise_chart_error!(error, _response = nil)
+        message = error.is_a?(Hash) ? error["description"] || error["code"] : error.to_s
+        raise InvalidResponse, message
+      end
     end
   end
 end

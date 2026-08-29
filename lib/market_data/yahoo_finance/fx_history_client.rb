@@ -4,23 +4,14 @@ module MarketData
       Rate = Data.define(:rate, :rate_date, :observed_at)
 
       def daily_rates(base_currency:, quote_currency:, from:, to:)
-        base_currency = normalize_request_currency(base_currency)
-        quote_currency = normalize_request_currency(quote_currency)
-        raise ArgumentError, "currencies must differ" if base_currency == quote_currency
+        pair = CurrencyPair.new(base_currency:, quote_currency:)
 
         validate_range!(from:, to:)
         begin
-          response = transport.get(history_uri_for(value: "#{base_currency}#{quote_currency}=X", from:, to:))
+          response = transport.get(history_uri_for(value: pair.symbol, from:, to:))
           classify_status!(response)
 
-          payload = JSON.parse(response.body, decimal_class: BigDecimal)
-          chart = payload.fetch("chart")
-          raise_chart_error!(chart.fetch("error")) if chart["error"]
-
-          results = chart.fetch("result")
-          raise InvalidResponse, "expected exactly one FX history result" unless results.is_a?(Array) && results.one?
-
-          parse_rates(results.first, base_currency:, quote_currency:)
+          parse_rates(chart_result(response, expected: "expected exactly one FX history result"), base_currency: pair.base_currency, quote_currency: pair.quote_currency)
         rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
           raise InvalidResponse, error.message
         end
@@ -70,22 +61,6 @@ module MarketData
         rate
       rescue ArgumentError
         raise InvalidResponse, "FX rate is invalid"
-      end
-
-      def normalize_currency(value)
-        super
-      end
-
-      def normalize_request_currency(value)
-        currency = value.to_s.strip.upcase
-        raise ArgumentError, "currency is invalid" unless currency.match?(/\A[A-Z]{3}\z/) && Money::Currency.find(currency)
-
-        currency
-      end
-
-      def raise_chart_error!(error)
-        message = error.is_a?(Hash) ? error["description"] || error["code"] : error.to_s
-        raise InvalidResponse, message
       end
     end
   end
