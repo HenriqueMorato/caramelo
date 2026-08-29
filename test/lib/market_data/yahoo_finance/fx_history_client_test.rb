@@ -31,6 +31,32 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "reports provider chart errors clearly" do
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client_with(response(result: default_result, error: { "code" => "Bad Request", "description" => "Invalid range" })).daily_rates(
+        base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current
+      )
+    end
+
+    assert_equal "Invalid range", error.message
+  end
+
+  test "rejects invalid FX rates" do
+    malformed = default_result.merge(indicators: { quote: [ { close: [ "not-a-rate", nil, BigDecimal("5.5") ] } ] })
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client_with(response(result: malformed)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects invalid timestamps" do
+    malformed = default_result.merge(timestamp: [ "not-a-timestamp", nil, nil ])
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client_with(response(result: malformed)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+    end
+  end
+
   private
 
   FakeTransport = Struct.new(:response, :uri) do
@@ -48,8 +74,8 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     MarketData::YahooFinance::FxHistoryClient.new(transport:)
   end
 
-  def response(result: default_result)
-    MarketData::YahooFinance::Response.new(status: 200, body: { chart: { result: [ result ], error: nil } }.to_json, headers: {})
+  def response(result: default_result, error: nil)
+    MarketData::YahooFinance::Response.new(status: 200, body: { chart: { result: [ result ], error: } }.to_json, headers: {})
   end
 
   def default_result

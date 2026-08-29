@@ -55,16 +55,46 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     end
   end
 
+  test "rejects non-date ranges and mismatched observations" do
+    assert_raises(ArgumentError) do
+      @importer.call(base_currency: "USD", quote_currency: "BRL", from: "2026-08-24", to: Date.new(2026, 8, 24))
+    end
+
+    @provider.mismatch_pair = true
+    assert_raises(ArgumentError) do
+      @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+    end
+  end
+
+  test "uses the default Yahoo provider" do
+    assert_instance_of HistoricalExchangeRate::Providers::YahooFinance, HistoricalExchangeRate::Importer.default.send(:provider)
+  end
+
+  test "handles a concurrent insert by updating the existing row" do
+    record = FakeRecord.new(new_record: true, error: ActiveRecord::RecordNotUnique)
+    existing = FakeRecord.new(new_record: false)
+    with_stubbed_class_method(HistoricalExchangeRate, :find_or_initialize_by, ->(**) { record }) do
+      with_stubbed_class_method(HistoricalExchangeRate, :find_by!, ->(**) { existing }) do
+        result = @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+
+        assert_equal 1, result.updated_count
+        assert_equal 1, existing.updates
+      end
+    end
+  end
+
   private
 
   class FakeProvider
     attr_accessor :rate
     attr_reader :requested_pair
     attr_accessor :include_out_of_range
+    attr_accessor :mismatch_pair
 
     def initialize
       @rate = BigDecimal("5")
       @include_out_of_range = false
+      @mismatch_pair = false
     end
 
     def identifier = "test_provider"
@@ -77,10 +107,36 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
         next unless date.wday == 1 || date.wday == 3
 
         HistoricalExchangeRate::Observation.new(
-          base_currency:, quote_currency:, rate_date: date, rate:, provider: identifier,
+          base_currency: mismatch_pair ? "EUR" : base_currency, quote_currency:, rate_date: date, rate:, provider: identifier,
           observed_at: date.to_time, fetched_at: Time.current
         )
       end
     end
+  end
+
+  class FakeRecord
+    attr_reader :updates
+
+    def initialize(new_record:, error: nil)
+      @new_record = new_record
+      @error = error
+      @updates = 0
+    end
+
+    def new_record? = @new_record
+
+    def update!(**)
+      raise @error if @error
+
+      @updates += 1
+    end
+  end
+
+  def with_stubbed_class_method(klass, method_name, replacement)
+    original = klass.method(method_name)
+    klass.singleton_class.define_method(method_name, replacement)
+    yield
+  ensure
+    klass.singleton_class.define_method(method_name, original)
   end
 end
