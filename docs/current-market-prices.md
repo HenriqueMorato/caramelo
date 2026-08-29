@@ -116,9 +116,20 @@ marker is removed immediately.
 
 The job also uses a Solid Queue concurrency limit for the Yahoo provider as a
 whole. Only one Yahoo refresh is allowed to run at a time, regardless of which
-instrument it is refreshing. `MarketPrice::RequestThrottle` adds a minimum
+instrument it is refreshing. `MarketData::RequestThrottle` adds a minimum
 one-second interval between provider requests and can be made more conservative
 with `YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS`.
+
+`MarketData::RequestThrottle` provides the reusable coordination mechanism.
+`MarketData::YahooFinance::RequestThrottle` supplies Yahoo's provider scope and
+interval configuration. Quote, daily-closing-price, and historical-FX jobs all
+share the same Yahoo cache lock, so requests from one feature cannot bypass the
+provider limit. The lock is acquired atomically with `unless_exist: true`,
+retries every 50 milliseconds while held, expires after 30 seconds if a worker
+crashes, and is released only by the worker that owns its token.
+
+See [Market-data request throttling](market-data-request-throttling.md) for the
+complete lock, interval, configuration, and recovery behavior.
 
 Rate-limited and temporarily unavailable provider failures are retried up to
 three executions. The job honors a numeric or HTTP-date `Retry-After` value,
@@ -140,7 +151,7 @@ flowchart TD
   marker -->|No| mark[Write marker<br/>2-minute TTL]
   mark --> enqueue[Enqueue RefreshCurrentMarketPriceJob]
   enqueue --> lock[Wait for Yahoo provider lock]
-  lock --> throttle[RequestThrottle<br/>wait for minimum interval]
+  lock --> throttle[Provider lock + interval throttle]
   throttle --> fetch[Fetch quote from Yahoo]
   fetch --> result{Provider result}
   result -->|Success| cleanup[Delete marker<br/>Broadcast final state]

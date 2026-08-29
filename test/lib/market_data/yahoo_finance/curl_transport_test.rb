@@ -30,7 +30,11 @@ class MarketData::YahooFinance::CurlTransportTest < ActiveSupport::TestCase
     previous = ENV["YAHOO_FINANCE_HTTP_EXECUTABLE"]
     ENV["YAHOO_FINANCE_HTTP_EXECUTABLE"] = "custom-curl"
 
-    transport = MarketData::YahooFinance::CurlTransport.from_environment(timeout: 12)
+    configuration = MarketData::YahooFinance::Configuration.new(
+      identifier: "test_provider", timeout: 12,
+      interval_environment_variable: "LOCALFOLIO_TEST_PROVIDER_INTERVAL"
+    )
+    transport = MarketData::YahooFinance::CurlTransport.from_configuration(configuration)
 
     assert_equal "custom-curl", transport.send(:executable)
     assert_equal 12, transport.send(:timeout)

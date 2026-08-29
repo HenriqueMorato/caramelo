@@ -47,14 +47,11 @@ class HistoricalExchangeRate
     end
 
     def provider_identifier
-      provider&.identifier || MarketData::YahooFinance::FX_PROVIDER_IDENTIFIER
+      provider&.identifier || MarketData::YahooFinance::FX_CONFIGURATION.identifier
     end
 
     def normalize_currency(currency)
-      iso_code = currency.to_s.strip.upcase
-      raise ArgumentError, "currency is invalid" unless Money::Currency.find(iso_code)
-
-      iso_code
+      CurrencyCode.normalize(currency)
     end
 
     def validate_rate_date!(rate_date)

@@ -6,7 +6,7 @@ class RefreshTradedMarketPricesJob < ApplicationJob
       unless market_price_service.supports?(instrument:)
         ActiveSupport::Notifications.instrument(
           "market_price.refresh",
-          event: :skipped, provider: "yahoo_finance", instrument_id: instrument.id
+          event: :skipped, provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier, instrument_id: instrument.id
         )
         next
       end
