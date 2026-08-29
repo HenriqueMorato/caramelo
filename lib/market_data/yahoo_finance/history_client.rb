@@ -1,16 +1,9 @@
 module MarketData
   module YahooFinance
-    class HistoryClient
-      ENDPOINT_PATH = "/v8/finance/chart"
-      SUCCESS_RANGE = 200..299
-
-      def initialize(transport:)
-        @transport = transport
-      end
-
+    class HistoryClient < BaseClient
       def daily_closes(identifier:, from:, to:)
-        response = transport.get(chart_uri(identifier:, from:, to:))
-        raise Error, "Yahoo Finance returned HTTP #{response.status}" unless SUCCESS_RANGE.cover?(response.status)
+        response = transport.get(history_uri(identifier:, from:, to:))
+        classify_status!(response)
 
         payload = JSON.parse(response.body, decimal_class: BigDecimal)
         chart = payload.fetch("chart")
@@ -26,30 +19,9 @@ module MarketData
 
       private
 
-      attr_reader :transport
-
-      def chart_uri(identifier:, from:, to:)
-        URI::HTTPS.build(
-          host: CurlTransport::ALLOWED_HOST,
-          path: "#{ENDPOINT_PATH}/#{identifier.value}",
-          query: URI.encode_www_form(
-            period1: from.beginning_of_day.to_i,
-            period2: (to + 1).beginning_of_day.to_i,
-            interval: "1d",
-            events: "history"
-          )
-        )
-      end
-
       def parse_daily_closes(result, identifier:)
         meta = result.fetch("meta")
-        raise InvalidResponse, "response symbol does not match request" unless meta.fetch("symbol") == identifier.value
-        unless identifier.matches_provider_exchange?(meta.fetch("exchangeName"))
-          raise InvalidResponse, "response exchange does not match request"
-        end
-        unless identifier.supports_instrument_type?(meta.fetch("instrumentType"))
-          raise InvalidResponse, "response instrument type is not supported"
-        end
+        validate_identifier!(meta, identifier)
         currency = normalize_currency(meta.fetch("currency"))
         timestamps = result.fetch("timestamp")
         closes = result.fetch("indicators").fetch("quote").first.fetch("close")
@@ -62,24 +34,6 @@ module MarketData
           observed_at = Time.at(Integer(timestamp)).utc
           DailyClose.new(close_price: price, currency:, trading_date: observed_at.to_date, observed_at:)
         end
-      end
-
-      def normalize_price(value)
-        raise InvalidResponse, "close price must not be a float" if value.is_a?(Float)
-
-        price = BigDecimal(value.to_s)
-        raise InvalidResponse, "close price must be finite and positive" unless price.finite? && price.positive?
-
-        price
-      rescue ArgumentError
-        raise InvalidResponse, "close price is invalid"
-      end
-
-      def normalize_currency(value)
-        currency = value.to_s.strip.upcase
-        raise InvalidResponse, "currency is invalid" unless currency.match?(/\A[A-Z]{3}\z/)
-
-        currency
       end
 
       DailyClose = Data.define(:close_price, :currency, :trading_date, :observed_at)

@@ -47,7 +47,7 @@ module MarketPrice
       attr_reader :executable, :timeout
 
       def client
-        @client ||= MarketData::YahooFinance::Client.new(
+        @client ||= MarketData::YahooFinance::QuoteClient.new(
           transport: MarketData::YahooFinance::CurlTransport.new(executable:, timeout:)
         )
       end

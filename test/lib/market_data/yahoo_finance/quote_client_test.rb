@@ -1,6 +1,6 @@
 require "test_helper"
 
-class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
+class MarketData::YahooFinance::QuoteClientTest < ActiveSupport::TestCase
   setup do
     @identifier = MarketData::YahooFinance::Identifier.build(ticker: "PETR4", mic: "BVMF")
   end
@@ -97,7 +97,7 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
   test "requests the direct one-day chart endpoint without a crumb" do
     transport = FakeTransport.new(response: response(body: chart_body))
 
-    MarketData::YahooFinance::Client.new(transport:).quote(@identifier)
+    MarketData::YahooFinance::QuoteClient.new(transport:).quote(@identifier)
 
     assert_equal 1, transport.uris.size
     assert_equal "query1.finance.yahoo.com", transport.uris.first.host
@@ -214,7 +214,7 @@ class MarketData::YahooFinance::ClientTest < ActiveSupport::TestCase
   end
 
   def build_client(status: 200, body: chart_body, headers: {})
-    MarketData::YahooFinance::Client.new(
+    MarketData::YahooFinance::QuoteClient.new(
       transport: FakeTransport.new(response: response(status:, body:, headers:))
     )
   end
