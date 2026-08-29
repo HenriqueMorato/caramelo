@@ -3,9 +3,15 @@ class RefreshTradedMarketPricesJob < ApplicationJob
 
   def perform
     traded_instruments.find_each do |instrument|
-      next unless market_price_service.supports?(instrument:)
+      unless market_price_service.supports?(instrument:)
+        ActiveSupport::Notifications.instrument(
+          "market_price.refresh",
+          event: :skipped, provider: "yahoo_finance", instrument_id: instrument.id
+        )
+        next
+      end
 
-      RefreshCurrentMarketPriceJob.perform_later(instrument)
+      RefreshCurrentMarketPriceJob.enqueue_for(instrument:)
     end
   end
 
