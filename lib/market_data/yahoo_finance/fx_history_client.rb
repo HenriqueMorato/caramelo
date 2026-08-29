@@ -52,9 +52,9 @@ module MarketData
           # existing daily closing-price importer and keeping date derivation stable.
           observed_at = Time.at(Integer(timestamp)).utc
           rate_date = observed_at.to_date
-          rate = normalize_rate(close)
           next unless (from..to).cover?(rate_date)
 
+          rate = normalize_rate(close)
           Rate.new(rate:, rate_date:, observed_at:)
         end
       end

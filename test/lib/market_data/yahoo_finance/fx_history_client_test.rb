@@ -54,7 +54,9 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     malformed = default_result.merge(indicators: { quote: [ { close: [ "not-a-rate", nil, BigDecimal("5.5") ] } ] })
 
     assert_raises(MarketData::YahooFinance::InvalidResponse) do
-      client_with(response(result: malformed)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+      client_with(response(result: malformed)).daily_rates(
+        base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26)
+      )
     end
   end
 
@@ -121,7 +123,9 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
 
     result = default_result.merge(indicators: { quote: [ { close: [ "0", nil, BigDecimal("5.5") ] } ] })
     assert_raises(MarketData::YahooFinance::InvalidResponse) do
-      client_with(response(result:)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+      client_with(response(result:)).daily_rates(
+        base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26)
+      )
     end
   end
 
