@@ -31,6 +31,12 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "rejects a non-hash parsed result" do
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.send(:parse_rates, nil, base_currency: "USD", quote_currency: "BRL")
+    end
+  end
+
   test "reports provider chart errors clearly" do
     error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
       client_with(response(result: default_result, error: { "code" => "Bad Request", "description" => "Invalid range" })).daily_rates(
@@ -68,6 +74,48 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     )
 
     assert_equal Date.new(2026, 8, 24), rates.first.rate_date
+  end
+
+  test "rejects same-currency and invalid currency requests" do
+    assert_raises(ArgumentError) do
+      client.daily_rates(base_currency: "USD", quote_currency: "USD", from: Date.current, to: Date.current)
+    end
+    assert_raises(ArgumentError) do
+      client.daily_rates(base_currency: "XXX", quote_currency: "BRL", from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects mismatched symbols, currencies, and array lengths" do
+    cases = [
+      default_result.merge(meta: default_result[:meta].merge(symbol: "EURBRL=X")),
+      default_result.merge(meta: default_result[:meta].merge(currency: "USD")),
+      default_result.merge(timestamp: [ 1, 2 ])
+    ]
+
+    cases.each do |result|
+      assert_raises(MarketData::YahooFinance::InvalidResponse) do
+        client_with(response(result:)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+      end
+    end
+  end
+
+  test "rejects float and non-positive historical rates" do
+    assert_raises(MarketData::YahooFinance::InvalidResponse) { client.send(:normalize_rate, 1.2) }
+
+    result = default_result.merge(indicators: { quote: [ { close: [ "0", nil, BigDecimal("5.5") ] } ] })
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client_with(response(result:)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+    end
+  end
+
+  test "reports a scalar provider chart error" do
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client_with(response(result: default_result, error: "Bad Request")).daily_rates(
+        base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current
+      )
+    end
+
+    assert_equal "Bad Request", error.message
   end
 
   private
