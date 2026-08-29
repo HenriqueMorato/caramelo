@@ -9,14 +9,7 @@ module MarketData
 
       private
       def parse_quote(response, identifier)
-        payload = JSON.parse(response.body, decimal_class: BigDecimal)
-        chart = payload.fetch("chart")
-        raise_chart_error!(chart.fetch("error"), response) if chart["error"]
-
-        results = chart.fetch("result")
-        raise InvalidResponse, "expected exactly one chart result" unless results.is_a?(Array) && results.one?
-
-        quote_from(results.first.fetch("meta"), identifier)
+        quote_from(chart_result(response) { |error, current_response| raise_chart_error!(error, current_response) }.fetch("meta"), identifier)
       rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
         raise InvalidResponse, error.message
       end

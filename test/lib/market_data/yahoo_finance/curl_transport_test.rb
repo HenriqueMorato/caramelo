@@ -26,6 +26,18 @@ class MarketData::YahooFinance::CurlTransportTest < ActiveSupport::TestCase
     assert_equal "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?range=1d", captured_arguments.last
   end
 
+  test "builds a transport from the configured executable" do
+    previous = ENV["YAHOO_FINANCE_HTTP_EXECUTABLE"]
+    ENV["YAHOO_FINANCE_HTTP_EXECUTABLE"] = "custom-curl"
+
+    transport = MarketData::YahooFinance::CurlTransport.from_environment(timeout: 12)
+
+    assert_equal "custom-curl", transport.send(:executable)
+    assert_equal 12, transport.send(:timeout)
+  ensure
+    ENV["YAHOO_FINANCE_HTTP_EXECUTABLE"] = previous
+  end
+
   test "rejects hosts and schemes outside the fixed Yahoo endpoint" do
     transport = build_transport(command_runner: ->(*) { flunk "runner should not be called" })
 

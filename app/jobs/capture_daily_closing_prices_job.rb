@@ -3,7 +3,7 @@ class CaptureDailyClosingPricesJob < ApplicationJob
 
   def perform(trading_date: Date.yesterday)
     traded_instruments.find_each do |instrument|
-      market_price_throttle.wait!(instrument:)
+      request_throttle.wait!(instrument:)
       importer.call(instrument:, from: trading_date, to: trading_date)
     rescue StandardError => error
       Rails.error.report(error, handled: true, context: { instrument_id: instrument.id, trading_date: })
@@ -16,8 +16,8 @@ class CaptureDailyClosingPricesJob < ApplicationJob
     @importer ||= DailyClosingPrice::Importer.default
   end
 
-  def market_price_throttle
-    @market_price_throttle ||= MarketPrice::RequestThrottle.new
+  def request_throttle
+    @request_throttle ||= MarketData::YahooFinance::RequestThrottle.new
   end
 
   def traded_instruments

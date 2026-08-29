@@ -128,6 +128,15 @@ class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "normalizes an invalid timestamp as an invalid response" do
+    result = default_result.merge(timestamp: [ "not-a-timestamp", nil, nil ])
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
   test "rejects a non-positive close price" do
     result = default_result.merge(indicators: { quote: [ { close: [ "0", nil, BigDecimal("501.25") ] } ] })
     client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))

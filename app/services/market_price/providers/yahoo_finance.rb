@@ -1,9 +1,9 @@
 module MarketPrice
   module Providers
     class YahooFinance
-      IDENTIFIER = "yahoo_finance"
-      DEFAULT_EXECUTABLE = "curl_chrome146"
-      DEFAULT_TIMEOUT = 15
+      IDENTIFIER = MarketData::YahooFinance::MARKET_PROVIDER_IDENTIFIER
+      DEFAULT_EXECUTABLE = MarketData::YahooFinance::DEFAULT_EXECUTABLE
+      DEFAULT_TIMEOUT = MarketData::YahooFinance::MARKET_TIMEOUT
 
       def initialize(client: nil, executable: ENV.fetch("YAHOO_FINANCE_HTTP_EXECUTABLE", DEFAULT_EXECUTABLE),
         timeout: DEFAULT_TIMEOUT)

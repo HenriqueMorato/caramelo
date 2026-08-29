@@ -34,7 +34,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   def perform(instrument, force: false)
     retry_scheduled = false
     instrument_event(:attempted, instrument:)
-    market_price_throttle.wait!(instrument:)
+    request_throttle.wait!(instrument:)
     market_price_service.refresh(instrument:, force:)
     refresh_exchange_rate(instrument:, force:)
     instrument_event(:succeeded, instrument:)
@@ -61,8 +61,8 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     MarketPrice::Service.default
   end
 
-  def market_price_throttle
-    MarketPrice::RequestThrottle.new
+  def request_throttle
+    MarketData::YahooFinance::RequestThrottle.new
   end
 
   def market_price_broadcaster
