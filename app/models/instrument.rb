@@ -1,5 +1,6 @@
 class Instrument < ApplicationRecord
   has_many :trades, dependent: :restrict_with_error
+  has_many :daily_closing_prices, dependent: :restrict_with_error
 
   normalizes :ticker, with: ->(ticker) { ticker.strip.upcase }
   normalizes :exchange, with: ->(exchange) { exchange.strip.upcase }
