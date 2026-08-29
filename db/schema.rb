@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_29_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_29_150000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -23,6 +23,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_100000) do
     t.index ["instrument_id", "trading_date", "provider"], name: "index_daily_closing_prices_on_instrument_date_provider", unique: true
     t.index ["instrument_id"], name: "index_daily_closing_prices_on_instrument_id"
     t.check_constraint "close_price > 0", name: "daily_closing_prices_close_positive"
+  end
+
+  create_table "historical_exchange_rates", force: :cascade do |t|
+    t.string "base_currency", limit: 3, null: false
+    t.datetime "created_at", null: false
+    t.datetime "fetched_at", null: false
+    t.datetime "observed_at", null: false
+    t.string "provider", limit: 64, null: false
+    t.string "quote_currency", limit: 3, null: false
+    t.decimal "rate", precision: 28, scale: 12, null: false
+    t.date "rate_date", null: false
+    t.datetime "updated_at", null: false
+    t.index ["base_currency", "quote_currency", "rate_date", "provider"], name: "index_historical_exchange_rates_on_pair_date_provider", unique: true
+    t.check_constraint "base_currency <> quote_currency", name: "historical_exchange_rates_currencies_distinct"
+    t.check_constraint "rate > 0", name: "historical_exchange_rates_rate_positive"
   end
 
   create_table "institutions", force: :cascade do |t|
