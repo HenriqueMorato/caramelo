@@ -44,6 +44,17 @@ class HistoricalExchangeRate::ServiceTest < ActiveSupport::TestCase
     end
   end
 
+  test "uses the Yahoo provider identifier by default" do
+    service = HistoricalExchangeRate::Service.new
+
+    assert service.read(base_currency: "USD", quote_currency: "BRL", rate_date: @date).missing?
+  end
+
+  test "rejects unknown currencies and non-date values" do
+    assert_raises(ArgumentError) { @service.read(base_currency: "XXX", quote_currency: "BRL", rate_date: @date) }
+    assert_raises(ArgumentError) { @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: "2026-08-28") }
+  end
+
   private
 
   def create_rate(base_currency:, quote_currency:, rate:)

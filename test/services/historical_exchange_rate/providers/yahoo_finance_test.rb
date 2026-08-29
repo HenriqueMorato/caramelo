@@ -29,6 +29,16 @@ class HistoricalExchangeRate::Providers::YahooFinanceTest < ActiveSupport::TestC
     assert_nil client.requested_pair
   end
 
+  test "rejects unknown currencies before calling the client" do
+    client = FakeClient.new
+    provider = HistoricalExchangeRate::Providers::YahooFinance.new(client:)
+
+    assert_raises(ArgumentError) do
+      provider.fetch(base_currency: "XXX", quote_currency: "BRL", from: Date.current, to: Date.current)
+    end
+    assert_nil client.requested_pair
+  end
+
   private
 
   class FakeClient

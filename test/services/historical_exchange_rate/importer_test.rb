@@ -83,6 +83,14 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     end
   end
 
+  test "rejects duplicate observation dates" do
+    @provider.duplicate_dates = true
+
+    assert_raises(ArgumentError) do
+      @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+    end
+  end
+
   private
 
   class FakeProvider
@@ -90,18 +98,20 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     attr_reader :requested_pair
     attr_accessor :include_out_of_range
     attr_accessor :mismatch_pair
+    attr_accessor :duplicate_dates
 
     def initialize
       @rate = BigDecimal("5")
       @include_out_of_range = false
       @mismatch_pair = false
+      @duplicate_dates = false
     end
 
     def identifier = "test_provider"
 
     def fetch(base_currency:, quote_currency:, from:, to:)
       @requested_pair = [ base_currency, quote_currency ]
-      dates = [ from, to ].uniq
+      dates = duplicate_dates ? [ from, from ] : [ from, to ].uniq
       dates << from + 2 if include_out_of_range
       dates.filter_map do |date|
         next unless date.wday == 1 || date.wday == 3
