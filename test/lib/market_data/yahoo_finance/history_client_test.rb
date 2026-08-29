@@ -69,6 +69,18 @@ class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "reports a structured chart error clearly" do
+    client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: default_result, error: { "code" => "Not Found", "description" => "Symbol not found" }))
+    )
+
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+
+    assert_equal "Symbol not found", error.message
+  end
+
   test "rejects a response without one result" do
     body = { chart: { result: [], error: nil } }.to_json
     client = MarketData::YahooFinance::HistoryClient.new(
