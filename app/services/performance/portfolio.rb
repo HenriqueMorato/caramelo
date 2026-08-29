@@ -1,0 +1,210 @@
+module Performance
+  class Portfolio
+    ANALYTICAL_DECIMAL_PRECISION = 48
+
+    # One instrument's replayed holdings. Amounts use the reporting currency:
+    # remaining purchase basis, closing market value, realized/unrealized gain,
+    # and trade cash flow. A missing status identifies an absent required quote.
+    PositionResult = Data.define(
+      :instrument, :quantity, :reporting_cost_basis_amount, :market_value_amount,
+      :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount,
+      :status, :daily_closing_price, :exchange_rate_lookup
+    ) do
+      def available? = status != :missing
+      def missing?   = status == :missing
+      def closed?    = status == :closed
+    end
+
+    # Portfolio totals for one reporting date. Monetary objects round only for
+    # presentation; their matching *_amount fields retain analytical precision.
+    Result = Data.define(
+      :valuation_date, :market_value_amount, :market_value,
+      :realized_gain_amount, :realized_gain,
+      :unrealized_gain_amount, :unrealized_gain,
+      :net_cash_flow_amount, :net_cash_flow,
+      :status, :position_results
+    ) do
+      def available? = status != :missing
+      def missing?   = status == :missing
+      def empty?     = status == :empty
+    end
+
+    def self.for(valuation_date:, owner: User.owner, exchange_rate_service: HistoricalExchangeRate::Service.new,
+      daily_closing_price_provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
+      reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
+      new(
+        valuation_date:, owner:, exchange_rate_service:, daily_closing_price_provider:,
+        reporting_currency:
+      ).calculate
+    end
+
+    def initialize(valuation_date:, owner:, exchange_rate_service:, daily_closing_price_provider:, reporting_currency:)
+      @valuation_date = valuation_date
+      @owner = owner
+      @exchange_rate_service = exchange_rate_service
+      @daily_closing_price_provider = daily_closing_price_provider
+      @reporting_currency = CurrencyCode.normalize(reporting_currency)
+    end
+
+    def calculate
+      validate_valuation_date!
+      position_results = trades_by_instrument.map do |instrument, trades|
+        PositionCalculator.new(
+          instrument:, trades:, valuation_date:, exchange_rate_service:,
+          daily_closing_price_provider:, reporting_currency:
+        ).calculate
+      end
+      return missing_result(position_results) if position_results.any?(&:missing?)
+      return empty_result if position_results.empty?
+
+      available_result(position_results)
+    end
+
+    private
+
+    attr_reader :valuation_date, :owner, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
+
+    def trades_by_instrument
+      owner.trades.includes(:instrument).strict_loading.where(traded_on: ..valuation_date)
+        .order(:traded_on, :id).to_a.group_by(&:instrument)
+    end
+
+    def available_result(position_results)
+      amounts = %i[market_value_amount realized_gain_amount unrealized_gain_amount net_cash_flow_amount]
+      totals = amounts.to_h do |amount|
+        [ amount, decimal(position_results.sum { |position_result| position_result.public_send(amount) }) ]
+      end
+
+      Result.new(
+        valuation_date:, **totals,
+        market_value: Money.from_amount(totals.fetch(:market_value_amount), reporting_currency),
+        realized_gain: Money.from_amount(totals.fetch(:realized_gain_amount), reporting_currency),
+        unrealized_gain: Money.from_amount(totals.fetch(:unrealized_gain_amount), reporting_currency),
+        net_cash_flow: Money.from_amount(totals.fetch(:net_cash_flow_amount), reporting_currency),
+        status: :available, position_results:
+      )
+    end
+
+    def empty_result
+      zero = BigDecimal("0")
+      Result.new(
+        valuation_date:, market_value_amount: zero, market_value: Money.new(0, reporting_currency),
+        realized_gain_amount: zero, realized_gain: Money.new(0, reporting_currency),
+        unrealized_gain_amount: zero, unrealized_gain: Money.new(0, reporting_currency),
+        net_cash_flow_amount: zero, net_cash_flow: Money.new(0, reporting_currency),
+        status: :empty, position_results: []
+      )
+    end
+
+    def missing_result(position_results)
+      Result.new(
+        valuation_date:, market_value_amount: nil, market_value: nil,
+        realized_gain_amount: nil, realized_gain: nil,
+        unrealized_gain_amount: nil, unrealized_gain: nil,
+        net_cash_flow_amount: nil, net_cash_flow: nil,
+        status: :missing, position_results:
+      )
+    end
+
+    def decimal(value)
+      BigDecimal(value.to_r, ANALYTICAL_DECIMAL_PRECISION)
+    end
+
+    def validate_valuation_date!
+      return if valuation_date.is_a?(Date) && valuation_date <= Date.current
+
+      raise ArgumentError, "valuation date must be on or before today"
+    end
+
+    class PositionCalculator
+      def initialize(instrument:, trades:, valuation_date:, exchange_rate_service:, daily_closing_price_provider:, reporting_currency:)
+        @instrument = instrument
+        @trades = trades
+        @valuation_date = valuation_date
+        @exchange_rate_service = exchange_rate_service
+        @daily_closing_price_provider = daily_closing_price_provider
+        @reporting_currency = reporting_currency
+      end
+
+      def calculate
+        state = replay_trades
+        return missing_result if state.nil?
+        return closed_result(state) if state.calculation.quantity.zero?
+
+        daily_closing_price = find_daily_closing_price
+        return missing_result(daily_closing_price:) unless daily_closing_price
+
+        rate_lookup = exchange_rate_for(daily_closing_price.currency, valuation_date)
+        return missing_result(daily_closing_price:, exchange_rate_lookup: rate_lookup) unless rate_lookup.available?
+
+        market_value = state.calculation.quantity * daily_closing_price.close_price.to_r * rate_lookup.exchange_rate.rate.to_r
+        available_result(state, market_value, daily_closing_price:, exchange_rate_lookup: rate_lookup)
+      end
+
+      private
+
+      attr_reader :instrument, :trades, :valuation_date, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
+
+      # Replay combines the shared moving-average calculation with the
+      # reporting-currency trade cash flow that is specific to performance.
+      Replay = Data.define(:calculation, :net_cash_flow)
+
+      def replay_trades
+        reporting_amounts = trades.to_h do |trade|
+          rate_lookup = exchange_rate_for(trade.currency, trade.traded_on)
+          return unless rate_lookup.available?
+
+          [ trade, trade.total_amount.to_r * rate_lookup.exchange_rate.rate.to_r ]
+        end
+        calculation = Position::Calculator.for(trades:, amount_for: reporting_amounts.method(:fetch))
+        Replay.new(
+          calculation:, net_cash_flow: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : -amount }
+        )
+      end
+
+      def exchange_rate_for(base_currency, rate_date)
+        exchange_rate_service.read(base_currency:, quote_currency: reporting_currency, rate_date:)
+      end
+
+      def find_daily_closing_price
+        DailyClosingPrice.find_by(
+          instrument:, trading_date: valuation_date, provider: daily_closing_price_provider
+        )
+      end
+
+      def available_result(state, market_value, daily_closing_price:, exchange_rate_lookup:)
+        reporting_cost_basis = decimal(state.calculation.cost_basis_amount)
+        market_value_amount = decimal(market_value)
+        PositionResult.new(
+          instrument:, quantity: decimal(state.calculation.quantity), reporting_cost_basis_amount: reporting_cost_basis,
+          market_value_amount:, realized_gain_amount: decimal(state.calculation.realized_gain_amount),
+          unrealized_gain_amount: decimal(market_value - state.calculation.cost_basis_amount),
+          net_cash_flow_amount: decimal(state.net_cash_flow), status: :available,
+          daily_closing_price:, exchange_rate_lookup:
+        )
+      end
+
+      def closed_result(state)
+        zero = BigDecimal("0")
+        PositionResult.new(
+          instrument:, quantity: zero, reporting_cost_basis_amount: zero, market_value_amount: zero,
+          realized_gain_amount: decimal(state.calculation.realized_gain_amount), unrealized_gain_amount: zero,
+          net_cash_flow_amount: decimal(state.net_cash_flow), status: :closed,
+          daily_closing_price: nil, exchange_rate_lookup: nil
+        )
+      end
+
+      def missing_result(daily_closing_price: nil, exchange_rate_lookup: nil)
+        PositionResult.new(
+          instrument:, quantity: nil, reporting_cost_basis_amount: nil, market_value_amount: nil,
+          realized_gain_amount: nil, unrealized_gain_amount: nil, net_cash_flow_amount: nil,
+          status: :missing, daily_closing_price:, exchange_rate_lookup:
+        )
+      end
+
+      def decimal(value)
+        BigDecimal(value, ANALYTICAL_DECIMAL_PRECISION)
+      end
+    end
+  end
+end
