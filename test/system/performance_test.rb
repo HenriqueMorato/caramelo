@@ -19,11 +19,24 @@ class PerformanceTest < ApplicationSystemTestCase
     assert_text "20.00%"
   end
 
+  test "shows a closed portfolio without requiring a current price" do
+    Trade.where(user: User.owner).delete_all
+    instrument = Instrument.create!(ticker: "SCLP", exchange: "BVMF", name: "Sold performance stock", currency: "BRL")
+    create_trade(instrument:, traded_on: Date.current - 1.day, side: :buy)
+    create_trade(instrument:, traded_on: Date.current, side: :sell)
+
+    visit performance_path
+
+    assert_text "Performance"
+    assert_text "R$0,00"
+    assert_no_text "Prices through"
+  end
+
   private
 
-  def create_trade(instrument:, traded_on:)
+  def create_trade(instrument:, traded_on:, side: :buy)
     User.owner.trades.create!(
-      instrument:, side: :buy, traded_on:, quantity: 1, unit_price: "10", fees_cents: 0, currency: "BRL"
+      instrument:, side:, traded_on:, quantity: 1, unit_price: "10", fees_cents: 0, currency: "BRL"
     )
   end
 
