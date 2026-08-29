@@ -1,7 +1,9 @@
 class CaptureHistoricalExchangeRatesJob < ApplicationJob
   queue_as :market_prices
 
-  def perform(rate_date: Date.yesterday)
+  def perform(rate_date: nil)
+    rate_date ||= previous_business_day
+
     traded_currencies.each do |currency|
       throttle.wait!
       importer.call(
@@ -27,6 +29,12 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
 
   def reporting_currency
     Rails.configuration.x.local_folio.reporting_currency
+  end
+
+  def previous_business_day
+    date = Date.current - 1.day
+    date -= 1.day while date.saturday? || date.sunday?
+    date
   end
 
   def traded_currencies

@@ -14,10 +14,11 @@ class HistoricalExchangeRate
         quote_currency = normalize_currency(quote_currency)
         raise ArgumentError, "currencies must differ" if base_currency == quote_currency
 
+        fetched_at = Time.current
         client.daily_rates(base_currency:, quote_currency:, from:, to:).map do |rate|
           HistoricalExchangeRate::Observation.new(
             base_currency:, quote_currency:, rate_date: rate.rate_date, rate: rate.rate,
-            provider: identifier, observed_at: rate.observed_at, fetched_at: Time.current
+            provider: identifier, observed_at: rate.observed_at, fetched_at:
           )
         end
       end

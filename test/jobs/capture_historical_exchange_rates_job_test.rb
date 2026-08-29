@@ -30,9 +30,15 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
 
   test "reports a failure and continues with other currencies" do
     date = Date.new(2026, 8, 28)
+    euro = Instrument.create!(ticker: "EUNL", exchange: "XETR", name: "European ETF", currency: "EUR")
+    User.owner.trades.create!(instrument: euro, side: :buy, traded_on: date, quantity: 1, unit_price: 100, currency: "EUR")
     reports = []
+    imports = []
     importer = Object.new
-    importer.define_singleton_method(:call) { |**| raise "provider unavailable" }
+    importer.define_singleton_method(:call) do |**arguments|
+      imports << arguments
+      raise "provider unavailable" if arguments[:base_currency] == "EUR"
+    end
     throttle = Object.new
     throttle.define_singleton_method(:wait!) { }
     job = CaptureHistoricalExchangeRatesJob.new
@@ -44,8 +50,25 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
     end
 
     assert_equal 1, reports.size
-    assert_equal "USD", reports.first.last[:context][:currency]
+    assert_equal "EUR", reports.first.last[:context][:currency]
     assert_equal date, reports.first.last[:context][:rate_date]
+    assert_equal %w[EUR USD], imports.map { |call| call[:base_currency] }.sort
+  end
+
+  test "uses the prior Friday when the scheduled run is on Monday" do
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { throttle }
+
+    with_stubbed_class_method(Date, :current, -> { Date.new(2026, 8, 31) }) { job.perform }
+
+    assert_equal Date.new(2026, 8, 28), imports.first[:from]
+    assert_equal Date.new(2026, 8, 28), imports.first[:to]
   end
 
   private
@@ -56,5 +79,13 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
     yield
   ensure
     object.singleton_class.define_method(method_name, original)
+  end
+
+  def with_stubbed_class_method(klass, method_name, replacement)
+    original = klass.method(method_name)
+    klass.singleton_class.define_method(method_name, replacement)
+    yield
+  ensure
+    klass.singleton_class.define_method(method_name, original)
   end
 end
