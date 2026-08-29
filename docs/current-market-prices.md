@@ -106,6 +106,69 @@ nested instrument action enqueues one instrument. The recurring job runs every
 30 minutes. Scheduled refreshes use normal cache freshness checks, while a user
 action uses `force: true` because it explicitly requests a new quote.
 
+### Refresh coordination, throttling, and retries
+
+`RefreshCurrentMarketPriceJob.enqueue_for` writes an instrument-specific cache
+marker with a two-minute TTL before enqueueing. A second request for the same
+instrument sees that marker and returns `:coalesced`, so bulk refreshes and
+repeated user actions do not create duplicate jobs. If enqueueing fails, the
+marker is removed immediately.
+
+The job also uses a Solid Queue concurrency limit for the Yahoo provider as a
+whole. Only one Yahoo refresh is allowed to run at a time, regardless of which
+instrument it is refreshing. `MarketPrice::RequestThrottle` adds a minimum
+one-second interval between provider requests and can be made more conservative
+with `YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS`.
+
+Rate-limited and temporarily unavailable provider failures are retried up to
+three executions. The job honors a numeric or HTTP-date `Retry-After` value,
+caps the delay at five minutes, and adds bounded jitter so multiple workers do
+not retry simultaneously. Other provider failures are reported without retry.
+
+When a retry is scheduled, the deduplication marker remains in place while the
+next execution waits in Solid Queue. Removing it at that point would allow a
+new request to enqueue duplicate work alongside the already-scheduled retry.
+The marker is deleted after success or a final failure; its TTL is a safety net
+if a job disappears. Every attempt broadcasts the final quote state, and the
+`market_price.refresh` notification exposes enqueue, coalesced, throttled,
+attempted, retried, succeeded, failed, and skipped events for monitoring.
+
+```mermaid
+sequenceDiagram
+  participant R as Refresh request
+  participant E as enqueue_for
+  participant K as Rails cache
+  participant Q as Solid Queue
+  participant J as Refresh job
+  participant T as Request throttle
+  participant Y as Yahoo Finance
+
+  R->>E: enqueue(instrument)
+  E->>K: write dedup marker (unless it exists)
+  alt marker already exists
+    K-->>E: false
+    E-->>R: :coalesced
+  else first request
+    K-->>E: true
+    E->>Q: enqueue job
+    E-->>R: job enqueued
+    Q->>J: run when provider lock is available
+    J->>T: wait for minimum interval
+    T->>K: read/write last request time
+    T-->>J: continue after any delay
+    J->>Y: fetch quote
+    alt retryable provider failure
+      Y-->>J: 429/temporary failure
+      J->>Q: retry_job(wait: retry delay)
+      Note over K,Q: Keep dedup marker while retry waits
+      Q->>J: run retry
+    else success or final failure
+      Y-->>J: quote or permanent failure
+      J->>K: delete dedup marker
+    end
+  end
+```
+
 ## Cache and Display States
 
 - **Fresh:** fetched less than 30 minutes ago. Normal scheduled work reuses it.
