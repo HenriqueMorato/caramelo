@@ -1,0 +1,155 @@
+require "test_helper"
+
+class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
+  test "parses daily close observations and omits missing closes" do
+    identifier = MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX")
+    transport = FakeTransport.new(response: response)
+
+    closes = MarketData::YahooFinance::HistoryClient.new(transport:).daily_closes(
+      identifier:, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26)
+    )
+
+    assert_equal [ BigDecimal("500.12345678"), BigDecimal("501.25") ], closes.map(&:close_price)
+    assert_equal [ Date.new(2026, 8, 24), Date.new(2026, 8, 26) ], closes.map(&:trading_date)
+    assert_equal "/v8/finance/chart/VOO", transport.uri.path
+    assert_includes transport.uri.query, "interval=1d"
+  end
+
+  test "rejects mismatched timestamp and close arrays" do
+    result = {
+      meta: { symbol: "VOO", exchangeName: "PCX", instrumentType: "ETF", currency: "USD" },
+      timestamp: [ 1 ], indicators: { quote: [ { close: [] } ] }
+    }
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier: MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX"), from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects malformed JSON" do
+    client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: MarketData::YahooFinance::Response.new(status: 200, body: "{", headers: {}))
+    )
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier: MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX"), from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects an unsuccessful response" do
+    client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: MarketData::YahooFinance::Response.new(status: 429, body: "", headers: {}))
+    )
+
+    assert_raises(MarketData::YahooFinance::Error) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a chart error" do
+    client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: default_result, error: "Not Found"))
+    )
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a response without one result" do
+    body = { chart: { result: [], error: nil } }.to_json
+    client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: MarketData::YahooFinance::Response.new(status: 200, body:, headers: {}))
+    )
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a response from another exchange" do
+    result = default_result.merge(meta: default_result[:meta].merge(exchangeName: "NMS"))
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier: MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX"), from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a response for another symbol" do
+    result = default_result.merge(meta: default_result[:meta].merge(symbol: "VTI"))
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a response with an unsupported instrument type" do
+    result = default_result.merge(meta: default_result[:meta].merge(instrumentType: "MUTUALFUND"))
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier: MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX"), from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects an invalid close price" do
+    result = default_result.merge(indicators: { quote: [ { close: [ "not-a-price", nil, BigDecimal("501.25") ] } ] })
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier: MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX"), from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a non-positive close price" do
+    result = default_result.merge(indicators: { quote: [ { close: [ "0", nil, BigDecimal("501.25") ] } ] })
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
+  test "rejects a float close price before parsing" do
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) { client.send(:normalize_price, 1.2) }
+  end
+
+  test "rejects an invalid response currency" do
+    result = default_result.merge(meta: default_result[:meta].merge(currency: "US"))
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
+  end
+
+  private
+
+  FakeTransport = Struct.new(:response, :uri) do
+    def get(uri)
+      self.uri = uri
+      response
+    end
+  end
+
+  def response(result: default_result, error: nil)
+    MarketData::YahooFinance::Response.new(status: 200, body: { chart: { result: [ result ], error: } }.to_json, headers: {})
+  end
+
+  def identifier
+    MarketData::YahooFinance::Identifier.build(ticker: "VOO", mic: "ARCX")
+  end
+
+  def default_result
+    {
+      meta: { symbol: "VOO", exchangeName: "PCX", instrumentType: "ETF", currency: "USD" },
+      timestamp: [ Time.utc(2026, 8, 24, 20).to_i, Time.utc(2026, 8, 25, 20).to_i, Time.utc(2026, 8, 26, 20).to_i ],
+      indicators: { quote: [ { close: [ BigDecimal("500.12345678"), nil, BigDecimal("501.25") ] } ] }
+    }
+  end
+end

@@ -10,6 +10,11 @@
 #     schedule: at 5am every day
 
 production:
+  capture_daily_closing_prices:
+    class: CaptureDailyClosingPricesJob
+    queue: market_prices
+    schedule: at 2am every day
+
   refresh_traded_market_prices:
     class: RefreshTradedMarketPricesJob
     queue: market_prices

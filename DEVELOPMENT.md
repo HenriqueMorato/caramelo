@@ -364,8 +364,9 @@ before reaching jobs or controllers.
 - Keep trades durable. Restrict deletion of referenced institutions and
   instruments, and prevent an instrument's currency from changing after its
   first trade.
-- Keep current market quotes out of the ledger. They are replaceable cache data
-  until a later milestone explicitly models daily history.
+- Keep current market quotes out of the ledger. They are replaceable cache data;
+  `DailyClosingPrice` is the separate durable daily-history record used by the
+  Performance milestone.
 
 ## Contribution workflow
 
