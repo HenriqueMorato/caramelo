@@ -7,7 +7,7 @@ class ExchangeRateCache
     def stale? = status == :stale
     def missing? = status == :missing
     def same_currency? = status == :same_currency
-    def refresh_needed? = !fresh?
+    def refresh_needed? = !fresh? && !same_currency?
   end
 
   def initialize(cache: Rails.cache, fresh_for: DEFAULT_FRESH_FOR)
@@ -64,11 +64,14 @@ class ExchangeRateCache
   def from_cache_payload(payload)
     raise ExchangeRate::InvalidPayload, "payload must be a hash" unless payload.is_a?(Hash)
 
+    rate = BigDecimal(payload.fetch("rate"))
+    raise ExchangeRate::InvalidPayload, "rate must be finite and positive" unless rate.finite? && rate.positive?
+
     ExchangeRate::Rate.new(
       base_currency: payload.fetch("base_currency"),
       quote_currency: payload.fetch("quote_currency"),
-      rate: BigDecimal(payload.fetch("rate")),
-      observed_on: Date.iso8601(payload.fetch("observed_on")),
+      rate:,
+      observed_at: Time.iso8601(payload.fetch("observed_at")),
       fetched_at: Time.iso8601(payload.fetch("fetched_at")),
       provider: payload.fetch("provider")
     )

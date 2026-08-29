@@ -8,6 +8,7 @@ class ExchangeRate::ServiceTest < ActiveSupport::TestCase
     lookup = service.read(base_currency: "BRL", quote_currency: "BRL")
 
     assert_predicate lookup, :same_currency?
+    assert_not_predicate lookup, :refresh_needed?
     assert_empty provider.requests
   end
 
@@ -43,7 +44,7 @@ class ExchangeRate::ServiceTest < ActiveSupport::TestCase
       requests << [ base_currency, quote_currency ]
       ExchangeRate::Rate.new(
         base_currency:, quote_currency:, rate: BigDecimal("5.12"),
-        observed_on: Date.current, fetched_at: Time.current, provider: identifier
+        observed_at: Time.current, fetched_at: Time.current, provider: identifier
       )
     end
   end

@@ -128,7 +128,7 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
   def write_exchange_rate(base_currency:, quote_currency:, rate:)
     ExchangeRateCache.new.write(
       exchange_rate: ExchangeRate::Rate.new(
-        base_currency:, quote_currency:, rate: BigDecimal(rate), observed_on: Date.current,
+        base_currency:, quote_currency:, rate: BigDecimal(rate), observed_at: Time.current,
         fetched_at: Time.current, provider: "yahoo_finance_fx"
       )
     )

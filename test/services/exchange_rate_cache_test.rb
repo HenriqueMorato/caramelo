@@ -47,6 +47,17 @@ class ExchangeRateCacheTest < ActiveSupport::TestCase
     assert_predicate @store.read(base_currency: "USD", quote_currency: "BRL", provider: "yahoo_finance_fx"), :missing?
   end
 
+  test "discards a cached rate that is not positive and finite" do
+    [ "0", "-1", "NaN", "Infinity" ].each do |rate|
+      @cache.write(
+        "localfolio:exchange_rate:v1:yahoo_finance_fx:USD:BRL",
+        build_rate(rate:).to_cache_payload
+      )
+
+      assert_predicate @store.read(base_currency: "USD", quote_currency: "BRL", provider: "yahoo_finance_fx"), :missing?, rate
+    end
+  end
+
   test "reuses a fresh rate without calling the refresh block" do
     rate = build_rate(rate: "5")
     @store.write(exchange_rate: rate)
@@ -67,7 +78,7 @@ class ExchangeRateCacheTest < ActiveSupport::TestCase
   def build_rate(rate: "5.1", fetched_at: Time.current)
     ExchangeRate::Rate.new(
       base_currency: "USD", quote_currency: "BRL", rate: BigDecimal(rate),
-      observed_on: Date.current, fetched_at:, provider: "yahoo_finance_fx"
+      observed_at: Time.current, fetched_at:, provider: "yahoo_finance_fx"
     )
   end
 end

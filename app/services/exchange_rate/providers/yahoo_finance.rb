@@ -13,7 +13,7 @@ module ExchangeRate
         result = client.rate(base_currency:, quote_currency:)
         ExchangeRate::Rate.new(
           base_currency:, quote_currency:, rate: result.rate,
-          observed_on: result.observed_at.to_date,
+          observed_at: result.observed_at,
           fetched_at: Time.current,
           provider: identifier
         )

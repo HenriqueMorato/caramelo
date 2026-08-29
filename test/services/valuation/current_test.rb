@@ -80,7 +80,7 @@ class Valuation::CurrentTest < ActiveSupport::TestCase
     ExchangeRateCache::Lookup.new(
       exchange_rate: ExchangeRate::Rate.new(
         base_currency: "USD", quote_currency: "BRL", rate: BigDecimal(rate),
-        observed_on: Date.current, fetched_at: stale ? 31.minutes.ago : Time.current,
+        observed_at: Time.current, fetched_at: stale ? 31.minutes.ago : Time.current,
         provider: "yahoo_finance_fx"
       ),
       status:

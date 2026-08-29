@@ -45,7 +45,20 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
 
     build_job(service: market_service, exchange_rate_service: exchange_service).perform(instrument)
 
-    assert_equal [ { base_currency: "USD", quote_currency: "BRL" } ], calls
+    assert_equal [ { base_currency: "USD", quote_currency: "BRL", force: false } ], calls
+  end
+
+  test "passes force through to the foreign exchange refresh" do
+    instrument = instruments(:voo_arcx)
+    market_service = Object.new
+    market_service.define_singleton_method(:refresh) { |**| }
+    exchange_service = Object.new
+    calls = []
+    exchange_service.define_singleton_method(:refresh) { |**arguments| calls << arguments }
+
+    build_job(service: market_service, exchange_rate_service: exchange_service).perform(instrument, force: true)
+
+    assert_equal [ { base_currency: "USD", quote_currency: "BRL", force: true } ], calls
   end
 
   test "reports an exchange-rate failure without failing the quote refresh" do
