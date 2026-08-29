@@ -13,9 +13,13 @@ module MarketData
       attr_reader :transport
 
       def chart_uri(identifier)
+        chart_uri_for(value: identifier.value)
+      end
+
+      def chart_uri_for(value:)
         URI::HTTPS.build(
           host: CurlTransport::ALLOWED_HOST,
-          path: "#{ENDPOINT_PATH}/#{identifier.value}",
+          path: "#{ENDPOINT_PATH}/#{value}",
           query: URI.encode_www_form(range: "1d", interval: "1d")
         )
       end
