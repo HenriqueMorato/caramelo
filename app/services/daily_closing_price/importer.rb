@@ -11,10 +11,12 @@ class DailyClosingPrice
     def call(instrument:, from:, to:)
       raise ArgumentError, "from must be on or before to" if from > to
 
-      observations = provider.fetch(instrument:, from:, to:)
-      validate_observations!(observations, instrument:)
-      counts = persist(observations)
-      expected_dates = (from..to).reject { |date| date.saturday? || date.sunday? }
+      @instrument = instrument
+      @from = from
+      @to = to
+      @observations = provider.fetch(instrument:, from:, to:)
+      validate_observations!
+      counts = persist
 
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:trading_date),
@@ -24,9 +26,9 @@ class DailyClosingPrice
 
     private
 
-    attr_reader :provider
+    attr_reader :provider, :instrument, :from, :to, :observations
 
-    def validate_observations!(observations, instrument:)
+    def validate_observations!
       observations.each do |observation|
         observation => { instrument: observed_instrument, currency:, provider: observed_provider }
 
@@ -36,7 +38,7 @@ class DailyClosingPrice
       end
     end
 
-    def persist(observations)
+    def persist
       observations.each_with_object(created: 0, updated: 0) do |observation, counts|
         observation => { instrument:, trading_date:, provider: }
         record = DailyClosingPrice.find_or_initialize_by(
@@ -45,6 +47,10 @@ class DailyClosingPrice
         counts[record.new_record? ? :created : :updated] += 1
         persist_observation(record, observation)
       end
+    end
+
+    def expected_dates
+      (from..to).reject { |date| date.saturday? || date.sunday? }
     end
 
     def persist_observation(record, observation)
