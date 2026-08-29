@@ -36,8 +36,7 @@ class HistoricalExchangeRate
 
       def default_client
         MarketData::YahooFinance::FxHistoryClient.new(
-          transport: MarketData::YahooFinance::CurlTransport.new(
-            executable: ENV.fetch("YAHOO_FINANCE_HTTP_EXECUTABLE", MarketData::YahooFinance::DEFAULT_EXECUTABLE),
+          transport: MarketData::YahooFinance::CurlTransport.from_environment(
             timeout: MarketData::YahooFinance::FX_TIMEOUT
           )
         )

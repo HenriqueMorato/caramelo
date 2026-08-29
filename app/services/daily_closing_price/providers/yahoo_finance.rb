@@ -29,8 +29,7 @@ class DailyClosingPrice
 
       def default_client
         MarketData::YahooFinance::HistoryClient.new(
-          transport: MarketData::YahooFinance::CurlTransport.new(
-            executable: ENV.fetch("YAHOO_FINANCE_HTTP_EXECUTABLE", MarketData::YahooFinance::DEFAULT_EXECUTABLE),
+          transport: MarketData::YahooFinance::CurlTransport.from_environment(
             timeout: MarketData::YahooFinance::MARKET_TIMEOUT
           )
         )
