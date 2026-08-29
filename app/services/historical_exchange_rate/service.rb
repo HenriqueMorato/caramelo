@@ -24,7 +24,10 @@ class HistoricalExchangeRate
     attr_reader :provider
 
     def find(base_currency:, quote_currency:, rate_date:)
-      HistoricalExchangeRate.find_by(base_currency:, quote_currency:, rate_date:, provider: provider_identifier)
+      HistoricalExchangeRate.where(base_currency:, quote_currency:, provider: provider_identifier)
+        .where(rate_date: MarketData::HistoricalObservationWindow.for(rate_date))
+        .order(rate_date: :desc)
+        .first
     end
 
     def available_lookup(record, inverted:)

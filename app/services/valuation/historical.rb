@@ -56,10 +56,10 @@ module Valuation
     attr_reader :position, :valuation_date, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
 
     def find_daily_closing_price
-      DailyClosingPrice.find_by(
-        instrument: position.instrument, trading_date: valuation_date,
-        provider: daily_closing_price_provider
-      )
+      DailyClosingPrice.where(instrument: position.instrument, provider: daily_closing_price_provider)
+        .where(trading_date: MarketData::HistoricalObservationWindow.for(valuation_date))
+        .order(trading_date: :desc)
+        .first
     end
 
     def closed_result

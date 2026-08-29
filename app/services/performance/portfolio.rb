@@ -1,6 +1,8 @@
 module Performance
   class Portfolio
-    ANALYTICAL_DECIMAL_PRECISION = 48
+    # One trade's signed flow into the holdings in the reporting currency.
+    # Purchases are positive contributions and sales are negative withdrawals.
+    CashFlow = Data.define(:traded_on, :amount)
 
     # One instrument's replayed holdings. Amounts use the reporting currency:
     # remaining purchase basis, closing market value, realized/unrealized gain,
@@ -8,7 +10,7 @@ module Performance
     PositionResult = Data.define(
       :instrument, :quantity, :reporting_cost_basis_amount, :market_value_amount,
       :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount,
-      :status, :daily_closing_price, :exchange_rate_lookup
+      :status, :daily_closing_price, :exchange_rate_lookup, :cash_flows
     ) do
       def available? = status != :missing
       def missing?   = status == :missing
@@ -22,11 +24,15 @@ module Performance
       :realized_gain_amount, :realized_gain,
       :unrealized_gain_amount, :unrealized_gain,
       :net_cash_flow_amount, :net_cash_flow,
-      :status, :position_results
+      :status, :position_results, :cash_flows
     ) do
       def available? = status != :missing
       def missing?   = status == :missing
       def empty?     = status == :empty
+
+      def market_data_as_of
+        position_results.filter_map { |position_result| position_result.daily_closing_price&.trading_date }.min
+      end
     end
 
     def self.for(valuation_date:, owner: User.owner, exchange_rate_service: HistoricalExchangeRate::Service.new,
@@ -81,7 +87,7 @@ module Performance
         realized_gain: Money.from_amount(totals.fetch(:realized_gain_amount), reporting_currency),
         unrealized_gain: Money.from_amount(totals.fetch(:unrealized_gain_amount), reporting_currency),
         net_cash_flow: Money.from_amount(totals.fetch(:net_cash_flow_amount), reporting_currency),
-        status: :available, position_results:
+        status: :available, position_results:, cash_flows: position_results.flat_map(&:cash_flows).sort_by(&:traded_on)
       )
     end
 
@@ -92,7 +98,7 @@ module Performance
         realized_gain_amount: zero, realized_gain: Money.new(0, reporting_currency),
         unrealized_gain_amount: zero, unrealized_gain: Money.new(0, reporting_currency),
         net_cash_flow_amount: zero, net_cash_flow: Money.new(0, reporting_currency),
-        status: :empty, position_results: []
+        status: :empty, position_results: [], cash_flows: []
       )
     end
 
@@ -102,12 +108,12 @@ module Performance
         realized_gain_amount: nil, realized_gain: nil,
         unrealized_gain_amount: nil, unrealized_gain: nil,
         net_cash_flow_amount: nil, net_cash_flow: nil,
-        status: :missing, position_results:
+        status: :missing, position_results:, cash_flows: []
       )
     end
 
     def decimal(value)
-      BigDecimal(value.to_r, ANALYTICAL_DECIMAL_PRECISION)
+      BigDecimal(value.to_r, Position::ANALYTICAL_DECIMAL_PRECISION)
     end
 
     def validate_valuation_date!
@@ -147,7 +153,7 @@ module Performance
 
       # Replay combines the shared moving-average calculation with the
       # reporting-currency trade cash flow that is specific to performance.
-      Replay = Data.define(:calculation, :net_cash_flow)
+      Replay = Data.define(:calculation, :net_cash_flow, :cash_flows)
 
       def replay_trades
         reporting_amounts = trades.to_h do |trade|
@@ -157,8 +163,12 @@ module Performance
           [ trade, trade.total_amount.to_r * rate_lookup.exchange_rate.rate.to_r ]
         end
         calculation = Position::Calculator.for(trades:, amount_for: reporting_amounts.method(:fetch))
+        cash_flows = reporting_amounts.map do |trade, amount|
+          amounts_by_side = { "buy" => amount, "sell" => -amount }
+          CashFlow.new(traded_on: trade.traded_on, amount: amounts_by_side.fetch(trade.side))
+        end
         Replay.new(
-          calculation:, net_cash_flow: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : -amount }
+          calculation:, net_cash_flow: cash_flows.sum(&:amount), cash_flows:
         )
       end
 
@@ -167,9 +177,10 @@ module Performance
       end
 
       def find_daily_closing_price
-        DailyClosingPrice.find_by(
-          instrument:, trading_date: valuation_date, provider: daily_closing_price_provider
-        )
+        DailyClosingPrice.where(instrument:, provider: daily_closing_price_provider)
+          .where(trading_date: MarketData::HistoricalObservationWindow.for(valuation_date))
+          .order(trading_date: :desc)
+          .first
       end
 
       def available_result(state, market_value, daily_closing_price:, exchange_rate_lookup:)
@@ -180,7 +191,7 @@ module Performance
           market_value_amount:, realized_gain_amount: decimal(state.calculation.realized_gain_amount),
           unrealized_gain_amount: decimal(market_value - state.calculation.cost_basis_amount),
           net_cash_flow_amount: decimal(state.net_cash_flow), status: :available,
-          daily_closing_price:, exchange_rate_lookup:
+          daily_closing_price:, exchange_rate_lookup:, cash_flows: state.cash_flows
         )
       end
 
@@ -190,7 +201,7 @@ module Performance
           instrument:, quantity: zero, reporting_cost_basis_amount: zero, market_value_amount: zero,
           realized_gain_amount: decimal(state.calculation.realized_gain_amount), unrealized_gain_amount: zero,
           net_cash_flow_amount: decimal(state.net_cash_flow), status: :closed,
-          daily_closing_price: nil, exchange_rate_lookup: nil
+          daily_closing_price: nil, exchange_rate_lookup: nil, cash_flows: state.cash_flows
         )
       end
 
@@ -198,12 +209,12 @@ module Performance
         PositionResult.new(
           instrument:, quantity: nil, reporting_cost_basis_amount: nil, market_value_amount: nil,
           realized_gain_amount: nil, unrealized_gain_amount: nil, net_cash_flow_amount: nil,
-          status: :missing, daily_closing_price:, exchange_rate_lookup:
+          status: :missing, daily_closing_price:, exchange_rate_lookup:, cash_flows: []
         )
       end
 
       def decimal(value)
-        BigDecimal(value, ANALYTICAL_DECIMAL_PRECISION)
+        BigDecimal(value, Position::ANALYTICAL_DECIMAL_PRECISION)
       end
     end
   end

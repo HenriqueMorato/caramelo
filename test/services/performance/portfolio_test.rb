@@ -25,6 +25,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal BigDecimal("171"), result.net_cash_flow_amount
     assert_equal Money.from_amount(210, "BRL"), result.market_value
     assert_equal [ brl_instrument, usd_instrument ], result.position_results.map(&:instrument)
+    assert_equal @date, result.market_data_as_of
   end
 
   test "keeps realized and unrealized gains separate after a partial foreign sale" do
@@ -46,6 +47,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal BigDecimal("16"), result.net_cash_flow_amount
     assert_equal BigDecimal("120"), result.market_value_amount
     assert_equal BigDecimal("50"), position_result.reporting_cost_basis_amount
+    assert_equal [ [ trade_date, 100 ], [ @date, -84 ] ], result.cash_flows.map { |cash_flow| [ cash_flow.traded_on, cash_flow.amount ] }
   end
 
   test "preserves fractional quantities and precise prices until presentation" do
@@ -76,7 +78,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_nil result.market_value
   end
 
-  test "is unavailable when a needed valuation-date exchange rate is missing" do
+  test "uses the latest persisted exchange rate when the valuation date has none" do
     instrument = create_instrument(ticker: "NOFX", currency: "USD")
     create_trade(instrument:, traded_on: @date - 1)
     create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5", rate_date: @date - 1)
@@ -84,9 +86,29 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
 
     result = portfolio_for
 
-    assert result.missing?
+    assert result.available?
     assert_equal BigDecimal("10"), result.position_results.first.daily_closing_price.close_price
-    assert result.position_results.first.exchange_rate_lookup.missing?
+    assert_equal @date - 1, result.position_results.first.exchange_rate_lookup.exchange_rate.rate_date
+  end
+
+  test "is unavailable when valuation FX is missing after trade FX was available" do
+    instrument = create_instrument(ticker: "VALUATIONFX", currency: "USD")
+    create_trade(instrument:, traded_on: @date - 1)
+    create_daily_close(instrument:, close_price: "10")
+    trade_date = @date - 1
+    available_lookup = Lookup.new(available: true, exchange_rate: ResolvedRate.new(rate: BigDecimal("5")))
+    missing_lookup = Lookup.new(available: false, exchange_rate: nil)
+    exchange_rate_service = Object.new
+    exchange_rate_service.define_singleton_method(:read) do |rate_date:, **|
+      rate_date == trade_date ? available_lookup : missing_lookup
+    end
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date, exchange_rate_service:, daily_closing_price_provider: @provider
+    )
+
+    assert result.missing?
+    assert_equal missing_lookup, result.position_results.first.exchange_rate_lookup
   end
 
   test "is unavailable when a needed closing price is missing" do
@@ -100,6 +122,32 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_nil result.position_results.first.daily_closing_price
   end
 
+  test "uses a recent persisted market observation for a weekend valuation" do
+    instrument = create_instrument(ticker: "WKND", currency: "USD")
+    create_trade(instrument:, quantity: 2, unit_price: "10")
+    create_daily_close(instrument:, close_price: "12")
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5", rate_date: @date)
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date + 1, exchange_rate_service: @exchange_rate_service,
+      daily_closing_price_provider: @provider
+    )
+
+    assert result.available?
+    assert_equal @date, result.position_results.first.daily_closing_price.trading_date
+    assert_equal BigDecimal("120"), result.market_value_amount
+  end
+
+  test "does not use a market observation older than seven days" do
+    instrument = create_instrument(ticker: "STALE", currency: "BRL")
+    create_trade(instrument:)
+    DailyClosingPrice.create!(
+      instrument:, trading_date: @date - 8, close_price: "10", currency: "BRL", provider: @provider, observed_at: Time.current
+    )
+
+    assert portfolio_for.missing?
+  end
+
   test "reports an empty portfolio with zero values" do
     result = portfolio_for
 
@@ -107,6 +155,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert result.available?
     assert_equal Money.new(0, "BRL"), result.market_value
     assert_empty result.position_results
+    assert_nil result.market_data_as_of
   end
 
   test "retains realized gain for a closed position without requiring a closing price" do
@@ -123,6 +172,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal BigDecimal("9"), result.realized_gain_amount
     assert_equal BigDecimal("0"), result.unrealized_gain_amount
     assert_equal Money.new(0, "BRL"), result.market_value
+    assert_nil result.market_data_as_of
   end
 
   test "rejects a historical sale that would make a position negative" do
@@ -139,6 +189,12 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
   end
 
   private
+
+  Lookup = Data.define(:available, :exchange_rate) do
+    def available? = available
+  end
+
+  ResolvedRate = Data.define(:rate)
 
   def portfolio_for
     Performance::Portfolio.for(

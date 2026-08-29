@@ -35,6 +35,23 @@ class Valuation::HistoricalTest < ActiveSupport::TestCase
     assert_equal Money.from_amount(result.market_value_amount, "BRL"), result.market_value
   end
 
+  test "uses Friday's persisted close and rate for a weekend valuation" do
+    instrument = create_instrument(currency: "USD")
+    create_trade(instrument:, quantity: 2)
+    create_daily_close(instrument:, close_price: "10")
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5")
+
+    result = Valuation::Historical.for(
+      position: Position.for(instrument:, as_of: @date), valuation_date: @date + 1,
+      exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+    )
+
+    assert result.available?
+    assert_equal @date, result.daily_closing_price.trading_date
+    assert_equal @date, result.exchange_rate_lookup.exchange_rate.rate_date
+    assert_equal BigDecimal("100"), result.market_value_amount
+  end
+
   test "uses an inverse persisted exchange rate" do
     instrument = create_instrument(currency: "USD")
     create_trade(instrument:, quantity: 2)
