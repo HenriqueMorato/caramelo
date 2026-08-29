@@ -17,10 +17,13 @@ class Position
   end
 
   attr_reader :instrument, :quantity, :analytical_cost_basis_amount, :cost_basis,
-    :average_unit_cost, :first_trade_date, :last_trade_date
+    :average_unit_cost, :analytical_realized_gain_amount, :realized_gain,
+    :first_trade_date, :last_trade_date
 
-  def self.for(instrument:)
-    trades = User.owner.trades.where(instrument:).order(:traded_on, :id).to_a
+  def self.for(instrument:, as_of: nil)
+    trades = User.owner.trades.where(instrument:)
+    trades = trades.where(traded_on: ..as_of) if as_of
+    trades = trades.order(:traded_on, :id).to_a
 
     new(instrument:, trades:)
   end
@@ -57,6 +60,7 @@ class Position
 
   def calculate(trades)
     cost_basis_ratio = 0.to_r
+    realized_gain_ratio = 0.to_r
 
     trades.each do |trade|
       if trade.buy?
@@ -66,6 +70,7 @@ class Position
         remaining_quantity = @quantity - trade.quantity
         raise InvalidLongOnlyData, trade if remaining_quantity.negative?
 
+        realized_gain_ratio += trade.total_amount.to_r - allocated_cost_basis(cost_basis_ratio, trade.quantity)
         cost_basis_ratio = remaining_cost_basis(cost_basis_ratio, remaining_quantity)
         @quantity = remaining_quantity
       end
@@ -74,6 +79,12 @@ class Position
     @analytical_cost_basis_amount = analytical_decimal(cost_basis_ratio)
     @cost_basis = Money.from_amount(analytical_cost_basis_amount, instrument.currency)
     @average_unit_cost = calculate_average_unit_cost(cost_basis_ratio)
+    @analytical_realized_gain_amount = analytical_decimal(realized_gain_ratio)
+    @realized_gain = Money.from_amount(analytical_realized_gain_amount, instrument.currency)
+  end
+
+  def allocated_cost_basis(cost_basis_ratio, sold_quantity)
+    cost_basis_ratio * sold_quantity.to_r / quantity.to_r
   end
 
   def remaining_cost_basis(cost_basis_ratio, remaining_quantity)

@@ -124,6 +124,30 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("16.6"), position.average_unit_cost
   end
 
+  test "calculates realized gain from exact allocated basis and net sale proceeds" do
+    instrument = create_instrument
+    create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 2, unit_price: "10", fees_cents: 100)
+    create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2), quantity: 1, unit_price: "15", fees_cents: 200)
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("10.5"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("2.5"), position.analytical_realized_gain_amount
+    assert_equal Money.from_amount(BigDecimal("2.5"), "BRL"), position.realized_gain
+  end
+
+  test "builds a position from trades on or before an as-of date" do
+    instrument = create_instrument
+    create_trade(instrument:, traded_on: Date.new(2026, 1, 1), quantity: 2, unit_price: "10")
+    create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2), quantity: 1, unit_price: "15")
+
+    position = Position.for(instrument:, as_of: Date.new(2026, 1, 1))
+
+    assert_equal BigDecimal("2"), position.quantity
+    assert_equal BigDecimal("20"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("0"), position.analytical_realized_gain_amount
+  end
+
   test "a buy after a partial sale blends with the remaining average" do
     instrument = create_instrument
     create_trade(instrument:, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 10, unit_price: "10")
