@@ -24,7 +24,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
   end
 
   def throttle
-    @throttle ||= MarketPrice::RequestThrottle.new
+    @throttle ||= MarketData::YahooFinance::RequestThrottle.new
   end
 
   def reporting_currency

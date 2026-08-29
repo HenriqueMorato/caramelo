@@ -5,7 +5,7 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     job = CaptureDailyClosingPricesJob.new
 
     assert_instance_of DailyClosingPrice::Importer, job.send(:importer)
-    assert_instance_of MarketPrice::RequestThrottle, job.send(:market_price_throttle)
+    assert_instance_of MarketData::YahooFinance::RequestThrottle, job.send(:request_throttle)
   end
 
   test "imports one daily observation for each traded instrument" do
@@ -17,7 +17,7 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     importer.define_singleton_method(:call) { |**arguments| imports << arguments }
     job = CaptureDailyClosingPricesJob.new
     job.define_singleton_method(:importer) { importer }
-    job.define_singleton_method(:market_price_throttle) { throttle }
+    job.define_singleton_method(:request_throttle) { throttle }
 
     job.perform(trading_date: date)
 
@@ -36,7 +36,7 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     throttle.define_singleton_method(:wait!) { |instrument:| }
     job = CaptureDailyClosingPricesJob.new
     job.define_singleton_method(:importer) { importer }
-    job.define_singleton_method(:market_price_throttle) { throttle }
+    job.define_singleton_method(:request_throttle) { throttle }
 
     with_stubbed_method(Rails.error, :report, ->(error, **context) { reports << [ error, context ] }) do
       job.perform(trading_date: date)

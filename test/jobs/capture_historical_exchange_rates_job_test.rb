@@ -5,7 +5,7 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
     job = CaptureHistoricalExchangeRatesJob.new
 
     assert_instance_of HistoricalExchangeRate::Importer, job.send(:importer)
-    assert_instance_of MarketPrice::RequestThrottle, job.send(:throttle)
+    assert_instance_of MarketData::YahooFinance::RequestThrottle, job.send(:throttle)
   end
 
   test "imports one rate for each traded currency outside reporting currency" do

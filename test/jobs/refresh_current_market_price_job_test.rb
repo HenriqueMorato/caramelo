@@ -269,7 +269,7 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
       job.define_singleton_method(:market_price_service) { service }
       job.define_singleton_method(:exchange_rate_service) { exchange_rate_service }
       job.define_singleton_method(:market_price_broadcaster) { broadcaster }
-      job.define_singleton_method(:market_price_throttle) do
+      job.define_singleton_method(:request_throttle) do
         Object.new.tap { |throttle| throttle.define_singleton_method(:wait!) { |instrument:| } }
       end
     end
