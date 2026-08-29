@@ -1,0 +1,37 @@
+class CaptureHistoricalExchangeRatesJob < ApplicationJob
+  queue_as :market_prices
+
+  def perform(rate_date: Date.yesterday)
+    traded_currencies.each do |currency|
+      throttle.wait!
+      importer.call(
+        base_currency: currency,
+        quote_currency: reporting_currency,
+        from: rate_date,
+        to: rate_date
+      )
+    rescue StandardError => error
+      Rails.error.report(error, handled: true, context: { currency:, rate_date: })
+    end
+  end
+
+  private
+
+  def importer
+    @importer ||= HistoricalExchangeRate::Importer.default
+  end
+
+  def throttle
+    @throttle ||= MarketPrice::RequestThrottle.new
+  end
+
+  def reporting_currency
+    Rails.configuration.x.local_folio.reporting_currency
+  end
+
+  def traded_currencies
+    Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
+      .where.not(currency: reporting_currency).distinct
+      .pluck(:currency)
+  end
+end

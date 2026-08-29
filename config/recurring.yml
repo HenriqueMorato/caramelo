@@ -15,6 +15,11 @@ production:
     queue: market_prices
     schedule: at 2am every day
 
+  capture_historical_exchange_rates:
+    class: CaptureHistoricalExchangeRatesJob
+    queue: market_prices
+    schedule: at 2:15am every day
+
   refresh_traded_market_prices:
     class: RefreshTradedMarketPricesJob
     queue: market_prices
