@@ -148,6 +148,9 @@ For the class responsibilities, public entry points, cache states, and complete
 read and refresh flows, see
 [Current Market Price Architecture](docs/current-market-prices.md).
 
+Historical FX storage, direct/inverse lookup, backfills, and scheduled capture
+are described in [Historical Exchange Rates](docs/historical-exchange-rates.md).
+
 ## Quality and security
 
 Run the repeatable local pipeline:

@@ -52,6 +52,13 @@ class MarketData::YahooFinance::FxClientTest < ActiveSupport::TestCase
     assert_raises(MarketData::YahooFinance::InvalidResponse) { client.rate(base_currency: "USD", quote_currency: "BRL") }
   end
 
+  test "rejects same-currency and invalid currency requests" do
+    client = MarketData::YahooFinance::FxClient.new(transport: FakeTransport.new(response: response))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) { client.rate(base_currency: "USD", quote_currency: "USD") }
+    assert_raises(MarketData::YahooFinance::InvalidResponse) { client.rate(base_currency: "XXX", quote_currency: "BRL") }
+  end
+
   private
 
   FakeTransport = Struct.new(:response, :uri) do

@@ -1,25 +1,21 @@
 module MarketData
   module YahooFinance
-    class FxClient
-      ENDPOINT_PATH = "/v8/finance/chart"
-      SUCCESS_RANGE = 200..299
-
-      def initialize(transport:)
-        @transport = transport
-      end
-
+    class FxClient < BaseClient
       def rate(base_currency:, quote_currency:)
-        response = transport.get(chart_uri(base_currency:, quote_currency:))
-        raise Error, "Yahoo Finance returned HTTP #{response.status}" unless SUCCESS_RANGE.cover?(response.status)
+        base_currency = normalize_request_currency(base_currency)
+        quote_currency = normalize_request_currency(quote_currency)
+        raise ArgumentError, "currencies must differ" if base_currency == quote_currency
+
+        response = transport.get(chart_uri_for(value: "#{base_currency}#{quote_currency}=X"))
+        classify_status!(response)
 
         payload = JSON.parse(response.body, decimal_class: BigDecimal)
         results = payload.fetch("chart").fetch("result")
         raise InvalidResponse, "expected exactly one FX result" unless results.is_a?(Array) && results.one?
 
         meta = results.first.fetch("meta")
-        rate = BigDecimal(meta.fetch("regularMarketPrice").to_s)
-        raise InvalidResponse, "FX rate must be finite and positive" unless rate.finite? && rate.positive?
-        currency = meta.fetch("currency").to_s.upcase
+        rate = normalize_price(meta.fetch("regularMarketPrice"))
+        currency = normalize_currency(meta.fetch("currency"))
         raise InvalidResponse, "FX response currency does not match quote" unless currency == quote_currency
 
         Rate.new(rate:, observed_at: Time.at(Integer(meta.fetch("regularMarketTime"))).utc)
@@ -31,15 +27,11 @@ module MarketData
 
       private
 
-      attr_reader :transport
+      def normalize_request_currency(value)
+        currency = value.to_s.strip.upcase
+        raise ArgumentError, "currency is invalid" unless currency.match?(/\A[A-Z]{3}\z/) && Money::Currency.find(currency)
 
-      def chart_uri(base_currency:, quote_currency:)
-        symbol = "#{base_currency}#{quote_currency}=X"
-        URI::HTTPS.build(
-          host: CurlTransport::ALLOWED_HOST,
-          path: "#{ENDPOINT_PATH}/#{URI::DEFAULT_PARSER.escape(symbol)}",
-          query: URI.encode_www_form(range: "1d", interval: "1d")
-        )
+        currency
       end
     end
   end
