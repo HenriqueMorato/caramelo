@@ -33,7 +33,10 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
 
   test "rejects a non-hash parsed result" do
     assert_raises(MarketData::YahooFinance::InvalidResponse) do
-      client.send(:parse_rates, nil, base_currency: "USD", quote_currency: "BRL")
+      client.send(
+        :parse_rates, nil, base_currency: "USD", quote_currency: "BRL",
+        from: Date.current, to: Date.current
+      )
     end
   end
 
@@ -74,6 +77,20 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     )
 
     assert_equal Date.new(2026, 8, 24), rates.first.rate_date
+  end
+
+  test "discards boundary candles outside the requested date range" do
+    result = default_result.merge(
+      timestamp: [ Time.utc(2026, 8, 23, 21).to_i, Time.utc(2026, 8, 24, 21).to_i, Time.utc(2026, 8, 25, 21).to_i ],
+      indicators: { quote: [ { close: [ BigDecimal("5.4"), BigDecimal("5.5"), BigDecimal("5.6") ] } ] }
+    )
+
+    rates = client_with(response(result:)).daily_rates(
+      base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24)
+    )
+
+    assert_equal [ Date.new(2026, 8, 24) ], rates.map(&:rate_date)
+    assert_equal [ BigDecimal("5.5") ], rates.map(&:rate)
   end
 
   test "rejects same-currency and invalid currency requests" do
