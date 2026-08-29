@@ -13,6 +13,18 @@ class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
     assert_equal [ Date.new(2026, 8, 24), Date.new(2026, 8, 26) ], closes.map(&:trading_date)
     assert_equal "/v8/finance/chart/VOO", transport.uri.path
     assert_includes transport.uri.query, "interval=1d"
+    query = URI.decode_www_form(transport.uri.query).to_h
+    assert_equal Time.zone.local(2026, 8, 24).to_i.to_s, query.fetch("period1")
+    assert_equal Time.zone.local(2026, 8, 27).to_i.to_s, query.fetch("period2")
+  end
+
+  test "rejects malformed quote data" do
+    result = default_result.merge(indicators: { quote: [] })
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.daily_closes(identifier:, from: Date.current, to: Date.current)
+    end
   end
 
   test "rejects mismatched timestamp and close arrays" do

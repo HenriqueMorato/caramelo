@@ -24,7 +24,12 @@ module MarketData
         validate_identifier!(meta, identifier)
         currency = normalize_currency(meta.fetch("currency"))
         timestamps = result.fetch("timestamp")
-        closes = result.fetch("indicators").fetch("quote").first.fetch("close")
+        quotes = result.fetch("indicators").fetch("quote")
+        unless quotes.is_a?(Array) && quotes.one? && quotes.first.is_a?(Hash)
+          raise InvalidResponse, "history quote data is malformed"
+        end
+
+        closes = quotes.first.fetch("close")
         raise InvalidResponse, "history timestamps and closes differ in length" unless timestamps.length == closes.length
 
         timestamps.zip(closes).filter_map do |timestamp, close|

@@ -9,7 +9,9 @@ valuation and performance calculations. It is deliberately separate from
 Each record belongs to an instrument and contains:
 
 - `trading_date`: the exchange observation date;
-- `close_price`: a precise decimal price (up to eight fractional places);
+- `close_price`: a precise decimal price (up to eight fractional places), not
+  an integer currency subunit, so fractional ETF and crypto prices are not
+  rounded away;
 - `currency`: the instrument's ISO currency;
 - `provider`: the source adapter identifier; and
 - `observed_at`: the provider timestamp.

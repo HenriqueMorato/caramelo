@@ -35,6 +35,7 @@ class DailyClosingPrice::ImporterTest < ActiveSupport::TestCase
       currency: "USD", provider: "fake_provider", observed_at: Time.current
     )
     concurrent_record = Object.new
+    concurrent_record.define_singleton_method(:new_record?) { true }
     concurrent_record.define_singleton_method(:update!) { |**| raise ActiveRecord::RecordNotUnique }
 
     @importer.send(:persist_observation, concurrent_record, observation)

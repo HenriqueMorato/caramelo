@@ -44,8 +44,8 @@ class DailyClosingPrice
         record = DailyClosingPrice.find_or_initialize_by(
           instrument:, trading_date:, provider:
         )
-        counts[record.new_record? ? :created : :updated] += 1
-        persist_observation(record, observation)
+        outcome = persist_observation(record, observation)
+        counts[outcome] += 1
       end
     end
 
@@ -55,15 +55,18 @@ class DailyClosingPrice
 
     def persist_observation(record, observation)
       observation => { instrument:, trading_date:, provider:, close_price:, currency:, observed_at: }
+      created = record.new_record?
       record.update!(
         close_price:, currency:, observed_at:
       )
+      created ? :created : :updated
     rescue ActiveRecord::RecordNotUnique
       DailyClosingPrice.find_by!(
         instrument:, trading_date:, provider:
       ).update!(
         close_price:, currency:, observed_at:
       )
+      :updated
     end
   end
 end

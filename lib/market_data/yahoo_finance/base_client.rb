@@ -25,8 +25,8 @@ module MarketData
           host: CurlTransport::ALLOWED_HOST,
           path: "#{ENDPOINT_PATH}/#{identifier.value}",
           query: URI.encode_www_form(
-            period1: from.beginning_of_day.to_i,
-            period2: (to + 1).beginning_of_day.to_i,
+            period1: from.in_time_zone.beginning_of_day.to_i,
+            period2: (to + 1).in_time_zone.beginning_of_day.to_i,
             interval: "1d",
             events: "history"
           )
