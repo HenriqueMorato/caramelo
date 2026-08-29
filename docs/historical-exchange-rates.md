@@ -43,4 +43,7 @@ owner's trades. Requests share the Yahoo provider lock and throttle with quote
 and daily-price jobs, and one provider failure is reported without preventing
 other currency pairs from running.
 
+See [Market-data request throttling](market-data-request-throttling.md) for the
+shared-provider coordination details.
+
 Tests stub the transport and provider; they never call Yahoo Finance live.

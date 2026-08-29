@@ -26,6 +26,9 @@ the fetch time. It is an unofficial, credential-free source intended for this
 personal, self-hosted application; the existing Yahoo request throttle applies,
 and a failed FX refresh leaves any previous stale rate available.
 
+See [Market-data request throttling](market-data-request-throttling.md) for the
+provider-wide coordination behavior.
+
 `ExchangeRateCache` keeps the last valid rate indefinitely and marks it fresh
 for 30 minutes. A stale rate remains usable for display and is marked stale;
 missing or invalid rates produce an unavailable valuation rather than silently

@@ -128,6 +128,9 @@ provider limit. The lock is acquired atomically with `unless_exist: true`,
 retries every 50 milliseconds while held, expires after 30 seconds if a worker
 crashes, and is released only by the worker that owns its token.
 
+See [Market-data request throttling](market-data-request-throttling.md) for the
+complete lock, interval, configuration, and recovery behavior.
+
 Rate-limited and temporarily unavailable provider failures are retried up to
 three executions. The job honors a numeric or HTTP-date `Retry-After` value,
 caps the delay at five minutes, and adds bounded jitter so multiple workers do
