@@ -46,6 +46,21 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     assert_equal date, reports.first.last[:context][:trading_date]
   end
 
+  test "uses the prior Friday when the scheduled run is on Monday" do
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { |instrument:| }
+    job = CaptureDailyClosingPricesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:request_throttle) { throttle }
+
+    with_stubbed_class_method(Date, :current, -> { Date.new(2026, 8, 31) }) { job.perform }
+
+    assert imports.all? { |call| call.slice(:from, :to) == { from: Date.new(2026, 8, 28), to: Date.new(2026, 8, 28) } }
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)
@@ -54,5 +69,13 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     yield
   ensure
     object.singleton_class.define_method(method_name, original)
+  end
+
+  def with_stubbed_class_method(klass, method_name, replacement)
+    original = klass.method(method_name)
+    klass.singleton_class.define_method(method_name, replacement)
+    yield
+  ensure
+    klass.singleton_class.define_method(method_name, original)
   end
 end

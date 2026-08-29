@@ -34,6 +34,24 @@ class HistoricalExchangeRate::ServiceTest < ActiveSupport::TestCase
     assert lookup.inverted
   end
 
+  test "uses a recent prior rate inside the historical observation window" do
+    create_rate(base_currency: "USD", quote_currency: "BRL", rate: "5")
+
+    lookup = @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: @date + 1)
+
+    assert_equal BigDecimal("5"), lookup.exchange_rate.rate
+    assert_equal @date, lookup.exchange_rate.rate_date
+  end
+
+  test "does not use a rate older than the historical observation window" do
+    HistoricalExchangeRate.create!(
+      base_currency: "USD", quote_currency: "BRL", rate_date: @date - 8, rate: BigDecimal("5"), provider: @provider.identifier,
+      observed_at: Time.current, fetched_at: Time.current
+    )
+
+    assert @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: @date).missing?
+  end
+
   test "returns an explicit missing lookup" do
     assert @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: @date).missing?
   end

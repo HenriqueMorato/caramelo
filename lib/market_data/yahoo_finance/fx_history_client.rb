@@ -11,7 +11,10 @@ module MarketData
           response = transport.get(history_uri_for(value: pair.symbol, from:, to:))
           classify_status!(response)
 
-          parse_rates(chart_result(response, expected: "expected exactly one FX history result"), base_currency: pair.base_currency, quote_currency: pair.quote_currency)
+          parse_rates(
+            chart_result(response, expected: "expected exactly one FX history result"),
+            base_currency: pair.base_currency, quote_currency: pair.quote_currency, from:, to:
+          )
         rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
           raise InvalidResponse, error.message
         end
@@ -23,7 +26,7 @@ module MarketData
         raise ArgumentError, "history range must be on or before today" if from > to || to > Date.current
       end
 
-      def parse_rates(result, base_currency:, quote_currency:)
+      def parse_rates(result, base_currency:, quote_currency:, from:, to:)
         raise InvalidResponse, "FX history result is malformed" unless result.is_a?(Hash)
 
         meta = result.fetch("meta")
@@ -48,7 +51,11 @@ module MarketData
           # Yahoo's daily candle timestamp is interpreted in UTC, matching the
           # existing daily closing-price importer and keeping date derivation stable.
           observed_at = Time.at(Integer(timestamp)).utc
-          Rate.new(rate: normalize_rate(close), rate_date: observed_at.to_date, observed_at:)
+          rate_date = observed_at.to_date
+          next unless (from..to).cover?(rate_date)
+
+          rate = normalize_rate(close)
+          Rate.new(rate:, rate_date:, observed_at:)
         end
       end
 

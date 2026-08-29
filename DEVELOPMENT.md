@@ -150,6 +150,8 @@ read and refresh flows, see
 
 Historical FX storage, direct/inverse lookup, backfills, and scheduled capture
 are described in [Historical Exchange Rates](docs/historical-exchange-rates.md).
+Portfolio valuation, cash-flow-adjusted returns, and historical-data safety are
+described in [Portfolio Performance](docs/portfolio-performance.md).
 
 ## Quality and security
 

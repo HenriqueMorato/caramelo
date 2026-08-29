@@ -26,9 +26,11 @@ and amounts are never rewritten.
 `HistoricalExchangeRate::Service#read` first searches for the requested pair
 and date, then searches the reverse pair and returns its exact `BigDecimal`
 inverse. A direct observation always wins when both directions exist. Same-
-currency requests return a synthetic 1:1 result without storing a row. Missing
-dates return an explicit missing result; the current-rate cache is never used
-as a historical fallback.
+currency requests return a synthetic 1:1 result without storing a row. A
+historical lookup can use the newest persisted rate inside the explicit
+seven-day safety window for weekends and short holidays; older data returns an
+explicit missing result. The current-rate cache is never used as a historical
+fallback.
 
 Yahoo daily candle timestamps are interpreted as UTC dates, matching the daily
 closing-price importer. This policy keeps persisted historical dates stable.

@@ -95,8 +95,10 @@ Select an instrument to see the same summary beside its complete trade history.
 
 Positions are calculated from trades rather than stored separately, so editing
 or deleting a trade updates them immediately. Position amounts remain
-acquisition costs; current market value is a separate calculation. Gains and
-losses are not calculated yet.
+acquisition costs; current market value is a separate calculation. The
+**Performance** page derives realized and unrealized gains, portfolio value,
+and cash-flow-adjusted returns from persisted daily closes and historical FX.
+See [Portfolio Performance](docs/portfolio-performance.md).
 
 ## Current market prices
 
