@@ -57,6 +57,19 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "derives the rate date from the UTC candle timestamp" do
+    result = default_result.merge(
+      timestamp: [ Time.utc(2026, 8, 24, 23, 59, 59).to_i ],
+      indicators: { quote: [ { close: [ BigDecimal("5.4321") ] } ] }
+    )
+
+    rates = client_with(response(result:)).daily_rates(
+      base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24)
+    )
+
+    assert_equal Date.new(2026, 8, 24), rates.first.rate_date
+  end
+
   private
 
   FakeTransport = Struct.new(:response, :uri) do
