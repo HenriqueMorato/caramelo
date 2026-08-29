@@ -22,6 +22,15 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "rejects malformed result, timestamps, and closes" do
+    [ nil, default_result.merge(timestamp: {}), default_result.merge(indicators: { quote: [ { close: {} } ] }) ].each do |result|
+      error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+        client_with(response(result:)).daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current)
+      end
+      assert_match(/malformed|timestamps|closes|exactly one/, error.message)
+    end
+  end
+
   private
 
   FakeTransport = Struct.new(:response, :uri) do
