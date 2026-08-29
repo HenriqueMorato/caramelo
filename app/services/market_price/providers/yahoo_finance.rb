@@ -1,19 +1,13 @@
 module MarketPrice
   module Providers
     class YahooFinance
-      IDENTIFIER = MarketData::YahooFinance::MARKET_PROVIDER_IDENTIFIER
-      DEFAULT_EXECUTABLE = MarketData::YahooFinance::DEFAULT_EXECUTABLE
-      DEFAULT_TIMEOUT = MarketData::YahooFinance::MARKET_CONFIGURATION.timeout
-
-      def initialize(client: nil, executable: MarketData::YahooFinance::MARKET_CONFIGURATION.executable,
-        timeout: DEFAULT_TIMEOUT)
+      def initialize(client: nil, configuration: MarketData::YahooFinance::MARKET_CONFIGURATION)
         @client = client
-        @executable = executable
-        @timeout = Integer(timeout)
+        @configuration = configuration
       end
 
       def identifier
-        IDENTIFIER
+        configuration.identifier
       end
 
       def supports?(instrument:)
@@ -44,11 +38,11 @@ module MarketPrice
 
       private
 
-      attr_reader :executable, :timeout
+      attr_reader :configuration
 
       def client
         @client ||= MarketData::YahooFinance::QuoteClient.new(
-          transport: MarketData::YahooFinance::CurlTransport.new(executable:, timeout:)
+          transport: MarketData::YahooFinance::CurlTransport.from_configuration(configuration)
         )
       end
     end

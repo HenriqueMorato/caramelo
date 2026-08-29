@@ -8,8 +8,6 @@ require "uri"
 module MarketData
   module YahooFinance
     DEFAULT_EXECUTABLE = "curl_chrome146"
-    MARKET_PROVIDER_IDENTIFIER = "yahoo_finance"
-    FX_PROVIDER_IDENTIFIER = "yahoo_finance_fx"
   end
 end
 
@@ -28,14 +26,12 @@ require_relative "yahoo_finance/fx_history_client"
 module MarketData
   module YahooFinance
     MARKET_CONFIGURATION = Configuration.new(
-      identifier: MARKET_PROVIDER_IDENTIFIER, timeout: 15,
+      identifier: "yahoo_finance", timeout: 15,
       interval_environment_variable: "YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS"
     )
     FX_CONFIGURATION = Configuration.new(
-      identifier: FX_PROVIDER_IDENTIFIER, timeout: 10,
+      identifier: "yahoo_finance_fx", timeout: 10,
       interval_environment_variable: "YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS"
     )
-    MARKET_TIMEOUT = MARKET_CONFIGURATION.timeout
-    FX_TIMEOUT = FX_CONFIGURATION.timeout
   end
 end

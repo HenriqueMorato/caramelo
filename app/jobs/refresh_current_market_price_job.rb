@@ -129,7 +129,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   def self.instrument_event(event, instrument:, **payload)
     ActiveSupport::Notifications.instrument(
       "market_price.refresh",
-      { event:, provider: MarketData::YahooFinance::MARKET_PROVIDER_IDENTIFIER, instrument_id: instrument.id }.merge(payload)
+      { event:, provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier, instrument_id: instrument.id }.merge(payload)
     )
   end
 

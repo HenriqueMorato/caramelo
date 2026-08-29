@@ -47,7 +47,7 @@ class HistoricalExchangeRate
     end
 
     def provider_identifier
-      provider&.identifier || MarketData::YahooFinance::FX_PROVIDER_IDENTIFIER
+      provider&.identifier || MarketData::YahooFinance::FX_CONFIGURATION.identifier
     end
 
     def normalize_currency(currency)

@@ -3,12 +3,10 @@ module MarketData
     class CurlTransport
       ALLOWED_HOST = "query1.finance.yahoo.com"
       DEFAULT_CONNECT_TIMEOUT = 5
-      DEFAULT_EXECUTABLE = MarketData::YahooFinance::DEFAULT_EXECUTABLE
-
-      def self.from_environment(timeout:)
+      def self.from_configuration(configuration)
         new(
-          executable: ENV.fetch("YAHOO_FINANCE_HTTP_EXECUTABLE", DEFAULT_EXECUTABLE),
-          timeout:
+          executable: configuration.executable,
+          timeout: configuration.timeout
         )
       end
 

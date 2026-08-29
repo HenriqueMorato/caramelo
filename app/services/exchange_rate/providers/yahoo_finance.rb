@@ -1,7 +1,7 @@
 module ExchangeRate
   module Providers
     class YahooFinance
-      IDENTIFIER = MarketData::YahooFinance::FX_PROVIDER_IDENTIFIER
+      IDENTIFIER = MarketData::YahooFinance::FX_CONFIGURATION.identifier
 
       def initialize(client: default_client)
         @client = client
@@ -27,8 +27,8 @@ module ExchangeRate
 
       def default_client
         MarketData::YahooFinance::FxClient.new(
-          transport: MarketData::YahooFinance::CurlTransport.from_environment(
-            timeout: MarketData::YahooFinance::FX_CONFIGURATION.timeout
+          transport: MarketData::YahooFinance::CurlTransport.from_configuration(
+            MarketData::YahooFinance::FX_CONFIGURATION
           )
         )
       end
