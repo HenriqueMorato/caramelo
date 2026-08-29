@@ -37,6 +37,8 @@ daily (`1d`) observations are persisted. Current-cache entries are never
 copied into this table.
 
 `CaptureDailyClosingPricesJob` runs from Solid Queue's daily schedule for every
-instrument with an owner trade and captures the requested trading date. A
-provider failure is reported per instrument so one failure does not prevent the
-remaining instruments from being attempted.
+instrument with an owner trade and captures the prior business day. A provider
+failure is reported per instrument so one failure does not prevent the
+remaining instruments from being attempted. Performance may use a persisted
+close from its explicit seven-day safety window for weekends and short holidays;
+it never treats an arbitrary old close as current.
