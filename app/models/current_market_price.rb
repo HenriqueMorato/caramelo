@@ -41,11 +41,15 @@ class CurrentMarketPrice
   end
 
   def valuation_for(quantity)
+    Money.from_amount(valuation_amount_for(quantity), currency)
+  end
+
+  def valuation_amount_for(quantity)
     normalized_quantity = decimal(quantity, name: "quantity")
     raise InvalidValue, "quantity must be greater than or equal to 0" if normalized_quantity.negative?
 
     # Keep subunit precision until Money rounds the aggregate position value.
-    Money.from_amount(unit_price * normalized_quantity, currency)
+    unit_price * normalized_quantity
   end
 
   def to_cache_payload

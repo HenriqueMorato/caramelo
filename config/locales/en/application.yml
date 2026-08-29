@@ -13,6 +13,7 @@ en:
   Institutions: Institutions
   Instruments: Instruments
   LocalFolio: LocalFolio
+  Market value: Market value
   Needs attention: Needs attention
   None: None
   Open: Open
@@ -34,6 +35,7 @@ en:
   Trade settings: Trade settings
   Transactions: Transactions
   Transactions link: "← Transactions"
+  Value unavailable: Value unavailable
   actions:
     Add: Add %{model}
     Cancel: Cancel

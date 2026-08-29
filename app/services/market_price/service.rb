@@ -3,7 +3,7 @@ module MarketPrice
     DEFAULT_PROVIDER = Providers::YahooFinance
 
     def self.default
-      new(provider: DEFAULT_PROVIDER.new, cache: CurrentMarketPriceCache.new)
+      Current.market_price_service ||= new(provider: DEFAULT_PROVIDER.new, cache: CurrentMarketPriceCache.new)
     end
 
     def initialize(provider:, cache:)

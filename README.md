@@ -75,9 +75,10 @@ hashing, and password-reset foundations are present for future use.
   institution, and notes; they can be edited or deleted from their history
   cards.
 
-Trade totals remain in the instrument's currency. LocalFolio does not treat a
-BRL amount and a USD amount as equivalent or convert between them. Exchange-rate
-conversion belongs to a later milestone.
+Trade totals and cost basis remain in the instrument's currency. Current market
+values are additionally shown in the configured reporting currency (`BRL` by
+default), using a cached Yahoo Finance FX rate for foreign holdings. Missing or
+stale rates are shown explicitly; native trade and quote values are unchanged.
 
 ## Understand your positions
 
@@ -94,8 +95,8 @@ Select an instrument to see the same summary beside its complete trade history.
 
 Positions are calculated from trades rather than stored separately, so editing
 or deleting a trade updates them immediately. Position amounts remain
-acquisition costs: current prices are shown separately and the application does
-not calculate market value, gains, or losses yet.
+acquisition costs; current market value is a separate calculation. Gains and
+losses are not calculated yet.
 
 ## Current market prices
 

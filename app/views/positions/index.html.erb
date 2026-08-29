@@ -56,7 +56,7 @@
                   <p class="mt-1"><%= t(".Sales exceed purchases", date: l(presenter.error.trade.traded_on, format: :long)) %></p>
                 </div>
               <% else %>
-                <%= render "positions/metrics", position: presenter.position, instrument: presenter.instrument %>
+                <%= render "positions/metrics", position: presenter.position, instrument: presenter.instrument, valuation: presenter.valuation %>
               <% end %>
 
               <%= render "current_market_prices/current_market_price", market_price: presenter.market_price, refreshing: false %>

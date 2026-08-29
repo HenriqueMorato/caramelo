@@ -17,6 +17,8 @@ services:
 
     volumes:
     - ..:/workspaces/local_folio:cached
+    # Keep Linux-native gems separate from the host checkout's bundle.
+    - bundle:/workspaces/local_folio/vendor/bundle
 
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
@@ -30,3 +32,6 @@ services:
   selenium:
     image: selenium/standalone-chromium
     restart: unless-stopped
+
+volumes:
+  bundle:

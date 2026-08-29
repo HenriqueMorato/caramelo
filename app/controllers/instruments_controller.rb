@@ -11,6 +11,7 @@ class InstrumentsController < ApplicationController
     @trades = User.owner.trades.where(instrument: @instrument).includes(:instrument, :institution).strict_loading.reverse_chronological.load
     @market_price = MarketPrice::Presenter.for(instrument: @instrument)
     @position = Position.for(instrument: @instrument)
+    @valuation = Valuation::Current.for(position: @position, market_price: @market_price)
   rescue Position::InvalidLongOnlyData => error
     @position_error = error
   end
