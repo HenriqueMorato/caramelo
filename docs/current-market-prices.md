@@ -134,39 +134,20 @@ if a job disappears. Every attempt broadcasts the final quote state, and the
 attempted, retried, succeeded, failed, and skipped events for monitoring.
 
 ```mermaid
-sequenceDiagram
-  participant R as Refresh request
-  participant E as enqueue_for
-  participant K as Rails cache
-  participant Q as Solid Queue
-  participant J as Refresh job
-  participant T as Request throttle
-  participant Y as Yahoo Finance
-
-  R->>E: enqueue(instrument)
-  E->>K: write dedup marker (unless it exists)
-  alt marker already exists
-    K-->>E: false
-    E-->>R: :coalesced
-  else first request
-    K-->>E: true
-    E->>Q: enqueue job
-    E-->>R: job enqueued
-    Q->>J: run when provider lock is available
-    J->>T: wait for minimum interval
-    T->>K: read/write last request time
-    T-->>J: continue after any delay
-    J->>Y: fetch quote
-    alt retryable provider failure
-      Y-->>J: 429/temporary failure
-      J->>Q: retry_job(wait: retry delay)
-      Note over K,Q: Keep dedup marker while retry waits
-      Q->>J: run retry
-    else success or final failure
-      Y-->>J: quote or permanent failure
-      J->>K: delete dedup marker
-    end
-  end
+flowchart TD
+  request[Refresh request] --> marker{Deduplication marker exists?}
+  marker -->|Yes| coalesced[:coalesced<br/>No new job]
+  marker -->|No| mark[Write marker<br/>2-minute TTL]
+  mark --> enqueue[Enqueue RefreshCurrentMarketPriceJob]
+  enqueue --> lock[Wait for Yahoo provider lock]
+  lock --> throttle[RequestThrottle<br/>wait for minimum interval]
+  throttle --> fetch[Fetch quote from Yahoo]
+  fetch --> result{Provider result}
+  result -->|Success| cleanup[Delete marker<br/>Broadcast final state]
+  result -->|Permanent failure| cleanup
+  result -->|Retryable failure| retry["retry_job(wait: delay)"]
+  retry --> retained[Keep marker while retry waits]
+  retained --> lock
 ```
 
 ## Cache and Display States
