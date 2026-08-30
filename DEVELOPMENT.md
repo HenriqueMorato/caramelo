@@ -150,6 +150,8 @@ read and refresh flows, see
 
 Historical FX storage, direct/inverse lookup, backfills, and scheduled capture
 are described in [Historical Exchange Rates](docs/historical-exchange-rates.md).
+The trade-triggered import lifecycle, batching, and pending performance state
+are described in [Historical Data Backfills](docs/historical-data-backfills.md).
 Portfolio valuation, cash-flow-adjusted returns, and historical-data safety are
 described in [Portfolio Performance](docs/portfolio-performance.md).
 

@@ -55,15 +55,63 @@ class HistoricalDataBackfillTest < ActiveSupport::TestCase
     assert_empty HistoricalDataBackfill.all
   end
 
-  test "only reports pending requests for the owner's instruments" do
+  test "removes a newly created request when enqueueing raises" do
+    instrument = instruments(:voo_arcx)
+    failure = RuntimeError.new("queue unavailable")
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(BackfillHistoricalMarketDataJob, :perform_later, ->(*) { raise failure }) do
+        HistoricalDataBackfill.enqueue_for(instrument:, currency: "USD", from_date: Date.current)
+      end
+    end
+
+    assert_empty HistoricalDataBackfill.all
+  end
+
+  test "preserves a coalescing error when no request was created" do
+    failure = RuntimeError.new("database unavailable")
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(HistoricalDataBackfill, :coalesce, ->(**) { raise failure }) do
+        HistoricalDataBackfill.enqueue_for(instrument: instruments(:voo_arcx), currency: "USD", from_date: Date.current)
+      end
+    end
+  end
+
+  test "requires the request currency to match its instrument" do
+    request = HistoricalDataBackfill.new(instrument: instruments(:petr4_bvmf), currency: "USD", from_date: Date.current)
+
+    assert_not_predicate request, :valid?
+    assert_includes request.errors[:currency], "must match the instrument currency"
+  end
+
+  test "retries after a concurrent request creation" do
+    instrument = instruments(:voo_arcx)
+    attempts = 0
+    original = HistoricalDataBackfill.method(:find_or_initialize_by)
+
+    with_stubbed_method(HistoricalDataBackfill, :find_or_initialize_by, lambda { |**arguments|
+      attempts += 1
+      raise ActiveRecord::RecordNotUnique if attempts == 1
+
+      original.call(**arguments)
+    }) do
+      request, created = HistoricalDataBackfill.coalesce(instrument:, currency: "USD", from_date: Date.current)
+
+      assert_predicate request, :persisted?
+      assert created
+    end
+
+    assert_equal 2, attempts
+  end
+
+  test "only reports pending requests for the requested instruments" do
     instrument = instruments(:voo_arcx)
     HistoricalDataBackfill.create!(instrument:, currency: "USD", from_date: Date.current)
 
-    assert HistoricalDataBackfill.pending_for?
+    assert HistoricalDataBackfill.pending_for?(instruments: [ instrument ])
 
-    Trade.where(user: users(:owner)).delete_all
-
-    assert_not HistoricalDataBackfill.pending_for?
+    assert_not HistoricalDataBackfill.pending_for?(instruments: [ instruments(:petr4_bvmf) ])
   end
 
   private

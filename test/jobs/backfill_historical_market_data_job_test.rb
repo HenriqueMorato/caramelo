@@ -24,6 +24,14 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
     assert_not HistoricalDataBackfill.exists?(@backfill.id)
   end
 
+  test "builds the default importers and shared Yahoo throttle" do
+    job = BackfillHistoricalMarketDataJob.new
+
+    assert_instance_of DailyClosingPrice::Importer, job.send(:daily_closing_price_importer)
+    assert_instance_of HistoricalExchangeRate::Importer, job.send(:historical_exchange_rate_importer)
+    assert_instance_of MarketData::YahooFinance::RequestThrottle, job.send(:request_throttle)
+  end
+
   test "skips FX imports when the trade currency is the reporting currency" do
     @backfill.update!(instrument: instruments(:petr4_bvmf), currency: "BRL")
 
@@ -80,6 +88,23 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
     assert HistoricalDataBackfill.exists?(@backfill.id)
   end
 
+  test "reports and clears the request when temporary provider retries are exhausted" do
+    job = build_job
+    error = MarketData::YahooFinance::ProviderUnavailable.new(status: 503)
+    @daily_importer.define_singleton_method(:call) { |**| raise error }
+    job.arguments = [ @backfill ]
+    job.exception_executions[retry_exceptions.to_s] = BackfillHistoricalMarketDataJob::RETRY_ATTEMPTS - 1
+    reports = []
+
+    with_stubbed_method(Rails.error, :report, ->(reported_error, **context) { reports << [ reported_error, context ] }) do
+      job.perform_now
+    end
+
+    assert_equal error, reports.sole.first
+    assert_equal @backfill.id, reports.sole.last.fetch(:context).fetch(:historical_data_backfill_id)
+    assert_not HistoricalDataBackfill.exists?(@backfill.id)
+  end
+
   private
 
   def build_job
@@ -101,6 +126,14 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
       job.define_singleton_method(:historical_exchange_rate_importer) { historical_exchange_rate_importer }
       job.define_singleton_method(:request_throttle) { throttle }
     end
+  end
+
+  def retry_exceptions
+    [
+      MarketData::YahooFinance::TransportError,
+      MarketData::YahooFinance::RateLimited,
+      MarketData::YahooFinance::ProviderUnavailable
+    ]
   end
 
   def with_stubbed_method(object, method_name, replacement)

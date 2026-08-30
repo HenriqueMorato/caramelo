@@ -12,6 +12,11 @@ module Performance
       def missing?   = status == :missing
       def empty?     = status == :empty
       def return_available? = return_ratio.present?
+
+      def missing_instruments
+        [ opening_valuation, closing_valuation ].compact.flat_map(&:position_results)
+          .select(&:missing?).map(&:instrument).uniq
+      end
     end
 
     def self.for(from:, to:, portfolio: Portfolio)

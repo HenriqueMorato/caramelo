@@ -70,3 +70,7 @@ explicitly unavailable.
 `CaptureDailyClosingPricesJob` and
 `CaptureHistoricalExchangeRatesJob` fetch durable Yahoo history in the
 background. Their provider failures are reported and do not invent values.
+When a trade change requires older observations, [Historical data
+backfills](historical-data-backfills.md) coalesce and import that range in the
+background. Performance displays a loading state while relevant work is
+pending.

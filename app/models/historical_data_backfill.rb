@@ -20,12 +20,12 @@ class HistoricalDataBackfill < ApplicationRecord
     request.destroy!
     nil
   rescue
-    request&.destroy! if created
+    request.destroy! if created
     raise
   end
 
-  def self.pending_for?(owner: User.owner)
-    where(instrument_id: owner.trades.select(:instrument_id)).exists?
+  def self.pending_for?(instruments:)
+    where(instrument: instruments).exists?
   end
 
   def self.coalesce(instrument:, currency:, from_date:)

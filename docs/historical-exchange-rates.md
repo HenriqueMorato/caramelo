@@ -48,4 +48,7 @@ other currency pairs from running.
 See [Market-data request throttling](market-data-request-throttling.md) for the
 shared-provider coordination details.
 
+Trade changes use [Historical data backfills](historical-data-backfills.md) to
+request the missing FX range without making provider calls from a web request.
+
 Tests stub the transport and provider; they never call Yahoo Finance live.

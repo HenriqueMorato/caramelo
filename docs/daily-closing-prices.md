@@ -42,3 +42,7 @@ failure is reported per instrument so one failure does not prevent the
 remaining instruments from being attempted. Performance may use a persisted
 close from its explicit seven-day safety window for weekends and short holidays;
 it never treats an arbitrary old close as current.
+
+Trade changes use the durable background workflow described in
+[Historical data backfills](historical-data-backfills.md) to import any older
+dates needed for performance.

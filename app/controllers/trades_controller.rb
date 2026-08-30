@@ -24,6 +24,7 @@ class TradesController < ApplicationController
     assign_trade_attributes
 
     if @trade.save
+      enqueue_historical_data_backfill
       redirect_to transactions_path, notice: t("notices.Created", model: Trade.model_name.human)
     else
       render :new, status: :unprocessable_content
@@ -37,6 +38,7 @@ class TradesController < ApplicationController
     assign_trade_attributes
 
     if @trade.save
+      enqueue_historical_data_backfill
       redirect_to transactions_path, notice: t("notices.Updated", model: Trade.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
@@ -45,6 +47,7 @@ class TradesController < ApplicationController
 
   def destroy
     @trade.destroy!
+    enqueue_historical_data_backfill
     redirect_to transactions_path, notice: t("notices.Deleted", model: Trade.model_name.human), status: :see_other
   end
 
@@ -117,5 +120,9 @@ class TradesController < ApplicationController
     @trade.public_send(:"#{attribute}=", Money.from_amount(BigDecimal(value), @trade.currency))
   rescue ArgumentError
     @trade.public_send(:"#{attribute}_cents=", nil)
+  end
+
+  def enqueue_historical_data_backfill
+    Trades::HistoricalDataBackfillEnqueuer.call(trade: @trade)
   end
 end

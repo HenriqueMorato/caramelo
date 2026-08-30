@@ -137,6 +137,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("10.25"), trade.quantity
     assert_equal BigDecimal("32.12345678"), trade.unit_price
     assert_equal 490, trade.fees_cents
+    assert_backfill(instrument: trade.instrument, currency: "BRL", from_date: Date.new(2026, 8, 20))
   end
 
   test "contextual creation cannot be redirected to another instrument" do
@@ -214,6 +215,8 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "BRL", @trade.currency
     assert_equal BigDecimal("35.10"), @trade.unit_price
     assert_equal "Reduced position", @trade.notes
+    assert_backfill(instrument: instruments(:voo_arcx), currency: "USD", from_date: Date.new(2026, 8, 12))
+    assert_backfill(instrument: instruments(:petr4_bvmf), currency: "BRL", from_date: Date.new(2026, 8, 20))
   end
 
   test "renders validation errors when update fails" do
@@ -239,6 +242,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to transactions_url
+    assert_backfill(instrument: instruments(:voo_arcx), currency: "USD", from_date: Date.new(2026, 8, 12))
   end
 
   private
@@ -254,5 +258,10 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
       fees: "4.90",
       notes: "Trade notes"
     }
+  end
+
+  def assert_backfill(instrument:, currency:, from_date:)
+    backfill = HistoricalDataBackfill.find_by!(instrument:, currency:)
+    assert_equal from_date, backfill.from_date
   end
 end
