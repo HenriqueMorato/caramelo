@@ -17,8 +17,9 @@ en:
         a current quote.
       Introduction: Review daily portfolio value and returns calculated from recorded
         trades and durable historical market data.
+      Market prices and FX rates through: Market prices through %{market_price_date};
+        FX rates through %{exchange_rate_date}
       Month: Month
-      Market prices and FX rates through: Market prices through %{market_price_date}; FX rates through %{exchange_rate_date}
       Net invested: Net invested
       No performance yet: No performance yet
       Page title: Performance · %{application}
