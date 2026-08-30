@@ -1,7 +1,11 @@
 require "test_helper"
 
 class Dashboard::PresenterTest < ActiveSupport::TestCase
-  PositionState = Struct.new(:open?)
+  PositionState = Struct.new(:open?) do
+    def closed?
+      !open?
+    end
+  end
   ValuationState = Struct.new(:market_value, :stale?, :missing?)
   MarketPriceState = Struct.new(:stale?, :current_market_price)
   PositionStateResult = Struct.new(:invalid?, :position, :valuation, :market_price, :instrument)
@@ -45,6 +49,38 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     assert_predicate presenter, :stale_market_data?
     assert_predicate presenter, :missing_market_data?
     assert_nil presenter.last_market_data_at
+  end
+
+  test "does not present a partial market value as complete" do
+    available_position = position_result(
+      invalid: false, open: true,
+      valuation: ValuationState.new(Money.from_amount(12, "BRL"), false, false),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    missing_position = position_result(
+      invalid: false, open: true,
+      valuation: ValuationState.new(nil, false, true),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    presenter = Dashboard::Presenter.new(
+      positions: [ available_position, missing_position ], recent_trades: [], performance: nil
+    )
+
+    assert_not_predicate presenter, :market_value_available?
+    assert_nil presenter.market_value
+  end
+
+  test "recognizes a fully closed portfolio without requiring market data" do
+    closed_position = position_result(
+      invalid: false, open: false,
+      valuation: ValuationState.new(nil, false, true),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    presenter = Dashboard::Presenter.new(positions: [ closed_position ], recent_trades: [], performance: nil)
+
+    assert_predicate presenter, :no_open_positions?
+    assert_not_predicate presenter, :market_value_available?
+    assert_equal Money.from_amount(0, Rails.configuration.x.local_folio.reporting_currency), presenter.market_value
   end
 
   test "returns an empty summary without positions" do

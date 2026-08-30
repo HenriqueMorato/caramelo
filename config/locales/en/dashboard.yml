@@ -11,6 +11,9 @@ en:
       Market data unavailable explanation: Add or refresh current prices for your
         open positions to see the portfolio value here.
       No open positions: No open positions yet.
+      No open positions explanation: Your trades are recorded, but there are no current
+        holdings to value.
+      No open positions title: No open positions
       No portfolio yet: Your portfolio starts with a trade
       No recent activity: No trades recorded yet.
       Open positions count:
@@ -21,6 +24,7 @@ en:
       Portfolio introduction: Keep an eye on your holdings, performance, and recent
         investment activity.
       Portfolio overview: Portfolio overview
+      Portfolio status: Portfolio status
       Portfolio value: Portfolio value
       Portfolio value unavailable: Portfolio value is unavailable
       Ready when you are: Ready when you are

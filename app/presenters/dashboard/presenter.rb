@@ -3,7 +3,7 @@ module Dashboard
     attr_reader :positions, :recent_trades, :performance
 
     def self.for(owner: User.owner, today: Date.current)
-      position_results = Position.overview
+      position_results = Position.overview(owner:)
       new(
         positions: position_results.map { |position_result| Position::Presenter.for(position_result:) },
         recent_trades: owner.trades.includes(:instrument, :institution).reverse_chronological.limit(5),
@@ -28,18 +28,24 @@ module Dashboard
     end
 
     def market_value
+      return Money.from_amount(0, reporting_currency) if no_open_positions?
+      return if !market_value_available?
+
       values = open_positions.filter_map { |position| position.valuation.market_value }
-      return if values.empty?
 
       Money.from_amount(values.sum(&:amount), reporting_currency)
     end
 
     def market_value_available?
-      market_value.present?
+      open_positions.any? && open_positions.all? { |position| position.valuation.market_value.present? }
     end
 
     def has_trades?
       positions.any?
+    end
+
+    def no_open_positions?
+      has_trades? && positions.all? { |position| !position.invalid? && position.position.closed? }
     end
 
     def stale_market_data?

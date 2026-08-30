@@ -20,7 +20,27 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role='status']", text: /Add or refresh current prices/
   end
 
+  test "shows a closed portfolio without asking for market data" do
+    Trade.where(user: User.owner).delete_all
+    instrument = instruments(:petr4_bvmf)
+    User.owner.trades.create!(
+      instrument:, side: :buy, traded_on: Date.current - 1, quantity: 2, unit_price: "10",
+      fees_cents: 0, currency: instrument.currency
+    )
+    User.owner.trades.create!(
+      instrument:, side: :sell, traded_on: Date.current, quantity: 2, unit_price: "12",
+      fees_cents: 0, currency: instrument.currency
+    )
+
+    get root_url
+
+    assert_response :success
+    assert_select "h2", "No open positions"
+    assert_select "[role='status']", text: /no current holdings to value/
+  end
+
   test "shows current portfolio value and recent owner activity" do
+    Trade.where(user: User.owner).delete_all
     instrument = instruments(:petr4_bvmf)
     trade = User.owner.trades.create!(
       instrument:, side: :buy, traded_on: Date.current, quantity: 2, unit_price: "10",
@@ -37,8 +57,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "p", text: /Portfolio value/
-    assert_select "p", text: /R\$24,00/
+    assert_includes response.body, "Portfolio value"
+    assert_includes response.body, "R$24,00"
     assert_select "article##{dom_id(trade)}", text: /Dashboard trade/
     assert_select "a[href=?]", positions_path, text: "View positions"
     assert_select "a[href=?]", performance_path, text: "View performance"

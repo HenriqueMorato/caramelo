@@ -51,6 +51,16 @@
         <% end %>
       </article>
     </div>
+  <% elsif @dashboard.no_open_positions? %>
+    <div class="ui-card border-slate-200 bg-slate-50 p-8 sm:p-10" role="status">
+      <p class="ui-eyebrow"><%= t(".Portfolio status") %></p>
+      <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950"><%= t(".No open positions title") %></h2>
+      <p class="mt-2 max-w-2xl leading-7 text-slate-700"><%= t(".No open positions explanation") %></p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <%= link_to t(".View performance"), performance_path, class: "ui-button ui-button-secondary" %>
+        <%= link_to t(".View all trades"), transactions_path, class: "ui-button ui-button-secondary" %>
+      </div>
+    </div>
   <% elsif @dashboard.has_trades? %>
     <div class="ui-card border-amber-200 bg-amber-50 p-8 sm:p-10" role="status">
       <p class="ui-eyebrow text-amber-800"><%= t(".Market data needs attention") %></p>
