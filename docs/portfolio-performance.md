@@ -64,8 +64,11 @@ current cached quote. Exact observations are preferred. A recent observation
 can be used only within the seven-calendar-day historical safety window, which
 covers weekends and short exchange holidays without allowing indefinitely stale
 prices. The report displays **Prices through** using the oldest close date
-among open holdings. Missing data outside that window makes the report
-explicitly unavailable.
+among open holdings. When a foreign-currency position uses an FX observation
+from an earlier date, the report also identifies that FX date so the valuation
+remains auditable. Same-currency positions do not have an external FX
+observation. Missing data outside that window makes the report explicitly
+unavailable.
 
 `CaptureDailyClosingPricesJob` and
 `CaptureHistoricalExchangeRatesJob` fetch durable Yahoo history in the

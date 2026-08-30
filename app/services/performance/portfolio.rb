@@ -15,6 +15,13 @@ module Performance
       def available? = status != :missing
       def missing?   = status == :missing
       def closed?    = status == :closed
+      def market_price_as_of = daily_closing_price&.trading_date
+
+      def exchange_rate_as_of
+        return if exchange_rate_lookup.nil? || exchange_rate_lookup.same_currency?
+
+        exchange_rate_lookup.exchange_rate&.rate_date
+      end
     end
 
     # Portfolio totals for one reporting date. Monetary objects round only for
@@ -30,9 +37,10 @@ module Performance
       def missing?   = status == :missing
       def empty?     = status == :empty
 
-      def market_data_as_of
-        position_results.filter_map { |position_result| position_result.daily_closing_price&.trading_date }.min
-      end
+      # Aggregate dates use the oldest observation that contributed to the report.
+      def market_price_as_of = position_results.filter_map(&:market_price_as_of).min
+      def exchange_rate_as_of = position_results.filter_map(&:exchange_rate_as_of).min
+      def market_data_as_of = market_price_as_of
     end
 
     def self.for(valuation_date:, owner: User.owner, exchange_rate_service: HistoricalExchangeRate::Service.new,

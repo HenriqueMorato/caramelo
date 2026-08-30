@@ -63,6 +63,24 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", /10\.00%/
   end
 
+  test "shows separate market price and FX dates when observations differ" do
+    Trade.where(user: User.owner).delete_all
+    instrument = Instrument.create!(ticker: "FXDATE", exchange: "XNAS", name: "Foreign performance stock", currency: "USD")
+    create_trade(instrument:, traded_on: Date.current)
+    create_daily_close(instrument:, date: Date.current, close_price: "10")
+    HistoricalExchangeRate.create!(
+      base_currency: "USD", quote_currency: "BRL", rate_date: Date.current - 1, rate: "5",
+      provider: MarketData::YahooFinance::FX_CONFIGURATION.identifier,
+      observed_at: Time.current, fetched_at: Time.current
+    )
+
+    get performance_url(period: "all")
+
+    assert_response :success
+    assert_select "body", /Market prices through/
+    assert_select "body", /FX rates through/
+  end
+
   test "shows the empty state without owner trades" do
     Trade.where(user: User.owner).delete_all
 
@@ -77,13 +95,13 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
 
   def create_trade(instrument:, traded_on:)
     User.owner.trades.create!(
-      instrument:, side: :buy, traded_on:, quantity: 1, unit_price: "10", fees_cents: 0, currency: "BRL"
+      instrument:, side: :buy, traded_on:, quantity: 1, unit_price: "10", fees_cents: 0, currency: instrument.currency
     )
   end
 
   def create_daily_close(instrument:, date:, close_price:)
     DailyClosingPrice.create!(
-      instrument:, trading_date: date, close_price:, currency: "BRL", provider: "yahoo_finance", observed_at: Time.current
+      instrument:, trading_date: date, close_price:, currency: instrument.currency, provider: "yahoo_finance", observed_at: Time.current
     )
   end
 end

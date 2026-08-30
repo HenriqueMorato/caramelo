@@ -91,6 +91,33 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal @date - 1, result.position_results.first.exchange_rate_lookup.exchange_rate.rate_date
   end
 
+  test "exposes separate market price and FX observation dates" do
+    instrument = create_instrument(ticker: "DATES", currency: "USD")
+    create_trade(instrument:)
+    create_daily_close(instrument:, close_price: "10")
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5", rate_date: @date - 1)
+
+    result = portfolio_for
+    position_result = result.position_results.first
+
+    assert_equal @date, position_result.market_price_as_of
+    assert_equal @date - 1, position_result.exchange_rate_as_of
+    assert_equal @date, result.market_price_as_of
+    assert_equal @date - 1, result.exchange_rate_as_of
+    assert_equal @date, result.market_data_as_of
+  end
+
+  test "does not report an FX observation date for same-currency positions" do
+    instrument = create_instrument(ticker: "SAME", currency: "BRL")
+    create_trade(instrument:)
+    create_daily_close(instrument:, close_price: "10")
+
+    result = portfolio_for
+
+    assert_equal @date, result.market_price_as_of
+    assert_nil result.exchange_rate_as_of
+  end
+
   test "is unavailable when valuation FX is missing after trade FX was available" do
     instrument = create_instrument(ticker: "VALUATIONFX", currency: "USD")
     create_trade(instrument:, traded_on: @date - 1)
@@ -109,6 +136,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
 
     assert result.missing?
     assert_equal missing_lookup, result.position_results.first.exchange_rate_lookup
+    assert_nil result.position_results.first.exchange_rate_as_of
   end
 
   test "is unavailable when a needed closing price is missing" do
@@ -192,6 +220,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
 
   Lookup = Data.define(:available, :exchange_rate) do
     def available? = available
+    def same_currency? = false
   end
 
   ResolvedRate = Data.define(:rate)
