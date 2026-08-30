@@ -2,13 +2,32 @@
 en:
   dashboard:
     index:
+      Empty state: Add your first trade to see portfolio value, performance, and activity
+        here.
+      Gain or loss: Gain or loss
+      Last refreshed: Last refreshed %{time}
+      Market data: Market data
+      Market data needs attention: Market data needs attention
+      Market data unavailable explanation: Add or refresh current prices for your
+        open positions to see the portfolio value here.
+      No open positions: No open positions yet.
+      No portfolio yet: Your portfolio starts with a trade
+      No recent activity: No trades recorded yet.
+      Open positions count:
+        one: "%{count} open position"
+        other: "%{count} open positions"
       Page title: Dashboard · %{application}
-      Portfolio introduction: Your portfolio overview will live here, bringing holdings,
-        balances, performance, and recent activity together.
+      Partial: Partial
+      Portfolio introduction: Keep an eye on your holdings, performance, and recent
+        investment activity.
       Portfolio overview: Portfolio overview
-      Portfolio overview description: Holdings, balances, and BRL-denominated performance
-        will appear here in a future milestone.
+      Portfolio value: Portfolio value
+      Portfolio value unavailable: Portfolio value is unavailable
+      Ready when you are: Ready when you are
       Recent activity: Recent activity
-      Recent activity description: Your latest trades will be summarized here in a
-        future milestone.
+      Return: Return
+      Review methodology: Review methodology
       Single-user workspace: Single-user workspace
+      View all trades: View all trades
+      View performance: View performance
+      View positions: View positions
