@@ -136,6 +136,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
 
     assert result.missing?
     assert_equal missing_lookup, result.position_results.first.exchange_rate_lookup
+    assert_nil result.position_results.first.exchange_rate_as_of
   end
 
   test "is unavailable when a needed closing price is missing" do
@@ -219,6 +220,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
 
   Lookup = Data.define(:available, :exchange_rate) do
     def available? = available
+    def same_currency? = false
   end
 
   ResolvedRate = Data.define(:rate)
