@@ -52,15 +52,13 @@
     </div>
   </section>
 
-  <div class="space-y-4">
+  <section aria-labelledby="trade-history-heading" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-950"><%= t(".Trade history") %></h2>
+        <h2 id="trade-history-heading" class="text-lg font-semibold text-slate-950"><%= t(".Trade history") %></h2>
         <p class="mt-1 text-sm text-slate-600"><%= t(".Trade history description") %></p>
       </div>
-      <% if @trades.any? %>
-        <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(@instrument), class: "rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>
-      <% end %>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(@instrument), class: "ui-button ui-button-primary" %>
     </div>
 
     <% if @trades.any? %>
@@ -73,7 +71,7 @@
         <p class="mt-2 text-sm leading-6 text-slate-600"><%= t(".Empty history") %></p>
       </div>
     <% end %>
-  </div>
+  </section>
 
   <div class="flex flex-wrap items-center gap-3">
     <%= link_to t("actions.Edit model", model: Instrument.model_name.human.downcase), edit_instrument_path(@instrument), class: "rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>

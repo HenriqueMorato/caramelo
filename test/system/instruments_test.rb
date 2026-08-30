@@ -107,6 +107,9 @@ class InstrumentsTest < ApplicationSystemTestCase
     visit instrument_path(instrument)
 
     assert_text "No trades"
+    within "[aria-labelledby='trade-history-heading']" do
+      assert_link "Add trade"
+    end
     within "[aria-labelledby='position-summary-heading']" do
       click_on "Add trade"
     end
