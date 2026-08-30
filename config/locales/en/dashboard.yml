@@ -5,6 +5,7 @@ en:
       Empty state: Add your first trade to see portfolio value, performance, and activity
         here.
       Gain or loss: Gain or loss
+      Holdings: Holdings
       Last refreshed: Last refreshed %{time}
       Market data needs attention: Market data needs attention
       Market data unavailable explanation: Add or refresh current prices for your
@@ -19,7 +20,6 @@ en:
       Page title: Dashboard · %{application}
       Portfolio introduction: Keep an eye on your holdings, performance, and recent
         investment activity.
-      Portfolio overview: Portfolio overview
       Portfolio status: Portfolio status
       Portfolio value: Portfolio value
       Portfolio value unavailable: Portfolio value is unavailable

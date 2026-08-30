@@ -16,12 +16,6 @@
       <article class="ui-card p-5 sm:p-6">
         <p class="text-sm font-medium text-slate-600"><%= t(".Portfolio value") %></p>
         <p class="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-950"><%= @dashboard.market_value.format %></p>
-        <% if @dashboard.last_market_data_at %>
-          <p class="mt-2 text-xs text-slate-500"><%= t(".Last refreshed", time: l(@dashboard.last_market_data_at, format: :short)) %></p>
-        <% end %>
-        <% if @dashboard.stale_market_data? %>
-          <p class="mt-1 text-xs font-medium text-amber-700"><%= t(".Some prices may be stale") %></p>
-        <% end %>
       </article>
       <article class="ui-card p-5 sm:p-6">
         <p class="text-sm font-medium text-slate-600"><%= t(".Gain or loss") %></p>
@@ -47,6 +41,14 @@
         <%= link_to t(".View positions"), positions_path, class: "mt-2 inline-flex text-sm font-semibold text-brand-700 hover:text-brand-900" %>
       </article>
     </div>
+    <% if @dashboard.last_market_data_at %>
+      <p class="text-xs text-slate-500">
+        <%= t(".Last refreshed", time: l(@dashboard.last_market_data_at, format: :short)) %>
+        <% if @dashboard.stale_market_data? %>
+          <span class="font-medium text-amber-700"><%= t(".Some prices may be stale") %></span>
+        <% end %>
+      </p>
+    <% end %>
   <% elsif @dashboard.no_open_positions? %>
     <div class="ui-card border-slate-200 bg-slate-50 p-8 sm:p-10" role="status">
       <p class="ui-eyebrow"><%= t(".Portfolio status") %></p>
@@ -89,7 +91,7 @@
 
     <article class="ui-card p-6">
       <div class="flex items-center justify-between gap-4">
-        <h2 class="text-lg font-semibold text-slate-950"><%= t(".Portfolio overview") %></h2>
+        <h2 class="text-lg font-semibold text-slate-950"><%= t(".Holdings") %></h2>
         <%= link_to t(".View positions"), positions_path, class: "text-sm font-semibold text-brand-700 hover:text-brand-900" %>
       </div>
       <% if @dashboard.open_positions.any? %>

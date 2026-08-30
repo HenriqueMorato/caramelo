@@ -61,6 +61,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "R$24,00"
     assert_includes response.body, "Last refreshed"
     assert_includes response.body, "Open positions"
+    assert_includes response.body, "Holdings"
     assert_not_includes response.body, "Fees:"
     assert_not_includes response.body, "Currency:"
     assert_select "article##{dom_id(trade)}", text: /PETR4 · BVMF/
