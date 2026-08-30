@@ -30,6 +30,10 @@ en:
         password_confirmation: Password confirmation
     errors:
       models:
+        historical_data_backfill:
+          attributes:
+            currency:
+              instrument_mismatch: must match the instrument currency
         instrument:
           attributes:
             currency:

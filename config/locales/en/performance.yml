@@ -8,6 +8,9 @@ en:
       Empty state: Record trades and capture historical market data to calculate performance.
       Excluding trade cash flows: Excluding purchases and sale proceeds
       Gain or loss: Gain / loss
+      Historical data is loading: Historical data is loading
+      Historical data is loading explanation: We are fetching daily closing prices
+        and exchange rates for your trades. Check back shortly.
       Historical data unavailable: Historical data unavailable
       Historical data unavailable explanation: This period needs a persisted closing
         price and exchange rate for every held instrument. LocalFolio never substitutes

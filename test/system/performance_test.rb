@@ -32,6 +32,18 @@ class PerformanceTest < ApplicationSystemTestCase
     assert_no_text "Prices through"
   end
 
+  test "shows historical data loading while a missing price is being backfilled" do
+    Trade.where(user: User.owner).delete_all
+    instrument = Instrument.create!(ticker: "WAIT", exchange: "BVMF", name: "Pending performance stock", currency: "BRL")
+    trade = create_trade(instrument:, traded_on: Date.current - 1.month)
+    HistoricalDataBackfill.create!(instrument:, currency: trade.currency, from_date: trade.traded_on)
+
+    visit performance_path
+
+    assert_text "Historical data is loading"
+    assert_text "Check back shortly"
+  end
+
   private
 
   def create_trade(instrument:, traded_on:, side: :buy)

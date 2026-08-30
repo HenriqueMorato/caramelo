@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_29_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_000000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -23,6 +23,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_150000) do
     t.index ["instrument_id", "trading_date", "provider"], name: "index_daily_closing_prices_on_instrument_date_provider", unique: true
     t.index ["instrument_id"], name: "index_daily_closing_prices_on_instrument_id"
     t.check_constraint "close_price > 0", name: "daily_closing_prices_close_positive"
+  end
+
+  create_table "historical_data_backfills", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.date "from_date", null: false
+    t.integer "generation", default: 1, null: false
+    t.integer "instrument_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["instrument_id", "currency"], name: "index_historical_data_backfills_on_instrument_id_and_currency", unique: true
+    t.index ["instrument_id"], name: "index_historical_data_backfills_on_instrument_id"
   end
 
   create_table "historical_exchange_rates", force: :cascade do |t|
@@ -101,6 +112,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_150000) do
   end
 
   add_foreign_key "daily_closing_prices", "instruments"
+  add_foreign_key "historical_data_backfills", "instruments"
   add_foreign_key "institutions", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "trades", "institutions"

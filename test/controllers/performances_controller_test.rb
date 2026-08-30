@@ -25,12 +25,27 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "MISS", exchange: "BVMF", name: "Missing stock", currency: "BRL")
     create_trade(instrument:, traded_on: Date.current - 1.month)
+    HistoricalDataBackfill.delete_all
 
     get performance_url
 
     assert_response :success
     assert_select "h2", "Historical data unavailable"
     assert_select "p", /never substitutes a current quote/
+  end
+
+  test "shows a pending state while historical data is being backfilled" do
+    Trade.where(user: User.owner).delete_all
+    instrument = Instrument.create!(ticker: "WAIT", exchange: "BVMF", name: "Pending stock", currency: "BRL")
+    trade = create_trade(instrument:, traded_on: Date.current - 1.month)
+    HistoricalDataBackfill.create!(instrument:, currency: trade.currency, from_date: trade.traded_on)
+
+    get performance_url
+
+    assert_response :success
+    assert_select "h2", "Historical data is loading"
+    assert_select "p", /Check back shortly/
+    assert HistoricalDataBackfill.exists?(instrument:, currency: trade.currency)
   end
 
   test "uses the first trade date for the all-time period" do
