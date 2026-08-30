@@ -9,7 +9,6 @@
         <%= t(".Portfolio introduction") %>
       </p>
     </div>
-    <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary w-fit" %>
   </div>
 
   <% if @dashboard.market_value_available? %>
@@ -17,7 +16,12 @@
       <article class="ui-card p-5 sm:p-6">
         <p class="text-sm font-medium text-slate-600"><%= t(".Portfolio value") %></p>
         <p class="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-950"><%= @dashboard.market_value.format %></p>
-        <p class="mt-2 text-xs text-slate-500"><%= t(".Open positions count", count: @dashboard.open_positions.size) %></p>
+        <% if @dashboard.last_market_data_at %>
+          <p class="mt-2 text-xs text-slate-500"><%= t(".Last refreshed", time: l(@dashboard.last_market_data_at, format: :short)) %></p>
+        <% end %>
+        <% if @dashboard.stale_market_data? %>
+          <p class="mt-1 text-xs font-medium text-amber-700"><%= t(".Some prices may be stale") %></p>
+        <% end %>
       </article>
       <article class="ui-card p-5 sm:p-6">
         <p class="text-sm font-medium text-slate-600"><%= t(".Gain or loss") %></p>
@@ -38,17 +42,9 @@
         <%= link_to t(".Review methodology"), performance_path, class: "mt-2 inline-flex text-sm font-semibold text-brand-700 hover:text-brand-900" %>
       </article>
       <article class="ui-card p-5 sm:p-6">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Market data") %></p>
-        <% if @dashboard.stale_market_data? %>
-          <p class="mt-2 text-lg font-semibold text-amber-700"><%= t("Stale") %></p>
-        <% elsif @dashboard.missing_market_data? %>
-          <p class="mt-2 text-lg font-semibold text-slate-500"><%= t(".Partial") %></p>
-        <% else %>
-          <p class="mt-2 text-lg font-semibold text-emerald-700"><%= t("Current") %></p>
-        <% end %>
-        <% if @dashboard.last_market_data_at %>
-          <p class="mt-2 text-xs text-slate-500"><%= t(".Last refreshed", time: l(@dashboard.last_market_data_at, format: :short)) %></p>
-        <% end %>
+        <p class="text-sm font-medium text-slate-600"><%= t(".Open positions") %></p>
+        <p class="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-950"><%= @dashboard.open_positions.size %></p>
+        <%= link_to t(".View positions"), positions_path, class: "mt-2 inline-flex text-sm font-semibold text-brand-700 hover:text-brand-900" %>
       </article>
     </div>
   <% elsif @dashboard.no_open_positions? %>
@@ -73,7 +69,6 @@
       <p class="ui-eyebrow"><%= t(".Ready when you are") %></p>
       <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950"><%= t(".No portfolio yet") %></h2>
       <p class="mt-2 max-w-2xl leading-7 text-slate-600"><%= t(".Empty state") %></p>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary mt-6" %>
     </div>
   <% end %>
 
@@ -84,8 +79,8 @@
         <%= link_to t(".View all trades"), transactions_path, class: "text-sm font-semibold text-brand-700 hover:text-brand-900" %>
       </div>
       <% if @dashboard.recent_trades.any? %>
-        <div class="mt-5 divide-y divide-slate-100">
-          <%= render @dashboard.recent_trades %>
+        <div class="mt-5 space-y-4">
+          <%= render partial: "dashboard/trade", collection: @dashboard.recent_trades, as: :trade %>
         </div>
       <% else %>
         <p class="mt-4 text-sm leading-6 text-slate-600"><%= t(".No recent activity") %></p>
@@ -102,7 +97,7 @@
           <% @dashboard.open_positions.first(5).each do |position| %>
             <li class="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0">
               <%= link_to position.instrument.ticker, position.instrument, class: "font-mono font-semibold text-slate-950 hover:text-brand-700" %>
-              <span class="font-mono text-sm text-slate-600"><%= format_quantity position.position.quantity %></span>
+              <span class="font-mono text-sm text-slate-600"><%= position.valuation.market_value&.format || t("Not available") %></span>
             </li>
           <% end %>
         </ul>

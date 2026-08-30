@@ -6,7 +6,6 @@ en:
         here.
       Gain or loss: Gain or loss
       Last refreshed: Last refreshed %{time}
-      Market data: Market data
       Market data needs attention: Market data needs attention
       Market data unavailable explanation: Add or refresh current prices for your
         open positions to see the portfolio value here.
@@ -16,11 +15,8 @@ en:
       No open positions title: No open positions
       No portfolio yet: Your portfolio starts with a trade
       No recent activity: No trades recorded yet.
-      Open positions count:
-        one: "%{count} open position"
-        other: "%{count} open positions"
+      Open positions: Open positions
       Page title: Dashboard · %{application}
-      Partial: Partial
       Portfolio introduction: Keep an eye on your holdings, performance, and recent
         investment activity.
       Portfolio overview: Portfolio overview
@@ -32,6 +28,7 @@ en:
       Return: Return
       Review methodology: Review methodology
       Single-user workspace: Single-user workspace
+      Some prices may be stale: Some prices may be stale
       View all trades: View all trades
       View performance: View performance
       View positions: View positions

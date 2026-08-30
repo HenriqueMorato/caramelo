@@ -9,7 +9,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", "Dashboard"
     assert_select "h2", "Your portfolio starts with a trade"
-    assert_select "a", "Add trade"
+    assert_select "a", { text: "Add trade", count: 0 }
   end
 
   test "explains when existing trades lack current market data" do
@@ -59,7 +59,12 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Portfolio value"
     assert_includes response.body, "R$24,00"
-    assert_select "article##{dom_id(trade)}", text: /Dashboard trade/
+    assert_includes response.body, "Last refreshed"
+    assert_includes response.body, "Open positions"
+    assert_not_includes response.body, "Fees:"
+    assert_not_includes response.body, "Currency:"
+    assert_select "article##{dom_id(trade)}", text: /PETR4 · BVMF/
+    assert_not_includes response.body, "Dashboard trade"
     assert_select "a[href=?]", positions_path, text: "View positions"
     assert_select "a[href=?]", performance_path, text: "View performance"
   end

@@ -6,7 +6,7 @@ module Dashboard
       position_results = Position.overview(owner:)
       new(
         positions: position_results.map { |position_result| Position::Presenter.for(position_result:) },
-        recent_trades: owner.trades.includes(:instrument, :institution).reverse_chronological.limit(5),
+        recent_trades: owner.trades.includes(:instrument).reverse_chronological.limit(5),
         performance: Performance::Period.for(from: performance_start(owner, today), to: today)
       )
     end
