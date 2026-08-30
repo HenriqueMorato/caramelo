@@ -37,8 +37,12 @@
       <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <p class="text-sm font-medium text-slate-600"><%= t(".Portfolio value") %></p>
         <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-slate-950"><%= @performance.closing_valuation.market_value.format %></p>
-        <% if @performance.closing_valuation.market_data_as_of %>
-          <p class="mt-2 text-xs text-slate-500"><%= t(".Prices through", date: l(@performance.closing_valuation.market_data_as_of, format: :long)) %></p>
+        <% market_price_date = @performance.closing_valuation.market_price_as_of %>
+        <% exchange_rate_date = @performance.closing_valuation.exchange_rate_as_of %>
+        <% if market_price_date && exchange_rate_date && market_price_date != exchange_rate_date %>
+          <p class="mt-2 text-xs text-slate-500"><%= t(".Market prices and FX rates through", market_price_date: l(market_price_date, format: :long), exchange_rate_date: l(exchange_rate_date, format: :long)) %></p>
+        <% elsif market_price_date %>
+          <p class="mt-2 text-xs text-slate-500"><%= t(".Prices through", date: l(market_price_date, format: :long)) %></p>
         <% end %>
       </article>
 
