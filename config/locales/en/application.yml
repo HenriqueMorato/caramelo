@@ -12,7 +12,9 @@ en:
   Dashboard: Dashboard
   Institutions: Institutions
   Instruments: Instruments
-  LocalFolio: LocalFolio
+  LocalFolio: caramelo
+  Long walks: Long walks.
+  Manage: Manage
   Market value: Market value
   Needs attention: Needs attention
   None: None
@@ -20,6 +22,7 @@ en:
   Open: Open
   Performance: Performance
   Personal portfolio tracking: Personal portfolio tracking
+  Portfolio: Portfolio
   Portfolio activity: Portfolio activity
   Portfolio catalog: Portfolio catalog
   Portfolio holdings: Portfolio holdings
@@ -32,12 +35,15 @@ en:
   Refresh prices: Refresh prices
   Refreshing: Refreshing
   Sell: Sell
+  Skip to content: Skip to content
+  Small steps: Small steps.
   Stale: Stale
   Total: Total
   Trade settings: Trade settings
   Transactions: Transactions
   Transactions link: "← Transactions"
   Value unavailable: Value unavailable
+  Your portfolio is out for a stroll: Your portfolio is out for a stroll.
   actions:
     Add: Add %{model}
     Cancel: Cancel
@@ -72,3 +78,4 @@ en:
   statuses:
     Active: Active
     Inactive: Inactive
+  units: units

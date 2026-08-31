@@ -1,3 +1,10 @@
-<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="256" cy="256" r="256" fill="red"/>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Caramelo</title>
+  <desc id="desc">A caramel dog-inspired icon.</desc>
+  <rect width="512" height="512" rx="112" fill="#2E211C"/>
+  <path d="M125 188c-22-24-31-61-18-84 13-23 39-30 61-14 24 17 34 52 28 81l-10 27Z" fill="#8D4B2E"/>
+  <path d="M353 188c-6-29 4-64 28-81 22-16 48-9 61 14 13 23 4 60-18 84l-51 10Z" fill="#8D4B2E"/>
+  <path d="M116 176c36-26 82-39 140-39 60 0 108 13 142 43 28 25 39 64 39 113v22c0 77-65 126-181 126-114 0-177-49-177-126v-22c0-52 13-91 37-117Z" fill="#C97A45"/>
+  <path d="M77 349c20 74 83 104 179 104 97 0 161-30 181-101-43 27-105 42-179 42-77 0-138-15-181-45Z" fill="#B96538" opacity=".72"/>
+  <path d="M216 279c-5-17 5-31 22-38 12-9 32-11 46-5 18 3 31 15 35 30 4 17-6 31-23 38-15 10-34 10-49 4-17 4-29-8-31-29Z" fill="#2E211C"/>
 </svg>

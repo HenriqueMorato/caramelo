@@ -51,6 +51,19 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     assert_nil presenter.last_market_data_at
   end
 
+  test "orders the dashboard positions by market value and limits them to four" do
+    positions = 5.times.map do |index|
+      position_result(
+        invalid: false, open: true,
+        valuation: ValuationState.new(Money.from_amount(index + 1, "BRL"), false, false),
+        market_price: MarketPriceState.new(false, nil)
+      )
+    end
+    presenter = Dashboard::Presenter.new(positions:, recent_trades: [], performance: nil)
+
+    assert_equal positions.last(4).reverse, presenter.top_positions
+  end
+
   test "does not present a partial market value as complete" do
     available_position = position_result(
       invalid: false, open: true,

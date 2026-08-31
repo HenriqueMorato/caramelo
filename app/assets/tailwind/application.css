@@ -1,24 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: oklch(0.97 0.02 160);
-  --color-brand-100: oklch(0.93 0.05 160);
-  --color-brand-600: oklch(0.52 0.14 160);
-  --color-brand-700: oklch(0.45 0.13 160);
-  --color-brand-800: oklch(0.38 0.11 160);
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Literata", Georgia, ui-serif, serif;
+  --color-oat: #f6efe4;
+  --color-oat-2: #fbf8f2;
+  --color-caramel: #c97a45;
+  --color-caramel-deep: #8d4b2e;
+  --color-coffee: #2e211c;
+  --color-muted: #7e6f67;
+  --color-leaf: #56805d;
+  --color-guava: #e76f51;
+  --color-brand-50: #fbf4eb;
+  --color-brand-100: #f2ddc8;
+  --color-brand-600: #c97a45;
+  --color-brand-700: #a95e37;
+  --color-brand-800: #8d4b2e;
 }
 
 @layer components {
   .ui-card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-[1.25rem] border border-coffee/10 bg-oat-2 shadow-none;
   }
 
   .ui-card-interactive {
-    @apply transition hover:border-slate-300 hover:shadow-md;
+    @apply transition-[border-color,box-shadow] hover:border-coffee/20 hover:shadow-sm;
   }
 
   .ui-button {
-    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2;
   }
 
   .ui-button-primary {
@@ -26,23 +36,23 @@
   }
 
   .ui-button-secondary {
-    @apply border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50;
+    @apply border border-coffee/15 bg-oat-2 text-coffee shadow-sm hover:bg-white;
   }
 
   .ui-button-danger {
-    @apply border border-red-200 bg-white text-red-700 shadow-sm hover:bg-red-50;
+    @apply border border-guava/30 bg-oat-2 text-guava shadow-sm hover:bg-guava/10;
   }
 
   .ui-eyebrow {
-    @apply text-sm font-semibold uppercase tracking-wider text-brand-700;
+    @apply text-sm font-semibold uppercase tracking-wider text-caramel-deep;
   }
 
   .ui-page-title {
-    @apply text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl;
+    @apply font-display text-4xl font-semibold tracking-tight text-coffee sm:text-5xl;
   }
 
   .ui-page-intro {
-    @apply text-lg leading-8 text-slate-600;
+    @apply text-lg leading-8 text-muted;
   }
 
   .ui-badge {

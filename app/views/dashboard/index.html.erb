@@ -1,111 +1,88 @@
 <% content_for :title, t(".Page title", application: t("LocalFolio")) %>
 
-<section class="space-y-8">
-  <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-    <div class="max-w-3xl space-y-3">
-      <p class="ui-eyebrow"><%= t(".Single-user workspace") %></p>
-      <h1 class="ui-page-title"><%= t("Dashboard") %></h1>
-      <p class="ui-page-intro">
-        <%= t(".Portfolio introduction") %>
-      </p>
+<section class="space-y-10">
+  <header class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= l Date.current, format: :long %></p>
+      <h1 class="mt-3 font-display text-4xl font-semibold leading-none tracking-tight text-coffee sm:text-5xl"><%= t(".Portfolio overview") %></h1>
+      <p class="mt-3 text-sm text-muted"><%= t(".Portfolio introduction") %></p>
     </div>
-  </div>
+    <%= link_to t(".Add transaction"), new_trade_path, class: "ui-button bg-caramel text-oat shadow-sm hover:bg-caramel-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" %>
+  </header>
 
   <% if @dashboard.market_value_available? %>
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <article class="ui-card p-5 sm:p-6">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Portfolio value") %></p>
-        <p class="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-950"><%= @dashboard.market_value.format %></p>
+    <div class="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]">
+      <article class="relative min-h-[20rem] overflow-hidden rounded-[1.75rem] bg-coffee p-7 text-oat shadow-[0_18px_50px_rgba(108,64,35,0.16)] sm:p-9">
+        <div class="relative z-10 flex h-full flex-col">
+          <div class="flex items-start justify-between gap-5">
+            <div>
+            <p class="text-xs font-bold uppercase tracking-[0.16em] text-oat/60"><%= t(".Total portfolio value") %></p>
+            <p class="mt-6 font-mono text-5xl font-semibold tracking-[-0.07em] tabular-nums sm:text-6xl"><%= @dashboard.market_value.format %></p>
+            <% day_change = @dashboard.day_change %>
+            <% if day_change %>
+              <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold <%= day_change.negative? ? "text-guava" : "text-[#91c399]" %>"><span aria-hidden="true"><%= day_change.positive? ? "↑" : day_change.negative? ? "↓" : "→" %></span><span><%= "+" if day_change.positive? %><%= day_change.format %></span><span><%= "+" if @dashboard.day_change_ratio&.positive? %><%= number_to_percentage(@dashboard.day_change_ratio.to_f * 100, precision: 2) if @dashboard.day_change_ratio %></span><span class="font-normal text-oat/60"><%= t(".Today") %></span></p>
+            <% end %>
+            </div>
+            <span class="flex size-16 rotate-3 items-center justify-center rounded-[1.4rem] bg-caramel text-4xl shadow-[inset_0_-6px_0_rgba(59,28,16,0.18)]" aria-hidden="true">🐕</span>
+          </div>
+          <% if @dashboard.last_market_data_at %>
+            <div class="mt-auto flex flex-col gap-4 border-t border-oat/15 pt-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+              <div>
+                <p class="font-display text-lg leading-tight text-oat"><%= t(".A little green around the edges") %></p>
+                <p class="mt-1 text-sm text-oat/60"><%= t(".That's a good sign") %></p>
+              </div>
+              <p class="flex items-center gap-2 text-xs font-semibold text-[#91c399]"><span class="size-2 rounded-full bg-[#91c399] shadow-[0_0_0_3px_rgba(86,128,93,0.14)]" aria-hidden="true"></span><%= t(".Market data updated", time: time_ago_in_words(@dashboard.last_market_data_at)) %></p>
+            </div>
+          <% end %>
+        </div>
       </article>
-      <article class="ui-card p-5 sm:p-6">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Gain or loss") %></p>
-        <% if @dashboard.performance.available? && @dashboard.performance.gain_loss %>
-          <p class="mt-2 font-mono text-3xl font-bold tracking-tight <%= @dashboard.performance.gain_loss_amount.negative? ? "text-red-700" : "text-emerald-700" %>"><%= @dashboard.performance.gain_loss.format %></p>
-        <% else %>
-          <p class="mt-2 text-lg font-semibold text-slate-500"><%= t("Not available") %></p>
-        <% end %>
-        <%= link_to t(".View performance"), performance_path, class: "mt-2 inline-flex text-sm font-semibold text-brand-700 hover:text-brand-900" %>
-      </article>
-      <article class="ui-card p-5 sm:p-6">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Return") %></p>
-        <% if @dashboard.performance.return_available? %>
-          <p class="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-950"><%= number_to_percentage(@dashboard.performance.return_ratio * 100, precision: 2) %></p>
-        <% else %>
-          <p class="mt-2 text-lg font-semibold text-slate-500"><%= t("Not available") %></p>
-        <% end %>
-        <%= link_to t(".Review methodology"), performance_path, class: "mt-2 inline-flex text-sm font-semibold text-brand-700 hover:text-brand-900" %>
-      </article>
-      <article class="ui-card p-5 sm:p-6">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Open positions") %></p>
-        <p class="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-950"><%= @dashboard.open_positions.size %></p>
-        <%= link_to t(".View positions"), positions_path, class: "mt-2 inline-flex text-sm font-semibold text-brand-700 hover:text-brand-900" %>
+
+      <article class="rounded-[1.75rem] border border-coffee/10 bg-oat-2 p-7">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t(".At a glance") %></p>
+        <h2 class="mt-3 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t(".All paws on deck") %></h2>
+        <dl class="mt-7 divide-y divide-coffee/10">
+          <div class="flex items-center justify-between gap-4 py-4 first:pt-0"><dt class="text-sm text-muted"><%= t(".Invested") %></dt><dd class="font-mono text-sm font-semibold tabular-nums"><%= @dashboard.performance.net_cash_flow&.format || t("Not available") %></dd></div>
+          <% unrealized_return = @dashboard.unrealized_return %>
+          <div class="flex items-center justify-between gap-4 py-4"><dt class="text-sm text-muted"><%= t(".Unrealized return") %></dt><dd class="font-mono text-sm font-semibold tabular-nums <%= unrealized_return&.negative? ? "text-guava" : "text-leaf" %>"><%= unrealized_return ? "#{unrealized_return.positive? ? "+" : ""}#{unrealized_return.format}" : t("Not available") %></dd></div>
+          <div class="flex items-center justify-between gap-4 py-4"><dt class="text-sm text-muted"><%= t(".Day change") %></dt><dd class="font-mono text-sm font-semibold tabular-nums <%= day_change&.negative? ? "text-guava" : "text-leaf" %>"><%= @dashboard.day_change_ratio ? "#{@dashboard.day_change_ratio.positive? ? "+" : ""}#{number_to_percentage(@dashboard.day_change_ratio.to_f * 100, precision: 2)}" : t("Not available") %></dd></div>
+          <div class="flex items-center justify-between gap-4 py-4 last:pb-0"><dt class="text-sm text-muted"><%= t(".Holdings") %></dt><dd class="font-mono text-sm font-semibold tabular-nums"><%= @dashboard.open_positions.size %></dd></div>
+        </dl>
       </article>
     </div>
-    <% if @dashboard.last_market_data_at %>
-      <p class="text-xs text-slate-500">
-        <%= t(".Last refreshed", time: l(@dashboard.last_market_data_at, format: :short)) %>
-        <% if @dashboard.stale_market_data? %>
-          <span class="font-medium text-amber-700"><%= t(".Some prices may be stale") %></span>
-        <% end %>
-      </p>
-    <% end %>
   <% elsif @dashboard.no_open_positions? %>
-    <div class="ui-card border-slate-200 bg-slate-50 p-8 sm:p-10" role="status">
-      <p class="ui-eyebrow"><%= t(".Portfolio status") %></p>
-      <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950"><%= t(".No open positions title") %></h2>
-      <p class="mt-2 max-w-2xl leading-7 text-slate-700"><%= t(".No open positions explanation") %></p>
-      <div class="mt-6 flex flex-wrap gap-3">
-        <%= link_to t(".View performance"), performance_path, class: "ui-button ui-button-secondary" %>
-        <%= link_to t(".View all trades"), transactions_path, class: "ui-button ui-button-secondary" %>
-      </div>
-    </div>
+    <div class="ui-card border-dashed p-8 sm:p-10" role="status"><p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t(".Portfolio status") %></p><h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t(".No open positions title") %></h2><p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t(".No open positions explanation") %></p></div>
   <% elsif @dashboard.has_trades? %>
-    <div class="ui-card border-amber-200 bg-amber-50 p-8 sm:p-10" role="status">
-      <p class="ui-eyebrow text-amber-800"><%= t(".Market data needs attention") %></p>
-      <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950"><%= t(".Portfolio value unavailable") %></h2>
-      <p class="mt-2 max-w-2xl leading-7 text-slate-700"><%= t(".Market data unavailable explanation") %></p>
-      <%= link_to t(".View positions"), positions_path, class: "ui-button ui-button-secondary mt-6" %>
-    </div>
+    <div class="ui-card border-sun/50 bg-sun/10 p-8" role="status"><p class="text-xs font-bold uppercase tracking-[0.16em] text-caramel-deep"><%= t(".Market data needs attention") %></p><h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t(".Portfolio value unavailable") %></h2><p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t(".Market data unavailable explanation") %></p><%= link_to t(".View positions"), positions_path, class: "ui-button ui-button-secondary mt-6" %></div>
   <% else %>
-    <div class="ui-card border-dashed p-8 sm:p-10">
-      <p class="ui-eyebrow"><%= t(".Ready when you are") %></p>
-      <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950"><%= t(".No portfolio yet") %></h2>
-      <p class="mt-2 max-w-2xl leading-7 text-slate-600"><%= t(".Empty state") %></p>
-    </div>
+    <div class="ui-card border-dashed p-8 sm:p-10"><p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t(".Ready when you are") %></p><h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t(".No portfolio yet") %></h2><p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t(".Empty state") %></p></div>
   <% end %>
 
-  <div class="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
-    <article class="ui-card p-6">
-      <div class="flex items-center justify-between gap-4">
-        <h2 class="text-lg font-semibold text-slate-950"><%= t(".Recent activity") %></h2>
-        <%= link_to t(".View all trades"), transactions_path, class: "text-sm font-semibold text-brand-700 hover:text-brand-900" %>
+  <% if @dashboard.market_value_available? %>
+    <section aria-labelledby="long-view-heading" class="space-y-5">
+      <div class="flex items-end justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t(".Portfolio activity") %></p><h2 id="long-view-heading" class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t(".The long view") %></h2></div><%= link_to t(".View performance"), performance_path, class: "text-sm font-bold text-caramel-deep hover:text-caramel" %></div>
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+        <article class="flex min-h-64 items-center justify-center rounded-[1.25rem] border border-dashed border-coffee/15 bg-oat-2 px-6 text-center text-sm text-muted"><%= t(".Performance history coming soon") %></article>
+        <article class="rounded-[1.25rem] border border-coffee/10 bg-oat-2 p-6 sm:p-7" id="holdings">
+          <div class="flex items-end justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t(".Your little pack") %></p><h3 class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t(".Holdings") %></h3></div><%= link_to t(".View all holdings"), positions_path, class: "text-sm font-bold text-caramel-deep hover:text-caramel" %></div>
+          <% if @dashboard.open_positions.any? %>
+            <div class="mt-6 space-y-4">
+              <% @dashboard.top_positions.each do |position| %>
+                <%= link_to position.instrument, class: "flex items-center gap-3 rounded-xl p-2 -mx-2 transition-colors hover:bg-caramel/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" do %>
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-caramel/15 font-mono text-xs font-semibold text-caramel-deep" translate="no"><%= position.instrument.ticker.first(4) %></span>
+                  <span class="min-w-0 flex-1"><strong class="block truncate text-sm text-coffee" translate="no"><%= position.instrument.name %></strong><span class="mt-1 block text-xs text-muted" translate="no"><%= position.instrument.ticker %> · <%= position.instrument.currency %></span></span>
+                  <span class="shrink-0 text-right font-mono text-sm font-semibold tabular-nums"><%= position.valuation.market_value&.format || t("Not available") %></span>
+                <% end %>
+              <% end %>
+            </div>
+          <% else %><p class="mt-5 text-sm text-muted"><%= t(".No open positions") %></p><% end %>
+          <div class="mt-7 border-t border-coffee/10 pt-5" id="activity">
+            <div class="flex items-center justify-between gap-4"><h4 class="text-sm font-semibold text-coffee"><%= t(".Recent activity") %></h4><%= link_to t(".View all trades"), transactions_path, class: "text-xs font-bold text-caramel-deep hover:text-caramel" %></div>
+            <% if @dashboard.recent_trades.any? %>
+              <div class="mt-2 divide-y divide-coffee/10"><% @dashboard.recent_trades.each do |trade| %><article id="<%= dom_id(trade) %>" class="flex items-center gap-3 py-3"><span class="size-2 shrink-0 rounded-full <%= trade.buy? ? "bg-leaf" : "bg-guava" %>" aria-hidden="true"></span><div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-coffee"><%= trade.buy? ? t("Buy") : t("Sell") %> · <span translate="no"><%= trade.instrument.ticker %></span></p><p class="mt-1 text-[0.7rem] text-muted"><%= l trade.traded_on, format: :short %> · <%= format_quantity trade.quantity %> <%= t("units") %></p></div><span class="shrink-0 font-mono text-xs font-semibold tabular-nums"><%= trade.total.format %></span></article><% end %></div>
+            <% else %><p class="mt-3 text-xs text-muted"><%= t(".No recent activity") %></p><% end %>
+          </div>
+        </article>
       </div>
-      <% if @dashboard.recent_trades.any? %>
-        <div class="mt-5 space-y-4">
-          <%= render partial: "dashboard/trade", collection: @dashboard.recent_trades, as: :trade %>
-        </div>
-      <% else %>
-        <p class="mt-4 text-sm leading-6 text-slate-600"><%= t(".No recent activity") %></p>
-      <% end %>
-    </article>
-
-    <article class="ui-card p-6">
-      <div class="flex items-center justify-between gap-4">
-        <h2 class="text-lg font-semibold text-slate-950"><%= t(".Holdings") %></h2>
-        <%= link_to t(".View positions"), positions_path, class: "text-sm font-semibold text-brand-700 hover:text-brand-900" %>
-      </div>
-      <% if @dashboard.open_positions.any? %>
-        <ul class="mt-5 space-y-3">
-          <% @dashboard.open_positions.first(5).each do |position| %>
-            <li class="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-              <%= link_to position.instrument.ticker, position.instrument, class: "font-mono font-semibold text-slate-950 hover:text-brand-700" %>
-              <span class="font-mono text-sm text-slate-600"><%= position.valuation.market_value&.format || t("Not available") %></span>
-            </li>
-          <% end %>
-        </ul>
-      <% else %>
-        <p class="mt-4 text-sm leading-6 text-slate-600"><%= t(".No open positions") %></p>
-      <% end %>
-    </article>
-  </div>
+    </section>
+  <% end %>
 </section>

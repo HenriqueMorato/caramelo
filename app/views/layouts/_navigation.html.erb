@@ -1,0 +1,48 @@
+<%# locals: () %>
+
+<aside class="hidden w-56 shrink-0 flex-col border-r border-coffee/10 bg-oat px-5 py-7 lg:flex">
+  <%= link_to root_path, class: "flex items-center gap-2 px-2", translate: "no" do %>
+    <%= image_tag "caramelo-logo.svg", class: "size-10", alt: "", aria: { hidden: true } %>
+    <span class="font-display text-2xl font-semibold tracking-tight text-coffee">caramelo</span>
+  <% end %>
+
+  <nav aria-label="<%= t("Primary navigation") %>" class="mt-12 flex-1">
+    <p class="px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
+    <div class="mt-4 space-y-1">
+      <% [[t("Dashboard"), root_path, "⌂"], [t("Positions"), positions_path, "◒"], [t("Transactions"), transactions_path, "↗"], [t("Performance"), performance_path, "⌁"]].each do |label, path, icon| %>
+        <% active = current_page?(path) %>
+        <%= link_to path, class: class_names("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } do %>
+          <span class="flex size-8 items-center justify-center text-lg <%= active ? "text-caramel-deep" : "text-coffee/70" %>" aria-hidden="true"><%= icon %></span>
+          <span translate="no"><%= label %></span>
+        <% end %>
+      <% end %>
+    </div>
+    <p class="mt-10 px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Manage") %></p>
+    <div class="mt-4 space-y-1">
+      <% [[t("Institutions"), institutions_path, "⌂"], [t("Instruments"), instruments_path, "◉"]].each do |label, path, icon| %>
+        <% active = current_page?(path) %>
+        <%= link_to path, class: class_names("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } do %>
+          <span class="flex size-8 items-center justify-center text-lg text-coffee/70" aria-hidden="true"><%= icon %></span>
+          <span translate="no"><%= label %></span>
+        <% end %>
+      <% end %>
+    </div>
+  </nav>
+
+  <div class="relative overflow-hidden rounded-2xl bg-caramel/15 p-4">
+    <p class="relative z-10 font-display text-lg leading-tight text-coffee"><span class="block"><%= t("Small steps") %></span><span class="block"><%= t("Long walks") %></span></p>
+    <p class="relative z-10 mt-3 text-xs leading-5 text-caramel-deep/80"><%= t("Your portfolio is out for a stroll") %></p>
+    <span class="absolute -bottom-8 -right-7 size-[90px] rounded-full bg-[#fff9ef]/[.32]" aria-hidden="true"></span>
+  </div>
+</aside>
+
+<header class="border-b border-coffee/10 bg-oat/95 lg:hidden">
+  <div class="flex items-center gap-4 overflow-x-auto px-5 py-4">
+    <%= link_to "caramelo", root_path, class: "shrink-0 font-display text-2xl font-semibold text-coffee", translate: "no" %>
+    <nav aria-label="<%= t("Primary navigation") %>" class="flex gap-1">
+      <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path], [t("Institutions"), institutions_path], [t("Instruments"), instruments_path]].each do |label, path| %>
+        <%= link_to label, path, class: "min-h-11 shrink-0 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-caramel/10 hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" %>
+      <% end %>
+    </nav>
+  </div>
+</header>

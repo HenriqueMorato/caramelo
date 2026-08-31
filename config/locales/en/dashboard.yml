@@ -2,33 +2,43 @@
 en:
   dashboard:
     index:
+      A little green around the edges: A little green around the edges.
+      Add transaction: Add transaction
+      All paws on deck: All paws on deck.
+      At a glance: At a glance
+      Day change: Day change
       Empty state: Add your first trade to see portfolio value, performance, and activity
         here.
-      Gain or loss: Gain or loss
       Holdings: Holdings
-      Last refreshed: Last refreshed %{time}
+      Invested: Invested
       Market data needs attention: Market data needs attention
       Market data unavailable explanation: Add or refresh current prices for your
         open positions to see the portfolio value here.
+      Market data updated: Market data updated %{time} ago
       No open positions: No open positions yet.
       No open positions explanation: Your trades are recorded, but there are no current
         holdings to value.
       No open positions title: No open positions
       No portfolio yet: Your portfolio starts with a trade
       No recent activity: No trades recorded yet.
-      Open positions: Open positions
       Page title: Dashboard · %{application}
+      Performance history coming soon: Historical performance will appear here after
+        daily history is available.
+      Portfolio activity: Portfolio activity
       Portfolio introduction: Keep an eye on your holdings, performance, and recent
         investment activity.
+      Portfolio overview: Portfolio overview
       Portfolio status: Portfolio status
-      Portfolio value: Portfolio value
       Portfolio value unavailable: Portfolio value is unavailable
       Ready when you are: Ready when you are
       Recent activity: Recent activity
-      Return: Return
-      Review methodology: Review methodology
-      Single-user workspace: Single-user workspace
-      Some prices may be stale: Some prices may be stale
+      That's a good sign: That's a good sign.
+      The long view: The long view
+      Today: today
+      Total portfolio value: Total portfolio value
+      Unrealized return: Unrealized return
+      View all holdings: View all holdings
       View all trades: View all trades
       View performance: View performance
       View positions: View positions
+      Your little pack: Your little pack
