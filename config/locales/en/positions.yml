@@ -5,9 +5,12 @@ en:
       Closed positions hidden: Include closed positions to review the complete trade
         history.
       Empty state: Record a trade to calculate your first position.
+      Heading: Your little pack.
       Include closed positions: Include closed positions
       Introduction: Review current quantities and weighted-average costs derived from
         your trades.
+      Position: Position
+      Subheading: Every position, in one calm place.
       No open positions: No open positions
       No positions yet: No positions yet
       Page title: Positions · %{application}

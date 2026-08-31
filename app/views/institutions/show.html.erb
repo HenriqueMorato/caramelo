@@ -2,35 +2,35 @@
 
 <section class="mx-auto max-w-3xl space-y-8">
   <div>
-    <%= link_to t("All institutions"), institutions_path, class: "text-sm font-semibold text-emerald-700 hover:text-emerald-900" %>
+    <%= link_to t("All institutions"), institutions_path, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
   </div>
 
-  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div class="space-y-3">
-        <p class="text-sm font-semibold uppercase tracking-wider text-emerald-700"><%= Institution.model_name.human %></p>
-        <h1 class="text-4xl font-bold tracking-tight text-slate-950"><%= @institution.name %></h1>
+        <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= Institution.model_name.human %></p>
+        <h1 class="text-4xl font-bold tracking-tight text-coffee"><%= @institution.name %></h1>
       </div>
 
       <% if @institution.active? %>
-        <span class="w-fit rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800"><%= t("statuses.Active") %></span>
+        <span class="w-fit rounded-full bg-leaf/15 px-3 py-1 text-xs font-semibold text-leaf"><%= t("statuses.Active") %></span>
       <% else %>
-        <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"><%= t("statuses.Inactive") %></span>
+        <span class="w-fit rounded-full bg-coffee/5 px-3 py-1 text-xs font-semibold text-muted"><%= t("statuses.Inactive") %></span>
       <% end %>
     </div>
 
-    <div class="mt-8 border-t border-slate-200 pt-6">
-      <h2 class="text-sm font-semibold text-slate-900"><%= Institution.human_attribute_name(:notes) %></h2>
+    <div class="mt-8 border-t border-coffee/10 pt-6">
+      <h2 class="text-sm font-semibold text-coffee"><%= Institution.human_attribute_name(:notes) %></h2>
       <% if @institution.notes.present? %>
-        <p class="mt-2 whitespace-pre-wrap leading-7 text-slate-600"><%= @institution.notes %></p>
+        <p class="mt-2 whitespace-pre-wrap leading-7 text-muted"><%= @institution.notes %></p>
       <% else %>
-        <p class="mt-2 text-slate-500"><%= t(".No notes added") %></p>
+        <p class="mt-2 text-muted"><%= t(".No notes added") %></p>
       <% end %>
     </div>
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
-    <%= link_to t("actions.Edit model", model: Institution.model_name.human.downcase), edit_institution_path(@institution), class: "rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>
+    <%= link_to t("actions.Edit model", model: Institution.model_name.human.downcase), edit_institution_path(@institution), class: "rounded-xl bg-caramel-deep px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
     <%= button_to t("actions.Delete"), @institution, method: :delete, class: "rounded-xl px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50", data: { turbo_confirm: t("confirmations.Delete record", record: @institution.name) } %>
   </div>
 </section>

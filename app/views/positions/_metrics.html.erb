@@ -1,25 +1,25 @@
 <%# locals: (position:, instrument:, valuation:) %>
 
-<dl class="grid grid-cols-2 divide-x divide-y divide-slate-200 rounded-xl bg-slate-50 py-3 text-center ring-1 ring-inset ring-slate-100 sm:grid-cols-4 sm:divide-y-0 lg:min-w-[48rem]">
+<dl class="grid min-w-0 grid-cols-2 divide-x divide-y divide-coffee/10 rounded-xl bg-oat py-3 text-center ring-1 ring-inset ring-coffee/5 sm:grid-cols-4 sm:divide-y-0 2xl:min-w-[48rem]">
   <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs"><%= t("Quantity") %></dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= format_quantity position.quantity %></dd>
+    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs"><%= t("Quantity") %></dt>
+    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= format_quantity position.quantity %></dd>
   </div>
   <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs"><%= t("Average cost") %></dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= format_currency_amount position.average_unit_cost, instrument.currency %></dd>
+    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs"><%= t("Average cost") %></dt>
+    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= format_currency_amount position.average_unit_cost, instrument.currency %></dd>
   </div>
   <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs"><%= t("Cost basis") %></dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= position.cost_basis.format %></dd>
+    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs"><%= t("Cost basis") %></dt>
+    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= position.cost_basis.format %></dd>
   </div>
   <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center gap-1 text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 sm:text-xs">
+    <dt class="flex min-h-8 items-center justify-center gap-1 text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs">
       <%= t("Market value") %>
       <% if valuation.stale? %>
         <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold normal-case tracking-normal text-amber-800"><%= t("Stale") %></span>
       <% end %>
     </dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-slate-950"><%= valuation.available? ? valuation.market_value.format : t("Value unavailable") %></dd>
+    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= valuation.available? ? valuation.market_value.format : t("Value unavailable") %></dd>
   </div>
 </dl>

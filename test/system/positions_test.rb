@@ -8,7 +8,7 @@ class PositionsTest < ApplicationSystemTestCase
   test "shows an open position on a mobile viewport" do
     visit positions_path
 
-    assert_text "Positions"
+    assert_text "Your little pack."
     assert_text "VOO"
     assert_text "ARCX"
     assert_text "Vanguard S&P 500 ETF"
@@ -38,7 +38,7 @@ class PositionsTest < ApplicationSystemTestCase
     assert_text "Closed"
   end
 
-  test "shows a B3 price as refreshing after a manual refresh" do
+  test "shows an unavailable B3 price without a refresh control" do
     instrument = instruments(:petr4_bvmf)
     create_trade(instrument:, side: :buy)
 
@@ -46,8 +46,7 @@ class PositionsTest < ApplicationSystemTestCase
 
     within "#current_market_price_instrument_#{instrument.id}" do
       assert_text "Price unavailable"
-      click_on "Refresh"
-      assert_text "Refreshing"
+      assert_no_button "Refresh"
     end
   end
 

@@ -17,27 +17,27 @@
         <article class="ui-card ui-card-interactive p-6">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="text-lg font-semibold text-slate-950"><%= link_to institution.name, institution, class: "hover:text-emerald-700" %></h2>
+              <h2 class="text-lg font-semibold text-coffee"><%= link_to institution.name, institution, class: "hover:text-caramel-deep" %></h2>
               <% if institution.notes.present? %>
-                <p class="mt-2 line-clamp-2 text-sm leading-6 text-slate-600"><%= institution.notes %></p>
+                <p class="mt-2 line-clamp-2 text-sm leading-6 text-muted"><%= institution.notes %></p>
               <% end %>
             </div>
 
             <% if institution.active? %>
-              <span class="ui-badge bg-emerald-100 text-emerald-800"><%= t("statuses.Active") %></span>
+              <span class="ui-badge bg-leaf/15 text-leaf"><%= t("statuses.Active") %></span>
             <% else %>
-              <span class="ui-badge bg-slate-100 text-slate-600"><%= t("statuses.Inactive") %></span>
+              <span class="ui-badge bg-coffee/5 text-muted"><%= t("statuses.Inactive") %></span>
             <% end %>
           </div>
 
-          <%= link_to t("actions.View details"), institution, class: "mt-5 inline-flex text-sm font-semibold text-emerald-700 hover:text-emerald-900" %>
+          <%= link_to t("actions.View details"), institution, class: "mt-5 inline-flex text-sm font-semibold text-caramel-deep hover:text-coffee" %>
         </article>
       <% end %>
     </div>
   <% else %>
     <div class="ui-empty-state">
-      <p class="font-medium text-slate-900"><%= t(".No institutions yet") %></p>
-      <p class="mt-2 text-sm leading-6 text-slate-600"><%= t(".Empty state") %></p>
+      <p class="font-medium text-coffee"><%= t(".No institutions yet") %></p>
+      <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty state") %></p>
     </div>
   <% end %>
 </section>
