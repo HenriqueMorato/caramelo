@@ -18,18 +18,27 @@
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
+
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
   <body class="min-h-screen bg-oat text-coffee antialiased">
-    <a href="#main-content" class="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-lg focus-visible:bg-coffee focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-oat"><%= t("Skip to content") %></a>
+    <a
+      href="#main-content"
+      class="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-lg focus-visible:bg-coffee focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-oat"
+    >
+      <%= t("Skip to content") %>
+    </a>
     <div class="min-h-screen font-sans lg:flex">
       <%= render "layouts/navigation" %>
 
       <div class="min-w-0 flex-1">
-        <main id="main-content" class="mx-auto w-full max-w-[1480px] px-5 py-8 lg:px-12 lg:py-10">
+        <main
+          id="main-content"
+          class="mx-auto w-full max-w-[1480px] px-5 py-8 lg:px-12 lg:py-10"
+        >
           <%= render "layouts/flash_messages" %>
           <%= yield %>
         </main>
