@@ -21,13 +21,13 @@
     <div class="flex flex-wrap items-center gap-2">
       <h2 id="position-summary-heading" class="text-lg font-semibold text-coffee"><%= t(".Current position") %></h2>
       <% if @position_error %>
-        <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800"><%= t("Needs attention") %></span>
+        <span class="ui-badge ui-badge-attention"><%= t("Needs attention") %></span>
       <% elsif @position.first_trade_date.nil? %>
-        <span class="rounded-full bg-coffee/5 px-3 py-1 text-xs font-semibold text-coffee/80"><%= t(".No trades status") %></span>
+        <span class="ui-badge ui-badge-closed"><%= t(".No trades status") %></span>
       <% elsif @position.closed? %>
-        <span class="rounded-full bg-coffee/5 px-3 py-1 text-xs font-semibold text-coffee/80"><%= t("Closed") %></span>
+        <span class="ui-badge ui-badge-closed"><%= t("Closed") %></span>
       <% else %>
-        <span class="rounded-full bg-caramel/15 px-3 py-1 text-xs font-semibold text-coffee"><%= t("Open") %></span>
+        <span class="ui-badge ui-badge-open"><%= t("Open") %></span>
       <% end %>
     </div>
 

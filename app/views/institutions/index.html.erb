@@ -24,9 +24,9 @@
             </div>
 
             <% if institution.active? %>
-              <span class="ui-badge bg-leaf/15 text-leaf"><%= t("statuses.Active") %></span>
+              <span class="ui-badge ui-badge-active"><%= t("statuses.Active") %></span>
             <% else %>
-              <span class="ui-badge bg-coffee/5 text-muted"><%= t("statuses.Inactive") %></span>
+              <span class="ui-badge ui-badge-inactive"><%= t("statuses.Inactive") %></span>
             <% end %>
           </div>
 

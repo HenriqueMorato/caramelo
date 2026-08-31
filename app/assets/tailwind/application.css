@@ -93,6 +93,29 @@
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
 
+  .ui-badge-open,
+  .ui-badge-buy {
+    @apply bg-caramel/15 text-coffee;
+  }
+
+  .ui-badge-closed,
+  .ui-badge-inactive {
+    @apply bg-coffee/5 text-muted;
+  }
+
+  .ui-badge-active {
+    @apply bg-leaf/15 text-leaf;
+  }
+
+  .ui-badge-stale {
+    @apply bg-caramel/20 text-caramel-deep;
+  }
+
+  .ui-badge-attention,
+  .ui-badge-sell {
+    @apply bg-red-100 text-red-800;
+  }
+
   .ui-empty-state {
     @apply rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center;
   }

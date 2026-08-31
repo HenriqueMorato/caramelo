@@ -4,7 +4,7 @@
   <div class="flex items-start justify-between gap-4">
     <div class="min-w-0 space-y-2">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="<%= class_names("rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide", "bg-caramel/15 text-coffee": trade.buy?, "bg-red-100 text-red-800": trade.sell?) %>"><%= trade.buy? ? t("Buy") : t("Sell") %></span>
+        <span class="<%= class_names("ui-badge uppercase tracking-wide", "ui-badge-buy": trade.buy?, "ui-badge-sell": trade.sell?) %>"><%= trade.buy? ? t("Buy") : t("Sell") %></span>
         <span class="text-sm text-muted"><%= l trade.traded_on, format: :long %></span>
       </div>
 

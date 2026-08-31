@@ -17,7 +17,7 @@
     <dt class="flex min-h-8 items-center justify-center gap-1 text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs">
       <%= t("Market value") %>
       <% if valuation.stale? %>
-        <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold normal-case tracking-normal text-amber-800"><%= t("Stale") %></span>
+        <span class="ui-badge ui-badge-stale px-1.5 py-0.5 text-[0.6rem] normal-case tracking-normal"><%= t("Stale") %></span>
       <% end %>
     </dt>
     <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= valuation.available? ? valuation.market_value.format : t("Value unavailable") %></dd>
