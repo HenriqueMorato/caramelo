@@ -74,17 +74,17 @@
   </section>
 
   <div class="flex flex-wrap items-center gap-3">
-    <%= link_to t("actions.Edit model", model: Instrument.model_name.human.downcase), edit_instrument_path(@instrument), class: "rounded-xl bg-caramel-deep px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
+    <%= link_to t("actions.Edit model", model: Instrument.model_name.human.downcase), edit_instrument_path(@instrument), class: "ui-button ui-button-primary" %>
     <% if @instrument.trades.exists? %>
       <% delete_tooltip_id = dom_id(@instrument, :delete_tooltip) %>
       <span class="group relative inline-flex" tabindex="0" aria-describedby="<%= delete_tooltip_id %>">
-        <button type="button" disabled class="cursor-not-allowed rounded-xl px-5 py-3 text-sm font-semibold text-muted/70"><%= t("actions.Delete") %></button>
+        <button type="button" disabled class="ui-button cursor-not-allowed text-muted/70"><%= t("actions.Delete") %></button>
         <span id="<%= delete_tooltip_id %>" role="tooltip" class="pointer-events-none invisible absolute bottom-full left-1/2 z-10 mb-2 w-max max-w-64 -translate-x-1/2 rounded-lg bg-coffee px-3 py-2 text-center text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
           <%= t(".Delete blocked") %>
         </span>
       </span>
     <% else %>
-      <%= button_to t("actions.Delete"), @instrument, method: :delete, class: "rounded-xl px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50", data: { turbo_confirm: t("confirmations.Delete record", record: @instrument.ticker) } %>
+      <%= button_to t("actions.Delete"), @instrument, method: :delete, class: "ui-button ui-button-danger", data: { turbo_confirm: t("confirmations.Delete record", record: @instrument.ticker) } %>
     <% end %>
   </div>
 </section>

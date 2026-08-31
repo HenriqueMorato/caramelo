@@ -30,7 +30,7 @@
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
-    <%= link_to t("actions.Edit model", model: Institution.model_name.human.downcase), edit_institution_path(@institution), class: "rounded-xl bg-caramel-deep px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
-    <%= button_to t("actions.Delete"), @institution, method: :delete, class: "rounded-xl px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50", data: { turbo_confirm: t("confirmations.Delete record", record: @institution.name) } %>
+    <%= link_to t("actions.Edit model", model: Institution.model_name.human.downcase), edit_institution_path(@institution), class: "ui-button ui-button-primary" %>
+    <%= button_to t("actions.Delete"), @institution, method: :delete, class: "ui-button ui-button-danger", data: { turbo_confirm: t("confirmations.Delete record", record: @institution.name) } %>
   </div>
 </section>
