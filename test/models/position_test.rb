@@ -16,6 +16,17 @@ class PositionTest < ActiveSupport::TestCase
     assert results.none?(&:invalid?)
   end
 
+  test "scopes overview to the requested owner" do
+    Trade.where(user: users(:one)).delete_all
+    instrument = create_instrument
+    create_trade(instrument:, user: users(:one), quantity: 4)
+
+    results = Position.overview(owner: users(:one))
+
+    assert_equal [ instrument ], results.map(&:instrument)
+    assert_equal BigDecimal("4"), results.first.position.quantity
+  end
+
   test "loads overview trades and instruments in a bounded number of queries" do
     create_trade(instrument: create_instrument(ticker: "MORE"))
 

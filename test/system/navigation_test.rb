@@ -20,6 +20,6 @@ class NavigationTest < ApplicationSystemTestCase
     click_on "Dashboard"
 
     assert_current_path root_path
-    assert_text "Your portfolio overview will live here"
+    assert_text "Portfolio value is unavailable"
   end
 end

@@ -5,7 +5,7 @@ class I18nConfigurationTest < ActiveSupport::TestCase
     locale_file = Rails.root.join("config/locales/en/application.yml").to_s
 
     assert_includes I18n.load_path.map(&:to_s), locale_file
-    assert_equal "LocalFolio", I18n.t("LocalFolio")
+    assert_equal "caramelo", I18n.t("LocalFolio")
   end
 
   test "raises when a translation is missing in test" do

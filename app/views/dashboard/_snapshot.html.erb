@@ -1,0 +1,29 @@
+<%# locals: (dashboard:) %>
+
+<article class="rounded-[1.75rem] border border-coffee/10 bg-oat-2 p-7">
+  <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t("dashboard.index.At a glance") %></p>
+  <h2 class="mt-3 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t("dashboard.index.All paws on deck") %></h2>
+  <dl class="mt-7 divide-y divide-coffee/10">
+    <div class="flex items-center justify-between gap-4 py-4 first:pt-0">
+      <dt class="text-sm text-muted"><%= t("dashboard.index.Invested") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums"><%= dashboard.performance.net_cash_flow&.format || t("Not available") %></dd>
+    </div>
+    <% unrealized_return = dashboard.unrealized_return %>
+    <div class="flex items-center justify-between gap-4 py-4">
+      <dt class="text-sm text-muted"><%= t("dashboard.index.Unrealized return") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums <%= dashboard.unrealized_return_color_class %>">
+        <%= dashboard.unrealized_return_label || t("Not available") %>
+      </dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-4">
+      <dt class="text-sm text-muted"><%= t("dashboard.index.Day change") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums <%= dashboard.day_change_color_class %>">
+        <%= dashboard.day_change_ratio_label || t("Not available") %>
+      </dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-4 last:pb-0">
+      <dt class="text-sm text-muted"><%= t("dashboard.index.Holdings") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums"><%= dashboard.open_positions.size %></dd>
+    </div>
+  </dl>
+</article>
