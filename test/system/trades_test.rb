@@ -132,7 +132,7 @@ class TradesTest < ApplicationSystemTestCase
 
     assert_text "Trade was updated."
     assert_text "SELL"
-    assert_selector ".bg-red-100", text: "SELL"
+    assert_selector ".ui-badge-sell", text: "SELL"
     assert_text "1 × $620.00"
     assert_text "Reduced position"
     assert_text "Banco do Brasil"
