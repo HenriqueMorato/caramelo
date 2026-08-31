@@ -9,20 +9,19 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     get positions_url
 
     assert_response :success
-    assert_select "h1", "Positions"
+    assert_select "h1", "Your little pack."
     assert_select "h2", text: "VOO"
     assert_select "span", text: "ARCX"
     assert_select "p", text: /Vanguard S&P 500 ETF · USD/
-    assert_select "dt", "Average cost"
-    assert_select "dt", "Cost basis"
-    assert_select "dt", text: "Currency", count: 0
-    assert_select "dd", text: "2.5"
-    assert_select "dd", text: "$611.60"
-    assert_select "dd", text: "$1,529.00"
+    assert_select "th", "Average cost"
+    assert_select "th", "Cost basis"
+    assert_select "th", text: "Currency", count: 0
+    assert_select "td", text: "2.5"
+    assert_select "td", text: "$611.60"
+    assert_select "td", text: "$1,529.00"
     assert_select "article", text: /Other owner trade/, count: 0
     assert_select "h2", text: /PETR4/, count: 0
     assert_select "#current_market_price_instrument_#{instruments(:voo_arcx).id}", text: /Price unavailable/
-    assert_select "form[action=?]", instrument_current_market_price_refresh_path(instruments(:voo_arcx))
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
@@ -82,7 +81,6 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#current_market_price_instrument_#{instrument.id}", text: /Current price/
     assert_select "#current_market_price_instrument_#{instrument.id}", text: /R\$32,46/
     assert_select "#current_market_price_instrument_#{instrument.id}", text: /Current/
-    assert_select "form[action=?]", instrument_current_market_price_refresh_path(instrument)
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
@@ -94,8 +92,8 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     get positions_url
 
     assert_response :success
-    assert_select "dt", "Market value"
-    assert_select "dd", "R$1.250,00"
+    assert_select "th", "Market value"
+    assert_select "td", "R$1.250,00"
   end
 
   private

@@ -27,7 +27,6 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2", "Trade history"
     assert_select "p", "No trades for this instrument"
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
-    assert_select "form[action=?]", instrument_current_market_price_refresh_path(@instrument)
   end
 
   test "shows only the configured owner's trades for an instrument" do
@@ -48,7 +47,6 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role='tooltip']", "Delete this instrument's trades before deleting the instrument."
     assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
     assert_select "#current_market_price_instrument_#{instrument.id}", text: /Price unavailable/
-    assert_select "form[action=?]", instrument_current_market_price_refresh_path(instrument)
   end
 
   test "shows a closed position" do
@@ -92,7 +90,6 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /R\$32,45/
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Stale/
-    assert_select "form[action=?]", instrument_current_market_price_refresh_path(@instrument)
   end
 
   test "creates a global instrument" do

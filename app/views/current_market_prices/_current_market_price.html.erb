@@ -8,6 +8,7 @@
 <section id="<%= dom_id(market_price.instrument, :current_market_price) %>" class="inline-flex max-w-full min-w-0 items-center gap-2" aria-live="polite">
   <div class="min-w-0">
     <p class="truncate font-mono text-sm font-semibold text-coffee">
+      <span class="sr-only"><%= t("Current price") %></span>
       <% if current_market_price %>
         <%= format_currency_amount current_market_price.unit_price, current_market_price.currency %>
       <% else %>
