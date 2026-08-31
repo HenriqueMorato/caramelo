@@ -9,7 +9,7 @@
     <%= link_to t("dashboard.index.View performance"), performance_path, class: "text-sm font-bold text-caramel-deep hover:text-caramel" %>
   </div>
 
-  <div class="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+  <div class="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
     <%= render "dashboard/performance_history" %>
     <%= render "dashboard/portfolio_data", dashboard: dashboard %>
   </div>

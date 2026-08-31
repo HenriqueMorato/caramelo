@@ -1,39 +1,39 @@
 <%# locals: (trade:) %>
 
-<article id="<%= dom_id(trade) %>" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+<article id="<%= dom_id(trade) %>" class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
   <div class="flex items-start justify-between gap-4">
     <div class="min-w-0 space-y-2">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="<%= class_names("rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide", "bg-emerald-100 text-emerald-800": trade.buy?, "bg-red-100 text-red-800": trade.sell?) %>"><%= trade.buy? ? t("Buy") : t("Sell") %></span>
-        <span class="text-sm text-slate-500"><%= l trade.traded_on, format: :long %></span>
+        <span class="<%= class_names("rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide", "bg-caramel/15 text-coffee": trade.buy?, "bg-red-100 text-red-800": trade.sell?) %>"><%= trade.buy? ? t("Buy") : t("Sell") %></span>
+        <span class="text-sm text-muted"><%= l trade.traded_on, format: :long %></span>
       </div>
 
-      <h2 class="font-mono text-xl font-bold text-slate-950">
-        <%= link_to "#{trade.instrument.ticker} · #{trade.instrument.exchange}", trade.instrument, class: "hover:text-emerald-700" %>
+      <h2 class="font-mono text-xl font-bold text-coffee">
+        <%= link_to "#{trade.instrument.ticker} · #{trade.instrument.exchange}", trade.instrument, class: "hover:text-caramel-deep" %>
       </h2>
-      <p class="text-sm text-slate-600"><%= trade.instrument.name %></p>
+      <p class="text-sm text-muted"><%= trade.instrument.name %></p>
     </div>
 
     <div class="shrink-0 text-right">
-      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500"><%= t("Total") %></p>
-      <p class="mt-1 font-mono text-lg font-semibold text-slate-950"><%= trade.total.format %></p>
-      <p class="mt-1 text-xs text-slate-500"><%= format_quantity trade.quantity %> × <%= format_unit_price trade %></p>
+      <p class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("Total") %></p>
+      <p class="mt-1 font-mono text-lg font-semibold text-coffee"><%= trade.total.format %></p>
+      <p class="mt-1 text-xs text-muted"><%= format_quantity trade.quantity %> × <%= format_unit_price trade %></p>
     </div>
   </div>
 
-  <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-    <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+  <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-coffee/5 pt-4">
+    <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
       <span><%= t(".Fees value", fees: trade.fees.format) %></span>
       <span><%= t(".Currency value", currency: trade.currency) %></span>
       <span><%= t(".Institution value", institution: trade.institution&.name || t("None")) %></span>
     </div>
     <div class="ml-auto flex items-center gap-1">
-      <%= link_to t("actions.Edit"), edit_trade_path(trade), class: "rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900" %>
+      <%= link_to t("actions.Edit"), edit_trade_path(trade), class: "rounded-lg px-2 py-1 text-xs font-semibold text-caramel-deep hover:bg-caramel/10 hover:text-coffee" %>
       <%= button_to t("actions.Delete"), trade_path(trade), method: :delete, class: "rounded-lg px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 hover:text-red-900", data: { turbo_confirm: t("confirmations.Delete trade") } %>
     </div>
   </div>
 
   <% if trade.notes.present? %>
-    <p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600"><%= trade.notes %></p>
+    <p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted"><%= trade.notes %></p>
   <% end %>
 </article>

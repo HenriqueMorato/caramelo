@@ -3,15 +3,15 @@
 <section class="space-y-8">
   <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
     <div class="max-w-3xl space-y-3">
-      <p class="text-sm font-semibold uppercase tracking-wider text-emerald-700"><%= t("Portfolio activity") %></p>
-      <h1 class="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl"><%= t("Performance") %></h1>
-      <p class="text-lg leading-8 text-slate-600"><%= t(".Introduction") %></p>
+      <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= t("Portfolio activity") %></p>
+      <h1 class="text-4xl font-bold tracking-tight text-coffee sm:text-5xl"><%= t("Performance") %></h1>
+      <p class="text-lg leading-8 text-muted"><%= t(".Introduction") %></p>
     </div>
 
     <nav aria-label="<%= t(".Period selection") %>" class="flex flex-wrap gap-2">
       <% PerformancesController::PERIODS.each_key do |period| %>
         <% selected = @selected_period == period %>
-        <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "rounded-lg px-3 py-2 text-sm font-semibold #{selected ? "bg-emerald-700 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}" %>
+        <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "rounded-lg px-3 py-2 text-sm font-semibold #{selected ? "bg-caramel-deep text-white" : "border border-coffee/20 bg-oat-2 text-coffee/80 hover:bg-oat"}" %>
       <% end %>
     </nav>
   </div>
@@ -27,56 +27,56 @@
       <p class="mt-2 text-sm leading-6"><%= t(explanation_key) %></p>
     </div>
   <% elsif @performance.empty? %>
-    <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-      <p class="font-medium text-slate-900"><%= t(".No performance yet") %></p>
-      <p class="mt-2 text-sm leading-6 text-slate-600"><%= t(".Empty state") %></p>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "mt-5 inline-flex rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" %>
+    <div class="rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center">
+      <p class="font-medium text-coffee"><%= t(".No performance yet") %></p>
+      <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty state") %></p>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "mt-5 inline-flex rounded-xl bg-caramel-deep px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
     </div>
   <% else %>
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Portfolio value") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-slate-950"><%= @performance.closing_valuation.market_value.format %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Portfolio value") %></p>
+        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.closing_valuation.market_value.format %></p>
         <% market_price_date = @performance.closing_valuation.market_price_as_of %>
         <% exchange_rate_date = @performance.closing_valuation.exchange_rate_as_of %>
         <% if market_price_date && exchange_rate_date && market_price_date != exchange_rate_date %>
-          <p class="mt-2 text-xs text-slate-500"><%= t(".Market prices and FX rates through", market_price_date: l(market_price_date, format: :long), exchange_rate_date: l(exchange_rate_date, format: :long)) %></p>
+          <p class="mt-2 text-xs text-muted"><%= t(".Market prices and FX rates through", market_price_date: l(market_price_date, format: :long), exchange_rate_date: l(exchange_rate_date, format: :long)) %></p>
         <% elsif market_price_date %>
-          <p class="mt-2 text-xs text-slate-500"><%= t(".Prices through", date: l(market_price_date, format: :long)) %></p>
+          <p class="mt-2 text-xs text-muted"><%= t(".Prices through", date: l(market_price_date, format: :long)) %></p>
         <% end %>
       </article>
 
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Gain or loss") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight <%= @performance.gain_loss_amount.negative? ? "text-red-700" : "text-emerald-700" %>"><%= @performance.gain_loss.format %></p>
-        <p class="mt-2 text-xs text-slate-500"><%= t(".Excluding trade cash flows") %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Gain or loss") %></p>
+        <p class="mt-2 font-mono text-2xl font-bold tracking-tight <%= @performance.gain_loss_amount.negative? ? "text-red-700" : "text-caramel-deep" %>"><%= @performance.gain_loss.format %></p>
+        <p class="mt-2 text-xs text-muted"><%= t(".Excluding trade cash flows") %></p>
       </article>
 
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Price return") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-slate-950"><%= @performance.return_available? ? number_to_percentage(@performance.return_ratio * 100, precision: 2) : t("Not available") %></p>
-        <p class="mt-2 text-xs text-slate-500"><%= t(".Cash-flow adjusted") %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Price return") %></p>
+        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.return_available? ? number_to_percentage(@performance.return_ratio * 100, precision: 2) : t("Not available") %></p>
+        <p class="mt-2 text-xs text-muted"><%= t(".Cash-flow adjusted") %></p>
       </article>
 
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Daily value") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-slate-950"><%= @performance.closing_valuation.market_value.format %></p>
-        <p class="mt-2 text-xs text-slate-500"><%= l(@performance.to, format: :long) %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Daily value") %></p>
+        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.closing_valuation.market_value.format %></p>
+        <p class="mt-2 text-xs text-muted"><%= l(@performance.to, format: :long) %></p>
       </article>
     </div>
 
     <div class="grid gap-4 md:grid-cols-3">
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Realized gains to date") %></p>
-        <p class="mt-2 font-mono text-xl font-bold text-slate-950"><%= @performance.closing_valuation.realized_gain.format %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Realized gains to date") %></p>
+        <p class="mt-2 font-mono text-xl font-bold text-coffee"><%= @performance.closing_valuation.realized_gain.format %></p>
       </article>
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Unrealized gains to date") %></p>
-        <p class="mt-2 font-mono text-xl font-bold text-slate-950"><%= @performance.closing_valuation.unrealized_gain.format %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Unrealized gains to date") %></p>
+        <p class="mt-2 font-mono text-xl font-bold text-coffee"><%= @performance.closing_valuation.unrealized_gain.format %></p>
       </article>
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-600"><%= t(".Net invested") %></p>
-        <p class="mt-2 font-mono text-xl font-bold text-slate-950"><%= @performance.net_cash_flow.format %></p>
+      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
+        <p class="text-sm font-medium text-muted"><%= t(".Net invested") %></p>
+        <p class="mt-2 font-mono text-xl font-bold text-coffee"><%= @performance.net_cash_flow.format %></p>
       </article>
     </div>
   <% end %>

@@ -5,13 +5,14 @@ en:
       Closed positions hidden: Include closed positions to review the complete trade
         history.
       Empty state: Record a trade to calculate your first position.
+      Heading: Your little pack.
       Include closed positions: Include closed positions
-      Introduction: Review current quantities and weighted-average costs derived from
-        your trades.
       No open positions: No open positions
       No positions yet: No positions yet
       Page title: Positions · %{application}
+      Position: Position
       Position could not be calculated: Position could not be calculated
       Sales exceed purchases: Recorded sales exceed purchases on %{date}. Review this
         instrument's trades.
       Show open positions: Show open positions only
+      Subheading: Every position, in one calm place.

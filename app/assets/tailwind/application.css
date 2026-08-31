@@ -34,6 +34,16 @@
   --color-brand-800: #8d4b2e;
 }
 
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+}
+
 @layer components {
   .ui-card {
     @apply rounded-[1.25rem] border border-coffee/10 bg-oat-2 shadow-none;
@@ -76,7 +86,7 @@
   }
 
   .ui-empty-state {
-    @apply rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center;
+    @apply rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center;
   }
 }
 

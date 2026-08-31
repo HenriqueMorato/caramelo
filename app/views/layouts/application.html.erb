@@ -31,13 +31,13 @@
     >
       <%= t("Skip to content") %>
     </a>
-    <div class="min-h-screen font-sans lg:flex">
+    <div class="min-h-screen font-sans md:flex">
       <%= render "layouts/navigation" %>
 
       <div class="min-w-0 flex-1">
         <main
           id="main-content"
-          class="mx-auto w-full max-w-[1480px] px-5 py-8 lg:px-12 lg:py-10"
+          class="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 xl:px-12 lg:py-10"
         >
           <%= render "layouts/flash_messages" %>
           <%= yield %>

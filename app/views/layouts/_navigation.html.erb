@@ -1,12 +1,12 @@
 <%# locals: () %>
 
-<aside class="hidden w-56 shrink-0 flex-col border-r border-coffee/10 bg-oat px-5 py-7 lg:flex">
+<aside class="hidden w-52 shrink-0 flex-col border-r border-coffee/10 bg-oat px-4 py-6 md:flex lg:w-56 lg:px-5 lg:py-7">
   <%= link_to root_path, class: "flex items-center gap-2 px-2", translate: "no" do %>
     <%= image_tag "caramelo-logo.svg", class: "size-10", alt: "", aria: { hidden: true } %>
     <span class="font-display text-2xl font-semibold tracking-tight text-coffee">caramelo</span>
   <% end %>
 
-  <nav aria-label="<%= t("Primary navigation") %>" class="mt-12 flex-1">
+  <nav aria-label="<%= t("Primary navigation") %>" class="mt-8 flex-1 lg:mt-12">
     <p class="px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
     <div class="mt-4 space-y-1">
       <% [[t("Dashboard"), root_path, "⌂"], [t("Positions"), positions_path, "◒"], [t("Transactions"), transactions_path, "↗"], [t("Performance"), performance_path, "⌁"]].each do |label, path, icon| %>
@@ -36,13 +36,20 @@
   </div>
 </aside>
 
-<header class="border-b border-coffee/10 bg-oat/95 lg:hidden">
-  <div class="flex items-center gap-4 overflow-x-auto px-5 py-4">
-    <%= link_to "caramelo", root_path, class: "shrink-0 font-display text-2xl font-semibold text-coffee", translate: "no" %>
-    <nav aria-label="<%= t("Primary navigation") %>" class="flex gap-1">
-      <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path], [t("Institutions"), institutions_path], [t("Instruments"), instruments_path]].each do |label, path| %>
-        <%= link_to label, path, class: "min-h-11 shrink-0 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-caramel/10 hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" %>
-      <% end %>
-    </nav>
+<header class="border-b border-coffee/10 bg-oat/95 md:hidden">
+  <div class="flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
+    <%= link_to root_path, class: "flex items-center gap-2", translate: "no" do %>
+      <%= image_tag "caramelo-logo.svg", class: "size-8", alt: "", aria: { hidden: true } %>
+      <span class="font-display text-2xl font-semibold text-coffee">caramelo</span>
+    <% end %>
+    <details class="relative">
+      <summary class="ui-button ui-button-secondary min-h-11 cursor-pointer list-none px-3 [&::-webkit-details-marker]:hidden">Menu</summary>
+      <nav aria-label="<%= t("Primary navigation") %>" class="absolute right-0 top-full z-40 mt-2 w-56 rounded-2xl border border-coffee/10 bg-oat-2 p-2 shadow-lg">
+        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path], [t("Institutions"), institutions_path], [t("Instruments"), instruments_path]].each do |label, path| %>
+          <% active = current_page?(path) %>
+          <%= link_to label, path, class: class_names("flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } %>
+        <% end %>
+      </nav>
+    </details>
   </div>
 </header>
