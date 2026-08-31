@@ -11,14 +11,14 @@
     <% unrealized_return = dashboard.unrealized_return %>
     <div class="flex items-center justify-between gap-4 py-4">
       <dt class="text-sm text-muted"><%= t("dashboard.index.Unrealized return") %></dt>
-      <dd class="font-mono text-sm font-semibold tabular-nums <%= unrealized_return&.negative? ? "text-guava" : "text-leaf" %>">
-        <%= unrealized_return ? "#{unrealized_return.positive? ? "+" : ""}#{unrealized_return.format}" : t("Not available") %>
+      <dd class="font-mono text-sm font-semibold tabular-nums <%= dashboard.unrealized_return_color_class %>">
+        <%= dashboard.unrealized_return_label || t("Not available") %>
       </dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-4">
       <dt class="text-sm text-muted"><%= t("dashboard.index.Day change") %></dt>
-      <dd class="font-mono text-sm font-semibold tabular-nums <%= dashboard.day_change&.negative? ? "text-guava" : "text-leaf" %>">
-        <%= dashboard.day_change_ratio ? "#{dashboard.day_change_ratio.positive? ? "+" : ""}#{number_to_percentage(dashboard.day_change_ratio.to_f * 100, precision: 2)}" : t("Not available") %>
+      <dd class="font-mono text-sm font-semibold tabular-nums <%= dashboard.day_change_color_class %>">
+        <%= dashboard.day_change_ratio_label || t("Not available") %>
       </dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-4 last:pb-0">
