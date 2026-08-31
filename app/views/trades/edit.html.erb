@@ -5,9 +5,9 @@
     <%= link_to t("Transactions link"), transactions_path, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
   </div>
 
-  <div class="space-y-3">
-    <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= t("Portfolio activity") %></p>
-    <h1 class="text-4xl font-bold tracking-tight text-coffee"><%= t("actions.Edit model", model: Trade.model_name.human.downcase) %></h1>
+  <div class="ui-page-header-copy">
+    <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>
+    <h1 class="ui-page-title"><%= t("actions.Edit model", model: Trade.model_name.human.downcase) %></h1>
   </div>
 
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">

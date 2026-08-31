@@ -7,9 +7,9 @@
 
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div class="space-y-3">
-        <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= Institution.model_name.human %></p>
-        <h1 class="text-4xl font-bold tracking-tight text-coffee"><%= @institution.name %></h1>
+      <div class="ui-page-header-copy">
+        <p class="ui-eyebrow"><%= Institution.model_name.human %></p>
+        <h1 class="ui-page-title"><%= @institution.name %></h1>
       </div>
 
       <% if @institution.active? %>

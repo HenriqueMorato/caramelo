@@ -87,7 +87,7 @@
     <div class="ui-empty-state">
       <p class="font-medium text-coffee"><%= t(".No positions yet") %></p>
       <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty state") %></p>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "mt-5 inline-flex rounded-xl bg-caramel-deep px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary mt-5" %>
     </div>
   <% end %>
 </section>
