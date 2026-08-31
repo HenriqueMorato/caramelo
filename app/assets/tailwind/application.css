@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "DM Sans";
+  src: url("dm-sans-variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Literata";
+  src: url("literata-variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+}
+
 @theme {
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Literata", Georgia, ui-serif, serif;
