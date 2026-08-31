@@ -1,0 +1,22 @@
+<%# locals: (dashboard:) %>
+
+<% if dashboard.no_open_positions? %>
+  <div class="ui-card border-dashed p-8 sm:p-10" role="status">
+    <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t("dashboard.index.Portfolio status") %></p>
+    <h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t("dashboard.index.No open positions title") %></h2>
+    <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("dashboard.index.No open positions explanation") %></p>
+  </div>
+<% elsif dashboard.has_trades? %>
+  <div class="ui-card border-sun/50 bg-sun/10 p-8" role="status">
+    <p class="text-xs font-bold uppercase tracking-[0.16em] text-caramel-deep"><%= t("dashboard.index.Market data needs attention") %></p>
+    <h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t("dashboard.index.Portfolio value unavailable") %></h2>
+    <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("dashboard.index.Market data unavailable explanation") %></p>
+    <%= link_to t("dashboard.index.View positions"), positions_path, class: "ui-button ui-button-secondary mt-6" %>
+  </div>
+<% else %>
+  <div class="ui-card border-dashed p-8 sm:p-10">
+    <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t("dashboard.index.Ready when you are") %></p>
+    <h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t("dashboard.index.No portfolio yet") %></h2>
+    <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("dashboard.index.Empty state") %></p>
+  </div>
+<% end %>
