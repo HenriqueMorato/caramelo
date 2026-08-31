@@ -73,16 +73,47 @@
     @apply text-sm font-semibold uppercase tracking-wider text-caramel-deep;
   }
 
+  .ui-page-header {
+    @apply flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between;
+  }
+
+  .ui-page-header-copy {
+    @apply max-w-3xl space-y-3;
+  }
+
   .ui-page-title {
     @apply font-display text-4xl font-semibold tracking-tight text-coffee sm:text-5xl;
   }
 
   .ui-page-intro {
-    @apply text-lg leading-8 text-muted;
+    @apply text-sm leading-6 text-muted;
   }
 
   .ui-badge {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
+
+  .ui-badge-open,
+  .ui-badge-buy {
+    @apply bg-caramel/15 text-coffee;
+  }
+
+  .ui-badge-closed,
+  .ui-badge-inactive {
+    @apply bg-coffee/5 text-muted;
+  }
+
+  .ui-badge-active {
+    @apply bg-leaf/15 text-leaf;
+  }
+
+  .ui-badge-stale {
+    @apply bg-caramel/20 text-caramel-deep;
+  }
+
+  .ui-badge-attention,
+  .ui-badge-sell {
+    @apply bg-red-100 text-red-800;
   }
 
   .ui-empty-state {

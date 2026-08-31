@@ -32,7 +32,7 @@
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
-    <%= form.submit class: "cursor-pointer rounded-xl bg-caramel-deep px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
-    <%= link_to t("actions.Cancel"), institution.persisted? ? institution_path(institution) : institutions_path, class: "rounded-xl px-4 py-3 text-sm font-semibold text-coffee/80 hover:bg-coffee/5" %>
+    <%= form.submit class: "ui-button ui-button-primary cursor-pointer" %>
+    <%= link_to t("actions.Cancel"), institution.persisted? ? institution_path(institution) : institutions_path, class: "ui-button ui-button-secondary" %>
   </div>
 <% end %>

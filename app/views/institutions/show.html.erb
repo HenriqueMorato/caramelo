@@ -7,15 +7,15 @@
 
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div class="space-y-3">
-        <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= Institution.model_name.human %></p>
-        <h1 class="text-4xl font-bold tracking-tight text-coffee"><%= @institution.name %></h1>
+      <div class="ui-page-header-copy">
+        <p class="ui-eyebrow"><%= Institution.model_name.human %></p>
+        <h1 class="ui-page-title"><%= @institution.name %></h1>
       </div>
 
       <% if @institution.active? %>
-        <span class="w-fit rounded-full bg-leaf/15 px-3 py-1 text-xs font-semibold text-leaf"><%= t("statuses.Active") %></span>
+        <span class="ui-badge ui-badge-active w-fit"><%= t("statuses.Active") %></span>
       <% else %>
-        <span class="w-fit rounded-full bg-coffee/5 px-3 py-1 text-xs font-semibold text-muted"><%= t("statuses.Inactive") %></span>
+        <span class="ui-badge ui-badge-inactive w-fit"><%= t("statuses.Inactive") %></span>
       <% end %>
     </div>
 
@@ -30,7 +30,7 @@
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
-    <%= link_to t("actions.Edit model", model: Institution.model_name.human.downcase), edit_institution_path(@institution), class: "rounded-xl bg-caramel-deep px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
-    <%= button_to t("actions.Delete"), @institution, method: :delete, class: "rounded-xl px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50", data: { turbo_confirm: t("confirmations.Delete record", record: @institution.name) } %>
+    <%= link_to t("actions.Edit model", model: Institution.model_name.human.downcase), edit_institution_path(@institution), class: "ui-button ui-button-primary" %>
+    <%= button_to t("actions.Delete"), @institution, method: :delete, class: "ui-button ui-button-danger", data: { turbo_confirm: t("confirmations.Delete record", record: @institution.name) } %>
   </div>
 </section>

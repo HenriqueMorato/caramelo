@@ -1,10 +1,10 @@
 <% content_for :title, t(".Page title", institution: @institution.name, application: t("LocalFolio")) %>
 
 <section class="mx-auto max-w-2xl space-y-8">
-  <div class="space-y-3">
-    <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= t("Trade settings") %></p>
-    <h1 class="text-4xl font-bold tracking-tight text-coffee"><%= t("actions.Edit model", model: Institution.model_name.human.downcase) %></h1>
-    <p class="text-lg leading-8 text-muted"><%= t(".Introduction") %></p>
+  <div class="ui-page-header-copy">
+    <p class="ui-eyebrow"><%= t("Trade settings") %></p>
+    <h1 class="ui-page-title"><%= t("actions.Edit model", model: Institution.model_name.human.downcase) %></h1>
+    <p class="ui-page-intro"><%= t(".Introduction") %></p>
   </div>
 
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">

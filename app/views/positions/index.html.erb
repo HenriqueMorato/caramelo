@@ -1,23 +1,23 @@
 <% content_for :title, t(".Page title", application: t("LocalFolio")) %>
 
 <section class="space-y-8">
-  <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-    <div class="max-w-3xl space-y-3">
-      <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= t("Portfolio holdings") %></p>
-      <h1 class="text-4xl font-bold tracking-tight text-coffee sm:text-5xl"><%= t(".Heading") %></h1>
-      <p class="text-lg leading-8 text-muted"><%= t(".Subheading") %></p>
+  <div class="ui-page-header">
+    <div class="ui-page-header-copy">
+      <p class="ui-eyebrow"><%= t("Portfolio holdings") %></p>
+      <h1 class="ui-page-title"><%= t(".Heading") %></h1>
+      <p class="ui-page-intro"><%= t(".Subheading") %></p>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       <% if @has_refreshable_market_prices %>
-        <%= button_to t("Refresh prices"), current_market_price_refresh_path, class: "inline-flex w-fit items-center rounded-xl bg-caramel-deep px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-coffee", form_class: "inline-flex", data: { turbo_submits_with: t("Refreshing") } %>
+        <%= button_to t("Refresh prices"), current_market_price_refresh_path, class: "ui-button ui-button-primary", form_class: "inline-flex", data: { turbo_submits_with: t("Refreshing") } %>
       <% end %>
 
       <% if @has_closed_positions %>
         <% if @show_closed %>
-          <%= link_to t(".Show open positions"), positions_path, class: "inline-flex w-fit items-center rounded-xl border border-coffee/20 bg-oat-2 px-4 py-2 text-sm font-semibold text-coffee/80 shadow-sm hover:bg-oat" %>
+          <%= link_to t(".Show open positions"), positions_path, class: "ui-button ui-button-secondary" %>
         <% else %>
-          <%= link_to t(".Include closed positions"), positions_path(closed: 1), class: "inline-flex w-fit items-center rounded-xl border border-coffee/20 bg-oat-2 px-4 py-2 text-sm font-semibold text-coffee/80 shadow-sm hover:bg-oat" %>
+          <%= link_to t(".Include closed positions"), positions_path(closed: 1), class: "ui-button ui-button-secondary" %>
         <% end %>
       <% end %>
     </div>
@@ -45,11 +45,11 @@
                     <h2 class="font-mono text-base font-bold text-coffee"><%= link_to presenter.instrument.ticker, presenter.instrument, class: "hover:text-caramel-deep" %></h2>
                     <span class="font-mono text-xs font-semibold text-muted"><%= presenter.instrument.exchange %></span>
                     <% if presenter.invalid? %>
-                      <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800"><%= t("Needs attention") %></span>
+                      <span class="ui-badge ui-badge-attention px-2 py-0.5"><%= t("Needs attention") %></span>
                     <% elsif presenter.position.closed? %>
-                      <span class="rounded-full bg-coffee/5 px-2 py-0.5 text-xs font-semibold text-coffee/80"><%= t("Closed") %></span>
+                      <span class="ui-badge ui-badge-closed px-2 py-0.5"><%= t("Closed") %></span>
                     <% else %>
-                      <span class="rounded-full bg-caramel/15 px-2 py-0.5 text-xs font-semibold text-coffee"><%= t("Open") %></span>
+                      <span class="ui-badge ui-badge-open px-2 py-0.5"><%= t("Open") %></span>
                     <% end %>
                   </div>
                   <p class="mt-1 flex items-baseline gap-1 text-sm text-muted">
@@ -87,7 +87,7 @@
     <div class="ui-empty-state">
       <p class="font-medium text-coffee"><%= t(".No positions yet") %></p>
       <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty state") %></p>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "mt-5 inline-flex rounded-xl bg-caramel-deep px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary mt-5" %>
     </div>
   <% end %>
 </section>

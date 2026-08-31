@@ -1,11 +1,11 @@
 <% content_for :title, t(".Page title", application: t("LocalFolio")) %>
 
 <section class="space-y-8">
-  <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-    <div class="max-w-3xl space-y-3">
-      <p class="text-sm font-semibold uppercase tracking-wider text-caramel-deep"><%= t("Portfolio activity") %></p>
-      <h1 class="text-4xl font-bold tracking-tight text-coffee sm:text-5xl"><%= t("Performance") %></h1>
-      <p class="text-lg leading-8 text-muted"><%= t(".Introduction") %></p>
+  <div class="ui-page-header">
+    <div class="ui-page-header-copy">
+      <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>
+      <h1 class="ui-page-title"><%= t("Performance") %></h1>
+      <p class="ui-page-intro"><%= t(".Introduction") %></p>
     </div>
 
     <nav aria-label="<%= t(".Period selection") %>" class="flex flex-wrap gap-2">
@@ -30,7 +30,7 @@
     <div class="rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center">
       <p class="font-medium text-coffee"><%= t(".No performance yet") %></p>
       <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty state") %></p>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "mt-5 inline-flex rounded-xl bg-caramel-deep px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-coffee" %>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary mt-5" %>
     </div>
   <% else %>
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
