@@ -3,11 +3,6 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = ["form", "primaryInput", "secondaryInput", "option"]
 
-  stateClasses = [
-    "ui-button-secondary", "rounded-none", "rounded-md", "border", "border-brand-700", "bg-brand-700", "bg-transparent", "text-white", "text-muted", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800", "hover:bg-oat", "hover:text-coffee",
-    "border-caramel-deep", "bg-caramel", "hover:bg-caramel-deep"
-  ]
-
   connect() {
     this.syncOptions()
   }
@@ -39,19 +34,11 @@ export default class extends Controller {
     this.optionTargets.forEach((option) => {
       const value = option.dataset.groupingValue
       const slot = value === primary ? "primary" : value === secondary ? "secondary" : ""
-      option.classList.remove(...this.stateClasses)
-      option.classList.add(...this.classesFor(slot))
       option.setAttribute("aria-pressed", Boolean(slot).toString())
-      option.setAttribute("aria-label", `${option.textContent.trim()}${slot ? `, ${slot} grouping` : ""}`)
+      const groupingLabel = slot === "primary" ? option.dataset.primaryLabel : option.dataset.secondaryLabel
+      option.setAttribute("aria-label", `${option.textContent.trim()}${groupingLabel ? `, ${groupingLabel}` : ""}`)
       option.dataset.groupingSlot = slot
     })
-  }
-
-  classesFor(slot) {
-    if (slot === "primary") return [ "rounded-md", "border", "border-brand-700", "bg-brand-700", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800" ]
-    if (slot === "secondary") return [ "rounded-md", "border", "border-caramel-deep", "bg-caramel", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-caramel-deep" ]
-
-    return [ "rounded-none", "bg-transparent", "text-muted", "hover:bg-oat", "hover:text-coffee" ]
   }
 
   clear() {

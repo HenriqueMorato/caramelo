@@ -69,6 +69,22 @@
     @apply border border-guava/30 bg-oat-2 text-guava shadow-sm hover:bg-guava/10;
   }
 
+  .grouping-option {
+    @apply inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-none border-l border-coffee/10 px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow,transform] duration-150 first:border-l-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-inset active:scale-[0.97] active:shadow-inner;
+  }
+
+  .grouping-option[data-grouping-slot="primary"] {
+    @apply rounded-md border border-brand-700 bg-brand-700 text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-brand-800;
+  }
+
+  .grouping-option[data-grouping-slot="secondary"] {
+    @apply rounded-md border border-caramel-deep bg-caramel text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-caramel-deep;
+  }
+
+  .grouping-option[data-grouping-slot=""] {
+    @apply bg-transparent text-muted hover:bg-oat hover:text-coffee;
+  }
+
   .ui-eyebrow {
     @apply text-sm font-semibold uppercase tracking-wider text-caramel-deep;
   }

@@ -27,19 +27,19 @@ class PositionsTest < ApplicationSystemTestCase
 
     click_button "Type"
     assert_text "OTHER"
-    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='true'][data-grouping-slot='primary'].bg-brand-700.text-white"
-    assert_selector "button[data-grouping-value='currency'][aria-pressed='false'].bg-transparent.text-muted"
+    assert_selector "button.grouping-option[data-grouping-value='asset_type'][aria-pressed='true'][data-grouping-slot='primary']"
+    assert_selector "button.grouping-option[data-grouping-value='currency'][aria-pressed='false'][data-grouping-slot='']"
 
     click_button "Currency"
     assert_text "USD"
-    assert_selector "button[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='secondary'].bg-caramel.text-white"
+    assert_selector "button.grouping-option[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='secondary']"
 
     click_button "Type"
-    assert_selector "button[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='primary'].bg-brand-700.text-white"
-    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].bg-transparent.text-muted"
+    assert_selector "button.grouping-option[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='primary']"
+    assert_selector "button.grouping-option[data-grouping-value='asset_type'][aria-pressed='false'][data-grouping-slot='']"
 
     click_button "Clear"
-    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].bg-transparent.text-muted"
+    assert_selector "button.grouping-option[data-grouping-value='asset_type'][aria-pressed='false'][data-grouping-slot='']"
     assert_text "POSITION"
   end
 

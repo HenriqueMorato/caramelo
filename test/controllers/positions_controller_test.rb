@@ -61,7 +61,7 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     get positions_url(group_by: "asset_type", subgroup_by: "currency")
 
     assert_response :success
-    assert_select "h2#positions-asset_type-etf", "ETF"
+    assert_select "h2[id^='positions-asset_type-']", "ETF"
     assert_select "h3", "USD"
   end
 
@@ -101,6 +101,20 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
     assert_select "a[href='#{instrument_path(instrument)}']"
     assert_equal trade, Position.overview.find { |result| result.instrument == instrument }.error.trade
+  end
+
+  test "groups an invalid position by institution without failing the page" do
+    instrument = instruments(:petr4_bvmf)
+    User.owner.trades.create!(
+      instrument:, institution: institutions(:owner_xp), side: :sell, traded_on: Date.new(2026, 1, 1),
+      quantity: 1, unit_price: 10, fees_cents: 0, currency: instrument.currency
+    )
+
+    get positions_url(group_by: "institution")
+
+    assert_response :success
+    assert_select "h2", "XP Investimentos"
+    assert_select "[role='alert']", /Recorded sales exceed purchases/
   end
 
   test "shows the current B3 price and refresh controls" do

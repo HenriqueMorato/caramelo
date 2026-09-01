@@ -24,14 +24,14 @@
   </div>
 
   <div data-controller="grouping">
-    <%= form_with url: positions_path, method: :get, data: { grouping_target: "form", turbo_frame: "positions-list" } do |form| %>
+    <%= form_with url: positions_path, method: :get, data: { grouping_target: "form", turbo_frame: "positions-list", turbo_action: "advance" } do |form| %>
       <%= hidden_field_tag :closed, "1" if @show_closed %>
       <%= hidden_field_tag :group_by, @group_by, data: { grouping_target: "primaryInput" } %>
       <%= hidden_field_tag :subgroup_by, @subgroup_by, data: { grouping_target: "secondaryInput" } %>
       <div class="flex flex-wrap items-center justify-end gap-3 py-1">
         <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-white/50 p-1" role="group" aria-label="<%= t(".Organize") %>">
           <% grouping_options.drop(1).each do |label, value| %>
-            <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="ui-button shrink-0 whitespace-nowrap rounded-none border-l border-coffee/10 px-3 py-1.5 text-xs first:border-l-0 <%= grouping_option_class(value) %> transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] active:shadow-inner"><%= label %></button>
+            <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-grouping-slot="<%= grouping_slot(value) %>" data-primary-label="<%= t(".Primary grouping") %>" data-secondary-label="<%= t(".Secondary grouping") %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="grouping-option"><%= label %></button>
           <% end %>
         </div>
         <button type="button" data-action="grouping#clear" class="ui-button ui-button-secondary rounded-md px-2 py-1 text-xs"><%= t(".Clear") %></button>
@@ -42,9 +42,10 @@
       <% if @positions.any? %>
         <% if @group_by %>
           <div class="space-y-6">
-            <% @position_groups.each do |group_name, grouped| %>
-              <section aria-labelledby="positions-<%= @group_by %>-<%= group_name.parameterize %>" class="space-y-3">
-                <h2 id="positions-<%= @group_by %>-<%= group_name.parameterize %>" class="ui-eyebrow px-1"><%= grouping_label(@group_by, group_name) %></h2>
+            <% @position_groups.each_with_index do |(group_name, grouped), group_index| %>
+              <% group_id = "positions-#{@group_by}-#{group_index}-#{group_name.to_s.parameterize}" %>
+              <section aria-labelledby="<%= group_id %>" class="space-y-3">
+                <h2 id="<%= group_id %>" class="ui-eyebrow px-1"><%= grouping_label(@group_by, group_name) %></h2>
                 <% if @subgroup_by %>
                   <div class="space-y-4 pl-3"><% grouped.each do |subgroup_name, positions| %><div><h3 class="mb-2 text-sm font-semibold text-muted"><%= grouping_label(@subgroup_by, subgroup_name) %></h3><%= render "table", positions: %></div><% end %></div>
                 <% else %>

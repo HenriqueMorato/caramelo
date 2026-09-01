@@ -5,6 +5,10 @@ class Position
     def invalid?
       error.present?
     end
+
+    def trades
+      position&.trades || error&.trades || [ error&.trade ].compact
+    end
   end
 
   # Exact moving-average replay output. `cost_basis_amount` and
@@ -13,10 +17,11 @@ class Position
   Calculation = Data.define(:quantity, :cost_basis_amount, :realized_gain_amount)
 
   class InvalidLongOnlyData < StandardError
-    attr_reader :trade
+    attr_reader :trade, :trades
 
-    def initialize(trade)
+    def initialize(trade, trades: nil)
       @trade = trade
+      @trades = trades || [ trade ]
       super("Trade #{trade.id} would make the position quantity negative")
     end
   end
@@ -42,6 +47,8 @@ class Position
         quantity: state.quantity, cost_basis_amount: state.cost_basis_amount,
         realized_gain_amount: state.realized_gain_amount
       )
+    rescue InvalidLongOnlyData => error
+      raise InvalidLongOnlyData.new(error.trade, trades:)
     end
 
     private

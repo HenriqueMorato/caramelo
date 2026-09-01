@@ -190,6 +190,16 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "USD", @instrument.currency
   end
 
+  test "renders validation errors when updating an instrument fails" do
+    patch instrument_url(@instrument), params: {
+      instrument: { ticker: "", exchange: "BAD", name: "", currency: "ZZZ" }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Ticker can't be blank/
+    assert_select "[role=alert]", /Exchange is invalid/
+  end
+
   test "deletes an unused instrument" do
     assert_difference("Instrument.count", -1) do
       delete instrument_url(@instrument)
