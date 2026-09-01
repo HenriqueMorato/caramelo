@@ -37,20 +37,27 @@
           <p class="font-semibold"><%= t(".Position could not be calculated") %></p>
           <p class="mt-1"><%= t(".Sales exceed purchases", date: l(@position_error.trade.traded_on, format: :long)) %></p>
         </div>
+        <div class="mt-4">
+          <%= render "current_market_prices/current_market_price", market_price: @market_price, refreshing: false %>
+        </div>
       <% elsif @position.first_trade_date.nil? %>
         <div class="flex flex-col items-start gap-3 rounded-xl bg-oat px-4 py-3 ring-1 ring-inset ring-coffee/5 sm:flex-row sm:items-center">
           <p class="text-sm text-muted"><%= t(".No position yet") %></p>
           <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(@instrument), class: "shrink-0 text-sm font-semibold text-caramel-deep hover:text-coffee" %>
         </div>
+        <div class="mt-4">
+          <%= render "current_market_prices/current_market_price", market_price: @market_price, refreshing: false %>
+        </div>
       <% else %>
-        <%= render "positions/metrics", position: @position, instrument: @instrument, valuation: @valuation %>
+        <%= render "positions/metrics", position: @position, instrument: @instrument, valuation: @valuation, market_price: @market_price %>
       <% end %>
 
-      <div class="mt-3">
-        <%= render "current_market_prices/current_market_price", market_price: @market_price, refreshing: false %>
-      </div>
     </div>
   </section>
+
+  <% if @performance_presenter %>
+    <%= render "performance", presenter: @performance_presenter %>
+  <% end %>
 
   <section aria-labelledby="trade-history-heading" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">

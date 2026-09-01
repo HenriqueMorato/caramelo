@@ -28,6 +28,60 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal @date, result.market_data_as_of
   end
 
+  test "can calculate a single instrument without loading other portfolio positions" do
+    selected = create_instrument(ticker: "SELECTED", currency: "BRL")
+    other = create_instrument(ticker: "OTHER", currency: "BRL")
+    create_trade(instrument: selected, quantity: 2, unit_price: "10")
+    create_trade(instrument: other, quantity: 3, unit_price: "20")
+    create_daily_close(instrument: selected, close_price: "12")
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date, instrument: selected,
+      exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+    )
+
+    assert result.available?
+    assert_equal [ selected ], result.position_results.map(&:instrument)
+    assert_equal BigDecimal("24"), result.market_value_amount
+  end
+
+  test "groups a supplied trade collection when no instrument is selected" do
+    instrument = create_instrument(ticker: "SUPPLIED", currency: "BRL")
+    trade = create_trade(instrument:, quantity: 2, unit_price: "10")
+    create_daily_close(instrument:, close_price: "12")
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date, trades: [ trade ],
+      exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+    )
+
+    assert_equal [ instrument ], result.position_results.map(&:instrument)
+  end
+
+  test "returns an empty result when supplied trades do not match the instrument" do
+    instrument = create_instrument(ticker: "EMPTY", currency: "BRL")
+    other = create_instrument(ticker: "OTHER", currency: "BRL")
+    trade = create_trade(instrument: other, quantity: 2, unit_price: "10")
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date, instrument:, trades: [ trade ],
+      exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+    )
+
+    assert_predicate result, :empty?
+  end
+
+  test "returns an empty result for an instrument without persisted trades" do
+    instrument = create_instrument(ticker: "NO_TRADES", currency: "BRL")
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date, instrument:,
+      exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+    )
+
+    assert_predicate result, :empty?
+  end
+
   test "keeps realized and unrealized gains separate after a partial foreign sale" do
     instrument = create_instrument(ticker: "PART", currency: "USD")
     trade_date = @date - 1
@@ -76,6 +130,8 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert result.position_results.first.missing?
     assert_not result.position_results.first.available?
     assert_nil result.market_value
+    assert_nil result.position_results.first.total_gain_amount
+    assert_nil result.position_results.first.return_ratio
   end
 
   test "uses the latest persisted exchange rate when the valuation date has none" do
@@ -201,6 +257,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0"), result.unrealized_gain_amount
     assert_equal Money.new(0, "BRL"), result.market_value
     assert_nil result.market_data_as_of
+    assert_nil position_result.with(invested_amount: BigDecimal("0")).return_ratio
   end
 
   test "rejects a historical sale that would make a position negative" do

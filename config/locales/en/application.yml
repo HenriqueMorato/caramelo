@@ -30,6 +30,7 @@ en:
   Price unavailable: Price unavailable
   Primary navigation: Primary navigation
   Quantity: Quantity
+  Realized gains: Realized gains
   Refresh prices: Refresh prices
   Refreshing: Refreshing
   Sell: Sell
@@ -37,9 +38,11 @@ en:
   Small steps: Small steps.
   Stale: Stale
   Total: Total
+  Total return: Total return
   Trade settings: Trade settings
   Transactions: Transactions
   Transactions link: "← Transactions"
+  Unrealized return: Unrealized return
   Value unavailable: Value unavailable
   Your portfolio is out for a stroll: Your portfolio is out for a stroll.
   actions:

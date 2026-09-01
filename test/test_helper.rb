@@ -1,7 +1,7 @@
 require "fileutils"
 
 # A focused run must not inherit a recent full-suite result. Merge workflows opt in.
-unless ENV["COVERAGE_APPEND"] == "1"
+unless ENV["COVERAGE_APPEND"] == "1" || ENV["COVERAGE_RESULTSET_ONLY"] == "1"
   FileUtils.rm_f File.expand_path("../coverage/.resultset.json", __dir__)
 end
 

@@ -1,25 +1,31 @@
-<%# locals: (position:, instrument:, valuation:) %>
+<%# locals: (position:, instrument:, valuation:, market_price:) %>
 
-<dl class="grid min-w-0 grid-cols-2 divide-x divide-y divide-coffee/10 rounded-xl bg-oat py-3 text-center ring-1 ring-inset ring-coffee/5 sm:grid-cols-4 sm:divide-y-0 2xl:min-w-[48rem]">
-  <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs"><%= t("Quantity") %></dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= format_quantity position.quantity %></dd>
+<dl class="mt-5 grid gap-4 text-center sm:grid-cols-2 lg:grid-cols-5">
+  <div class="min-w-0">
+    <dt class="ui-eyebrow"><%= t("Quantity") %></dt>
+    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= format_quantity position.quantity %></dd>
   </div>
-  <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs"><%= t("Average cost") %></dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= format_currency_amount position.average_unit_cost, instrument.currency %></dd>
+  <div class="min-w-0">
+    <dt class="ui-eyebrow"><%= t("Average cost") %></dt>
+    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= format_currency_amount position.average_unit_cost, instrument.currency %></dd>
   </div>
-  <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs"><%= t("Cost basis") %></dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= position.cost_basis.format %></dd>
+  <div class="min-w-0">
+    <dt class="ui-eyebrow"><%= t("Current price") %></dt>
+    <dd class="mt-1 flex min-h-6 items-center justify-center font-mono text-base font-semibold tabular-nums text-coffee">
+      <%= render "current_market_prices/current_market_price", market_price:, refreshing: false, compact: true %>
+    </dd>
   </div>
-  <div class="px-2 sm:px-4">
-    <dt class="flex min-h-8 items-center justify-center gap-1 text-[0.65rem] font-semibold uppercase leading-4 tracking-[0.08em] text-muted sm:text-xs">
+  <div class="min-w-0">
+    <dt class="ui-eyebrow"><%= t("Cost basis") %></dt>
+    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= position.cost_basis.format %></dd>
+  </div>
+  <div class="min-w-0">
+    <dt class="ui-eyebrow flex items-center justify-center gap-1">
       <%= t("Market value") %>
       <% if valuation.stale? %>
         <span class="ui-badge ui-badge-stale px-1.5 py-0.5 text-[0.6rem] normal-case tracking-normal"><%= t("Stale") %></span>
       <% end %>
     </dt>
-    <dd class="mt-1.5 font-mono text-base font-semibold text-coffee"><%= valuation.available? ? valuation.market_value.format : t("Value unavailable") %></dd>
+    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= valuation.available? ? valuation.market_value.format : t("Value unavailable") %></dd>
   </div>
 </dl>

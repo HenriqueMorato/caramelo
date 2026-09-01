@@ -26,7 +26,28 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", "Add trade"
     assert_select "h2", "Trade history"
     assert_select "p", "No trades for this instrument"
+    assert_includes response.body, "Add a trade and a closing price to see performance here."
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
+  end
+
+  test "shows per-instrument performance from the latest closing price" do
+    create_trade(instrument: @instrument, side: :buy, quantity: 2)
+    DailyClosingPrice.create!(
+      instrument: @instrument, trading_date: Date.current - 1, close_price: "12", currency: "BRL",
+      provider: "yahoo_finance", observed_at: Time.current
+    )
+
+    get instrument_url(@instrument)
+
+    assert_response :success
+    assert_select "h2", "Performance"
+    assert_select "dd", text: "R$20,00"
+    assert_select "dd", text: "R$24,00"
+    assert_select "dt", text: "Total return"
+    assert_not_includes response.body, "Realized gains"
+    assert_includes response.body, "Close as of #{I18n.l(Date.current - 1, format: :long)}"
+    assert_match(/20[,.]00%/, response.body)
+    assert_match(/Unrealized return.*\+R\$4,00/m, response.body)
   end
 
   test "shows only the configured owner's trades for an instrument" do
@@ -56,9 +77,9 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(@instrument)
 
     assert_response :success
-    assert_select "span", "Closed"
-    assert_select "dd", text: "0"
-    assert_select "dd", text: "R$0,00", count: 2
+    assert_select "section[aria-labelledby='position-summary-heading'] span", "Closed"
+    assert_select "section[aria-labelledby='position-summary-heading'] dd", text: "0"
+    assert_select "section[aria-labelledby='position-summary-heading'] dd", text: "R$0,00", count: 2
   end
 
   test "identifies an invalid long-only position without hiding trade history" do
@@ -69,6 +90,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "span", "Needs attention"
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
+    assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
     assert_select "h2", "Trade history"
   end
 
@@ -90,6 +112,17 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /R\$32,45/
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Stale/
+  end
+
+  test "shows a loading state while instrument performance is being backfilled" do
+    trade = create_trade(instrument: @instrument, side: :buy, quantity: 1)
+    HistoricalDataBackfill.create!(instrument: @instrument, currency: trade.currency, from_date: trade.traded_on)
+
+    get instrument_url(@instrument)
+
+    assert_response :success
+    assert_select "#instrument-performance-heading", "Performance"
+    assert_select "[role='status']", /Performance data is loading/
   end
 
   test "creates a global instrument" do
