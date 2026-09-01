@@ -23,28 +23,17 @@
     </div>
   </div>
 
-  <div data-controller="grouping" data-action="keydown.esc->grouping#closeMenus click@window->grouping#closeOnOutside">
+  <div data-controller="grouping">
     <%= form_with url: positions_path, method: :get, data: { grouping_target: "form", turbo_frame: "positions-list" } do |form| %>
       <%= hidden_field_tag :closed, "1" if @show_closed %>
       <%= hidden_field_tag :group_by, @group_by, data: { grouping_target: "primaryInput" } %>
       <%= hidden_field_tag :subgroup_by, @subgroup_by, data: { grouping_target: "secondaryInput" } %>
       <div class="ui-card flex flex-wrap items-center gap-3 p-4 sm:p-5">
         <span class="ui-eyebrow"><%= t(".Organize") %></span>
-        <div class="relative">
-          <button type="button" data-grouping-target="primaryButton" data-grouping-menu="primary" data-action="grouping#toggle" aria-expanded="false" class="ui-button ui-button-secondary"><%= t(".Group by") %>: <span class="ml-1" data-grouping-target="primaryLabel"><%= @group_by ? t(".Group by #{@group_by}") : t(".No grouping") %></span></button>
-          <div data-grouping-target="primaryMenu" data-grouping-menu="primary" hidden class="absolute left-0 z-20 mt-2 min-w-48 rounded-xl border border-coffee/10 bg-oat-2 p-1 shadow-lg" role="menu">
-            <% grouping_options.each do |label, value| %>
-              <button type="button" data-grouping-value="<%= value %>" data-action="grouping#choose" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-coffee hover:bg-oat" role="menuitem"><%= label %></button>
-            <% end %>
-          </div>
-        </div>
-        <div class="relative">
-          <button type="button" data-grouping-target="secondaryButton" data-grouping-menu="secondary" data-action="grouping#toggle" aria-expanded="false" class="ui-button ui-button-secondary"><%= t(".Then by") %>: <span class="ml-1" data-grouping-target="secondaryLabel"><%= @subgroup_by ? t(".Group by #{@subgroup_by}") : t(".No grouping") %></span></button>
-          <div data-grouping-target="secondaryMenu" data-grouping-menu="secondary" hidden class="absolute left-0 z-20 mt-2 min-w-48 rounded-xl border border-coffee/10 bg-oat-2 p-1 shadow-lg" role="menu">
-            <% grouping_options.each do |label, value| %>
-              <button type="button" data-grouping-value="<%= value %>" data-action="grouping#choose" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-coffee hover:bg-oat" role="menuitem"><%= label %></button>
-            <% end %>
-          </div>
+        <div class="inline-flex max-w-full overflow-x-auto rounded-xl shadow-sm" role="group" aria-label="<%= t(".Organize") %>">
+          <% grouping_options.drop(1).each do |label, value| %>
+            <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="ui-button shrink-0 whitespace-nowrap rounded-none border-l-0 first:rounded-l-xl first:border-l last:rounded-r-xl <%= grouping_option_class(value) %> transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] active:shadow-inner"><%= label %></button>
+          <% end %>
         </div>
         <button type="button" data-action="grouping#clear" class="ui-button ui-button-secondary"><%= t(".Clear") %></button>
       </div>

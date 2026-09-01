@@ -1,79 +1,63 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["form", "primaryInput", "secondaryInput", "primaryMenu", "secondaryMenu", "primaryLabel", "secondaryLabel", "primaryButton", "secondaryButton"]
+  static targets = ["form", "primaryInput", "secondaryInput", "option"]
+
+  stateClasses = [
+    "ui-button-secondary", "border", "border-brand-700", "bg-brand-700", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800",
+    "border-caramel-deep", "bg-caramel", "text-coffee", "hover:bg-caramel-deep"
+  ]
 
   connect() {
-    this.syncSecondaryOptions()
-  }
-
-  submit() {
-    this.syncSecondaryOptions()
-    this.formTarget.requestSubmit()
-  }
-
-  toggle(event) {
-    const menu = event.currentTarget.dataset.groupingMenu === "primary" ? this.primaryMenuTarget : this.secondaryMenuTarget
-    const expanded = event.currentTarget.getAttribute("aria-expanded") === "true"
-    this.closeMenus()
-    if (!expanded) {
-      menu.hidden = false
-      event.currentTarget.setAttribute("aria-expanded", "true")
-    }
+    this.syncOptions()
   }
 
   choose(event) {
     const value = event.currentTarget.dataset.groupingValue
-    const primary = event.currentTarget.closest("[data-grouping-menu='primary']")
-    if (primary) {
+    const primary = this.primaryInputTarget.value
+    const secondary = this.secondaryInputTarget.value
+
+    if (value === primary) {
+      this.primaryInputTarget.value = secondary
+      this.secondaryInputTarget.value = ""
+    } else if (value === secondary) {
+      this.secondaryInputTarget.value = ""
+    } else if (!primary) {
       this.primaryInputTarget.value = value
-      if (value === "" || value === this.secondaryInputTarget.value) {
-        this.secondaryInputTarget.value = ""
-        this.secondaryLabelTarget.textContent = this.secondaryMenuTarget.querySelector('[data-grouping-value=""]').textContent
-      }
-      this.primaryLabelTarget.textContent = event.currentTarget.textContent
     } else {
       this.secondaryInputTarget.value = value
-      this.secondaryLabelTarget.textContent = event.currentTarget.textContent
     }
-    this.syncSecondaryOptions()
-    this.closeMenus()
+
+    this.syncOptions()
     this.formTarget.requestSubmit()
   }
 
-  syncSecondaryOptions() {
-    this.secondaryMenuTarget.querySelectorAll("[data-grouping-value]").forEach((option) => {
-      const disabled = option.dataset.groupingValue !== "" && option.dataset.groupingValue === this.primaryInputTarget.value
-      option.disabled = disabled
-      option.toggleAttribute("disabled", disabled)
-      option.setAttribute("aria-disabled", disabled.toString())
-      option.classList.toggle("line-through", disabled)
-      option.classList.toggle("opacity-50", disabled)
+  syncOptions() {
+    const primary = this.primaryInputTarget.value
+    const secondary = this.secondaryInputTarget.value
+
+    this.optionTargets.forEach((option) => {
+      const value = option.dataset.groupingValue
+      const slot = value === primary ? "primary" : value === secondary ? "secondary" : ""
+      option.classList.remove(...this.stateClasses)
+      option.classList.add(...this.classesFor(slot))
+      option.setAttribute("aria-pressed", Boolean(slot).toString())
+      option.setAttribute("aria-label", `${option.textContent.trim()}${slot ? `, ${slot} grouping` : ""}`)
+      option.dataset.groupingSlot = slot
     })
-    if (this.secondaryInputTarget.value === this.primaryInputTarget.value) {
-      this.secondaryInputTarget.value = ""
-      this.secondaryLabelTarget.textContent = this.secondaryMenuTarget.querySelector('[data-grouping-value=""]').textContent
-    }
   }
 
-  closeMenus() {
-    this.primaryMenuTarget.hidden = true
-    this.secondaryMenuTarget.hidden = true
-    this.primaryButtonTarget.setAttribute("aria-expanded", "false")
-    this.secondaryButtonTarget.setAttribute("aria-expanded", "false")
-  }
+  classesFor(slot) {
+    if (slot === "primary") return [ "border", "border-brand-700", "bg-brand-700", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800" ]
+    if (slot === "secondary") return [ "border", "border-caramel-deep", "bg-caramel", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-caramel-deep" ]
 
-  closeOnOutside(event) {
-    if (!this.element.contains(event.target)) this.closeMenus()
+    return [ "ui-button-secondary" ]
   }
 
   clear() {
     this.primaryInputTarget.value = ""
     this.secondaryInputTarget.value = ""
-    this.primaryLabelTarget.textContent = this.primaryMenuTarget.querySelector('[data-grouping-value=""]').textContent
-    this.secondaryLabelTarget.textContent = this.secondaryMenuTarget.querySelector('[data-grouping-value=""]').textContent
-    this.syncSecondaryOptions()
-    this.closeMenus()
+    this.syncOptions()
     this.formTarget.requestSubmit()
   }
 }

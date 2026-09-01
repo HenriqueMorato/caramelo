@@ -25,21 +25,21 @@ class PositionsTest < ApplicationSystemTestCase
   test "chooses nested grouping options and can clear grouping" do
     visit positions_path
 
-    click_button "Group by: None"
     click_button "Type"
     assert_text "OTHER"
-    assert_selector "[data-grouping-target='secondaryMenu'] button[data-grouping-value='asset_type'][disabled].line-through", visible: :all
+    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='true'][data-grouping-slot='primary'].bg-brand-700.text-white"
+    assert_selector "button[data-grouping-value='currency'][aria-pressed='false'].ui-button-secondary"
 
-    click_button "Then by: None"
     click_button "Currency"
     assert_text "USD"
+    assert_selector "button[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='secondary'].bg-caramel.text-white"
 
-    click_button "Group by: Type"
-    click_button "None"
-    assert_button "Then by: None"
+    click_button "Type"
+    assert_selector "button[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='primary'].bg-brand-700.text-white"
+    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].ui-button-secondary"
 
     click_button "Clear"
-    assert_no_text "Group by type"
+    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].ui-button-secondary"
     assert_text "POSITION"
   end
 
