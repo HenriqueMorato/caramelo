@@ -10,12 +10,24 @@ module Performance
     PositionResult = Data.define(
       :instrument, :quantity, :reporting_cost_basis_amount, :market_value_amount,
       :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount,
-      :status, :daily_closing_price, :exchange_rate_lookup, :cash_flows
+      :invested_amount, :status, :daily_closing_price, :exchange_rate_lookup, :cash_flows
     ) do
       def available? = status != :missing
       def missing?   = status == :missing
       def closed?    = status == :closed
       def market_price_as_of = daily_closing_price&.trading_date
+
+      def total_gain_amount
+        return if realized_gain_amount.nil? || unrealized_gain_amount.nil?
+
+        realized_gain_amount + unrealized_gain_amount
+      end
+
+      def return_ratio
+        return if total_gain_amount.nil? || invested_amount.nil? || invested_amount.zero?
+
+        total_gain_amount / invested_amount
+      end
 
       def exchange_rate_as_of
         return if exchange_rate_lookup.nil? || exchange_rate_lookup.same_currency?
@@ -43,18 +55,20 @@ module Performance
       def market_data_as_of = market_price_as_of
     end
 
-    def self.for(valuation_date:, owner: User.owner, exchange_rate_service: HistoricalExchangeRate::Service.new,
+    def self.for(valuation_date:, owner: User.owner, instrument: nil, trades: nil, exchange_rate_service: HistoricalExchangeRate::Service.new,
       daily_closing_price_provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
       reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
       new(
-        valuation_date:, owner:, exchange_rate_service:, daily_closing_price_provider:,
+        valuation_date:, owner:, instrument:, trades:, exchange_rate_service:, daily_closing_price_provider:,
         reporting_currency:
       ).calculate
     end
 
-    def initialize(valuation_date:, owner:, exchange_rate_service:, daily_closing_price_provider:, reporting_currency:)
+    def initialize(valuation_date:, owner:, instrument:, trades:, exchange_rate_service:, daily_closing_price_provider:, reporting_currency:)
       @valuation_date = valuation_date
       @owner = owner
+      @instrument = instrument
+      @trades = trades
       @exchange_rate_service = exchange_rate_service
       @daily_closing_price_provider = daily_closing_price_provider
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
@@ -76,11 +90,31 @@ module Performance
 
     private
 
-    attr_reader :valuation_date, :owner, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
+    attr_reader :valuation_date, :owner, :instrument, :trades, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
 
     def trades_by_instrument
-      owner.trades.includes(:instrument).strict_loading.where(traded_on: ..valuation_date)
+      return supplied_trades_by_instrument if self.trades
+
+      trade_scope = owner.trades.strict_loading.where(traded_on: ..valuation_date)
+      if instrument
+        scoped_trades = trade_scope.where(instrument:).order(:traded_on, :id).to_a
+        return {} if scoped_trades.empty?
+
+        return { instrument => scoped_trades }
+      end
+
+      trade_scope
+        .includes(:instrument)
         .order(:traded_on, :id).to_a.group_by(&:instrument)
+    end
+
+    def supplied_trades_by_instrument
+      scoped_trades = self.trades.select { |trade| trade.user_id == owner.id && trade.traded_on <= valuation_date }
+      scoped_trades = scoped_trades.select { |trade| trade.instrument == instrument } if instrument
+      scoped_trades.sort_by! { |trade| [ trade.traded_on, trade.id ] }
+      return {} if scoped_trades.empty?
+
+      instrument ? { instrument => scoped_trades } : scoped_trades.group_by(&:instrument)
     end
 
     def available_result(position_results)
@@ -138,6 +172,7 @@ module Performance
         @exchange_rate_service = exchange_rate_service
         @daily_closing_price_provider = daily_closing_price_provider
         @reporting_currency = reporting_currency
+        @exchange_rate_lookups = {}
       end
 
       def calculate
@@ -161,7 +196,7 @@ module Performance
 
       # Replay combines the shared moving-average calculation with the
       # reporting-currency trade cash flow that is specific to performance.
-      Replay = Data.define(:calculation, :net_cash_flow, :cash_flows)
+      Replay = Data.define(:calculation, :net_cash_flow, :invested_amount, :cash_flows)
 
       def replay_trades
         reporting_amounts = trades.to_h do |trade|
@@ -176,12 +211,15 @@ module Performance
           CashFlow.new(traded_on: trade.traded_on, amount: amounts_by_side.fetch(trade.side))
         end
         Replay.new(
-          calculation:, net_cash_flow: cash_flows.sum(&:amount), cash_flows:
+          calculation:, net_cash_flow: cash_flows.sum(&:amount),
+          invested_amount: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : 0 }, cash_flows:
         )
       end
 
       def exchange_rate_for(base_currency, rate_date)
-        exchange_rate_service.read(base_currency:, quote_currency: reporting_currency, rate_date:)
+        @exchange_rate_lookups[[ base_currency, rate_date ]] ||= exchange_rate_service.read(
+          base_currency:, quote_currency: reporting_currency, rate_date:
+        )
       end
 
       def find_daily_closing_price
@@ -198,7 +236,7 @@ module Performance
           instrument:, quantity: decimal(state.calculation.quantity), reporting_cost_basis_amount: reporting_cost_basis,
           market_value_amount:, realized_gain_amount: decimal(state.calculation.realized_gain_amount),
           unrealized_gain_amount: decimal(market_value - state.calculation.cost_basis_amount),
-          net_cash_flow_amount: decimal(state.net_cash_flow), status: :available,
+          net_cash_flow_amount: decimal(state.net_cash_flow), invested_amount: decimal(state.invested_amount), status: :available,
           daily_closing_price:, exchange_rate_lookup:, cash_flows: state.cash_flows
         )
       end
@@ -208,7 +246,7 @@ module Performance
         PositionResult.new(
           instrument:, quantity: zero, reporting_cost_basis_amount: zero, market_value_amount: zero,
           realized_gain_amount: decimal(state.calculation.realized_gain_amount), unrealized_gain_amount: zero,
-          net_cash_flow_amount: decimal(state.net_cash_flow), status: :closed,
+          net_cash_flow_amount: decimal(state.net_cash_flow), invested_amount: decimal(state.invested_amount), status: :closed,
           daily_closing_price: nil, exchange_rate_lookup: nil, cash_flows: state.cash_flows
         )
       end
@@ -217,6 +255,7 @@ module Performance
         PositionResult.new(
           instrument:, quantity: nil, reporting_cost_basis_amount: nil, market_value_amount: nil,
           realized_gain_amount: nil, unrealized_gain_amount: nil, net_cash_flow_amount: nil,
+          invested_amount: nil,
           status: :missing, daily_closing_price:, exchange_rate_lookup:, cash_flows: []
         )
       end

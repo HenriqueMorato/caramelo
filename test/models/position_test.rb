@@ -69,6 +69,16 @@ class PositionTest < ActiveSupport::TestCase
     assert_not_predicate position, :closed?
   end
 
+  test "filters supplied trades by the historical cutoff" do
+    instrument = create_instrument
+    current_trade = create_trade(instrument:, quantity: 2, traded_on: Date.new(2026, 1, 1))
+    future_trade = create_trade(instrument:, quantity: 5, traded_on: Date.new(2026, 2, 1))
+
+    position = Position.for(instrument:, as_of: Date.new(2026, 1, 31), trades: [ current_trade, future_trade ])
+
+    assert_equal BigDecimal("2"), position.quantity
+  end
+
   test "uses weighted-average cost and includes buy fees" do
     instrument = create_instrument
     create_trade(instrument:, quantity: 2, unit_price: "10", fees_cents: 100)

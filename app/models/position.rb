@@ -78,10 +78,16 @@ class Position
     :average_unit_cost, :analytical_realized_gain_amount, :realized_gain,
     :first_trade_date, :last_trade_date
 
-  def self.for(instrument:, as_of: nil)
-    trades = User.owner.trades.where(instrument:)
-    trades = trades.where(traded_on: ..as_of) if as_of
-    trades = trades.order(:traded_on, :id).to_a
+  def self.for(instrument:, as_of: nil, trades: nil)
+    if trades
+      trades = trades.select { |trade| trade.user_id == User.owner.id && trade.instrument == instrument }
+      trades = trades.select { |trade| trade.traded_on <= as_of } if as_of
+      trades.sort_by! { |trade| [ trade.traded_on, trade.id ] }
+    else
+      trades = User.owner.trades.where(instrument:)
+      trades = trades.where(traded_on: ..as_of) if as_of
+      trades = trades.order(:traded_on, :id).to_a
+    end
 
     new(instrument:, trades:)
   end
