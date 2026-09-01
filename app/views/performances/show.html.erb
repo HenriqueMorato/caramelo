@@ -131,9 +131,9 @@
                 <% @series.observations.each do |observation| %>
                   <tr class="border-t border-coffee/10">
                     <td class="py-2 pr-4"><%= l(observation.date, format: :short) %></td>
-                    <td class="py-2 pr-4"><%= observation.market_value&.format || t("Not available") %></td>
-                    <td class="py-2 pr-4"><%= observation.invested_value&.format || t("Not available") %></td>
-                    <td class="py-2"><%= observation.return_ratio ? number_to_percentage(observation.return_ratio * 100, precision: 2) : t("Not available") %></td>
+                    <td class="py-2 pr-4"><%= value_or_not_available(observation.market_value&.format) %></td>
+                    <td class="py-2 pr-4"><%= value_or_not_available(observation.invested_value&.format) %></td>
+                    <td class="py-2"><%= value_or_not_available(observation.return_ratio && number_to_percentage(observation.return_ratio * 100, precision: 2)) %></td>
                   </tr>
                 <% end %>
               </tbody>
