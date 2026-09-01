@@ -50,6 +50,19 @@ class PositionTest < ActiveSupport::TestCase
     assert_nil invalid_result.position
   end
 
+  test "exposes trades from valid and invalid calculation results" do
+    instrument = create_instrument
+    trade = create_trade(instrument:)
+    valid_position = Data.define(:trades).new(trades: [ trade ])
+    invalid_error = Data.define(:trade, :trades).new(trade:, trades: [ trade ])
+    fallback_error = Data.define(:trade, :trades).new(trade:, trades: nil)
+
+    assert_equal [ trade ], Position::CalculationResult.new(instrument:, position: valid_position, error: nil).trades
+    assert_equal [ trade ], Position::CalculationResult.new(instrument:, position: nil, error: invalid_error).trades
+    assert_equal [ trade ], Position::CalculationResult.new(instrument:, position: nil, error: fallback_error).trades
+    assert_empty Position::CalculationResult.new(instrument:, position: nil, error: nil).trades
+  end
+
   test "calculates one instrument for the configured owner in trade chronology" do
     instrument = create_instrument
     sell = create_trade(instrument:, side: :sell, traded_on: Date.new(2026, 1, 2), quantity: 1)

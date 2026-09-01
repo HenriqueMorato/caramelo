@@ -5,6 +5,10 @@ class Position
     def invalid?
       error.present?
     end
+
+    def trades
+      position&.trades || error&.trades || [ error&.trade ].compact
+    end
   end
 
   # Exact moving-average replay output. `cost_basis_amount` and
@@ -13,10 +17,11 @@ class Position
   Calculation = Data.define(:quantity, :cost_basis_amount, :realized_gain_amount)
 
   class InvalidLongOnlyData < StandardError
-    attr_reader :trade
+    attr_reader :trade, :trades
 
-    def initialize(trade)
+    def initialize(trade, trades: nil)
       @trade = trade
+      @trades = trades || [ trade ]
       super("Trade #{trade.id} would make the position quantity negative")
     end
   end
@@ -42,6 +47,8 @@ class Position
         quantity: state.quantity, cost_basis_amount: state.cost_basis_amount,
         realized_gain_amount: state.realized_gain_amount
       )
+    rescue InvalidLongOnlyData => error
+      raise InvalidLongOnlyData.new(error.trade, trades:)
     end
 
     private
@@ -74,7 +81,7 @@ class Position
     end
   end
 
-  attr_reader :instrument, :quantity, :analytical_cost_basis_amount, :cost_basis,
+  attr_reader :instrument, :trades, :quantity, :analytical_cost_basis_amount, :cost_basis,
     :average_unit_cost, :analytical_realized_gain_amount, :realized_gain,
     :first_trade_date, :last_trade_date
 
@@ -92,8 +99,9 @@ class Position
     new(instrument:, trades:)
   end
 
-  def self.overview(owner: User.owner)
-    trades_by_instrument = owner.trades.includes(:instrument).strict_loading.order(:traded_on, :id).group_by(&:instrument)
+  def self.overview(owner: User.owner, include_institutions: false)
+    associations = include_institutions ? %i[instrument institution] : :instrument
+    trades_by_instrument = owner.trades.includes(associations).strict_loading.order(:traded_on, :id).group_by(&:instrument)
 
     trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
       CalculationResult.new(instrument:, position: new(instrument:, trades:), error: nil)
@@ -114,6 +122,7 @@ class Position
 
   def initialize(instrument:, trades:)
     @instrument = instrument
+    @trades = trades.freeze
     @quantity = BigDecimal("0")
     @first_trade_date = trades.first&.traded_on
     @last_trade_date = trades.last&.traded_on

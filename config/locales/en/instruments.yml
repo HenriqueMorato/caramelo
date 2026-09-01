@@ -1,10 +1,18 @@
 ---
 en:
+  instrument_types:
+    bond: Bond
+    crypto: Crypto
+    etf: ETF
+    fund: Fund
+    other: Other
+    stock: Stock
   instruments:
     edit:
       Introduction: Update the instrument details before recording or reviewing trades.
       Page title: Edit %{instrument} · %{application}
     form:
+      Asset type help: Choose the broad category used to organize this instrument.
       Currency help: A three-letter ISO code such as BRL or USD.
       Exchange help: A four-character MIC, such as BVMF for B3 or XNAS for Nasdaq.
       Ticker help: The market symbol, such as PETR4 or VOO.

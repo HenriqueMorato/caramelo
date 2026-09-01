@@ -22,6 +22,27 @@ class PositionsTest < ApplicationSystemTestCase
     assert_current_path instrument_path(instruments(:voo_arcx))
   end
 
+  test "chooses nested grouping options and can clear grouping" do
+    visit positions_path
+
+    click_button "Type"
+    assert_text "OTHER"
+    assert_selector "button.grouping-option[data-grouping-value='asset_type'][aria-pressed='true'][data-grouping-slot='primary']"
+    assert_selector "button.grouping-option[data-grouping-value='currency'][aria-pressed='false'][data-grouping-slot='']"
+
+    click_button "Currency"
+    assert_text "USD"
+    assert_selector "button.grouping-option[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='secondary']"
+
+    click_button "Type"
+    assert_selector "button.grouping-option[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='primary']"
+    assert_selector "button.grouping-option[data-grouping-value='asset_type'][aria-pressed='false'][data-grouping-slot='']"
+
+    click_button "Clear"
+    assert_selector "button.grouping-option[data-grouping-value='asset_type'][aria-pressed='false'][data-grouping-slot='']"
+    assert_text "POSITION"
+  end
+
   test "includes a closed position when requested" do
     instrument = instruments(:petr4_bvmf)
     create_trade(instrument:, side: :buy)

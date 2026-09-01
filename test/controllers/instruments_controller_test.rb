@@ -144,6 +144,18 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "XNAS", instrument.exchange
     assert_equal "Apple Inc.", instrument.name
     assert_equal "USD", instrument.currency
+    assert_equal "other", instrument.asset_type
+  end
+
+  test "creates an instrument with a selected category" do
+    post instruments_url, params: {
+      instrument: {
+        ticker: "BTC", exchange: "XNAS", name: "Bitcoin", currency: "USD", asset_type: "crypto"
+      }
+    }
+
+    assert_redirected_to instrument_url(Instrument.order(:id).last)
+    assert_predicate Instrument.order(:id).last, :crypto?
   end
 
   test "defaults a new instrument to BVMF and BRL" do
@@ -176,6 +188,16 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "BVMF", @instrument.exchange
     assert_equal "Petrobras ON", @instrument.name
     assert_equal "USD", @instrument.currency
+  end
+
+  test "renders validation errors when updating an instrument fails" do
+    patch instrument_url(@instrument), params: {
+      instrument: { ticker: "", exchange: "BAD", name: "", currency: "ZZZ" }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Ticker can't be blank/
+    assert_select "[role=alert]", /Exchange is invalid/
   end
 
   test "deletes an unused instrument" do

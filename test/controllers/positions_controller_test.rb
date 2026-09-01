@@ -55,6 +55,39 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", "Add trade"
   end
 
+  test "groups positions by type and currency" do
+    instruments(:voo_arcx).update!(asset_type: :etf)
+
+    get positions_url(group_by: "asset_type", subgroup_by: "currency")
+
+    assert_response :success
+    assert_select "h2[id^='positions-asset_type-']", "ETF"
+    assert_select "h3", "USD"
+  end
+
+  test "groups positions by their recorded institution" do
+    get positions_url(group_by: "institution")
+
+    assert_response :success
+    assert_select "h2", "Banco do Brasil"
+  end
+
+  test "labels positions with multiple or missing institutions" do
+    instrument = instruments(:voo_arcx)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    User.owner.trades.create!(
+      instrument:, institution: institutions(:owner_xp), side: :buy, traded_on: Date.new(2026, 1, 2),
+      quantity: 1, unit_price: 10, fees_cents: 0, currency: instrument.currency
+    )
+    create_trade(instrument: instruments(:petr4_bvmf), side: :buy, quantity: 1)
+
+    get positions_url(group_by: "institution")
+
+    assert_response :success
+    assert_select "h2", "Multiple institutions"
+    assert_select "h2", "No institution"
+  end
+
   test "identifies an invalid long-only position without failing the page" do
     instrument = instruments(:petr4_bvmf)
     trade = create_trade(instrument:, side: :sell, quantity: 1)
@@ -68,6 +101,20 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
     assert_select "a[href='#{instrument_path(instrument)}']"
     assert_equal trade, Position.overview.find { |result| result.instrument == instrument }.error.trade
+  end
+
+  test "groups an invalid position by institution without failing the page" do
+    instrument = instruments(:petr4_bvmf)
+    User.owner.trades.create!(
+      instrument:, institution: institutions(:owner_xp), side: :sell, traded_on: Date.new(2026, 1, 1),
+      quantity: 1, unit_price: 10, fees_cents: 0, currency: instrument.currency
+    )
+
+    get positions_url(group_by: "institution")
+
+    assert_response :success
+    assert_select "h2", "XP Investimentos"
+    assert_select "[role='alert']", /Recorded sales exceed purchases/
   end
 
   test "shows the current B3 price and refresh controls" do
