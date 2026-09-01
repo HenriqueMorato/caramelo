@@ -36,24 +36,42 @@ export default class extends Controller {
       plugins: [hoverGuidePlugin],
       data: {
         labels: this.dataValue.labels,
-        datasets: [ {
-          data: this.dataValue.values,
-          borderColor: "#9b5d31",
-          backgroundColor: "rgba(196, 129, 79, 0.14)",
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          pointHitRadius: 16,
-          fill: true,
-          tension: 0.25
-        } ]
+        datasets: [
+          {
+            label: this.dataValue.portfolio_value_label,
+            data: this.dataValue.values,
+            borderColor: "#9b5d31",
+            backgroundColor: "rgba(196, 129, 79, 0.14)",
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            pointHitRadius: 16,
+            fill: true,
+            tension: 0.25
+          },
+          {
+            label: this.dataValue.invested_value_label,
+            data: this.dataValue.invested_values,
+            borderColor: "#766b60",
+            borderDash: [5, 4],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            pointHitRadius: 16,
+            fill: false,
+            tension: 0.25
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false, axis: "x" },
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: true,
+            labels: { color: "#4c3d31", boxWidth: 18, boxHeight: 2, usePointStyle: true, padding: 16 }
+          },
           tooltip: {
             mode: "index",
             intersect: false,
@@ -70,11 +88,22 @@ export default class extends Controller {
             bodySpacing: 4,
             callbacks: {
               title: (items) => this.dataValue.labels[items[0].dataIndex],
-              label: (item) => [
-                this.dataValue.formatted_values[item.dataIndex],
-                this.dataValue.formatted_performances?.[item.dataIndex]
-              ].filter(Boolean),
+              label: (item) => {
+                const formattedValue = item.datasetIndex === 1
+                  ? this.dataValue.formatted_invested_values[item.dataIndex]
+                  : this.dataValue.formatted_values[item.dataIndex]
+                const valueLabel = item.datasetIndex === 1
+                  ? this.dataValue.invested_value_label
+                  : this.dataValue.portfolio_value_label
+                const performance = item.datasetIndex === 0
+                  ? this.dataValue.formatted_performances?.[item.dataIndex]
+                  : null
+                const performanceLabel = performance && `${this.dataValue.return_label}: ${performance}`
+                return [`${valueLabel}: ${formattedValue}`, performanceLabel].filter(Boolean)
+              },
               labelTextColor: (item) => {
+                if (item.datasetIndex === 1) return "#766b60"
+
                 const performance = this.dataValue.formatted_performances?.[item.dataIndex]
                 return performance?.startsWith("↓") ? "#e76f51" : "#56805d"
               }

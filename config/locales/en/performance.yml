@@ -33,7 +33,9 @@ en:
       Price return: Price return
       Prices through: Prices through %{date}
       Realized gains to date: Realized gains to date
+      Return: Return
       Unrealized gains to date: Unrealized gains to date
+      Value invested: Value invested
       View exact values: View exact values
       Week: Week
       Year: Year

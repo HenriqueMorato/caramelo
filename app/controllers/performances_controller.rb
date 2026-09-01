@@ -12,6 +12,7 @@ class PerformancesController < ApplicationController
     @selected_period = params[:period].presence_in(PERIODS.keys) || "month"
     @performance = Performance::Period.for(from: period_start, to: Date.current)
     @series = Performance::Series.for(from: period_start, to: Date.current)
+    @series_presenter = Performance::SeriesPresenter.new(@series)
     @historical_data_backfill_pending = HistoricalDataBackfill.pending_for?(instruments: @performance.missing_instruments)
   end
 

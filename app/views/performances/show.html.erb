@@ -86,11 +86,11 @@
           <h2 id="performance-series-heading" class="text-lg font-semibold text-coffee"><%= t(".Portfolio history") %></h2>
           <p class="mt-1 text-sm text-muted"><%= t(".Portfolio history explanation") %></p>
         </div>
-        <span class="text-xs text-muted"><%= l(@series.from, format: :short) %> – <%= l(@series.to, format: :short) %></span>
+        <span class="text-xs text-muted"><%= @series_presenter.date_range_label %></span>
       </div>
 
       <% if @series.available? %>
-        <div class="relative mt-5" data-controller="performance-chart" data-performance-chart-data-value="<%= json_escape({ labels: @series.observations.map { |observation| l(observation.date, format: :short) }, values: @series.observations.map { |observation| observation.market_value_amount.to_f }, formatted_values: @series.observations.map { |observation| observation.market_value.format }, formatted_performances: @series.observations.map { |observation| observation.return_ratio && "#{observation.return_ratio.positive? ? "↑" : observation.return_ratio.negative? ? "↓" : "→"} #{observation.return_ratio.positive? ? "+" : ""}#{number_to_percentage(observation.return_ratio.to_f * 100, precision: 2)}" }, currency: @performance.closing_valuation.market_value.currency.iso_code }.to_json) %>">
+        <div class="relative mt-5" data-controller="performance-chart" data-performance-chart-data-value="<%= json_escape({ labels: @series.observations.map { |observation| l(observation.date, format: :short) }, values: @series.observations.map { |observation| observation.market_value_amount.to_f }, invested_values: @series.observations.map { |observation| observation.invested_amount.to_f }, formatted_values: @series.observations.map { |observation| observation.market_value.format }, formatted_invested_values: @series.observations.map { |observation| observation.invested_value.format }, formatted_performances: @series.observations.map { |observation| observation.return_ratio && "#{observation.return_ratio.positive? ? "↑" : observation.return_ratio.negative? ? "↓" : "→"} #{observation.return_ratio.positive? ? "+" : ""}#{number_to_percentage(observation.return_ratio.to_f * 100, precision: 2)}" }, portfolio_value_label: t(".Portfolio value"), invested_value_label: t(".Value invested"), return_label: t(".Return"), currency: @performance.closing_valuation.market_value.currency.iso_code }.to_json) %>">
           <div class="relative h-56 sm:h-64">
             <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t(".Portfolio history chart description") %>"></canvas>
           </div>
