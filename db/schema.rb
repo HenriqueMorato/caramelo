@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_01_110001) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_01_110002) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -94,6 +94,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_110001) do
     t.string "kind", null: false
     t.string "name", null: false
     t.string "provider", null: false
+    t.string "provider_identifier", null: false
     t.datetime "updated_at", null: false
     t.index ["identifier"], name: "index_market_benchmarks_on_identifier", unique: true
   end

@@ -2,7 +2,7 @@ require "test_helper"
 
 class MarketBenchmarkObservationTest < ActiveSupport::TestCase
   setup do
-    @benchmark = MarketBenchmark.create!(identifier: "IBOV", name: "Ibovespa", kind: "price", currency: "BRL", provider: "BACEN")
+    @benchmark = MarketBenchmark.create!(identifier: "IBOV", name: "Ibovespa", kind: "price", currency: "BRL", provider: "BACEN", provider_identifier: "IBOV")
   end
 
   test "validates an observation in the benchmark currency" do
