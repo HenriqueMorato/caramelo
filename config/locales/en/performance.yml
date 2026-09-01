@@ -5,6 +5,7 @@ en:
       All: All time
       Cash-flow adjusted: Modified Dietz
       Daily value: Daily value
+      Date: Date
       Empty state: Record trades and capture historical market data to calculate performance.
       Excluding trade cash flows: Excluding purchases and sale proceeds
       Gain or loss: Gain / loss
@@ -24,10 +25,15 @@ en:
       No performance yet: No performance yet
       Page title: Performance · %{application}
       Period selection: Select reporting period
+      Portfolio history: Portfolio history
+      Portfolio history chart description: Portfolio value over the selected period.
+      Portfolio history explanation: Daily closing values from persisted market data.
+      Portfolio history unavailable: Historical values are incomplete for this period.
       Portfolio value: Portfolio value
       Price return: Price return
       Prices through: Prices through %{date}
       Realized gains to date: Realized gains to date
+      View exact values: View exact values
       Unrealized gains to date: Unrealized gains to date
       Week: Week
       Year: Year
