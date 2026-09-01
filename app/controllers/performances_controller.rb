@@ -17,6 +17,13 @@ class PerformancesController < ApplicationController
       @benchmark_results = MarketBenchmark.order(:identifier).map do |benchmark|
         [ benchmark, Performance::Benchmark.for(benchmark:, from: period_start, to: Date.current) ]
       end
+      @benchmark_chart_data = @benchmark_results.filter_map do |benchmark, result|
+        next unless result.available?
+
+        values_by_date = result.observations.zip(result.cumulative_return_values).to_h { |observation, value| [ observation.observed_on, value.to_f * 100 ] }
+        { identifier: benchmark.identifier, label: benchmark.name,
+          values: @series.observations.map { |observation| values_by_date[observation.date] } }
+      end
     end
     @historical_data_backfill_pending = HistoricalDataBackfill.pending_for?(instruments: @performance.missing_instruments)
   end

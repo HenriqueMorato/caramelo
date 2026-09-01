@@ -65,6 +65,8 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
 
   test "shows available benchmark returns for the selected period" do
     Trade.where(user: User.owner).delete_all
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
     from = Date.current - 1.week
     instrument = Instrument.create!(ticker: "BENCH", exchange: "BVMF", name: "Benchmark stock", currency: "BRL")
     create_trade(instrument:, traded_on: from)
