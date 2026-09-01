@@ -2,13 +2,21 @@
 en:
   positions:
     index:
+      Clear: Clear
       Closed positions hidden: Include closed positions to review the complete trade
         history.
       Empty state: Record a trade to calculate your first position.
+      Group by: Group by
+      Group by asset_type: Type
+      Group by currency: Currency
+      Group by exchange: Exchange
+      Group by institution: Institution
       Heading: Your little pack.
       Include closed positions: Include closed positions
+      No grouping: None
       No open positions: No open positions
       No positions yet: No positions yet
+      Organize: Organize
       Page title: Positions · %{application}
       Position: Position
       Position could not be calculated: Position could not be calculated
@@ -16,3 +24,4 @@ en:
         instrument's trades.
       Show open positions: Show open positions only
       Subheading: Every position, in one calm place.
+      Then by: Then by

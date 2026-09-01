@@ -55,6 +55,39 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", "Add trade"
   end
 
+  test "groups positions by type and currency" do
+    instruments(:voo_arcx).update!(asset_type: :etf)
+
+    get positions_url(group_by: "asset_type", subgroup_by: "currency")
+
+    assert_response :success
+    assert_select "h2#positions-asset_type-etf", "ETF"
+    assert_select "h3", "USD"
+  end
+
+  test "groups positions by their recorded institution" do
+    get positions_url(group_by: "institution")
+
+    assert_response :success
+    assert_select "h2", "Banco do Brasil"
+  end
+
+  test "labels positions with multiple or missing institutions" do
+    instrument = instruments(:voo_arcx)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    User.owner.trades.create!(
+      instrument:, institution: institutions(:owner_xp), side: :buy, traded_on: Date.new(2026, 1, 2),
+      quantity: 1, unit_price: 10, fees_cents: 0, currency: instrument.currency
+    )
+    create_trade(instrument: instruments(:petr4_bvmf), side: :buy, quantity: 1)
+
+    get positions_url(group_by: "institution")
+
+    assert_response :success
+    assert_select "h2", "Multiple institutions"
+    assert_select "h2", "No institution"
+  end
+
   test "identifies an invalid long-only position without failing the page" do
     instrument = instruments(:petr4_bvmf)
     trade = create_trade(instrument:, side: :sell, quantity: 1)
