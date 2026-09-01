@@ -80,6 +80,26 @@
       </article>
     </div>
 
+    <% if @benchmark_results.present? %>
+      <section class="rounded-2xl border border-coffee/10 bg-oat-2 p-5" aria-labelledby="market-benchmarks-heading">
+        <h2 id="market-benchmarks-heading" class="text-lg font-semibold text-coffee"><%= t(".Market benchmarks") %></h2>
+        <p class="mt-1 text-sm text-muted"><%= t(".Market benchmarks explanation") %></p>
+        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+          <% @benchmark_results.each do |benchmark, result| %>
+            <article class="rounded-xl border border-coffee/10 bg-oat p-4">
+              <p class="text-sm font-semibold text-coffee"><%= benchmark.name %></p>
+              <% if result.available? %>
+                <p class="mt-2 font-mono text-xl font-bold tabular-nums <%= result.return_ratio.negative? ? "text-red-700" : "text-caramel-deep" %>"><%= "+" if result.return_ratio.positive? %><%= number_to_percentage(result.return_ratio * 100, precision: 2) %></p>
+                <p class="mt-1 text-xs text-muted"><%= t(".Benchmark period", from: l(result.first_observation.observed_on, format: :short), to: l(result.last_observation.observed_on, format: :short)) %></p>
+              <% else %>
+                <p class="mt-2 text-sm text-muted"><%= t(".Benchmark unavailable") %></p>
+              <% end %>
+            </article>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+
     <section class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm" aria-labelledby="performance-series-heading">
       <div class="flex flex-wrap items-baseline justify-between gap-3">
         <div>

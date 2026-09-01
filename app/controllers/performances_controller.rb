@@ -14,6 +14,9 @@ class PerformancesController < ApplicationController
     if @performance.available?
       @series = Performance::Series.for(from: period_start, to: Date.current)
       @series_presenter = Performance::SeriesPresenter.new(@series)
+      @benchmark_results = MarketBenchmark.order(:identifier).map do |benchmark|
+        [ benchmark, Performance::Benchmark.for(benchmark:, from: period_start, to: Date.current) ]
+      end
     end
     @historical_data_backfill_pending = HistoricalDataBackfill.pending_for?(instruments: @performance.missing_instruments)
   end
