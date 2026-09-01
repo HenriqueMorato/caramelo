@@ -31,6 +31,14 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     assert_equal 2, series.chart_points.length
   end
 
+  test "centers a single flat observation" do
+    series = Performance::Series.for(from: @from, to: @from, portfolio: portfolio_with(
+      @from => valuation(@from, "100")
+    ))
+
+    assert_equal [ [ 50.0, 50.0 ] ], series.chart_points
+  end
+
   test "returns an empty series when the range contains no weekdays" do
     saturday = Date.new(2026, 8, 29)
     series = Performance::Series.for(from: saturday, to: saturday + 1, portfolio: portfolio_with({}))
