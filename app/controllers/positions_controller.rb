@@ -43,10 +43,10 @@ class PositionsController < ApplicationController
   helper_method :grouping_label, :grouping_option_class, :grouping_options
 
   def grouping_option_class(value)
-    return "border border-brand-700 bg-brand-700 text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-brand-800" if value == @group_by
-    return "border border-caramel-deep bg-caramel text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-caramel-deep" if value == @subgroup_by
+    return "rounded-md border border-brand-700 bg-brand-700 text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-brand-800" if value == @group_by
+    return "rounded-md border border-caramel-deep bg-caramel text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-caramel-deep" if value == @subgroup_by
 
-    "ui-button-secondary"
+    "bg-transparent text-muted hover:bg-oat hover:text-coffee"
   end
 
   def grouping_options

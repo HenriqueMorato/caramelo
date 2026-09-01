@@ -28,7 +28,7 @@ class PositionsTest < ApplicationSystemTestCase
     click_button "Type"
     assert_text "OTHER"
     assert_selector "button[data-grouping-value='asset_type'][aria-pressed='true'][data-grouping-slot='primary'].bg-brand-700.text-white"
-    assert_selector "button[data-grouping-value='currency'][aria-pressed='false'].ui-button-secondary"
+    assert_selector "button[data-grouping-value='currency'][aria-pressed='false'].bg-transparent.text-muted"
 
     click_button "Currency"
     assert_text "USD"
@@ -36,10 +36,10 @@ class PositionsTest < ApplicationSystemTestCase
 
     click_button "Type"
     assert_selector "button[data-grouping-value='currency'][aria-pressed='true'][data-grouping-slot='primary'].bg-brand-700.text-white"
-    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].ui-button-secondary"
+    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].bg-transparent.text-muted"
 
     click_button "Clear"
-    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].ui-button-secondary"
+    assert_selector "button[data-grouping-value='asset_type'][aria-pressed='false'].bg-transparent.text-muted"
     assert_text "POSITION"
   end
 

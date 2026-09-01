@@ -4,8 +4,8 @@ export default class extends Controller {
   static targets = ["form", "primaryInput", "secondaryInput", "option"]
 
   stateClasses = [
-    "ui-button-secondary", "border", "border-brand-700", "bg-brand-700", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800",
-    "border-caramel-deep", "bg-caramel", "text-coffee", "hover:bg-caramel-deep"
+    "ui-button-secondary", "rounded-none", "rounded-md", "border", "border-brand-700", "bg-brand-700", "bg-transparent", "text-white", "text-muted", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800", "hover:bg-oat", "hover:text-coffee",
+    "border-caramel-deep", "bg-caramel", "hover:bg-caramel-deep"
   ]
 
   connect() {
@@ -48,10 +48,10 @@ export default class extends Controller {
   }
 
   classesFor(slot) {
-    if (slot === "primary") return [ "border", "border-brand-700", "bg-brand-700", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800" ]
-    if (slot === "secondary") return [ "border", "border-caramel-deep", "bg-caramel", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-caramel-deep" ]
+    if (slot === "primary") return [ "rounded-md", "border", "border-brand-700", "bg-brand-700", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-brand-800" ]
+    if (slot === "secondary") return [ "rounded-md", "border", "border-caramel-deep", "bg-caramel", "text-white", "shadow-inner", "ring-1", "ring-inset", "ring-white/60", "hover:bg-caramel-deep" ]
 
-    return [ "ui-button-secondary" ]
+    return [ "rounded-none", "bg-transparent", "text-muted", "hover:bg-oat", "hover:text-coffee" ]
   }
 
   clear() {

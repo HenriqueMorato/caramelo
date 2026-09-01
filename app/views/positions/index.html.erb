@@ -28,14 +28,13 @@
       <%= hidden_field_tag :closed, "1" if @show_closed %>
       <%= hidden_field_tag :group_by, @group_by, data: { grouping_target: "primaryInput" } %>
       <%= hidden_field_tag :subgroup_by, @subgroup_by, data: { grouping_target: "secondaryInput" } %>
-      <div class="ui-card flex flex-wrap items-center gap-3 p-4 sm:p-5">
-        <span class="ui-eyebrow"><%= t(".Organize") %></span>
-        <div class="inline-flex max-w-full overflow-x-auto rounded-xl shadow-sm" role="group" aria-label="<%= t(".Organize") %>">
+      <div class="flex flex-wrap items-center justify-end gap-3 py-1">
+        <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-white/50 p-1" role="group" aria-label="<%= t(".Organize") %>">
           <% grouping_options.drop(1).each do |label, value| %>
-            <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="ui-button shrink-0 whitespace-nowrap rounded-none border-l-0 first:rounded-l-xl first:border-l last:rounded-r-xl <%= grouping_option_class(value) %> transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] active:shadow-inner"><%= label %></button>
+            <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="ui-button shrink-0 whitespace-nowrap rounded-none border-l border-coffee/10 px-3 py-1.5 text-xs first:border-l-0 <%= grouping_option_class(value) %> transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] active:shadow-inner"><%= label %></button>
           <% end %>
         </div>
-        <button type="button" data-action="grouping#clear" class="ui-button ui-button-secondary"><%= t(".Clear") %></button>
+        <button type="button" data-action="grouping#clear" class="ui-button ui-button-secondary rounded-md px-2 py-1 text-xs"><%= t(".Clear") %></button>
       </div>
     <% end %>
 
