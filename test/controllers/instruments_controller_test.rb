@@ -144,6 +144,18 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "XNAS", instrument.exchange
     assert_equal "Apple Inc.", instrument.name
     assert_equal "USD", instrument.currency
+    assert_equal "other", instrument.asset_type
+  end
+
+  test "creates an instrument with a selected category" do
+    post instruments_url, params: {
+      instrument: {
+        ticker: "BTC", exchange: "XNAS", name: "Bitcoin", currency: "USD", asset_type: "crypto"
+      }
+    }
+
+    assert_redirected_to instrument_url(Instrument.order(:id).last)
+    assert_predicate Instrument.order(:id).last, :crypto?
   end
 
   test "defaults a new instrument to BVMF and BRL" do

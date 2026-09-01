@@ -6,7 +6,19 @@ class InstrumentTest < ActiveSupport::TestCase
 
     assert_equal "BVMF", instrument.exchange
     assert_equal "BRL", instrument.currency
+    assert_equal "other", instrument.asset_type
     assert_predicate instrument, :valid?
+  end
+
+  test "supports the global instrument categories" do
+    instrument = Instrument.new(ticker: "BTC", exchange: "XNAS", name: "Bitcoin", currency: "USD", asset_type: :crypto)
+
+    assert_predicate instrument, :valid?
+    assert_predicate instrument, :crypto?
+
+    instrument.asset_type = "invalid"
+    assert_predicate instrument, :invalid?
+    assert_includes instrument.errors[:asset_type], "is not included in the list"
   end
 
   test "normalizes and requires ticker, exchange, and name" do

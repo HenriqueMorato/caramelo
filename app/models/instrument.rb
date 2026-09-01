@@ -2,6 +2,15 @@ class Instrument < ApplicationRecord
   has_many :trades, dependent: :restrict_with_error
   has_many :daily_closing_prices, dependent: :restrict_with_error
 
+  enum :asset_type, {
+    stock: "stock",
+    etf: "etf",
+    fund: "fund",
+    bond: "bond",
+    crypto: "crypto",
+    other: "other"
+  }, default: :other, validate: true
+
   normalizes :ticker, with: ->(ticker) { ticker.strip.upcase }
   normalizes :exchange, with: ->(exchange) { exchange.strip.upcase }
   normalizes :name, with: ->(name) { name.strip.squish }

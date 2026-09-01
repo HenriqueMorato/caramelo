@@ -61,6 +61,6 @@ class InstrumentsController < ApplicationController
   end
 
   def instrument_params
-    params.expect(instrument: %i[ticker exchange name currency])
+    params.expect(instrument: %i[ticker exchange name currency asset_type])
   end
 end

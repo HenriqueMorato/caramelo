@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_30_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_090000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -62,13 +62,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_000000) do
   end
 
   create_table "instruments", force: :cascade do |t|
+    t.string "asset_type", default: "other", null: false
     t.datetime "created_at", null: false
     t.string "currency", default: "BRL", null: false
     t.string "exchange", default: "BVMF", null: false, collation: "NOCASE"
     t.string "name", null: false
     t.string "ticker", null: false, collation: "NOCASE"
     t.datetime "updated_at", null: false
+    t.index ["asset_type"], name: "index_instruments_on_asset_type"
     t.index ["exchange", "ticker"], name: "index_instruments_on_exchange_and_ticker", unique: true
+    t.check_constraint "asset_type IN ('stock', 'etf', 'fund', 'bond', 'crypto', 'other')", name: "instruments_asset_type_check"
   end
 
   create_table "sessions", force: :cascade do |t|
