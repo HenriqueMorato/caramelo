@@ -3,8 +3,9 @@ module Performance
     # One end-of-day portfolio observation. Each field has a distinct role:
     # `date` identifies the trading day; `market_value_amount` preserves the
     # precise portfolio total for calculations; `market_value` formats that
-    # total for display; `invested_amount` and `invested_value` expose the
-    # cumulative buy capital in precise and display forms; `gain_loss_amount`
+    # total for display; `invested_amount` and `invested_value` expose net
+    # invested capital (buys less sale proceeds) in precise and display forms;
+    # `gain_loss_amount`
     # and `gain_loss` expose the precise and formatted change from the selected
     # period start; `return_ratio` is the cash-flow-adjusted percentage change;
     # and `status` distinguishes a complete observation from missing history.
@@ -26,22 +27,6 @@ module Performance
       def empty? = status == :empty
 
       def missing_dates = observations.filter_map { |observation| observation.date if observation.missing? }
-      def available_observations = observations.select(&:available?)
-
-      def chart_points
-        values = observations.filter_map { |observation| observation.market_value_amount if observation.available? }
-        return [] if values.empty?
-
-        minimum = values.min
-        spread = values.max - minimum
-        observations.filter_map.with_index do |observation, index|
-          next unless observation.available?
-
-          x = observations.length == 1 ? 50 : index.fdiv(observations.length - 1) * 100
-          y = spread.zero? ? 50 : 100 - ((observation.market_value_amount - minimum).fdiv(spread) * 100)
-          [ x.round(2), y.round(2) ]
-        end
-      end
     end
 
     def self.for(from:, to:, portfolio: Portfolio)
@@ -78,7 +63,7 @@ module Performance
     def observation_for(date)
       period = Performance::Period.for(from:, to: date, portfolio: memoized_portfolio)
       valuation = period.closing_valuation
-      invested_amount = decimal(valuation.position_results.filter_map(&:invested_amount).sum)
+      invested_amount = decimal(valuation.position_results.filter_map(&:net_cash_flow_amount).sum)
       currency = valuation.market_value&.currency || reporting_currency
       Observation.new(
         date:, market_value_amount: valuation.market_value_amount, market_value: valuation.market_value,

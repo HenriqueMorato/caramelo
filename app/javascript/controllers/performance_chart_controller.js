@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
-import { Chart, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip } from "chart.js"
+import { Chart, CategoryScale, Filler, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip } from "chart.js"
 
-Chart.register(CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip)
+Chart.register(CategoryScale, Filler, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip)
 
 const hoverGuidePlugin = {
   id: "hoverGuide",
@@ -66,6 +66,7 @@ export default class extends Controller {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : undefined,
         interaction: { mode: "index", intersect: false, axis: "x" },
         plugins: {
           legend: {
@@ -104,8 +105,10 @@ export default class extends Controller {
               labelTextColor: (item) => {
                 if (item.datasetIndex === 1) return "#766b60"
 
-                const performance = this.dataValue.formatted_performances?.[item.dataIndex]
-                return performance?.startsWith("↓") ? "#e76f51" : "#56805d"
+                const performance = this.dataValue.performance_ratios?.[item.dataIndex]
+                if (performance === undefined || performance === null || performance === 0) return "#766b60"
+
+                return performance < 0 ? "#e76f51" : "#56805d"
               }
             }
           }
@@ -117,7 +120,7 @@ export default class extends Controller {
             grid: { color: "rgba(76, 61, 49, 0.12)" },
             ticks: {
               color: "#766b60",
-              callback: (value) => new Intl.NumberFormat(undefined, {
+              callback: (value) => new Intl.NumberFormat(this.dataValue.locale, {
                 style: "currency", currency: this.dataValue.currency, maximumFractionDigits: 2
               }).format(value)
             }
