@@ -60,6 +60,9 @@ en:
   confirmations:
     Delete record: Delete %{record}?
     Delete trade: Delete this trade?
+  date:
+    formats:
+      range_with_year: "%b %d, %Y"
   forms:
     Could not save:
       one: '1 error prevented this %{model} from being saved:'

@@ -77,3 +77,16 @@ When a trade change requires older observations, [Historical data
 backfills](historical-data-backfills.md) coalesce and import that range in the
 background. Performance displays a loading state while relevant work is
 pending.
+
+## Historical series
+
+`Performance::Series.for(from:, to:)` reuses the daily portfolio valuation for
+each weekday in the selected range. It memoizes each date's valuation so the
+opening calculation is not repeated, and returns one `Observation` per date
+with the portfolio value, period gain/loss, return, and availability status.
+
+The performance page renders available observations as an interactive Chart.js
+canvas with portfolio value and net invested capital lines. The same values,
+including returns, remain in an expandable data table for keyboard and screen
+reader users. A missing observation marks the series incomplete; it is never
+drawn as a zero or replaced with a current quote.

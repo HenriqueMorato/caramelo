@@ -14,6 +14,8 @@ class PerformanceTest < ApplicationSystemTestCase
 
     assert_text "Performance"
     assert_text "R$22,00"
+    assert_selector "canvas[data-performance-chart-target='canvas']"
+    assert_selector "th", text: "Net invested", visible: false
     click_on "Week"
     assert_current_path performance_path(period: "week")
     assert_text "20.00%"
