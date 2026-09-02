@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_01_110002) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -74,6 +74,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_090000) do
     t.check_constraint "asset_type IN ('stock', 'etf', 'fund', 'bond', 'crypto', 'other')", name: "instruments_asset_type_check"
   end
 
+  create_table "market_benchmark_observations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.integer "market_benchmark_id", null: false
+    t.datetime "observed_at", null: false
+    t.date "observed_on", null: false
+    t.string "provider", null: false
+    t.datetime "updated_at", null: false
+    t.decimal "value", precision: 28, scale: 12, null: false
+    t.index ["market_benchmark_id", "observed_on", "provider"], name: "index_market_benchmark_observations_uniqueness", unique: true
+    t.index ["market_benchmark_id"], name: "index_market_benchmark_observations_on_market_benchmark_id"
+  end
+
+  create_table "market_benchmarks", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.string "identifier", null: false
+    t.string "kind", null: false
+    t.string "name", null: false
+    t.string "provider", null: false
+    t.string "provider_identifier", null: false
+    t.datetime "updated_at", null: false
+    t.index ["identifier"], name: "index_market_benchmarks_on_identifier", unique: true
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "ip_address"
@@ -117,6 +142,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_090000) do
   add_foreign_key "daily_closing_prices", "instruments"
   add_foreign_key "historical_data_backfills", "instruments"
   add_foreign_key "institutions", "users"
+  add_foreign_key "market_benchmark_observations", "market_benchmarks"
   add_foreign_key "sessions", "users"
   add_foreign_key "trades", "institutions"
   add_foreign_key "trades", "instruments"

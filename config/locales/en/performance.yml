@@ -3,6 +3,8 @@ en:
   performances:
     show:
       All: All time
+      Benchmark period: "%{from} – %{to}"
+      Benchmark unavailable: Data unavailable
       Cash-flow adjusted: Modified Dietz
       Daily value: Daily value
       Date: Date
@@ -18,6 +20,8 @@ en:
         a current quote.
       Introduction: Review daily portfolio value and returns calculated from recorded
         trades and durable historical market data.
+      Market benchmarks: Market benchmarks
+      Market benchmarks explanation: Reference returns for the selected period.
       Market prices and FX rates through: Market prices through %{market_price_date};
         FX rates through %{exchange_rate_date}
       Month: Month

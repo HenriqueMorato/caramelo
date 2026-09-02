@@ -12,6 +12,10 @@ module ApplicationHelper
     Money.from_amount(amount, currency).format
   end
 
+  def value_or_not_available(value)
+    value.nil? ? t("Not available") : value
+  end
+
   def format_unit_price_input(unit_price)
     format_decimal(unit_price, minimum_precision: 2, maximum_precision: 8, delimiter: false)
   end

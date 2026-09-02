@@ -28,4 +28,12 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "R$10,00", format_currency_amount(BigDecimal("10"), "BRL")
     assert_equal "¥1,235", format_currency_amount(BigDecimal("1234.56"), "JPY")
   end
+
+  test "falls back to not available only for nil values" do
+    assert_equal "Not available", value_or_not_available(nil)
+    assert_equal 0, value_or_not_available(0)
+    assert_equal false, value_or_not_available(false)
+    assert_equal true, value_or_not_available(true)
+    assert_equal "Ready", value_or_not_available("Ready")
+  end
 end

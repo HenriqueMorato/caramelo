@@ -31,6 +31,21 @@ export default class extends Controller {
   static values = { data: Object }
 
   connect() {
+    this.benchmarkDatasets = (this.dataValue.benchmarks || []).map((benchmark, index) => ({
+      label: benchmark.label,
+      data: benchmark.values,
+      borderColor: { IBOV: "#3f5f86", SP500: "#7b3f78", CDI: "#b27a1f" }[benchmark.identifier] || ["#3f5f86", "#7b3f78", "#b27a1f"][index % 3],
+      borderWidth: 1.75,
+      pointRadius: 0,
+      pointHitRadius: 12,
+      fill: false,
+      tension: 0.25,
+      yAxisID: "benchmark"
+    }))
+    const benchmarkValues = this.benchmarkDatasets.flatMap((dataset) => dataset.data).filter((value) => value !== null && value !== undefined)
+    const benchmarkMinimum = Math.min(0, ...benchmarkValues)
+    const benchmarkMaximum = Math.max(0, ...benchmarkValues)
+    const benchmarkPadding = Math.max((benchmarkMaximum - benchmarkMinimum) * 0.1, 1)
     this.chart = new Chart(this.canvasTarget, {
       type: "line",
       plugins: [hoverGuidePlugin],
@@ -42,7 +57,7 @@ export default class extends Controller {
             data: this.dataValue.values,
             borderColor: "#9b5d31",
             backgroundColor: "rgba(196, 129, 79, 0.14)",
-            borderWidth: 2,
+            borderWidth: 3,
             pointRadius: 0,
             pointHoverRadius: 4,
             pointHitRadius: 16,
@@ -54,13 +69,14 @@ export default class extends Controller {
             data: this.dataValue.invested_values,
             borderColor: "#766b60",
             borderDash: [5, 4],
-            borderWidth: 1.5,
+            borderWidth: 2.25,
             pointRadius: 0,
             pointHoverRadius: 3,
             pointHitRadius: 16,
             fill: false,
             tension: 0.25
-          }
+          },
+          ...this.benchmarkDatasets.map((dataset) => ({ ...dataset, hidden: true }))
         ]
       },
       options: {
@@ -71,7 +87,23 @@ export default class extends Controller {
         plugins: {
           legend: {
             display: true,
-            labels: { color: "#4c3d31", boxWidth: 18, boxHeight: 2, usePointStyle: true, padding: 16 }
+            labels: {
+              color: "#4c3d31",
+              boxWidth: 20,
+              boxHeight: 3,
+              usePointStyle: true,
+              padding: 16,
+              generateLabels: (chart) => Chart.defaults.plugins.legend.labels.generateLabels(chart).map((item) => ({
+                ...item,
+                fontColor: chart.data.datasets[item.datasetIndex]?.borderColor || "#4c3d31"
+              }))
+            },
+            onClick: (event, legendItem, legend) => {
+              const chart = legend.chart
+              const datasetIndex = legendItem.datasetIndex
+              chart.setDatasetVisibility(datasetIndex, !chart.isDatasetVisible(datasetIndex))
+              chart.update()
+            }
           },
           tooltip: {
             mode: "index",
@@ -90,6 +122,14 @@ export default class extends Controller {
             callbacks: {
               title: (items) => this.dataValue.labels[items[0].dataIndex],
               label: (item) => {
+                if (item.datasetIndex >= 2) {
+                  const benchmark = this.dataValue.benchmarks[item.datasetIndex - 2]
+                  const value = benchmark.values[item.dataIndex]
+                  return value === null || value === undefined
+                    ? `${benchmark.label}: Not available`
+                    : `${benchmark.label}: ${value > 0 ? "+" : ""}${value.toFixed(2)}%`
+                }
+
                 const formattedValue = item.datasetIndex === 1
                   ? this.dataValue.formatted_invested_values[item.dataIndex]
                   : this.dataValue.formatted_values[item.dataIndex]
@@ -104,6 +144,7 @@ export default class extends Controller {
               },
               labelTextColor: (item) => {
                 if (item.datasetIndex === 1) return "#766b60"
+                if (item.datasetIndex >= 2) return this.chart.data.datasets[item.datasetIndex].borderColor
 
                 const performance = this.dataValue.performance_ratios?.[item.dataIndex]
                 if (performance === undefined || performance === null || performance === 0) return "#766b60"
@@ -123,6 +164,17 @@ export default class extends Controller {
               callback: (value) => new Intl.NumberFormat(this.dataValue.locale, {
                 style: "currency", currency: this.dataValue.currency, maximumFractionDigits: 2
               }).format(value)
+            }
+          },
+          benchmark: {
+            position: "right",
+            display: false,
+            min: benchmarkMinimum - benchmarkPadding,
+            max: benchmarkMaximum + benchmarkPadding,
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: "#766b60",
+              callback: (value) => `${value > 0 ? "+" : ""}${value.toFixed(1)}%`
             }
           }
         }

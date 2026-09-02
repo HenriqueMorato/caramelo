@@ -63,6 +63,26 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", /10\.00%/
   end
 
+  test "shows available benchmark returns for the selected period" do
+    Trade.where(user: User.owner).delete_all
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
+    from = Date.current - 1.week
+    instrument = Instrument.create!(ticker: "BENCH", exchange: "BVMF", name: "Benchmark stock", currency: "BRL")
+    create_trade(instrument:, traded_on: from)
+    create_trade(instrument:, traded_on: Date.current)
+    create_daily_close(instrument:, date: from, close_price: "10")
+    create_daily_close(instrument:, date: Date.current, close_price: "11")
+    benchmark = MarketBenchmark.create!(identifier: "IBOV", name: "Ibovespa", kind: "price", currency: "BRL", provider: "bacen", provider_identifier: "IBOV")
+    benchmark.observations.create!(observed_on: from, value: "100", currency: "BRL", provider: "bacen", observed_at: Time.current)
+    benchmark.observations.create!(observed_on: Date.current, value: "105", currency: "BRL", provider: "bacen", observed_at: Time.current)
+
+    get performance_url(period: "week")
+
+    assert_select "#market-benchmarks-heading", "Market benchmarks"
+    assert_select "body", /\+5\.00%/
+  end
+
   test "shows separate market price and FX dates when observations differ" do
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "FXDATE", exchange: "XNAS", name: "Foreign performance stock", currency: "USD")
