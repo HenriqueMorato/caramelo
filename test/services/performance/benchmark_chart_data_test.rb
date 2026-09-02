@@ -72,10 +72,72 @@ class Performance::BenchmarkChartDataTest < ActiveSupport::TestCase
 
     values = Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first[:values]
 
-    assert_in_delta 1.0, values[0], 0.001
-    assert_in_delta 1.0, values[1], 0.001
-    assert_in_delta 3.02, values[2], 0.001
-    assert_in_delta 6.1106, values[3], 0.001
+    assert_in_delta 0.0, values[0], 0.001
+    assert_in_delta 0.0, values[1], 0.001
+    assert_in_delta 2.0, values[2], 0.001
+    assert_in_delta 5.06, values[3], 0.001
+  end
+
+  test "renders a short weekend range with one in-range benchmark observation" do
+    friday = Date.new(2026, 7, 31)
+    monday = Date.new(2026, 8, 3)
+    benchmark = MarketBenchmark.create!(identifier: "SHORTWEEKEND", name: "Short weekend", kind: "price",
+      currency: "USD", provider: "test", provider_identifier: "SHORTWEEKEND")
+    [ [ friday, 100 ], [ monday, 101 ] ].each do |date, value|
+      benchmark.observations.create!(observed_on: date, value:, currency: "USD", provider: "test", observed_at: Time.current)
+    end
+    series = Data.define(:observations).new((friday + 1..monday).map { |date| Data.define(:date).new(date) })
+    result = Performance::Benchmark.for(benchmark:, from: friday + 1, to: monday)
+
+    data = Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first
+
+    assert_equal [ 0.0, 0.0, 1.0 ], data[:values]
+  end
+
+  test "does not anchor when the chart starts on an observation date" do
+    monday = Date.new(2026, 8, 31)
+    benchmark = MarketBenchmark.create!(identifier: "NOANCHOR", name: "No anchor", kind: "price",
+      currency: "USD", provider: "test", provider_identifier: "NOANCHOR")
+    [ [ monday - 1, 100 ], [ monday, 101 ], [ monday + 1, 102 ] ].each do |date, value|
+      benchmark.observations.create!(observed_on: date, value:, currency: "USD", provider: "test", observed_at: Time.current)
+    end
+    series = Data.define(:observations).new([ monday, monday + 1 ].map { |date| Data.define(:date).new(date) })
+    result = Performance::Benchmark.for(benchmark:, from: monday, to: monday + 1)
+
+    values = Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first[:values]
+
+    assert_in_delta 0.0, values[0], 0.001
+    assert_in_delta 0.9901, values[1], 0.001
+  end
+
+  test "does not carry an observation beyond the historical safety window" do
+    start = Date.new(2026, 6, 1)
+    benchmark = MarketBenchmark.create!(identifier: "STALECHART", name: "Stale chart", kind: "price",
+      currency: "USD", provider: "test", provider_identifier: "STALECHART")
+    [ [ start - 30, 100 ], [ start + 29, 110 ], [ start + 30, 111 ] ].each do |date, value|
+      benchmark.observations.create!(observed_on: date, value:, currency: "USD", provider: "test", observed_at: Time.current)
+    end
+    series = Data.define(:observations).new((start..start + 30).map { |date| Data.define(:date).new(date) })
+    result = Performance::Benchmark.for(benchmark:, from: start, to: start + 30)
+
+    values = Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first[:values]
+
+    assert_nil values.first
+    assert_in_delta 0.0, values[29], 0.001
+  end
+
+  test "returns no values when the chart series is empty" do
+    benchmark = MarketBenchmark.create!(identifier: "EMPTYCHART", name: "Empty chart", kind: "price",
+      currency: "USD", provider: "test", provider_identifier: "EMPTYCHART")
+    observation = benchmark.observations.create!(observed_on: Date.current - 1, value: 100,
+      currency: "USD", provider: "test", observed_at: Time.current)
+    result = Data.define(:status, :observations, :cumulative_return_values) do
+      def available? = status == :available
+      def missing? = false
+    end.new(:available, [ observation ], [ BigDecimal("0") ])
+
+    assert_equal [ { identifier: "EMPTYCHART", label: "Empty chart", values: [] } ],
+      Performance::BenchmarkChartData.for(series: Data.define(:observations).new([]), benchmark_results: [ [ benchmark, result ] ])
   end
 
   test "skips unavailable benchmark results" do

@@ -11,10 +11,18 @@ module Performance
 
     def to_a
       benchmark_results.filter_map do |benchmark, result|
-        next unless result.available?
+        next unless result.available? || (result.respond_to?(:missing?) && result.missing?)
 
         observations = chart_observations(benchmark, result)
-        cumulative_values = observations.equal?(result.observations) ? result.cumulative_return_values : cumulative_return_values(benchmark, observations)
+        next if result.respond_to?(:missing?) && result.missing? && observations.length < 2
+
+        cumulative_values = if result.available? && observations.equal?(result.observations)
+          result.cumulative_return_values
+        else
+          Performance::Benchmark.cumulative_return_values(
+            benchmark:, observations:, baseline: observations.length > result.observations.length
+          )
+        end
         values_by_date = observations.zip(cumulative_values).to_h do |observation, value|
           [ observation.observed_on, value.to_f * 100 ]
         end
@@ -38,22 +46,15 @@ module Performance
 
     def chart_observations(benchmark, result)
       observations = result.observations
-      return observations unless benchmark.respond_to?(:persisted?) && benchmark.persisted? && observations.first
+      first_date = series.observations.first&.date
+      return observations unless benchmark.respond_to?(:persisted?) && benchmark.persisted? && observations.first && first_date
+      return observations unless observations.first.observed_on > first_date
 
       # Anchor a range that starts during a closure to the prior real observation.
-      anchor = benchmark.observations.where("observed_on < ?", series.observations.first.date).chronological.last
-      anchor ? [ anchor, *observations ] : observations
-    end
+      anchor = benchmark.observations.where("observed_on < ?", first_date).chronological.last
+      return observations unless anchor && MarketData::HistoricalObservationWindow.for(first_date).cover?(anchor.observed_on)
 
-    def cumulative_return_values(benchmark, observations)
-      if benchmark.kind == "rate"
-        observations.reduce([ BigDecimal("0") ]) do |values, observation|
-          values << ((BigDecimal("1") + values.last) * (BigDecimal("1") + observation.value) - 1)
-        end.drop(1)
-      else
-        first = observations.first.value
-        observations.map { |observation| observation.value / first - 1 }
-      end
+      [ anchor, *observations ]
     end
   end
 end

@@ -9,14 +9,19 @@ module Performance
       def cumulative_return_values
         return [] unless available?
 
-        if benchmark.kind == "rate"
-          observations.reduce([ BigDecimal("0") ]) do |values, observation|
-            values << ((BigDecimal("1") + values.last) * (BigDecimal("1") + observation.value) - 1)
-          end.drop(1)
-        else
-          first = observations.first.value
-          observations.map { |observation| observation.value / first - 1 }
+        Performance::Benchmark.cumulative_return_values(benchmark:, observations:)
+      end
+    end
+
+    def self.cumulative_return_values(benchmark:, observations:, baseline: false)
+      if benchmark.kind == "rate"
+        values = observations.drop(baseline ? 1 : 0).reduce([ BigDecimal("0") ]) do |values, observation|
+          values << ((BigDecimal("1") + values.last) * (BigDecimal("1") + observation.value) - 1)
         end
+        baseline ? values : values.drop(1)
+      else
+        first = observations.first.value
+        observations.map { |observation| observation.value / first - 1 }
       end
     end
 
@@ -33,7 +38,7 @@ module Performance
     def calculate
       validate_range!
       observations = benchmark.observations.where(observed_on: from..to).chronological.to_a
-      return missing_result unless observations.length >= 2
+      return missing_result(observations:) unless observations.length >= 2
 
       Result.new(
         benchmark:, from:, to:, observations:, first_observation: observations.first, last_observation: observations.last,
@@ -54,8 +59,8 @@ module Performance
       observations.last.value / observations.first.value - 1
     end
 
-    def missing_result
-      Result.new(benchmark:, from:, to:, observations: [], first_observation: nil, last_observation: nil, return_ratio: nil, status: :missing)
+    def missing_result(observations: [])
+      Result.new(benchmark:, from:, to:, observations:, first_observation: nil, last_observation: nil, return_ratio: nil, status: :missing)
     end
 
     def validate_range!

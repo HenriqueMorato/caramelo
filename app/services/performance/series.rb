@@ -17,10 +17,10 @@ module Performance
       def missing? = status == :missing
     end
 
-    # The complete requested range, including missing weekdays. `from` and `to`
+    # The complete requested range, including non-trading dates. `from` and `to`
     # preserve the requested boundaries; `observations` holds one result per
-    # weekday; and `status` indicates whether the range is available, incomplete,
-    # or genuinely empty.
+    # calendar date (with non-trading dates reusing the latest valuation); and
+    # `status` indicates whether the range is available, incomplete, or empty.
     Result = Data.define(:from, :to, :observations, :status) do
       def available? = status == :available
       def missing? = status == :missing
