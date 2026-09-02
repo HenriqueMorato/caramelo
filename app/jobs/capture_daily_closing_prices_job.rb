@@ -3,6 +3,8 @@ class CaptureDailyClosingPricesJob < ApplicationJob
 
   def perform(trading_date: previous_business_day)
     traded_instruments.find_each do |instrument|
+      next if DailyClosingPrice.exists?(instrument:, trading_date:, provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER)
+
       request_throttle.wait!(instrument:)
       importer.call(instrument:, from: trading_date, to: trading_date)
     rescue StandardError => error

@@ -47,6 +47,23 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
       enqueued_jobs.map { |job| job[:args].first["_aj_globalid"].split("/").last.to_i }.sort
   end
 
+  test "skips an instrument whose cached quote is still fresh" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    CurrentMarketPriceCache.new.write(
+      instrument:,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: "30", currency: instrument.currency, provider: "yahoo_finance",
+        quoted_at: Time.current, fetched_at: Time.current
+      )
+    )
+
+    clear_enqueued_jobs
+    RefreshTradedMarketPricesJob.new.perform
+
+    refute enqueued_jobs.any? { |job| job[:args].first["_aj_globalid"].end_with?("Instrument/#{instrument.id}") }
+  end
+
   private
 
   def create_trade(instrument:, side:, quantity:)
