@@ -1,7 +1,7 @@
 class CaptureDailyClosingPricesJob < ApplicationJob
   queue_as :market_prices
 
-  def perform(trading_date: MarketData::TradingCalendar.previous_business_day)
+  def perform(trading_date: TradingCalendar.previous_business_day)
     traded_instruments.find_each do |instrument|
       next if DailyClosingPrice.exists?(instrument:, trading_date:, provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER)
 

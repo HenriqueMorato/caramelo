@@ -70,6 +70,10 @@ remains auditable. Same-currency positions do not have an external FX
 observation. Missing data outside that window makes the report explicitly
 unavailable.
 
+Non-trading days are resolved per instrument. A Brazilian holding and a US
+benchmark do not borrow one another's calendar: each uses its own latest
+persisted observation, and charts carry those values independently.
+
 `CaptureDailyClosingPricesJob` and
 `CaptureHistoricalExchangeRatesJob` fetch durable Yahoo history in the
 background. Their provider failures are reported and do not invent values.

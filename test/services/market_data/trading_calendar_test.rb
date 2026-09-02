@@ -1,6 +1,6 @@
 require "test_helper"
 
-class MarketData::TradingCalendarTest < ActiveSupport::TestCase
+class TradingCalendarTest < ActiveSupport::TestCase
   test "returns the previous Friday for a Monday" do
     assert_equal Date.new(2026, 8, 28), described_class.previous_business_day(Date.new(2026, 8, 31))
   end
@@ -23,6 +23,6 @@ class MarketData::TradingCalendarTest < ActiveSupport::TestCase
   private
 
   def described_class
-    MarketData::TradingCalendar
+    TradingCalendar
   end
 end

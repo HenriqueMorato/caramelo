@@ -50,7 +50,7 @@ class DailyClosingPrice
     end
 
     def expected_dates
-      MarketData::TradingCalendar.weekdays_between(from, to)
+      TradingCalendar.weekdays_between(from, to)
     end
 
     def persist_observation(record, observation)

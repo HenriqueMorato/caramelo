@@ -1,7 +1,7 @@
 class CaptureMarketBenchmarkObservationsJob < ApplicationJob
   queue_as :market_prices
 
-  def perform(observed_on: MarketData::TradingCalendar.previous_business_day)
+  def perform(observed_on: TradingCalendar.previous_business_day)
     benchmarks.find_each do |benchmark|
       next unless importer.supports?(benchmark:)
       next if MarketBenchmarkObservation.exists?(market_benchmark: benchmark, observed_on:, provider: importer.identifier)

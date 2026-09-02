@@ -2,7 +2,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
   queue_as :market_prices
 
   def perform(rate_date: nil)
-    rate_date ||= MarketData::TradingCalendar.previous_business_day
+    rate_date ||= TradingCalendar.previous_business_day
 
     traded_currencies.each do |currency|
       next if HistoricalExchangeRate.exists?(

@@ -59,7 +59,7 @@ class MarketBenchmark
     end
 
     def expected_dates
-      MarketData::TradingCalendar.weekdays_between(from, to)
+      TradingCalendar.weekdays_between(from, to)
     end
   end
 end
