@@ -14,16 +14,8 @@ class PerformancesController < ApplicationController
     if @performance.available?
       @series = Performance::Series.for(from: period_start, to: Date.current)
       @series_presenter = Performance::SeriesPresenter.new(@series)
-      @benchmark_results = MarketBenchmark.order(:identifier).map do |benchmark|
-        [ benchmark, Performance::Benchmark.for(benchmark:, from: period_start, to: Date.current) ]
-      end
-      @benchmark_chart_data = @benchmark_results.filter_map do |benchmark, result|
-        next unless result.available?
-
-        values_by_date = result.observations.zip(result.cumulative_return_values).to_h { |observation, value| [ observation.observed_on, value.to_f * 100 ] }
-        { identifier: benchmark.identifier, label: benchmark.name,
-          values: @series.observations.map { |observation| values_by_date[observation.date] } }
-      end
+      @benchmark_results = benchmark_results
+      @benchmark_chart_data = Performance::BenchmarkChartData.for(series: @series, benchmark_results: @benchmark_results)
     end
     @historical_data_backfill_pending = HistoricalDataBackfill.pending_for?(instruments: @performance.missing_instruments)
   end
@@ -34,5 +26,11 @@ class PerformancesController < ApplicationController
     return User.owner.trades.minimum(:traded_on) || Date.current if @selected_period == "all"
 
     Date.current - PERIODS.fetch(@selected_period)
+  end
+
+  def benchmark_results
+    MarketBenchmark.order(:identifier).map do |benchmark|
+      [ benchmark, Performance::Benchmark.for(benchmark:, from: period_start, to: Date.current) ]
+    end
   end
 end

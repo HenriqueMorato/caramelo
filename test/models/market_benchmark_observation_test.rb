@@ -2,6 +2,8 @@ require "test_helper"
 
 class MarketBenchmarkObservationTest < ActiveSupport::TestCase
   setup do
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
     @benchmark = MarketBenchmark.create!(identifier: "IBOV", name: "Ibovespa", kind: "price", currency: "BRL", provider: "BACEN", provider_identifier: "IBOV")
   end
 
@@ -20,6 +22,15 @@ class MarketBenchmarkObservationTest < ActiveSupport::TestCase
 
     assert_not_predicate observation, :valid?
     assert_includes observation.errors[:currency], "is invalid"
+  end
+
+  test "rejects a mismatched provider" do
+    observation = @benchmark.observations.new(
+      observed_on: Date.current, value: "135000", currency: "BRL", provider: "yahoo_finance", observed_at: Time.current
+    )
+
+    assert_not_predicate observation, :valid?
+    assert_includes observation.errors[:provider], "is invalid"
   end
 
   test "prevents duplicate provider observations for a date" do

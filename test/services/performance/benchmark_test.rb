@@ -41,6 +41,7 @@ class Performance::BenchmarkTest < ActiveSupport::TestCase
 
     assert_predicate result, :missing?
     assert_nil result.return_ratio
+    assert_empty result.cumulative_return_values
   end
 
   test "rejects invalid ranges" do

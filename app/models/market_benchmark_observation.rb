@@ -12,6 +12,7 @@ class MarketBenchmarkObservation < ApplicationRecord
   validates :provider, length: { maximum: 64 }
   validates :observed_on, uniqueness: { scope: %i[market_benchmark_id provider] }
   validate :currency_matches_benchmark
+  validate :provider_matches_benchmark
 
   scope :chronological, -> { order(:observed_on, :id) }
 
@@ -21,5 +22,11 @@ class MarketBenchmarkObservation < ApplicationRecord
     return unless market_benchmark && currency.present? && market_benchmark.currency != currency
 
     errors.add(:currency, :invalid)
+  end
+
+  def provider_matches_benchmark
+    return unless market_benchmark && provider.present? && market_benchmark.provider != provider
+
+    errors.add(:provider, :invalid)
   end
 end
