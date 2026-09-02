@@ -25,6 +25,7 @@ class TradesController < ApplicationController
 
     if @trade.save
       enqueue_historical_data_backfill
+      enqueue_current_market_price_refresh
       redirect_to transactions_path, notice: t("notices.Created", model: Trade.model_name.human)
     else
       render :new, status: :unprocessable_content
@@ -39,6 +40,7 @@ class TradesController < ApplicationController
 
     if @trade.save
       enqueue_historical_data_backfill
+      enqueue_current_market_price_refresh
       redirect_to transactions_path, notice: t("notices.Updated", model: Trade.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
@@ -124,5 +126,11 @@ class TradesController < ApplicationController
 
   def enqueue_historical_data_backfill
     Trades::HistoricalDataBackfillEnqueuer.call(trade: @trade)
+  end
+
+  def enqueue_current_market_price_refresh
+    MarketPrice::RefreshEnqueuer.new.enqueue_if_needed(instrument: @trade.instrument)
+  rescue StandardError => error
+    Rails.error.report(error, handled: true, context: { trade_id: @trade.id })
   end
 end

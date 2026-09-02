@@ -19,6 +19,15 @@ module MarketPrice
       raise
     end
 
+    def enqueue_if_needed(instrument:)
+      return unless service.supports?(instrument:)
+
+      lookup = service.read(instrument:)
+      return unless lookup&.refresh_needed?
+
+      job_class.enqueue_for(instrument:)
+    end
+
     private
 
     attr_reader :service, :broadcaster, :job_class

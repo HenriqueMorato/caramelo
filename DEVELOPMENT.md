@@ -155,6 +155,26 @@ are described in [Historical Data Backfills](docs/historical-data-backfills.md).
 Portfolio valuation, cash-flow-adjusted returns, and historical-data safety are
 described in [Portfolio Performance](docs/portfolio-performance.md).
 
+### Automatic market-data refreshes
+
+When `bin/dev` is running, the Solid Queue worker schedules a current-price
+check every five minutes. Only supported instruments with missing or stale
+quotes are fetched; the provider throttle and job deduplication still apply.
+Daily close, FX, and supported Yahoo benchmark observations run once per day
+for the previous business day. Starting the development app also enqueues one
+initial pass (the production entrypoint does the same). A trade queues its
+current quote when needed and coalesces the
+historical backfill required for its trade date.
+
+Set `LOCALFOLIO_CURRENT_PRICE_REFRESH_SCHEDULE` to customize the recurring
+quote interval (for example, `every 10 minutes`) and
+`LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE` to customize the benchmark schedule.
+
+Weekends and market holidays do not create synthetic history rows. Charts carry
+the latest trading-day observation forward as a flat value until a new trading
+day is available. Failed requests retain the last successful value and are
+reported through Rails error reporting.
+
 ## Quality and security
 
 Run the repeatable local pipeline:

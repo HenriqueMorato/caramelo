@@ -9,6 +9,27 @@
 #     priority: 2
 #     schedule: at 5am every day
 
+development:
+  capture_daily_closing_prices:
+    class: CaptureDailyClosingPricesJob
+    queue: market_prices
+    schedule: at 2am every day
+
+  capture_historical_exchange_rates:
+    class: CaptureHistoricalExchangeRatesJob
+    queue: market_prices
+    schedule: at 2:15am every day
+
+  refresh_traded_market_prices:
+    class: RefreshTradedMarketPricesJob
+    queue: market_prices
+    schedule: <%= ENV.fetch("LOCALFOLIO_CURRENT_PRICE_REFRESH_SCHEDULE", "every 5 minutes") %>
+
+  capture_market_benchmark_observations:
+    class: CaptureMarketBenchmarkObservationsJob
+    queue: market_prices
+    schedule: <%= ENV.fetch("LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE", "at 2:30am every day") %>
+
 production:
   capture_daily_closing_prices:
     class: CaptureDailyClosingPricesJob
@@ -23,7 +44,12 @@ production:
   refresh_traded_market_prices:
     class: RefreshTradedMarketPricesJob
     queue: market_prices
-    schedule: every 30 minutes
+    schedule: <%= ENV.fetch("LOCALFOLIO_CURRENT_PRICE_REFRESH_SCHEDULE", "every 5 minutes") %>
+
+  capture_market_benchmark_observations:
+    class: CaptureMarketBenchmarkObservationsJob
+    queue: market_prices
+    schedule: <%= ENV.fetch("LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE", "at 2:30am every day") %>
 
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"

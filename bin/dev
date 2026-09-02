@@ -8,4 +8,5 @@ export PORT="${PORT:-3000}"
 export RUBY_DEBUG_OPEN="true"
 export RUBY_DEBUG_LAZY="true"
 
+bundle exec rails runner "MarketData::StartupRefresh.call"
 exec bundle exec foreman start -f Procfile.dev "$@"

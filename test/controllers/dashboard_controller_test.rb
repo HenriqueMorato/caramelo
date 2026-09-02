@@ -13,6 +13,13 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "explains when existing trades lack current market data" do
+    Trade.where(user: User.owner).delete_all
+    instrument = instruments(:petr4_bvmf)
+    User.owner.trades.create!(
+      instrument:, side: :buy, traded_on: Date.current - 1, quantity: 1, unit_price: "10",
+      fees_cents: 0, currency: instrument.currency
+    )
+
     get root_url
 
     assert_response :success

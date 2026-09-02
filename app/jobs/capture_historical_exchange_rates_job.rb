@@ -5,6 +5,11 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
     rate_date ||= previous_business_day
 
     traded_currencies.each do |currency|
+      next if HistoricalExchangeRate.exists?(
+        base_currency: currency, quote_currency: reporting_currency,
+        rate_date: rate_date, provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER
+      )
+
       throttle.wait!
       importer.call(
         base_currency: currency,

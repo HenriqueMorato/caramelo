@@ -245,6 +245,23 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_backfill(instrument: instruments(:voo_arcx), currency: "USD", from_date: Date.new(2026, 8, 12))
   end
 
+  test "reports a current-price enqueue failure without failing the trade request" do
+    failure = RuntimeError.new("queue unavailable")
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue_if_needed) { |instrument:| raise failure }
+    reports = []
+    controller = TradesController.new
+    controller.instance_variable_set(:@trade, @trade)
+
+    with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+      with_stubbed_method(Rails.error, :report, ->(error, **context) { reports << [ error, context ] }) do
+        controller.send(:enqueue_current_market_price_refresh)
+      end
+    end
+
+    assert_equal [ failure, { handled: true, context: { trade_id: @trade.id } } ], reports.sole
+  end
+
   private
 
   def valid_trade_params
@@ -263,5 +280,13 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
   def assert_backfill(instrument:, currency:, from_date:)
     backfill = HistoricalDataBackfill.find_by!(instrument:, currency:)
     assert_equal from_date, backfill.from_date
+  end
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.singleton_class.define_method(method_name, replacement)
+    yield
+  ensure
+    object.singleton_class.define_method(method_name, original)
   end
 end

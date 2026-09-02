@@ -25,6 +25,23 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     assert imports.all? { |call| call.slice(:from, :to) == { from: date, to: date } }
   end
 
+  test "skips an instrument with an existing observation" do
+    instrument = Trade.where(user: User.owner).first.instrument
+    DailyClosingPrice.create!(instrument:, trading_date: Date.new(2026, 8, 28), close_price: 30,
+      currency: instrument.currency, provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER,
+      observed_at: Time.current)
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureDailyClosingPricesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:request_throttle) { Object.new }
+
+    job.perform(trading_date: Date.new(2026, 8, 28))
+
+    assert_empty imports.select { |call| call[:instrument] == instrument }
+  end
+
   test "reports an import failure and continues with other instruments" do
     date = Date.new(2026, 8, 28)
     reports = []

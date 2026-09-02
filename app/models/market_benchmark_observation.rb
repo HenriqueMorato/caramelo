@@ -3,6 +3,8 @@ class MarketBenchmarkObservation < ApplicationRecord
   # the provider's daily rate value for rate series, kept in `currency`.
   belongs_to :market_benchmark
 
+  Observation = Data.define(:market_benchmark, :observed_on, :value, :currency, :provider, :observed_at)
+
   normalizes :currency, with: ->(value) { value.strip.upcase }
   normalizes :provider, with: ->(value) { value.strip.downcase }
 
