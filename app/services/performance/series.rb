@@ -57,7 +57,9 @@ module Performance
     attr_reader :from, :to, :portfolio
 
     def dates
-      (from..to).reject { |date| date.saturday? || date.sunday? }
+      # Keep calendar dates in the series; Portfolio reuses the latest trading
+      # close on non-trading days, so charts remain continuous without fake rows.
+      (from..to).to_a
     end
 
     def observation_for(date)

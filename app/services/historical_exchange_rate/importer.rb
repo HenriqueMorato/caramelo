@@ -72,7 +72,7 @@ class HistoricalExchangeRate
     end
 
     def expected_dates
-      (from..to).reject { |date| date.saturday? || date.sunday? }
+      MarketData::TradingCalendar.weekdays_between(from, to)
     end
 
     def normalize_currency(currency)
