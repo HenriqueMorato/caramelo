@@ -39,12 +39,25 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     assert_equal Money.from_amount(40, "BRL"), result.observations.first.invested_value
   end
 
-  test "returns an empty series when the range contains no weekdays" do
+  test "includes weekend dates so the chart can carry forward trading values" do
     saturday = Date.new(2026, 8, 29)
-    series = Performance::Series.for(from: saturday, to: saturday + 1, portfolio: portfolio_with({}))
+    series = Performance::Series.for(from: saturday - 1, to: saturday + 1, portfolio: portfolio_with(
+      (saturday - 1) => valuation(saturday - 1, "100"),
+      saturday => valuation(saturday, "100"),
+      (saturday + 1) => valuation(saturday + 1, "100")
+    ))
 
-    assert_predicate series, :empty?
-    assert_empty series.observations
+    assert_equal [ saturday - 1, saturday, saturday + 1 ], series.observations.map(&:date)
+  end
+
+  test "returns an empty result when no dates are selected" do
+    series = Performance::Series.new(from: @from, to: @to, portfolio: portfolio_with({}))
+    series.define_singleton_method(:dates) { [] }
+
+    result = series.calculate
+
+    assert_predicate result, :empty?
+    assert_empty result.observations
   end
 
   test "rejects invalid or future ranges" do

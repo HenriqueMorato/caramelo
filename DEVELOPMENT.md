@@ -171,9 +171,13 @@ quote interval (for example, `every 10 minutes`) and
 `LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE` to customize the benchmark schedule.
 
 Weekends and market holidays do not create synthetic history rows. Charts carry
-the latest trading-day observation forward as a flat value until a new trading
-day is available. Failed requests retain the last successful value and are
-reported through Rails error reporting.
+each instrument's latest trading-day observation forward as a flat value until
+that instrument has a new trading day. Calendars are not copied between
+markets: a Brazil instrument and an S&P instrument can legitimately use
+different prior closes when one market is closed and the other is open. Failed
+requests retain the last successful value and are reported through Rails error
+reporting. Exchange-specific holiday calendars remain part of the valuation-date
+work tracked in issue #124.
 
 ## Quality and security
 

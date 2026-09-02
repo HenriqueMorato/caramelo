@@ -70,6 +70,10 @@ remains auditable. Same-currency positions do not have an external FX
 observation. Missing data outside that window makes the report explicitly
 unavailable.
 
+Non-trading days are resolved per instrument. A Brazilian holding and a US
+benchmark do not borrow one another's calendar: each uses its own latest
+persisted observation, and charts carry those values independently.
+
 `CaptureDailyClosingPricesJob` and
 `CaptureHistoricalExchangeRatesJob` fetch durable Yahoo history in the
 background. Their provider failures are reported and do not invent values.
@@ -81,12 +85,20 @@ pending.
 ## Historical series
 
 `Performance::Series.for(from:, to:)` reuses the daily portfolio valuation for
-each weekday in the selected range. It memoizes each date's valuation so the
-opening calculation is not repeated, and returns one `Observation` per date
-with the portfolio value, period gain/loss, return, and availability status.
+each calendar date in the selected range, including weekends and other
+non-trading dates. It memoizes each date's valuation so the opening calculation
+is not repeated, and returns one `Observation` per date with the portfolio
+value, period gain/loss, return, and availability status.
 
 The performance page renders available observations as an interactive Chart.js
 canvas with portfolio value and net invested capital lines. The same values,
 including returns, remain in an expandable data table for keyboard and screen
 reader users. A missing observation marks the series incomplete; it is never
 drawn as a zero or replaced with a current quote.
+
+Benchmark chart series use the result contract (`available?`, `missing?`, and
+`observations`) and carry each benchmark's latest real observation across
+non-trading dates. If a requested range starts during a closure, a prior
+observation is used only when it falls inside the seven-day safety window; no
+synthetic database rows are created. This is evaluated independently per
+benchmark, so markets with different holidays do not share a calendar.

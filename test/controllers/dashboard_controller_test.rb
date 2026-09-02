@@ -1,6 +1,10 @@
 require "test_helper"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
+  # Requests run through a separate connection, so dashboard records must be
+  # committed for the application server to observe them in parallel CI.
+  self.use_transactional_tests = false
+
   test "renders the public dashboard for the configured owner" do
     Trade.delete_all
 

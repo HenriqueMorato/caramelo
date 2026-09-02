@@ -18,4 +18,14 @@ class MarketBenchmarkTest < ActiveSupport::TestCase
     assert_not_predicate benchmark, :valid?
     assert_includes benchmark.errors[:kind], "is not included in the list"
   end
+
+  test "identifies price and rate benchmarks" do
+    price = MarketBenchmark.new(kind: "price")
+    rate = MarketBenchmark.new(kind: "rate")
+
+    assert_predicate price, :price?
+    assert_not_predicate price, :rate?
+    assert_predicate rate, :rate?
+    assert_not_predicate rate, :price?
+  end
 end

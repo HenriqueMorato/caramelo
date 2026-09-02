@@ -17,10 +17,10 @@ module Performance
       def missing? = status == :missing
     end
 
-    # The complete requested range, including missing weekdays. `from` and `to`
+    # The complete requested range, including non-trading dates. `from` and `to`
     # preserve the requested boundaries; `observations` holds one result per
-    # weekday; and `status` indicates whether the range is available, incomplete,
-    # or genuinely empty.
+    # calendar date (with non-trading dates reusing the latest valuation); and
+    # `status` indicates whether the range is available, incomplete, or empty.
     Result = Data.define(:from, :to, :observations, :status) do
       def available? = status == :available
       def missing? = status == :missing
@@ -57,7 +57,9 @@ module Performance
     attr_reader :from, :to, :portfolio
 
     def dates
-      (from..to).reject { |date| date.saturday? || date.sunday? }
+      # Keep calendar dates in the series; Portfolio reuses the latest trading
+      # close on non-trading days, so charts remain continuous without fake rows.
+      (from..to).to_a
     end
 
     def observation_for(date)
