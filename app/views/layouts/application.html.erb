@@ -31,6 +31,7 @@
     >
       <%= t("Skip to content") %>
     </a>
+    <%= render "layouts/notifications" %>
     <div class="min-h-screen font-sans md:flex">
       <%= render "layouts/navigation" %>
 
@@ -39,7 +40,6 @@
           id="main-content"
           class="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 xl:px-12 lg:py-10"
         >
-          <%= render "layouts/flash_messages" %>
           <%= yield %>
         </main>
       </div>

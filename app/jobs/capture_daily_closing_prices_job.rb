@@ -2,13 +2,19 @@ class CaptureDailyClosingPricesJob < ApplicationJob
   queue_as :market_prices
 
   def perform(trading_date: TradingCalendar.previous_business_day)
-    traded_instruments.find_each do |instrument|
-      next if DailyClosingPrice.exists?(instrument:, trading_date:, provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER)
+    instruments = traded_instruments
+    RefreshStatus::Tracker.perform(scope: "daily_closing_prices", total_count: instruments.count) do |refresh|
+      instruments.find_each do |instrument|
+        next if DailyClosingPrice.exists?(instrument:, trading_date:, provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER)
 
-      request_throttle.wait!(instrument:)
-      importer.call(instrument:, from: trading_date, to: trading_date)
-    rescue StandardError => error
-      Rails.error.report(error, handled: true, context: { instrument_id: instrument.id, trading_date: })
+        request_throttle.wait!(instrument:)
+        importer.call(instrument:, from: trading_date, to: trading_date)
+      rescue StandardError => error
+        Rails.error.report(error, handled: true, context: { instrument_id: instrument.id, trading_date: })
+        RefreshStatus::Tracker.record_failure(refresh, error)
+      ensure
+        RefreshStatus::Tracker.advance(refresh)
+      end
     end
   end
 

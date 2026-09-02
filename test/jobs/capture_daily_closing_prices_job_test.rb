@@ -61,6 +61,7 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
 
     assert_equal 1, reports.size
     assert_equal date, reports.first.last[:context][:trading_date]
+    assert_equal "failed", RefreshStatus::State.read("daily_closing_prices").status
   end
 
   test "uses the prior Friday when the scheduled run is on Monday" do
@@ -76,6 +77,23 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     with_stubbed_class_method(Date, :current, -> { Date.new(2026, 8, 31) }) { job.perform }
 
     assert imports.all? { |call| call.slice(:from, :to) == { from: Date.new(2026, 8, 28), to: Date.new(2026, 8, 28) } }
+  end
+
+  test "records one progress step per instrument" do
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**| }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { |instrument:| }
+    job = CaptureDailyClosingPricesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:request_throttle) { throttle }
+
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      job.perform(trading_date: Date.new(2026, 8, 28))
+    end
+
+    state = RefreshStatus::State.read("daily_closing_prices")
+    assert_equal Trade.where(user: User.owner).distinct.count(:instrument_id), state.processed_count
   end
 
   private

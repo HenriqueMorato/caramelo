@@ -17,19 +17,22 @@ class RefreshTradedMarketPricesJob < ApplicationJob
   end
 
   def perform
-    traded_instruments.find_each do |instrument|
-      unless market_price_service.supports?(instrument:)
-        ActiveSupport::Notifications.instrument(
-          "market_price.refresh",
-          event: :skipped, provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier, instrument_id: instrument.id
-        )
-        next
+    instruments = traded_instruments
+    RefreshStatus::Tracker.perform(scope: "current_market_prices", total_count: instruments.count) do |refresh|
+      instruments.find_each do |instrument|
+        unless market_price_service.supports?(instrument:)
+          ActiveSupport::Notifications.instrument(
+            "market_price.refresh",
+            event: :skipped, provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier, instrument_id: instrument.id
+          )
+          next
+        end
+
+        lookup = market_price_service.read(instrument:)
+        RefreshCurrentMarketPriceJob.enqueue_for(instrument:) if lookup&.refresh_needed?
+      ensure
+        RefreshStatus::Tracker.advance(refresh)
       end
-
-      lookup = market_price_service.read(instrument:)
-      next unless lookup&.refresh_needed?
-
-      RefreshCurrentMarketPriceJob.enqueue_for(instrument:)
     end
   ensure
     Rails.cache.delete(self.class.deduplication_key)

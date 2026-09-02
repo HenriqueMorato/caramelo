@@ -17,15 +17,15 @@
     </p>
   </div>
 
-  <% if refreshing %>
+  <% if refreshing || RefreshStatus::Presenter.for.current_prices_updating? %>
     <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-coffee" role="status">
       <span class="size-2 animate-pulse rounded-full bg-caramel" aria-hidden="true"></span>
-      <%= t("Refreshing") %>
+      <span class="sr-only"><%= t("Refreshing") %></span>
     </span>
   <% elsif market_price.stale? %>
-    <span class="ui-badge ui-badge-stale shrink-0 px-2 py-0.5"><%= t("Stale") %></span>
+    <span class="inline-flex size-2 shrink-0 rounded-full bg-caramel" role="img" aria-label="<%= t("Stale") %>"><span class="sr-only"><%= t("Stale") %></span></span>
   <% elsif market_price.fresh? %>
-    <span class="shrink-0 text-xs font-semibold text-leaf"><%= t("Current") %></span>
+    <span class="inline-flex size-2 shrink-0 rounded-full bg-leaf" role="img" aria-label="<%= t("Current") %>"><span class="sr-only"><%= t("Current") %></span></span>
   <% end %>
 
 </section>

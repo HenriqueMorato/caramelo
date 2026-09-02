@@ -10,13 +10,14 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
   test "queues supported B3 and US owner-traded instruments without authentication" do
     us_instrument = instruments(:voo_arcx)
 
-    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ @instrument, { force: true } ]) do
-      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument, { force: true } ]) do
+    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ @instrument, { force: true, refresh_scope: "manual_current_market_prices" } ]) do
+      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument, { force: true, refresh_scope: "manual_current_market_prices" } ]) do
         post current_market_price_refresh_url, as: :turbo_stream
       end
     end
 
     assert_response :accepted
+    assert_includes response.body, "Market price refresh started."
   end
 
   test "redirects HTML refreshes back to positions" do

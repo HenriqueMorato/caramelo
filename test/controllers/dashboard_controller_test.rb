@@ -18,6 +18,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "explains when existing trades lack current market data" do
     Trade.where(user: User.owner).delete_all
+    Rails.cache.clear
     instrument = instruments(:petr4_bvmf)
     User.owner.trades.create!(
       instrument:, side: :buy, traded_on: Date.current - 1, quantity: 1, unit_price: "10",

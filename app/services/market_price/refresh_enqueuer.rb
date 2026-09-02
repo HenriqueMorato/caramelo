@@ -6,15 +6,21 @@ module MarketPrice
       @job_class = job_class
     end
 
-    def enqueue(instrument:)
+    def enqueue(instrument:, refresh_scope: nil)
       return unless service.supports?(instrument:)
 
+      RefreshStatus::Tracker.enqueue(scope: job_class.refresh_scope(instrument))
       broadcaster.refreshing(instrument:)
-      job = job_class.enqueue_for(instrument:, force: true)
+      job = if refresh_scope
+        job_class.enqueue_for(instrument:, force: true, refresh_scope:)
+      else
+        job_class.enqueue_for(instrument:, force: true)
+      end
       return job if job
 
       raise EnqueueFailure, "current market price refresh could not be enqueued"
-    rescue
+    rescue => error
+      RefreshStatus::Tracker.fail(scope: job_class.refresh_scope(instrument), error:)
       broadcaster.current(instrument:)
       raise
     end

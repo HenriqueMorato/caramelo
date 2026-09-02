@@ -1,15 +1,22 @@
 class CurrentMarketPriceRefreshesController < ApplicationController
   allow_unauthenticated_access
+  REFRESH_SCOPE = "manual_current_market_prices"
 
   def create
-    traded_instruments.each do |instrument|
-      refresh_enqueuer.enqueue(instrument:)
+    instruments = traded_instruments.to_a
+    RefreshStatus::Tracker.enqueue(scope: REFRESH_SCOPE, total_count: instruments.size)
+    instruments.each do |instrument|
+      refresh_enqueuer.enqueue(instrument:, refresh_scope: REFRESH_SCOPE)
     end
 
+    flash.now[:notice] = t("notices.Market price refresh started")
+
     respond_to do |format|
-      format.turbo_stream { head :accepted }
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace("flash-messages", partial: "layouts/flash_messages"), status: :accepted
+      end
       format.html do
-        redirect_to positions_path, notice: t("notices.Market price refresh started")
+        redirect_to positions_path, notice: flash[:notice]
       end
     end
   end

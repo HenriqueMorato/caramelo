@@ -1,0 +1,32 @@
+<% content_for :title, t(".Page title", application: t("LocalFolio")) %>
+
+<section class="space-y-8">
+  <div class="ui-page-header">
+    <div class="ui-page-header-copy">
+      <p class="ui-eyebrow"><%= t("Market data") %></p>
+      <h1 class="ui-page-title"><%= t(".Heading") %></h1>
+      <p class="ui-page-intro"><%= t(".Intro") %></p>
+    </div>
+    <p class="text-sm text-muted"><%= t(".Checked at", time: l(@report.checked_at, format: :short)) %></p>
+  </div>
+
+  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" role="status">
+    <% if @report.healthy? %>
+      <p class="font-semibold text-leaf"><%= t(".Healthy") %></p>
+      <p class="mt-2 text-sm text-muted"><%= t(".Healthy explanation") %></p>
+    <% else %>
+      <p class="font-semibold text-coffee"><%= t(".Issues found", count: @report.issues.size) %></p>
+      <ul class="mt-5 space-y-3" aria-label="<%= t(".Issue list") %>">
+        <% @report.issues.each do |issue| %>
+          <li class="rounded-xl border border-coffee/10 bg-oat p-4">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <p class="font-semibold text-coffee"><%= issue.subject_label %></p>
+              <span class="text-xs font-semibold uppercase tracking-wide <%= issue.severity == :error ? "text-guava" : "text-caramel-deep" %>"><%= issue.severity %></span>
+            </div>
+            <p class="mt-1 text-sm text-muted"><%= issue.details %></p>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</section>
