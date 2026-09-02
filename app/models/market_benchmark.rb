@@ -10,6 +10,8 @@ class MarketBenchmark < ApplicationRecord
   # (for example, CDI) use the provider's daily rate representation.
   has_many :observations, class_name: "MarketBenchmarkObservation", dependent: :restrict_with_exception
 
+  enum :kind, { price: "price", rate: "rate" }, validate: true
+
   normalizes :name, with: ->(value) { value.strip }
   normalizes :identifier, :currency, with: ->(value) { value.strip.upcase }
   normalizes :kind, with: ->(value) { value.strip.downcase }
@@ -19,7 +21,6 @@ class MarketBenchmark < ApplicationRecord
   validates :identifier, :name, :kind, :currency, :provider, :provider_identifier, presence: true
   validates :identifier, uniqueness: true, length: { maximum: 64 }
   validates :name, length: { maximum: 160 }
-  validates :kind, inclusion: { in: %w[price rate] }
   validates :currency, iso_currency: true
   validates :provider, length: { maximum: 64 }
   validates :provider_identifier, length: { maximum: 128 }

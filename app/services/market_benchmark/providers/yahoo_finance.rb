@@ -14,7 +14,7 @@ class MarketBenchmark
       def identifier = IDENTIFIER
 
       def supports?(benchmark:)
-        benchmark.provider == identifier && benchmark.kind == "price"
+        benchmark.provider == identifier && benchmark.price?
       end
 
       def fetch(benchmark:, from:, to:)

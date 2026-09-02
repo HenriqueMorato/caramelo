@@ -11,10 +11,10 @@ module Performance
 
     def to_a
       benchmark_results.filter_map do |benchmark, result|
-        next unless result.available? || (result.respond_to?(:missing?) && result.missing?)
+        next unless result.available? || result.missing?
 
         observations = chart_observations(benchmark, result)
-        next if result.respond_to?(:missing?) && result.missing? && observations.length < 2
+        next if result.missing? && observations.length < 2
 
         cumulative_values = if result.available? && observations.equal?(result.observations)
           result.cumulative_return_values
@@ -47,14 +47,18 @@ module Performance
     def chart_observations(benchmark, result)
       observations = result.observations
       first_date = series.observations.first&.date
-      return observations unless benchmark.respond_to?(:persisted?) && benchmark.persisted? && observations.first && first_date
+      return observations unless benchmark.persisted? && observations.first && first_date
       return observations unless observations.first.observed_on > first_date
 
       # Anchor a range that starts during a closure to the prior real observation.
-      anchor = benchmark.observations.where("observed_on < ?", first_date).chronological.last
-      return observations unless anchor && MarketData::HistoricalObservationWindow.for(first_date).cover?(anchor.observed_on)
+      anchor = benchmark.observations.where(observed_on: ...first_date).chronological.last
+      return observations unless valid_anchor?(anchor, first_date)
 
       [ anchor, *observations ]
+    end
+
+    def valid_anchor?(anchor, first_date)
+      anchor && MarketData::HistoricalObservationWindow.for(first_date).cover?(anchor.observed_on)
     end
   end
 end

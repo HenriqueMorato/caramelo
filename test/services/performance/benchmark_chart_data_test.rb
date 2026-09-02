@@ -4,9 +4,12 @@ class Performance::BenchmarkChartDataTest < ActiveSupport::TestCase
   test "maps available benchmark returns onto series dates" do
     observation = Data.define(:date).new(Date.new(2026, 8, 27))
     series = Data.define(:observations).new([ observation ])
-    benchmark = Data.define(:identifier, :name).new("IBOV", "Ibovespa")
+    benchmark = Data.define(:identifier, :name, :observations) do
+      def persisted? = false
+    end.new("IBOV", "Ibovespa", [])
     result = Data.define(:status, :observations) do
       def available? = status == :available
+      def missing? = status == :missing
       def cumulative_return_values = [ BigDecimal("0.05") ]
     end.new(:available, [ Data.define(:observed_on).new(observation.date) ])
 
@@ -142,10 +145,13 @@ class Performance::BenchmarkChartDataTest < ActiveSupport::TestCase
 
   test "skips unavailable benchmark results" do
     series = Data.define(:observations).new([])
-    benchmark = Data.define(:identifier, :name).new("IBOV", "Ibovespa")
-    result = Struct.new(:status) do
+    benchmark = Data.define(:identifier, :name, :observations) do
+      def persisted? = false
+    end.new("IBOV", "Ibovespa", [])
+    result = Struct.new(:status, :observations) do
       def available? = status == :available
-    end.new(:missing)
+      def missing? = false
+    end.new(:unavailable, [])
 
     assert_empty Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ])
   end

@@ -14,15 +14,20 @@ module Performance
     end
 
     def self.cumulative_return_values(benchmark:, observations:, baseline: false)
-      if benchmark.kind == "rate"
-        values = observations.drop(baseline ? 1 : 0).reduce([ BigDecimal("0") ]) do |values, observation|
-          values << ((BigDecimal("1") + values.last) * (BigDecimal("1") + observation.value) - 1)
-        end
-        baseline ? values : values.drop(1)
-      else
-        first = observations.first.value
-        observations.map { |observation| observation.value / first - 1 }
+      return price_return_values(observations) if benchmark.price?
+
+      values = [ BigDecimal("0") ]
+      factor = BigDecimal("1")
+      observations.drop(baseline ? 1 : 0).each do |observation|
+        factor *= BigDecimal("1") + observation.value
+        values << factor - 1
       end
+      baseline ? values : values.drop(1)
+    end
+
+    def self.price_return_values(observations)
+      first = observations.first.value
+      observations.map { |observation| observation.value / first - 1 }
     end
 
     def self.for(benchmark:, from:, to:)
@@ -51,7 +56,7 @@ module Performance
     attr_reader :benchmark, :from, :to
 
     def calculate_return(observations)
-      if benchmark.kind == "rate"
+      if benchmark.rate?
         growth = observations.reduce(BigDecimal("1")) { |factor, observation| factor * (BigDecimal("1") + observation.value) }
         return growth - 1
       end
