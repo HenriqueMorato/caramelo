@@ -43,6 +43,41 @@ class Performance::BenchmarkChartDataTest < ActiveSupport::TestCase
     assert_nil Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first[:values].first
   end
 
+  test "uses the prior trading observation when a chart starts on a weekend" do
+    friday = Date.new(2026, 8, 28)
+    monday = Date.new(2026, 8, 31)
+    benchmark = MarketBenchmark.create!(identifier: "WEEKEND", name: "Weekend benchmark", kind: "price",
+      currency: "USD", provider: "test", provider_identifier: "WEEKEND")
+    [ [ friday, 100 ], [ monday, 101 ], [ monday + 1, 102 ] ].each do |date, value|
+      benchmark.observations.create!(observed_on: date, value:, currency: "USD", provider: "test", observed_at: Time.current)
+    end
+    series = Data.define(:observations).new((friday + 1..monday + 1).map { |date| Data.define(:date).new(date) })
+    result = Performance::Benchmark.for(benchmark:, from: friday + 1, to: monday + 1)
+
+    data = Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first
+
+    assert_equal [ 0.0, 0.0, 1.0, 2.0 ], data[:values]
+  end
+
+  test "compounds rate benchmarks from the prior trading observation" do
+    friday = Date.new(2026, 8, 28)
+    monday = Date.new(2026, 8, 31)
+    benchmark = MarketBenchmark.create!(identifier: "RATEWEEKEND", name: "Rate weekend", kind: "rate",
+      currency: "BRL", provider: "test", provider_identifier: "RATEWEEKEND")
+    [ [ friday, "0.01" ], [ monday, "0.02" ], [ monday + 1, "0.03" ] ].each do |date, value|
+      benchmark.observations.create!(observed_on: date, value:, currency: "BRL", provider: "test", observed_at: Time.current)
+    end
+    series = Data.define(:observations).new((friday + 1..monday + 1).map { |date| Data.define(:date).new(date) })
+    result = Performance::Benchmark.for(benchmark:, from: friday + 1, to: monday + 1)
+
+    values = Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ]).first[:values]
+
+    assert_in_delta 1.0, values[0], 0.001
+    assert_in_delta 1.0, values[1], 0.001
+    assert_in_delta 3.02, values[2], 0.001
+    assert_in_delta 6.1106, values[3], 0.001
+  end
+
   test "skips unavailable benchmark results" do
     series = Data.define(:observations).new([])
     benchmark = Data.define(:identifier, :name).new("IBOV", "Ibovespa")
