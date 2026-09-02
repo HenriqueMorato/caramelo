@@ -6,6 +6,27 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     MarketBenchmark.delete_all
   end
 
+  test "builds the default provider and delegates support and identifier" do
+    importer = MarketBenchmark::Importer.default
+    benchmark = MarketBenchmark.new(provider: "yahoo_finance", kind: "price")
+
+    assert_instance_of MarketBenchmark::Providers::YahooFinance, importer.instance_variable_get(:@provider)
+    assert importer.supports?(benchmark:)
+    assert_equal "yahoo_finance", importer.identifier
+  end
+
+  test "rejects a reversed date range" do
+    provider = Object.new
+    provider.define_singleton_method(:identifier) { "yahoo_finance" }
+    provider.define_singleton_method(:fetch) { |**| [] }
+
+    assert_raises(ArgumentError) do
+      MarketBenchmark::Importer.new(provider:).call(
+        benchmark: MarketBenchmark.new, from: Date.current, to: Date.current - 1
+      )
+    end
+  end
+
   test "persists provider observations and reports counts" do
     benchmark = MarketBenchmark.create!(
       identifier: "SP500", name: "S&P 500", kind: "price", currency: "USD",
@@ -27,6 +48,14 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     assert_equal 1, result.created_count
     assert_equal 0, result.updated_count
     assert_equal observation.value, benchmark.observations.sole.value
+
+    updated = observation.with(value: BigDecimal("5001"))
+    provider.define_singleton_method(:fetch) { |**| [ updated ] }
+    result = MarketBenchmark::Importer.new(provider:).call(
+      benchmark:, from: observation.observed_on, to: observation.observed_on
+    )
+    assert_equal 0, result.created_count
+    assert_equal 1, result.updated_count
   end
 
   test "rejects observations from another benchmark" do

@@ -44,6 +44,53 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     assert_empty events
   end
 
+  test "enqueues only when the cached quote needs refreshing" do
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| CurrentMarketPriceCache::Lookup.new(current_market_price: nil, status: :stale) }
+    events = []
+    job_class = fake_job_class(events:, result: Object.new)
+
+    MarketPrice::RefreshEnqueuer.new(service:, job_class:).enqueue_if_needed(instrument: instruments(:petr4_bvmf))
+
+    assert_equal [ :enqueue ], events
+  end
+
+  test "does not enqueue when a supported quote is fresh" do
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| CurrentMarketPriceCache::Lookup.new(current_market_price: nil, status: :fresh) }
+    events = []
+
+    MarketPrice::RefreshEnqueuer.new(service:, job_class: fake_job_class(events:, result: Object.new))
+      .enqueue_if_needed(instrument: instruments(:petr4_bvmf))
+
+    assert_empty events
+  end
+
+  test "does nothing when a supported instrument has no lookup" do
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| nil }
+    events = []
+
+    MarketPrice::RefreshEnqueuer.new(service:, job_class: fake_job_class(events:, result: Object.new))
+      .enqueue_if_needed(instrument: instruments(:petr4_bvmf))
+
+    assert_empty events
+  end
+
+  test "does nothing when an instrument is unsupported for conditional refresh" do
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| false }
+    events = []
+
+    MarketPrice::RefreshEnqueuer.new(service:, job_class: fake_job_class(events:, result: Object.new))
+      .enqueue_if_needed(instrument: instruments(:petr4_bvmf))
+
+    assert_empty events
+  end
+
   private
 
   def fake_broadcaster(events:)
@@ -55,7 +102,7 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
 
   def fake_job_class(events:, result:)
     Object.new.tap do |job_class|
-      job_class.define_singleton_method(:enqueue_for) do |instrument:, force:|
+      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false|
         events << :enqueue
         result
       end

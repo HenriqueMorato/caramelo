@@ -5,6 +5,34 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     Rails.cache.clear
   end
 
+  test "coalesces coordinator enqueues while one is pending" do
+    clear_enqueued_jobs
+
+    first = RefreshTradedMarketPricesJob.enqueue_for
+    second = RefreshTradedMarketPricesJob.enqueue_for
+
+    assert_instance_of RefreshTradedMarketPricesJob, first
+    assert_equal :coalesced, second
+    assert_equal 1, enqueued_jobs.size
+  end
+
+  test "clears the coordinator marker when enqueueing fails" do
+    failure = RuntimeError.new("queue unavailable")
+    with_stubbed_method(RefreshTradedMarketPricesJob, :perform_later, -> { raise failure }) do
+      assert_raises(RuntimeError) { RefreshTradedMarketPricesJob.enqueue_for }
+    end
+
+    assert_not Rails.cache.exist?(RefreshTradedMarketPricesJob.send(:deduplication_key))
+  end
+
+  test "clears the coordinator marker when the adapter declines the enqueue" do
+    with_stubbed_method(RefreshTradedMarketPricesJob, :perform_later, -> { nil }) do
+      assert_nil RefreshTradedMarketPricesJob.enqueue_for
+    end
+
+    assert_not Rails.cache.exist?(RefreshTradedMarketPricesJob.send(:deduplication_key))
+  end
+
   test "enqueues each supported instrument traded by the owner including a closed holding" do
     instrument = instruments(:petr4_bvmf)
     us_instrument = instruments(:voo_arcx)
@@ -64,6 +92,32 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     refute enqueued_jobs.any? { |job| job[:args].first["_aj_globalid"].end_with?("Instrument/#{instrument.id}") }
   end
 
+  test "skips a supported instrument when its lookup is not refreshable" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| Struct.new(:refresh_needed?).new(false) }
+
+    clear_enqueued_jobs
+    build_job(service:).perform
+
+    assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob
+  end
+
+  test "skips a supported instrument when its quote lookup is missing" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| nil }
+
+    clear_enqueued_jobs
+    build_job(service:).perform
+
+    assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob
+  end
+
   private
 
   def create_trade(instrument:, side:, quantity:)
@@ -88,5 +142,13 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     RefreshTradedMarketPricesJob.new.tap do |job|
       job.define_singleton_method(:market_price_service) { service }
     end
+  end
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.singleton_class.define_method(method_name, replacement)
+    yield
+  ensure
+    object.singleton_class.define_method(method_name, original)
   end
 end

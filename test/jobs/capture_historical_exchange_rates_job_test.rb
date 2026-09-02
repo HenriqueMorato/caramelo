@@ -28,6 +28,23 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
     assert_equal 1, waits
   end
 
+  test "skips a currency with an existing observation" do
+    date = Date.new(2026, 8, 28)
+    HistoricalExchangeRate.create!(base_currency: "USD", quote_currency: "BRL", rate_date: date,
+      rate: 5, provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER,
+      observed_at: Time.current, fetched_at: Time.current)
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { Object.new }
+
+    job.perform(rate_date: date)
+
+    assert_empty imports.select { |call| call[:base_currency] == "USD" }
+  end
+
   test "reports a failure and continues with other currencies" do
     date = Date.new(2026, 8, 28)
     euro = Instrument.create!(ticker: "EUNL", exchange: "XETR", name: "European ETF", currency: "EUR")

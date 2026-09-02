@@ -31,6 +31,14 @@ class MarketBenchmark::Providers::YahooFinanceTest < ActiveSupport::TestCase
     assert_empty client.requests
   end
 
+  test "rejects a benchmark without a provider identifier" do
+    benchmark = MarketBenchmark.new(provider: "yahoo_finance", kind: "price", provider_identifier: " ")
+
+    assert_raises(MarketData::YahooFinance::InvalidIdentifier) do
+      described_class.new(client: FakeClient.new).fetch(benchmark:, from: Date.current - 1, to: Date.current)
+    end
+  end
+
   FakeClient = Struct.new(:requests) do
     def initialize
       super([])
