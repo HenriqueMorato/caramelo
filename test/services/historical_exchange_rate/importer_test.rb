@@ -2,6 +2,7 @@ require "test_helper"
 
 class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
   setup do
+    Rails.cache.clear
     @provider = FakeProvider.new
     @importer = HistoricalExchangeRate::Importer.new(provider: @provider)
   end
@@ -27,6 +28,73 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     @importer.call(base_currency: " usd ", quote_currency: "brl", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
 
     assert_equal [ "USD", "BRL" ], @provider.requested_pair
+  end
+
+  test "an inverse-rate correction invalidates and rebuilds dependent portfolio values" do
+    user = users(:owner)
+    date = Date.new(2026, 8, 24)
+    trade = trades(:owner_voo_buy)
+    trade.update_columns(traded_on: date)
+    @provider.define_singleton_method(:identifier) { MarketData::YahooFinance::FX_CONFIGURATION.identifier }
+    @provider.rate = BigDecimal("0.2")
+    @importer.call(base_currency: "BRL", quote_currency: "USD", from: date, to: date)
+    DailyClosingPrice.create!(
+      instrument: trade.instrument, trading_date: date, close_price: "100", currency: "USD",
+      provider: "yahoo_finance", observed_at: date.to_time
+    )
+    Performance::ObservationBuilder.new(user:).call(from: date, to: date)
+    observation = user.portfolio_performance_observations.find_by!(observed_on: date)
+    assert_equal BigDecimal("1250"), observation.market_value_amount
+
+    @provider.rate = BigDecimal("0.25")
+    @importer.call(base_currency: "BRL", quote_currency: "USD", from: date, to: date)
+
+    assert_predicate observation.reload, :stale?
+    assert_predicate PortfolioPerformanceMaterialization.for(user:), :pending?
+    Performance::ObservationBuilder.new(user:).call(from: date, to: date)
+    assert_equal BigDecimal("1000"), observation.reload.market_value_amount
+    assert_not_predicate observation, :stale?
+  end
+
+  test "returns missing weekdays without invalidating performance when the provider has no observations" do
+    date = Date.new(2026, 8, 25)
+
+    result = @importer.call(
+      base_currency: "USD", quote_currency: "BRL", from: date, to: date
+    )
+
+    assert_equal [ date ], result.missing_dates
+    assert_equal 0, result.created_count
+    assert_equal 0, result.updated_count
+  end
+
+  test "rolls back earlier rates when a later row is invalid" do
+    fetch = @provider.method(:fetch)
+    @provider.define_singleton_method(:fetch) do |**arguments|
+      fetch.call(**arguments).each_with_index.map do |observation, index|
+        index.zero? ? observation : observation.with(rate: BigDecimal("-1"))
+      end
+    end
+
+    assert_raises(ActiveRecord::RecordInvalid) do
+      @importer.call(
+        base_currency: "USD", quote_currency: "BRL",
+        from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26)
+      )
+    end
+
+    assert_empty HistoricalExchangeRate.all
+  end
+
+  test "keeps durable dirty history without enqueueing while a backfill batch is incomplete" do
+    @importer.call(
+      base_currency: "USD", quote_currency: "BRL",
+      from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26),
+      enqueue_performance_rebuild: false
+    )
+
+    assert_predicate PortfolioPerformanceMaterialization.for(user: users(:owner)), :pending?
+    assert_nil Performance::SeriesRefresh.read(user: users(:owner))
   end
 
   test "rejects inverted and future ranges" do

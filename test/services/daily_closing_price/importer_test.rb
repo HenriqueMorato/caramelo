@@ -2,6 +2,7 @@ require "test_helper"
 
 class DailyClosingPrice::ImporterTest < ActiveSupport::TestCase
   setup do
+    Rails.cache.clear
     @instrument = instruments(:voo_arcx)
     @provider = FakeProvider.new
     @importer = DailyClosingPrice::Importer.new(provider: @provider)
@@ -53,6 +54,59 @@ class DailyClosingPrice::ImporterTest < ActiveSupport::TestCase
     )
 
     assert_empty DailyClosingPrice.where(instrument: @instrument)
+  end
+
+  test "returns missing weekdays without invalidating performance when the provider has no observations" do
+    date = Date.new(2026, 8, 25)
+
+    result = @importer.call(instrument: @instrument, from: date, to: date)
+
+    assert_equal [ date ], result.missing_dates
+    assert_equal 0, result.created_count
+    assert_equal 0, result.updated_count
+  end
+
+  test "rolls back earlier observations when a later row is invalid" do
+    fetch = @provider.method(:fetch)
+    @provider.define_singleton_method(:fetch) do |**arguments|
+      fetch.call(**arguments).each_with_index.map do |observation, index|
+        index.zero? ? observation : observation.with(close_price: BigDecimal("-1"))
+      end
+    end
+
+    assert_raises(ActiveRecord::RecordInvalid) do
+      @importer.call(instrument: @instrument, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26))
+    end
+
+    assert_empty DailyClosingPrice.where(instrument: @instrument)
+  end
+
+  test "keeps durable dirty history without enqueueing while a backfill batch is incomplete" do
+    @importer.call(
+      instrument: @instrument, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26),
+      enqueue_performance_rebuild: false
+    )
+
+    assert_predicate PortfolioPerformanceMaterialization.for(user: users(:owner)), :pending?
+    assert_nil Performance::SeriesRefresh.read(user: users(:owner))
+  end
+
+  test "rolls back imported prices and dirty metadata together if invalidation fails" do
+    state = PortfolioPerformanceMaterialization.for(user: users(:owner))
+    original = Performance::ObservationInvalidator.method(:mark!)
+    Performance::ObservationInvalidator.define_singleton_method(:mark!, lambda { |**arguments|
+      original.call(**arguments)
+      raise "invalidation unavailable"
+    })
+
+    assert_raises(RuntimeError) do
+      @importer.call(instrument: @instrument, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26))
+    end
+
+    assert_empty DailyClosingPrice.where(instrument: @instrument)
+    assert_equal 0, state.reload.source_generation
+  ensure
+    Performance::ObservationInvalidator.define_singleton_method(:mark!, original)
   end
 
   test "rejects an inverted date range" do

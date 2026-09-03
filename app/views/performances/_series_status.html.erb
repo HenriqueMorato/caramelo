@@ -1,0 +1,36 @@
+<%# locals: (series:, selected_period:) %>
+
+<% if series.pending? %>
+  <div class="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+    <p class="font-semibold"><%= t("performances.show.Portfolio history is building") %></p>
+    <p class="mt-1"><%= t("performances.show.Portfolio history is building explanation") %></p>
+  </div>
+<% elsif series.partial? %>
+  <div class="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+    <p class="font-semibold"><%= t("performances.show.Portfolio history is partially available") %></p>
+    <p class="mt-1">
+      <%= t("performances.show.Portfolio history is partially available explanation",
+        count: series.missing_dates.length) %>
+    </p>
+  </div>
+<% elsif series.stale? %>
+  <div class="mt-5 rounded-xl border border-caramel/30 bg-caramel/10 px-4 py-3 text-sm text-coffee" role="status">
+    <p class="font-semibold"><%= t("performances.show.Portfolio history is refreshing") %></p>
+    <p class="mt-1"><%= t("performances.show.Portfolio history is refreshing explanation") %></p>
+  </div>
+<% elsif series.failed? %>
+  <div class="mt-5 rounded-xl border border-red-300/70 bg-red-50 px-4 py-3 text-sm text-red-950" role="alert">
+    <p class="font-semibold"><%= t("performances.show.Portfolio history update failed") %></p>
+    <p class="mt-1"><%= t("performances.show.Portfolio history update failed explanation") %></p>
+    <%= link_to t("performances.show.Try again"), performance_path(period: selected_period),
+      class: "ui-button ui-button-secondary mt-3" %>
+  </div>
+<% elsif series.missing? %>
+  <p class="mt-5 text-sm text-muted" role="status"><%= t("performances.show.Portfolio history unavailable") %></p>
+<% end %>
+
+<% if series.stale_values? && !series.stale? %>
+  <p class="mt-2 text-sm text-muted" role="status">
+    <%= t("performances.show.Stale values remain visible") %>
+  </p>
+<% end %>

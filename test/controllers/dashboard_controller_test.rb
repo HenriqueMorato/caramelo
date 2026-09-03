@@ -9,6 +9,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     Trade.delete_all
     DailyClosingPrice.delete_all
     HistoricalDataBackfill.delete_all
+    PortfolioPerformanceObservation.delete_all
+    PortfolioPerformanceMaterialization.delete_all
   end
 
   test "renders the public dashboard for the configured owner" do

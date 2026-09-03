@@ -84,11 +84,11 @@ pending.
 
 ## Historical series
 
-`Performance::Series.for(from:, to:)` reuses the daily portfolio valuation for
-each calendar date in the selected range, including weekends and other
-non-trading dates. It memoizes each date's valuation so the opening calculation
-is not repeated, and returns one `Observation` per date with the portfolio
-value, period gain/loss, return, and availability status.
+`Performance::Series.for(from:, to:)` reads materialized daily portfolio
+observations and returns one result per calendar date with the portfolio value,
+period gain/loss, return, and availability status. The complete lifecycle,
+invalidation rules, recovery behavior, rebuild command, and measured baseline
+are documented in [Portfolio performance observations](portfolio-performance-observations.md).
 
 The performance page renders available observations as an interactive Chart.js
 canvas with portfolio value and net invested capital lines. The same values,
