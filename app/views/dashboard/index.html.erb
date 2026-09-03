@@ -14,7 +14,8 @@
     <%= link_to t(".Add transaction"), new_trade_path, class: "ui-button bg-caramel text-oat shadow-sm hover:bg-caramel-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" %>
   </header>
 
-  <% if @dashboard.market_value_available? %>
+  <% if @dashboard.market_value_displayable? %>
+    <%= render "dashboard/portfolio_state", dashboard: @dashboard if @dashboard.partially_valued? %>
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]">
       <%= render "dashboard/hero", dashboard: @dashboard %>
       <%= render "dashboard/snapshot", dashboard: @dashboard %>
@@ -23,5 +24,5 @@
     <%= render "dashboard/portfolio_state", dashboard: @dashboard %>
   <% end %>
 
-  <%= render "dashboard/long_view", dashboard: @dashboard if @dashboard.market_value_available? %>
+  <%= render "dashboard/long_view", dashboard: @dashboard if @dashboard.market_value_displayable? %>
 </section>

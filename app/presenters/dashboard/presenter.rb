@@ -92,11 +92,15 @@ module Dashboard
 
     def market_value
       return Money.from_amount(0, reporting_currency) if no_open_positions?
-      return if !market_value_available?
+      return unless market_value_displayable?
 
-      values = open_positions.filter_map { |position| position.valuation.market_value }
+      values = available_positions.filter_map { |position| position.valuation.market_value }
 
       Money.from_amount(values.sum(&:amount), reporting_currency)
+    end
+
+    def market_value_displayable?
+      available_positions.any?
     end
 
     def market_value_available?
@@ -119,6 +123,10 @@ module Dashboard
       open_positions.any? { |position| position.valuation.missing? }
     end
 
+    def partially_valued?
+      available_positions.any? && available_positions.length < open_positions.length
+    end
+
     def last_market_data_at
       open_positions.filter_map { |position| position.market_price.current_market_price&.fetched_at }.max
     end
@@ -129,6 +137,10 @@ module Dashboard
 
     def reporting_currency
       Rails.configuration.x.local_folio.reporting_currency
+    end
+
+    def available_positions
+      open_positions.select { |position| position.valuation.available? }
     end
 
     def previous_business_day_value

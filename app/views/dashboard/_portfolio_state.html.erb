@@ -7,11 +7,33 @@
     <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("dashboard.index.No open positions explanation") %></p>
   </div>
 <% elsif dashboard.has_trades? %>
-  <div class="ui-card border-sun/50 bg-sun/10 p-8" role="status">
-    <p class="text-xs font-bold uppercase tracking-[0.16em] text-caramel-deep"><%= t("dashboard.index.Market data needs attention") %></p>
-    <h2 class="mt-3 font-display text-3xl font-semibold text-coffee"><%= t("dashboard.index.Portfolio value unavailable") %></h2>
-    <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("dashboard.index.Market data unavailable explanation") %></p>
-  </div>
+  <% if dashboard.partially_valued? %>
+    <div
+      class="flex items-center justify-between gap-3 rounded-xl border border-caramel/30
+        bg-caramel/10 px-4 py-2.5 text-sm"
+      role="status"
+    >
+      <span class="font-semibold text-caramel-deep"><%= t("dashboard.index.Partial market data summary") %></span>
+      <%= link_to t("dashboard.index.Open data health"), market_data_health_path,
+        class: "shrink-0 font-semibold text-caramel-deep underline decoration-caramel/40
+          underline-offset-4 hover:text-coffee" %>
+    </div>
+  <% else %>
+    <div
+      class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-sun/50 bg-sun/10 px-4 py-3"
+      role="status"
+    >
+      <div class="min-w-0">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-caramel-deep">
+          <%= t("dashboard.index.Market data needs attention") %>
+        </p>
+        <h2 class="mt-1 font-semibold text-coffee"><%= t("dashboard.index.Portfolio value unavailable") %></h2>
+      </div>
+      <p class="max-w-xl text-sm text-muted"><%= t("dashboard.index.Market data unavailable explanation") %></p>
+      <%= link_to t("dashboard.index.Open data health"), market_data_health_path,
+        class: "ui-button ui-button-secondary" %>
+    </div>
+  <% end %>
 <% else %>
   <div class="ui-card border-dashed p-8 sm:p-10">
     <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t("dashboard.index.Ready when you are") %></p>
