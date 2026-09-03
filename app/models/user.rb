@@ -7,6 +7,9 @@ class User < ApplicationRecord
   has_many :trades, dependent: :restrict_with_error
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
+  normalizes :reporting_currency, with: ->(currency) { currency.strip.upcase }
+
+  validates :reporting_currency, presence: true, iso_currency: true
 
   def self.owner
     find_by!(email_address: Rails.application.config.x.local_folio.owner_email)
