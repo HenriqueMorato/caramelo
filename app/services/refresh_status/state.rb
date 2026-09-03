@@ -70,7 +70,8 @@ module RefreshStatus
       states_with_finish_time("failed").max_by(&:finished_at)
     end
 
-    def self.write(scope:, run_id: nil, status:, started_at: nil, finished_at: nil, error_class: nil, error_message: nil,
+    def self.write(scope:, run_id: nil, status:, started_at: nil, finished_at: nil, error_class: nil,
+      error_message: nil,
       processed_count: 0, total_count: nil)
       register(scope)
       Rails.cache.write(key(scope), {

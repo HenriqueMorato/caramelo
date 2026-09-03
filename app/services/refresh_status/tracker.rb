@@ -3,36 +3,22 @@ module RefreshStatus
     def self.enqueue(scope:, total_count: nil)
       run_id = SecureRandom.uuid
       completed = total_count == 0
-      state = State.write(scope:, run_id:, status: completed ? "succeeded" : "queued", total_count:,
-        finished_at: (Time.current if completed))
-      Broadcaster.refresh
-      state
+      state = State.write(
+        scope:, run_id:, status: completed ? "succeeded" : "queued", total_count:,
+        finished_at: (Time.current if completed)
+      )
+      broadcast(state)
     end
 
     def self.perform(scope:, total_count: nil, preserve_progress: false, run_id: nil)
-      if preserve_progress && (existing = State.read(scope))
-        return existing unless existing.active? && (run_id.nil? || existing.run_id == run_id)
+      existing = State.read(scope) if preserve_progress
+      return preserve(existing, run_id:) { |refresh| yield refresh } if existing
 
-        refresh = write(existing, status: "running", started_at: existing.started_at || Time.current)
-        Broadcaster.refresh
-        yield refresh
-        return State.read(scope) || refresh
-      end
-
-      refresh = State.write(
-        scope:, run_id: run_id || SecureRandom.uuid, status: "running", started_at: Time.current, total_count:
-      )
-      Broadcaster.refresh
+      refresh = start(scope:, total_count:, run_id:)
       yield refresh
-      refresh = State.read(refresh.scope)
-      completed = refresh.total_count.nil? || refresh.processed_count >= refresh.total_count
-      refresh = write(refresh, status: "succeeded", finished_at: Time.current) if completed && !refresh.failed?
-      Broadcaster.refresh
-      refresh
+      complete(refresh)
     rescue StandardError => error
-      write(refresh, status: "failed", finished_at: Time.current, error_class: error.class.name,
-        error_message: error.message.truncate(500)) if refresh
-      Broadcaster.refresh
+      refresh ? fail_refresh(refresh, error) : Broadcaster.refresh
       raise
     end
 
@@ -44,14 +30,14 @@ module RefreshStatus
       else
         write(latest, processed_count:)
       end
-      Broadcaster.refresh
+      broadcast
     end
 
     def self.record_failure(refresh, error)
       latest = State.read(refresh.scope) || refresh
       write(latest, status: "failed", finished_at: Time.current, error_class: error.class.name,
         error_message: error.message.truncate(500))
-      Broadcaster.refresh
+      broadcast
     end
 
     def self.fail(scope:, error:)
@@ -76,5 +62,40 @@ module RefreshStatus
     end
 
     private_class_method :new
+
+    def self.broadcast(state = nil)
+      Broadcaster.refresh
+      state
+    end
+
+    def self.start(scope:, total_count:, run_id:)
+      State.write(
+        scope:, run_id: run_id || SecureRandom.uuid, status: "running", started_at: Time.current, total_count:
+      ).tap { Broadcaster.refresh }
+    end
+
+    def self.preserve(existing, run_id:)
+      return existing unless existing.active? && (run_id.nil? || existing.run_id == run_id)
+
+      refresh = write(existing, status: "running", started_at: existing.started_at || Time.current)
+      broadcast
+      yield refresh
+      State.read(refresh.scope) || refresh
+    end
+
+    def self.complete(refresh)
+      refresh = State.read(refresh.scope)
+      completed = refresh.total_count.nil? || refresh.processed_count >= refresh.total_count
+      refresh = write(refresh, status: "succeeded", finished_at: Time.current) if completed && !refresh.failed?
+      broadcast(refresh)
+    end
+
+    def self.fail_refresh(refresh, error)
+      write(refresh, status: "failed", finished_at: Time.current, error_class: error.class.name,
+        error_message: error.message.truncate(500))
+      broadcast
+    end
+
+    private_class_method :broadcast, :start, :preserve, :complete, :fail_refresh
   end
 end
