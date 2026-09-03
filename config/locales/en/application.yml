@@ -93,6 +93,7 @@ en:
     Created: "%{model} was created."
     Deleted: "%{model} was deleted."
     Market price refresh started: Market price refresh started.
+    Market price refresh completed: Market price refresh completed.
     Password reset instructions sent: Password reset instructions sent (if user with
       that email address exists).
     Password was reset: Password has been reset.

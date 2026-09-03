@@ -18,6 +18,8 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
 
     assert_response :accepted
     assert_includes response.body, "Market price refresh started."
+    assert_includes response.body, "Market data updating"
+    assert_includes response.body, "0/2"
   end
 
   test "redirects HTML refreshes back to positions" do
@@ -25,6 +27,19 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
 
     assert_redirected_to positions_url
     assert_equal "Market price refresh started.", flash[:notice]
+  end
+
+  test "completes the manual batch for coalesced instruments" do
+    traded_instruments = Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
+    traded_instruments.each do |instrument|
+      Rails.cache.write(RefreshCurrentMarketPriceJob.deduplication_key(instrument), true)
+    end
+
+    post current_market_price_refresh_url, as: :turbo_stream
+
+    state = RefreshStatus::State.read(CurrentMarketPriceRefreshesController::REFRESH_SCOPE)
+    assert_equal state.total_count, state.processed_count
+    assert_equal "succeeded", state.status
   end
 
   private

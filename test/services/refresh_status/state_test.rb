@@ -71,6 +71,20 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_equal "failed", RefreshStatus::State.read("tracked_failure").status
   end
 
+  test "tracker preserves an existing batch while a child runs" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      RefreshStatus::Tracker.enqueue(scope: "tracked_batch", total_count: 2)
+      RefreshStatus::Tracker.perform(scope: "tracked_batch", preserve_progress: true) do |refresh|
+        RefreshStatus::Tracker.advance(refresh)
+      end
+    end
+
+    state = RefreshStatus::State.read("tracked_batch")
+    assert_equal "running", state.status
+    assert_equal 1, state.processed_count
+    assert_equal 2, state.total_count
+  end
+
   test "tracker marks a refresh as queued" do
     with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "queued_state", total_count: 4)

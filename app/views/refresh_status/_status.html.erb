@@ -6,17 +6,23 @@
   <%= turbo_stream_from RefreshStatus::Broadcaster::STREAM_NAME %>
 <% end %>
 
-<div id="<%= RefreshStatus::Broadcaster::TARGET %>" class="<%= status.updating? || status.failed? ? "contents" : "hidden" %>" aria-live="polite">
+<div id="<%= RefreshStatus::Broadcaster::TARGET %>" class="<%= status.updating? || status.failed? || status.last_successful_refresh_at ? "block" : "hidden" %>" aria-live="polite">
   <% if status.updating? %>
-    <p class="pointer-events-auto inline-flex w-full items-center gap-3 rounded-2xl border border-caramel/25 bg-oat-2/95 px-4 py-3 text-left text-xs font-semibold text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm motion-safe:animate-[toast-in_180ms_cubic-bezier(0.23,1,0.32,1)]" role="status">
-      <span class="size-4 shrink-0 animate-spin rounded-full border-2 border-caramel/25 border-t-caramel" aria-hidden="true"></span>
+    <p class="pointer-events-auto relative inline-flex items-start gap-3 overflow-hidden rounded-2xl border border-caramel/25 bg-oat-2/95 px-4 py-3 text-left text-sm font-medium text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm" role="status">
+      <span class="mt-0.5 flex size-5 shrink-0 animate-spin items-center justify-center rounded-full border-2 border-caramel/25 border-t-caramel" aria-hidden="true"></span>
       <%= t("Market data updating") %>
-      <% if status.progress_label %><span class="text-muted">(<%= status.progress_label %>)</span><% end %>
+      <% if status.progress_label %><span class="leading-5 text-muted">(<%= status.progress_label %>)</span><% end %>
     </p>
-  <% elsif status.failed? %>
-    <p class="pointer-events-auto inline-flex w-full items-center gap-3 rounded-2xl border border-guava/25 bg-oat-2/95 px-4 py-3 text-left text-xs font-semibold text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm motion-safe:animate-[toast-in_180ms_cubic-bezier(0.23,1,0.32,1)]" role="status">
-      <span class="size-2 rounded-full bg-guava" aria-hidden="true"></span>
-      <%= t("Market data needs attention") %>
+  <% elsif broadcast && status.failed? %>
+    <p data-controller="notification" data-notification-duration-value="3000" data-notification-key-value="refresh-failure-<%= status.latest_failed_refresh.finished_at.to_f %>" class="pointer-events-auto relative inline-flex items-start gap-3 overflow-hidden rounded-2xl border border-guava/25 bg-oat-2/95 px-4 py-3 text-left text-sm font-medium text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm motion-safe:animate-[toast-in_180ms_cubic-bezier(0.23,1,0.32,1)]" role="status">
+      <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-guava/15 text-xs text-guava" aria-hidden="true">!</span>
+      <span class="leading-5"><%= t("Market data needs attention") %></span>
+    </p>
+  <% elsif broadcast && status.completed_refresh? %>
+    <p data-controller="notification" data-notification-duration-value="3000" data-notification-key-value="refresh-success-<%= status.last_successful_refresh_at.to_f %>" class="pointer-events-auto relative inline-flex items-start gap-3 overflow-hidden rounded-2xl border border-leaf/25 bg-oat-2/95 px-4 py-3 text-left text-sm font-medium text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm motion-safe:animate-[toast-in_180ms_cubic-bezier(0.23,1,0.32,1)]" role="status">
+      <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-leaf/15 text-xs text-leaf" aria-hidden="true">✓</span>
+      <span class="leading-5"><%= t("notices.Market price refresh completed") %></span>
+      <span class="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-leaf motion-safe:animate-[toast-progress_3s_linear_forwards]" aria-hidden="true"></span>
     </p>
   <% elsif status.last_successful_refresh_at %>
     <p class="text-xs text-muted"><%= t("Market data updated at", time: l(status.last_successful_refresh_at, format: :short)) %></p>

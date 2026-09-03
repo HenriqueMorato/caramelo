@@ -43,7 +43,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
 
   def perform(instrument, force: false, refresh_scope: nil)
     retry_scheduled = false
-    RefreshStatus::Tracker.perform(scope: refresh_scope || self.class.refresh_scope(instrument)) do
+    RefreshStatus::Tracker.perform(scope: refresh_scope || self.class.refresh_scope(instrument), preserve_progress: refresh_scope.present?) do
       instrument_event(:attempted, instrument:)
       request_throttle.wait!(instrument:)
       market_price_service.refresh(instrument:, force:)

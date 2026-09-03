@@ -1,20 +1,23 @@
 module RefreshStatus
   class Presenter
     def self.for
+      latest_successful_refresh = State.latest_successful
       new(
         active_refresh: State.active.max_by { |state| [ state.total_count ? 1 : 0, state.started_at || Time.at(0) ] },
-        last_successful_refresh_at: State.latest_successful&.finished_at,
+        last_successful_refresh_at: latest_successful_refresh&.finished_at,
+        latest_successful_refresh:,
         latest_failed_refresh: State.latest_failed
       )
     end
 
-    def initialize(active_refresh:, last_successful_refresh_at:, latest_failed_refresh:)
+    def initialize(active_refresh:, last_successful_refresh_at:, latest_failed_refresh:, latest_successful_refresh: nil)
       @active_refresh = active_refresh
       @last_successful_refresh_at = last_successful_refresh_at
+      @latest_successful_refresh = latest_successful_refresh
       @latest_failed_refresh = latest_failed_refresh
     end
 
-    attr_reader :active_refresh, :last_successful_refresh_at, :latest_failed_refresh
+    attr_reader :active_refresh, :last_successful_refresh_at, :latest_failed_refresh, :latest_successful_refresh
 
     def updating?
       active_refresh.present?
@@ -31,6 +34,10 @@ module RefreshStatus
     def failed?
       latest_failed_refresh.present? &&
         latest_failed_refresh.finished_at > (last_successful_refresh_at || Time.at(0))
+    end
+
+    def completed_refresh?
+      latest_successful_refresh&.scope.in?(%w[current_market_prices manual_current_market_prices]) && !updating?
     end
   end
 end

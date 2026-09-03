@@ -14,7 +14,6 @@ en:
       Market data needs attention: Market data needs attention
       Market data unavailable explanation: Add or refresh current prices for your
         open positions to see the portfolio value here.
-      Market data updated: Market data updated %{time} ago
       No open positions: No open positions yet.
       No open positions explanation: Your trades are recorded, but there are no current
         holdings to value.

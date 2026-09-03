@@ -79,7 +79,6 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Total portfolio value"
     assert_includes response.body, "R$24,00"
     assert_includes response.body, "+R$24,00"
-    assert_includes response.body, "Market data updated"
     assert_includes response.body, "Holdings"
     assert_not_includes response.body, "Fees:"
     assert_not_includes response.body, "Currency:"

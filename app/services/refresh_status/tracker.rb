@@ -6,7 +6,14 @@ module RefreshStatus
       state
     end
 
-    def self.perform(scope:, total_count: nil)
+    def self.perform(scope:, total_count: nil, preserve_progress: false)
+      if preserve_progress && (existing = State.read(scope))&.active?
+        refresh = write(existing, status: "running", started_at: existing.started_at || Time.current)
+        Broadcaster.refresh
+        yield refresh
+        return State.read(scope) || refresh
+      end
+
       refresh = State.write(scope:, status: "running", started_at: Time.current, total_count:)
       Broadcaster.refresh
       yield refresh

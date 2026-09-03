@@ -28,6 +28,15 @@ class RefreshStatus::PresenterTest < ActiveSupport::TestCase
     assert presenter.current_prices_updating?
   end
 
+  test "identifies a completed aggregate current-price refresh" do
+    refresh = Refresh.new(started_at: 1.minute.ago, finished_at: Time.current, scope: "manual_current_market_prices", status: "succeeded",
+      processed_count: 2, total_count: 2)
+    presenter = RefreshStatus::Presenter.new(active_refresh: nil, last_successful_refresh_at: refresh.finished_at,
+      latest_successful_refresh: refresh, latest_failed_refresh: nil)
+
+    assert presenter.completed_refresh?
+  end
+
   test "reports a failure newer than the last successful refresh" do
     success_at = 1.hour.ago
     failure = Refresh.new(started_at: 2.minutes.ago, finished_at: Time.current, scope: "prices", status: "failed",
