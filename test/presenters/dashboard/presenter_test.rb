@@ -6,7 +6,11 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
       !open?
     end
   end
-  ValuationState = Struct.new(:market_value, :stale?, :missing?)
+  ValuationState = Struct.new(:market_value, :stale?, :missing?) do
+    def available?
+      market_value.present?
+    end
+  end
   MarketPriceState = Struct.new(:stale?, :current_market_price)
   PositionStateResult = Struct.new(:invalid?, :position, :valuation, :market_price, :instrument)
 
@@ -118,7 +122,35 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     )
 
     assert_not_predicate presenter, :market_value_available?
-    assert_nil presenter.market_value
+    assert_predicate presenter, :market_value_displayable?
+    assert_equal Money.from_amount(12, "BRL"), presenter.market_value
+  end
+
+  test "identifies a partially valued portfolio" do
+    available = position_result(
+      invalid: false, open: true,
+      valuation: ValuationState.new(Money.from_amount(12, "BRL"), false, false),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    missing = position_result(
+      invalid: false, open: true,
+      valuation: ValuationState.new(nil, false, true),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    presenter = Dashboard::Presenter.new(positions: [ available, missing ], recent_trades: [], performance: nil)
+
+    assert_predicate presenter, :partially_valued?
+  end
+
+  test "does not call a portfolio partially valued when every position is unavailable" do
+    missing = position_result(
+      invalid: false, open: true,
+      valuation: ValuationState.new(nil, false, true),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    presenter = Dashboard::Presenter.new(positions: [ missing ], recent_trades: [], performance: nil)
+
+    refute_predicate presenter, :partially_valued?
   end
 
   test "handles unavailable and zero day-change baselines" do

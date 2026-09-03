@@ -20,7 +20,9 @@ en:
       No open positions title: No open positions
       No portfolio yet: Your portfolio starts with a trade
       No recent activity: No trades recorded yet.
+      Open data health: Open data health
       Page title: Dashboard · %{application}
+      Partial market data summary: Some positions need current market data.
       Performance history coming soon: Historical performance will appear here after
         daily history is available.
       Portfolio activity: Portfolio activity

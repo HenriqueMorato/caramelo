@@ -72,4 +72,28 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert report.warnings.any? { |issue| issue.code == :missing_exchange_rate }
     refute report.issues.any? { |issue| issue.subject == "BRL" && issue.code == :missing_exchange_rate }
   end
+
+  test "orders errors before warnings" do
+    instrument = instruments(:petr4_bvmf)
+    User.owner.trades.create!(instrument:, side: :buy, traded_on: Date.current, quantity: 1, unit_price: 10,
+      fees_cents: 0, currency: instrument.currency)
+
+    report = MarketData::HealthReport.for(owner: users(:owner), current_market_price_service: CurrentPriceService.new(status: :missing))
+
+    assert_equal :error, report.issues.first.severity
+    first_warning = report.issues.index { |issue| issue.severity == :warning }
+    assert first_warning
+    assert report.issues.first(first_warning).all? { |issue| issue.severity == :error }
+    assert report.issues.drop(first_warning).all? { |issue| issue.severity == :warning }
+    assert_predicate report, :current_prices_need_refresh?
+  end
+
+  test "does not refresh current prices for historical-only issues" do
+    report = MarketData::HealthReport::Result.new(
+      checked_at: Time.current,
+      issues: [ MarketData::HealthReport::Issue.new(code: :missing_benchmark_data, severity: :warning, subject: "CDI", details: "missing") ]
+    )
+
+    refute_predicate report, :current_prices_need_refresh?
+  end
 end

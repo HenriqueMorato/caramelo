@@ -5,6 +5,12 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   # committed for the application server to observe them in parallel CI.
   self.use_transactional_tests = false
 
+  teardown do
+    Trade.delete_all
+    DailyClosingPrice.delete_all
+    HistoricalDataBackfill.delete_all
+  end
+
   test "renders the public dashboard for the configured owner" do
     Trade.delete_all
 
@@ -30,6 +36,34 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h2", "Portfolio value is unavailable"
     assert_select "[role='status']", text: /Add or refresh current prices/
+  end
+
+  test "identifies missing instruments when only part of the portfolio is valued" do
+    Trade.where(user: User.owner).delete_all
+    Rails.cache.clear
+    petr4 = instruments(:petr4_bvmf)
+    voo = instruments(:voo_arcx)
+    User.owner.trades.create!(
+      instrument: petr4, side: :buy, traded_on: Date.current, quantity: 1, unit_price: "10",
+      fees_cents: 0, currency: petr4.currency
+    )
+    User.owner.trades.create!(
+      instrument: voo, side: :buy, traded_on: Date.current, quantity: 1, unit_price: "10",
+      fees_cents: 0, currency: voo.currency
+    )
+    CurrentMarketPriceCache.new.write(
+      instrument: petr4,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: "12", currency: petr4.currency, provider: "yahoo_finance",
+        quoted_at: Time.current, fetched_at: Time.current
+      )
+    )
+
+    get root_url
+
+    assert_response :success
+    assert_select "[role='status']", text: /Some positions need current market data/
+    assert_select "a[href=?]", market_data_health_path, text: "Open data health"
   end
 
   test "shows a closed portfolio without asking for market data" do

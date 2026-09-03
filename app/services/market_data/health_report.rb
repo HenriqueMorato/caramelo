@@ -12,6 +12,9 @@ module MarketData
       def healthy? = issues.empty?
       def errors = issues.select { |issue| issue.severity == :error }
       def warnings = issues.select { |issue| issue.severity == :warning }
+      def current_prices_need_refresh?
+        issues.any? { |issue| %i[missing_current_price stale_current_price].include?(issue.code) }
+      end
     end
 
     def self.for(owner: User.owner, current_market_price_service: MarketPrice::Service.default, today: Date.current)
@@ -25,7 +28,8 @@ module MarketData
     end
 
     def call
-      Result.new(checked_at: Time.current, issues: instrument_issues + currency_issues + benchmark_issues)
+      issues = instrument_issues + currency_issues + benchmark_issues
+      Result.new(checked_at: Time.current, issues: issues.sort_by { |issue| issue.severity == :error ? 0 : 1 })
     end
 
     private
