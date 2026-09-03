@@ -8,7 +8,7 @@ class DailyClosingPrice
       @provider = provider
     end
 
-    def call(instrument:, from:, to:)
+    def call(instrument:, from:, to:, enqueue_performance_rebuild: true)
       raise ArgumentError, "from must be on or before to" if from > to
 
       @instrument = instrument
@@ -16,7 +16,13 @@ class DailyClosingPrice
       @to = to
       @observations = provider.fetch(instrument:, from:, to:)
       validate_observations!
-      counts = persist
+      affected_users = []
+      counts = DailyClosingPrice.transaction do
+        persist.tap do
+          affected_users = mark_performance_observations_stale
+        end
+      end
+      enqueue_performance_observations(affected_users) if enqueue_performance_rebuild
 
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:trading_date),
@@ -51,6 +57,26 @@ class DailyClosingPrice
 
     def expected_dates
       TradingCalendar.weekdays_between(from, to)
+    end
+
+    def mark_performance_observations_stale
+      return [] if observations.empty?
+
+      users = User.where(id: Trade.where(instrument:).select(:user_id)).to_a
+      users.each do |user|
+        Performance::ObservationInvalidator.mark!(user:, from: earliest_observation_date)
+      end
+      users
+    end
+
+    def enqueue_performance_observations(users)
+      users.each do |user|
+        Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
+      end
+    end
+
+    def earliest_observation_date
+      observations.map(&:trading_date).min
     end
 
     def persist_observation(record, observation)

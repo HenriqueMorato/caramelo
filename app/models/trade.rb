@@ -1,4 +1,6 @@
 class Trade < ApplicationRecord
+  PERFORMANCE_INPUTS = %w[user_id instrument_id side traded_on quantity unit_price fees_cents currency].freeze
+
   belongs_to :user
   belongs_to :instrument
   belongs_to :institution, optional: true
@@ -17,6 +19,10 @@ class Trade < ApplicationRecord
   validates :currency, presence: true, iso_currency: true
   validate :currency_matches_instrument
   validate :institution_belongs_to_user
+
+  after_save :mark_performance_observations_stale, if: :performance_inputs_changed?
+  after_destroy :mark_performance_observations_stale
+  after_commit :enqueue_performance_observation_rebuild, on: %i[create update destroy]
 
   scope :reverse_chronological, -> { order(traded_on: :desc, id: :desc) }
 
@@ -41,6 +47,41 @@ class Trade < ApplicationRecord
   end
 
   private
+
+  def mark_performance_observations_stale
+    @performance_invalidation_targets = performance_invalidation_targets
+    targets = @performance_invalidation_targets
+    users = User.where(id: targets.keys).index_by(&:id)
+    targets.slice(*users.keys).each do |user_id, from|
+      Performance::ObservationInvalidator.mark!(user: users.fetch(user_id), from:)
+    end
+  end
+
+  def enqueue_performance_observation_rebuild
+    targets = @performance_invalidation_targets
+    @performance_invalidation_targets = nil
+    return unless targets
+
+    users = User.where(id: targets.keys).index_by(&:id)
+    targets.slice(*users.keys).each do |user_id, from|
+      Performance::ObservationInvalidator.enqueue(user: users.fetch(user_id), from:)
+    end
+  end
+
+  def performance_inputs_changed?
+    (saved_changes.keys & PERFORMANCE_INPUTS).any?
+  end
+
+  def performance_invalidation_targets
+    return { user_id => traded_on } if destroyed?
+
+    old_user_id, new_user_id = previous_changes.fetch("user_id", [ user_id, user_id ])
+    old_date, new_date = previous_changes.fetch("traded_on", [ traded_on, traded_on ])
+    [ [ old_user_id, old_date ], [ new_user_id, new_date ] ]
+      .reject { |target_user_id, date| target_user_id.nil? || date.nil? }
+      .group_by(&:first)
+      .transform_values { |targets| targets.map(&:last).min }
+  end
 
   def currency_matches_instrument
     return if currency.blank? || instrument.blank? || currency == instrument.currency

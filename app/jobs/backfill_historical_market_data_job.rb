@@ -20,6 +20,7 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
         import_historical_exchange_rates(backfill.currency, from:, to:)
       end
 
+      enqueue_performance_rebuild(backfill, from: from_date)
       complete(backfill, generation:)
     end
   rescue MarketData::YahooFinance::InvalidResponse, MarketData::YahooFinance::Unauthorized,
@@ -57,7 +58,9 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
 
   def import_daily_closing_prices(instrument, from:, to:)
     request_throttle.wait!(instrument:)
-    daily_closing_price_importer.call(instrument:, from:, to:)
+    daily_closing_price_importer.call(
+      instrument:, from:, to:, enqueue_performance_rebuild: false
+    )
   end
 
   def import_historical_exchange_rates(currency, from:, to:)
@@ -65,8 +68,17 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
 
     request_throttle.wait!
     historical_exchange_rate_importer.call(
-      base_currency: currency, quote_currency: reporting_currency, from:, to:
+      base_currency: currency, quote_currency: reporting_currency, from:, to:,
+      enqueue_performance_rebuild: false
     )
+  end
+
+  def enqueue_performance_rebuild(backfill, from:)
+    affected_trades = Trade.where(instrument: backfill.instrument)
+      .or(Trade.where(currency: backfill.currency))
+    User.where(id: affected_trades.select(:user_id)).find_each do |user|
+      Performance::ObservationInvalidator.enqueue(user:, from:)
+    end
   end
 
   def complete(backfill, generation:)

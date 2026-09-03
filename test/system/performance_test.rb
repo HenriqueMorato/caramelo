@@ -9,6 +9,7 @@ class PerformanceTest < ApplicationSystemTestCase
     create_trade(instrument:, traded_on: Date.current)
     create_daily_close(instrument:, date: from, close_price: "10")
     create_daily_close(instrument:, date: Date.current, close_price: "11")
+    Performance::ObservationBuilder.new(user: User.owner).call(from: Date.current - 1.month, to: Date.current)
 
     visit performance_path
 
@@ -44,6 +45,19 @@ class PerformanceTest < ApplicationSystemTestCase
 
     assert_text "Historical data is loading"
     assert_text "Check back shortly"
+  end
+
+  test "shows background progress before a performance range is materialized" do
+    Trade.where(user: User.owner).delete_all
+    instrument = Instrument.create!(ticker: "ASYNC", exchange: "BVMF", name: "Async performance stock", currency: "BRL")
+    create_trade(instrument:, traded_on: Date.current - 1.month)
+    create_daily_close(instrument:, date: Date.current - 1.month, close_price: "10")
+    create_daily_close(instrument:, date: Date.current, close_price: "11")
+
+    visit performance_path
+
+    assert_text "Portfolio history is building"
+    assert_text "preparing exact daily values in the background"
   end
 
   private

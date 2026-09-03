@@ -138,6 +138,17 @@ class TradeTest < ActiveSupport::TestCase
     assert_predicate trade, :valid?
   end
 
+  test "does not invalidate performance when only notes change" do
+    trade = trades(:owner_voo_buy)
+    invalidations = []
+
+    with_stubbed_invalidator(->(**arguments) { invalidations << arguments }) do
+      trade.update!(notes: "Updated context")
+    end
+
+    assert_empty invalidations
+  end
+
   test "orders trades in reverse chronology with newest records first" do
     older = build_trade(traded_on: Date.new(2026, 1, 10))
     older.save!
@@ -217,5 +228,13 @@ class TradeTest < ActiveSupport::TestCase
       currency: "BRL",
       notes: "Initial position"
     }
+  end
+
+  def with_stubbed_invalidator(replacement)
+    original = Performance::ObservationInvalidator.method(:mark!)
+    Performance::ObservationInvalidator.define_singleton_method(:mark!, replacement)
+    yield
+  ensure
+    Performance::ObservationInvalidator.define_singleton_method(:mark!, original)
   end
 end

@@ -109,8 +109,18 @@
         <span class="text-xs text-muted"><%= @series_presenter.date_range_label %></span>
       </div>
 
-      <% if @series.available? %>
-        <div class="relative mt-5" data-controller="performance-chart" data-performance-chart-data-value="<%= json_escape({ labels: @series.observations.map { |observation| l(observation.date, format: :short) }, values: @series.observations.map { |observation| observation.market_value_amount.to_f }, invested_values: @series.observations.map { |observation| observation.invested_amount.to_f }, formatted_values: @series.observations.map { |observation| observation.market_value.format }, formatted_invested_values: @series.observations.map { |observation| observation.invested_value.format }, formatted_performances: @series.observations.map { |observation| observation.return_ratio && "#{observation.return_ratio.positive? ? "↑" : observation.return_ratio.negative? ? "↓" : "→"} #{observation.return_ratio.positive? ? "+" : ""}#{number_to_percentage(observation.return_ratio.to_f * 100, precision: 2)}" }, performance_ratios: @series.observations.map(&:return_ratio), benchmarks: @benchmark_chart_data, portfolio_value_label: t(".Portfolio value"), invested_value_label: t(".Net invested"), return_label: t(".Return"), currency: @performance.closing_valuation.market_value.currency.iso_code, locale: I18n.locale }.to_json) %>">
+      <%= render "series_status", series: @series, selected_period: @selected_period %>
+
+      <% if @series.displayable? %>
+        <% chart_data = @series_presenter.chart_data(
+          benchmarks: @benchmark_chart_data,
+          currency: @performance.closing_valuation.market_value.currency.iso_code
+        ) %>
+        <div
+          class="relative mt-5"
+          data-controller="performance-chart"
+          data-performance-chart-data-value="<%= json_escape(chart_data.to_json) %>"
+        >
           <div class="relative h-56 sm:h-64">
             <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t(".Portfolio history chart description") %>"></canvas>
           </div>
@@ -140,8 +150,8 @@
             </table>
           </div>
         </details>
-      <% else %>
-        <p class="mt-5 text-sm text-muted" role="status"><%= t(".Portfolio history unavailable") %></p>
+      <% elsif @series.pending? %>
+        <div class="mt-5 h-56 rounded-xl bg-coffee/5 motion-safe:animate-pulse sm:h-64" aria-hidden="true"></div>
       <% end %>
     </section>
   <% end %>

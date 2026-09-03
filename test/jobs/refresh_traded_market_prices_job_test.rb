@@ -73,8 +73,9 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
       RefreshTradedMarketPricesJob.new.perform
     end
 
+    refresh_jobs = enqueued_jobs.select { |job| job[:job] == RefreshCurrentMarketPriceJob }
     assert_equal (baseline_ids + instruments.map(&:id)).sort,
-      enqueued_jobs.map { |job| job[:args].first["_aj_globalid"].split("/").last.to_i }.sort
+      refresh_jobs.map { |job| job[:args].first["_aj_globalid"].split("/").last.to_i }.sort
   end
 
   test "skips an instrument whose cached quote is still fresh" do

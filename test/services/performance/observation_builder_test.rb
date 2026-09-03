@@ -1,0 +1,145 @@
+require "test_helper"
+
+class Performance::ObservationBuilderTest < ActiveSupport::TestCase
+  setup do
+    @user = users(:owner)
+    @from = Date.new(2026, 8, 30)
+    @to = Date.new(2026, 9, 1)
+    @store = Performance::ObservationStore.new(user: @user)
+    @portfolio = RecordingPortfolio.new(user: @user)
+    @builder = Performance::ObservationBuilder.new(
+      user: @user,
+      store: @store,
+      portfolio: @portfolio
+    )
+  end
+
+  test "builds every missing calendar date with one preloaded trade collection" do
+    result = @builder.call(from: @from, to: @to)
+
+    assert_equal 3, result.built_count
+    assert_equal 0, result.skipped_count
+    assert_equal [ @from, @from + 1, @to ], @store.read(from: @from, to: @to).keys
+    assert_equal 1, @portfolio.trade_collection_ids.uniq.length
+  end
+
+  test "skips fresh observations and replaces stale ones" do
+    @store.write(@portfolio.valuation(@from), generated_at: Time.current)
+    @store.write(@portfolio.valuation(@from + 1), generated_at: Time.current)
+    @store.stale_from(@from + 1)
+
+    result = @builder.call(from: @from, to: @to)
+
+    assert_equal 2, result.built_count
+    assert_equal 1, result.skipped_count
+    assert_equal [ @from + 1, @to ], @portfolio.dates
+    assert_empty @store.read(from: @from, to: @to).values.select(&:stale?)
+  end
+
+  test "returns without loading trades when every observation is fresh" do
+    (@from..@to).each do |date|
+      @store.write(@portfolio.valuation(date), generated_at: Time.current)
+    end
+
+    result = @builder.call(from: @from, to: @to)
+
+    assert_equal 0, result.built_count
+    assert_equal 3, result.skipped_count
+    assert_empty @portfolio.dates
+  end
+
+  test "rejects invalid ranges" do
+    assert_raises(ArgumentError) { @builder.call(from: @to, to: @from) }
+    assert_raises(ArgumentError) { @builder.call(from: @from.to_s, to: @to) }
+    assert_raises(ArgumentError) { @builder.call(from: @from, to: Date.current + 1) }
+  end
+
+  test "never publishes a trade snapshot superseded during calculation" do
+    trade = trades(:owner_voo_buy)
+    @portfolio.during_valuation = -> { Trade.find(trade.id).update!(quantity: "9") }
+
+    result = @builder.call(from: @from, to: @to)
+
+    assert_equal 0, result.built_count
+    assert_empty @store.read(from: @from, to: @to)
+    assert_predicate PortfolioPerformanceMaterialization.for(user: @user), :pending?
+  end
+
+  test "cannot recreate observations after the last trade is deleted during a build" do
+    @portfolio.during_valuation = -> { trades(:owner_voo_buy).destroy! }
+
+    result = @builder.call(from: @from, to: @to)
+
+    assert_equal 0, result.built_count
+    assert_empty @store.read(from: @from, to: @to)
+  end
+
+  test "clears derived observations when a resumed build has no trades" do
+    @store.write(@portfolio.valuation(@from))
+    Trade.where(user: @user).delete_all
+
+    result = @builder.call(from: @from, to: @to)
+
+    assert_equal 0, result.built_count
+    assert_empty @store.read(from: @from, to: @to)
+  end
+
+  test "empty-portfolio cleanup cannot erase observations after a new trade commits" do
+    @store.write(@portfolio.valuation(@from))
+    Trade.where(user: @user).delete_all
+    collection = @user.trades.includes(:instrument).strict_loading.order(:traded_on, :id)
+    user = @user
+    instrument = instruments(:petr4_bvmf)
+    traded_on = @from
+    snapshot = -> do
+      Trade.create!(user:,
+        instrument:, side: :buy, traded_on:,
+        quantity: 1, unit_price: 10, fees_cents: 0, currency: "BRL"
+      )
+      []
+    end
+
+    collection.define_singleton_method(:includes) { |*| self }
+    collection.define_singleton_method(:strict_loading) { self }
+    collection.define_singleton_method(:order) { |*| self }
+    collection.define_singleton_method(:to_a, snapshot)
+    @user.define_singleton_method(:trades) { collection }
+    @builder.call(from: @from, to: @to)
+
+    assert_equal 1, @store.read(from: @from, to: @to).size
+    assert_predicate PortfolioPerformanceMaterialization.for(user: @user), :pending?
+  end
+
+  class RecordingPortfolio
+    attr_accessor :during_valuation
+    attr_reader :dates, :trade_collection_ids
+
+    Valuation = Data.define(:valuation_date, :market_value_amount, :net_cash_flow_amount, :status, :cash_flows)
+
+    def initialize(user:)
+      @user = user
+      @dates = []
+      @trade_collection_ids = []
+    end
+
+    def for(valuation_date:, owner:, trades:, reporting_currency:)
+      raise "wrong owner" unless owner == @user
+      raise "wrong reporting currency" unless reporting_currency == "BRL"
+
+      dates << valuation_date
+      trade_collection_ids << trades.object_id
+      during_valuation&.call
+      valuation(valuation_date)
+    end
+
+    def valuation(date)
+      Valuation.new(
+        valuation_date: date,
+        market_value_amount: BigDecimal("100"),
+        net_cash_flow_amount: BigDecimal("80"),
+        cash_flows: [],
+        status: :available
+      )
+    end
+  end
+end

@@ -8,7 +8,7 @@ class HistoricalExchangeRate
       @provider = provider
     end
 
-    def call(base_currency:, quote_currency:, from:, to:)
+    def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true)
       unless from.is_a?(Date) && to.is_a?(Date)
         raise ArgumentError, "history range must use dates"
       end
@@ -22,7 +22,13 @@ class HistoricalExchangeRate
       @to = to
       @observations = provider.fetch(base_currency: @base_currency, quote_currency: @quote_currency, from:, to:)
       validate_observations!
-      counts = persist
+      affected_users = []
+      counts = HistoricalExchangeRate.transaction do
+        persist.tap do
+          affected_users = mark_performance_observations_stale
+        end
+      end
+      enqueue_performance_observations(affected_users) if enqueue_performance_rebuild
 
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:rate_date),
@@ -73,6 +79,30 @@ class HistoricalExchangeRate
 
     def expected_dates
       TradingCalendar.weekdays_between(from, to)
+    end
+
+    def mark_performance_observations_stale
+      return [] if observations.empty?
+
+      users = affected_users.to_a
+      users.each do |user|
+        Performance::ObservationInvalidator.mark!(user:, from: earliest_observation_date)
+      end
+      users
+    end
+
+    def enqueue_performance_observations(users)
+      users.each do |user|
+        Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
+      end
+    end
+
+    def earliest_observation_date
+      observations.map(&:rate_date).min
+    end
+
+    def affected_users
+      User.where(id: Trade.where(currency: base_currency).select(:user_id))
     end
 
     def normalize_currency(currency)

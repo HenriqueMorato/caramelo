@@ -32,12 +32,26 @@ en:
       Portfolio history: Portfolio history
       Portfolio history chart description: Portfolio value over the selected period.
       Portfolio history explanation: Daily closing values from persisted market data.
+      Portfolio history is building: Portfolio history is building
+      Portfolio history is building explanation: LocalFolio is preparing exact daily
+        values in the background. This page stays responsive while the range is calculated.
+      Portfolio history is partially available: Portfolio history is partially available
+      Portfolio history is partially available explanation:
+        one: One daily value is unavailable. Available values remain visible.
+        other: "%{count} daily values are unavailable. Available values remain visible."
+      Portfolio history is refreshing: Portfolio history is refreshing
+      Portfolio history is refreshing explanation: These are the last calculated values.
+        Source changes are being applied in the background.
       Portfolio history unavailable: Historical values are incomplete for this period.
+      Portfolio history update failed: Portfolio history could not be updated
+      Portfolio history update failed explanation: Existing financial records are
+        safe. Try the calculation again in a moment.
       Portfolio value: Portfolio value
       Price return: Price return
       Prices through: Prices through %{date}
       Realized gains to date: Realized gains to date
       Return: Return
+      Try again: Try again
       Unrealized gains to date: Unrealized gains to date
       View exact values: View exact values
       Week: Week

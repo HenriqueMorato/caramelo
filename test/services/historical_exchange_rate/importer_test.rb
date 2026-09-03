@@ -2,6 +2,7 @@ require "test_helper"
 
 class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
   setup do
+    Rails.cache.clear
     @provider = FakeProvider.new
     @importer = HistoricalExchangeRate::Importer.new(provider: @provider)
   end
@@ -27,6 +28,47 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     @importer.call(base_currency: " usd ", quote_currency: "brl", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
 
     assert_equal [ "USD", "BRL" ], @provider.requested_pair
+  end
+
+  test "returns missing weekdays without invalidating performance when the provider has no observations" do
+    date = Date.new(2026, 8, 25)
+
+    result = @importer.call(
+      base_currency: "USD", quote_currency: "BRL", from: date, to: date
+    )
+
+    assert_equal [ date ], result.missing_dates
+    assert_equal 0, result.created_count
+    assert_equal 0, result.updated_count
+  end
+
+  test "rolls back earlier rates when a later row is invalid" do
+    fetch = @provider.method(:fetch)
+    @provider.define_singleton_method(:fetch) do |**arguments|
+      fetch.call(**arguments).each_with_index.map do |observation, index|
+        index.zero? ? observation : observation.with(rate: BigDecimal("-1"))
+      end
+    end
+
+    assert_raises(ActiveRecord::RecordInvalid) do
+      @importer.call(
+        base_currency: "USD", quote_currency: "BRL",
+        from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26)
+      )
+    end
+
+    assert_empty HistoricalExchangeRate.all
+  end
+
+  test "keeps durable dirty history without enqueueing while a backfill batch is incomplete" do
+    @importer.call(
+      base_currency: "USD", quote_currency: "BRL",
+      from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26),
+      enqueue_performance_rebuild: false
+    )
+
+    assert_predicate PortfolioPerformanceMaterialization.for(user: users(:owner)), :pending?
+    assert_nil Performance::SeriesRefresh.read(user: users(:owner))
   end
 
   test "rejects inverted and future ranges" do
