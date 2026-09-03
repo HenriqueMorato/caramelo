@@ -1,0 +1,6 @@
+<%# locals: () %>
+
+<div id="notification-stack" class="notification-stack pointer-events-none absolute inset-x-0 top-0 z-50 flex flex-col items-end gap-2 px-4 pt-4 sm:px-6">
+  <%= render "layouts/flash_messages" %>
+  <%= render "refresh_status/status", status: RefreshStatus::Presenter.for %>
+</div>

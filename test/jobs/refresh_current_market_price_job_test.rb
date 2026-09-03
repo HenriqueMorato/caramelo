@@ -159,6 +159,73 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_enqueued_jobs 1, only: RefreshCurrentMarketPriceJob
   end
 
+  test "enqueues a forced refresh without a batch scope" do
+    instrument = instruments(:petr4_bvmf)
+
+    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ instrument, { force: true } ]) do
+      RefreshCurrentMarketPriceJob.enqueue_for(instrument:, force: true)
+    end
+  end
+
+  test "advances an active batch after refreshing" do
+    instrument = instruments(:petr4_bvmf)
+    scope = "test_market_price_batch"
+    RefreshStatus::Tracker.enqueue(scope:, total_count: 1)
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| }
+
+    run_id = RefreshStatus::State.read(scope).run_id
+    build_job(service:).perform(instrument, batch_scope: scope, batch_run_id: run_id)
+
+    state = RefreshStatus::State.read(scope)
+    assert_equal "succeeded", state.status
+    assert_equal 1, state.processed_count
+  end
+
+  test "does not advance an already completed batch" do
+    instrument = instruments(:petr4_bvmf)
+    scope = "test_completed_market_price_batch"
+    RefreshStatus::State.write(scope:, status: "succeeded", processed_count: 1, total_count: 1)
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| }
+
+    build_job(service:).perform(instrument, batch_scope: scope, batch_run_id: "old-run")
+
+    assert_equal 1, RefreshStatus::State.read(scope).processed_count
+  end
+
+  test "ignores an active batch from an older run" do
+    instrument = instruments(:petr4_bvmf)
+    scope = "test_active_old_market_price_batch"
+    state = RefreshStatus::Tracker.enqueue(scope:, total_count: 1)
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise "stale job executed" }
+
+    build_job(service:).perform(instrument, batch_scope: scope, batch_run_id: "old-run")
+
+    assert_equal "queued", RefreshStatus::State.read(scope).status
+    assert_equal state.run_id, RefreshStatus::State.read(scope).run_id
+  end
+
+  test "does not advance a batch when the run id does not match" do
+    job = RefreshCurrentMarketPriceJob.new
+    scope = "test_mismatched_batch"
+    RefreshStatus::State.write(scope:, status: "succeeded", run_id: "current-run")
+
+    job.send(:advance_batch, scope, "old-run")
+    job.send(:advance_batch, "missing_batch", "old-run")
+    assert_equal 0, RefreshStatus::State.read(scope).processed_count
+  end
+
+  test "reports an inactive batch as unavailable for work" do
+    job = RefreshCurrentMarketPriceJob.new
+    scope = "test_inactive_batch"
+    RefreshStatus::State.write(scope:, status: "succeeded", run_id: "current-run")
+
+    refute job.send(:batch_active?, scope, "current-run")
+    refute job.send(:batch_active?, "missing_batch", "current-run")
+  end
+
   test "releases the duplicate marker when enqueueing fails" do
     instrument = instruments(:petr4_bvmf)
 

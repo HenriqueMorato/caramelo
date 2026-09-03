@@ -4,6 +4,7 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
   resource :performance, only: :show
+  get "market-data/health", to: "market_data_health#show", as: :market_data_health
   resources :positions, only: :index
   resource :current_market_price_refresh, only: :create
   get "transactions", to: "trades#index"

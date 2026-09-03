@@ -179,6 +179,26 @@ requests retain the last successful value and are reported through Rails error
 reporting. Exchange-specific holiday calendars remain part of the valuation-date
 work tracked in issue #124.
 
+### Rebuilding a local Solid Queue database
+
+The development queue database is replaceable runtime state. If SQLite reports
+`database disk image is malformed`, stop Rails and Solid Queue, move
+`storage/development_queue.sqlite3` outside the repository as a backup, then run:
+
+```sh
+bin/setup --skip-server
+```
+
+Rails recreates the queue database from `db/queue_schema.rb`. Verify it with:
+
+```sh
+sqlite3 storage/development_queue.sqlite3 'PRAGMA integrity_check;'
+```
+
+The command should print `ok`. Do not use this procedure for
+`storage/development.sqlite3`: it contains user-entered trades and must be
+preserved or backed up separately.
+
 ## Quality and security
 
 Run the repeatable local pipeline:

@@ -18,6 +18,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "explains when existing trades lack current market data" do
     Trade.where(user: User.owner).delete_all
+    Rails.cache.clear
     instrument = instruments(:petr4_bvmf)
     User.owner.trades.create!(
       instrument:, side: :buy, traded_on: Date.current - 1, quantity: 1, unit_price: "10",
@@ -78,7 +79,6 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Total portfolio value"
     assert_includes response.body, "R$24,00"
     assert_includes response.body, "+R$24,00"
-    assert_includes response.body, "Market data updated"
     assert_includes response.body, "Holdings"
     assert_not_includes response.body, "Fees:"
     assert_not_includes response.body, "Currency:"

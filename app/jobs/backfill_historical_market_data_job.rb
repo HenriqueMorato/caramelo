@@ -12,14 +12,16 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
     end
 
   def perform(backfill)
-    from_date, generation = backfill.with_lock { [ backfill.from_date, backfill.generation ] }
+    RefreshStatus::Tracker.perform(scope: "historical_backfill:#{backfill.id}") do
+      from_date, generation = backfill.with_lock { [ backfill.from_date, backfill.generation ] }
 
-    date_ranges(from_date, Date.current).each do |from, to|
-      import_daily_closing_prices(backfill.instrument, from:, to:)
-      import_historical_exchange_rates(backfill.currency, from:, to:)
+      date_ranges(from_date, Date.current).each do |from, to|
+        import_daily_closing_prices(backfill.instrument, from:, to:)
+        import_historical_exchange_rates(backfill.currency, from:, to:)
+      end
+
+      complete(backfill, generation:)
     end
-
-    complete(backfill, generation:)
   rescue MarketData::YahooFinance::InvalidResponse, MarketData::YahooFinance::Unauthorized,
     MarketData::YahooFinance::SymbolNotFound, MarketData::YahooFinance::InvalidIdentifier,
     MarketData::YahooFinance::UnsupportedExchange => error

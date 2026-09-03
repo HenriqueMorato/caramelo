@@ -1,0 +1,41 @@
+<% content_for :title, t(".Page title", application: t("LocalFolio")) %>
+
+<section class="space-y-8">
+  <div class="ui-page-header">
+    <div class="ui-page-header-copy">
+      <p class="ui-eyebrow"><%= t("Market data") %></p>
+      <h1 class="ui-page-title"><%= t(".Heading") %></h1>
+      <p class="ui-page-intro"><%= t(".Intro") %></p>
+    </div>
+    <div class="flex flex-wrap items-center justify-end gap-3">
+      <p class="text-sm text-muted"><%= t(".Checked at", time: l(@report.checked_at, format: :short)) %></p>
+      <% refresh_title = @market_price_refresh_available ? nil : t(".Refresh throttled") %>
+      <span class="group relative inline-flex">
+        <%= button_to t("Refresh prices"), current_market_price_refresh_path, disabled: !@market_price_refresh_available, class: "ui-button ui-button-primary disabled:cursor-not-allowed disabled:opacity-50", form_class: "inline-flex", aria: { describedby: ("refresh-throttle-tooltip" if refresh_title) }, data: { turbo_submits_with: t("Refreshing") } %>
+        <% if refresh_title %>
+          <span id="refresh-throttle-tooltip" role="tooltip" class="pointer-events-none absolute right-0 top-full z-10 mt-2 w-72 rounded-lg bg-coffee px-3 py-2 text-left text-xs leading-5 text-oat opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"><%= refresh_title %></span>
+        <% end %>
+      </span>
+    </div>
+  </div>
+
+  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" role="status">
+    <% if @report.healthy? %>
+      <p class="font-semibold text-leaf"><%= t(".Healthy") %></p>
+      <p class="mt-2 text-sm text-muted"><%= t(".Healthy explanation") %></p>
+    <% else %>
+      <p class="font-semibold text-coffee"><%= t(".Issues found", count: @report.issues.size) %></p>
+      <ul class="mt-5 space-y-3" aria-label="<%= t(".Issue list") %>">
+        <% @report.issues.each do |issue| %>
+          <li class="rounded-xl border border-coffee/10 bg-oat p-4">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <p class="font-semibold text-coffee"><%= issue.subject_label %></p>
+              <span class="text-xs font-semibold uppercase tracking-wide <%= issue.severity == :error ? "text-guava" : "text-caramel-deep" %>"><%= issue.severity %></span>
+            </div>
+            <p class="mt-1 text-sm text-muted"><%= issue.details %></p>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</section>

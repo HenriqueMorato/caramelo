@@ -155,4 +155,18 @@ class Performance::BenchmarkChartDataTest < ActiveSupport::TestCase
 
     assert_empty Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ])
   end
+
+  test "skips a missing benchmark with fewer than two observations" do
+    date = Date.current - 1
+    series = Data.define(:observations).new([ Data.define(:date).new(date) ])
+    benchmark = Data.define(:identifier, :name, :observations) do
+      def persisted? = false
+    end.new("SHORT", "Short benchmark", [])
+    result = Data.define(:status, :observations) do
+      def available? = false
+      def missing? = true
+    end.new(:missing, [ Data.define(:observed_on).new(date) ])
+
+    assert_empty Performance::BenchmarkChartData.for(series:, benchmark_results: [ [ benchmark, result ] ])
+  end
 end

@@ -10,13 +10,18 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
   test "queues supported B3 and US owner-traded instruments without authentication" do
     us_instrument = instruments(:voo_arcx)
 
-    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ @instrument, { force: true } ]) do
-      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument, { force: true } ]) do
-        post current_market_price_refresh_url, as: :turbo_stream
-      end
+    assert_enqueued_jobs 2, only: RefreshCurrentMarketPriceJob do
+      post current_market_price_refresh_url, as: :turbo_stream
     end
 
+    refresh_jobs = enqueued_jobs.select { |job| job[:job] == RefreshCurrentMarketPriceJob }
+    assert refresh_jobs.all? { |job| job[:args].last.stringify_keys["batch_scope"] == RefreshStatus::MARKET_PRICE_SCOPE }
+    assert refresh_jobs.all? { |job| job[:args].last.stringify_keys["batch_run_id"].present? }
+
     assert_response :accepted
+    assert_includes response.body, "Market price refresh started."
+    assert_includes response.body, "Market data updating"
+    assert_includes response.body, "0/2"
   end
 
   test "redirects HTML refreshes back to positions" do
@@ -24,6 +29,46 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
 
     assert_redirected_to positions_url
     assert_equal "Market price refresh started.", flash[:notice]
+  end
+
+  test "rejects a manual refresh during the cooldown window" do
+    Rails.cache.write(CurrentMarketPriceRefreshesController::MANUAL_COOLDOWN_KEY, Time.current)
+
+    post current_market_price_refresh_url, as: :turbo_stream
+
+    assert_response :too_many_requests
+    assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob
+  end
+
+  test "completes the manual batch for coalesced instruments" do
+    traded_instruments = Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
+    traded_instruments.each do |instrument|
+      Rails.cache.write(RefreshCurrentMarketPriceJob.deduplication_key(instrument), true)
+    end
+
+    post current_market_price_refresh_url, as: :turbo_stream
+
+    state = RefreshStatus::State.read(CurrentMarketPriceRefreshesController::REFRESH_SCOPE)
+    assert_equal state.total_count, state.processed_count
+    assert_equal "succeeded", state.status
+  end
+
+  test "completes immediately when there are no traded instruments" do
+    Trade.where(user: User.owner).delete_all
+
+    post current_market_price_refresh_url, as: :turbo_stream
+
+    state = RefreshStatus::State.read(CurrentMarketPriceRefreshesController::REFRESH_SCOPE)
+    assert_equal "succeeded", state.status
+    assert_equal "0/0", state.progress_label
+  end
+
+  test "does not advance a missing or completed manual batch" do
+    controller = CurrentMarketPriceRefreshesController.new
+
+    assert_nothing_raised { controller.send(:advance_manual_batch) }
+    RefreshStatus::State.write(scope: CurrentMarketPriceRefreshesController::REFRESH_SCOPE, status: "succeeded")
+    assert_nothing_raised { controller.send(:advance_manual_batch) }
   end
 
   private

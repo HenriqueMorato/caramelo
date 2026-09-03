@@ -144,6 +144,80 @@ if a job disappears. Every attempt broadcasts the final quote state, and the
 `market_price.refresh` notification exposes enqueue, coalesced, throttled,
 attempted, retried, succeeded, failed, and skipped events for monitoring.
 
+### Refresh progress state
+
+`RefreshStatus::Tracker` keeps user-facing batch state in the shared Rails cache.
+Each batch receives a `run_id`; child jobs carry that identifier so a late job
+from an older batch cannot reset or advance a newer one. Active matching batches
+are preserved, terminal batches stay terminal, and the latest state is reloaded
+before recording each completion or failure. Empty batches complete immediately
+instead of leaving a `0/0` indicator. Every transition broadcasts the refresh
+status Turbo Stream so pages update without a full reload.
+
+This is coordination and display metadata, not financial data. It can be lost or
+rebuilt safely; trades, quotes, and daily history remain the durable or
+replaceable records described above.
+
+### How batch identity is enforced
+
+`RefreshStatus::Tracker.enqueue` creates a UUID before any child job is queued
+and stores it with the batch state. The coordinator passes both the shared scope
+and that `run_id` to every `RefreshCurrentMarketPriceJob`. A child may advance
+the batch only when the cached state is still active and has the same UUID. This
+means a job left behind by an older refresh cannot overwrite the progress of a
+newer refresh that reused the same scope.
+
+Each completion or failure reads the current cached state before writing. The
+write carries forward the latest processed and total counts, so a failure after
+successful siblings cannot roll progress back. Once a batch reaches its total,
+or records a failure, the state is terminal; later jobs are ignored rather than
+starting it again. The browser sees these transitions through the shared cache
+and Turbo Stream broadcast, which is why progress survives a page reload and
+why the displayed count belongs to one refresh run.
+
+## End-to-end refresh paths
+
+All refresh paths converge on the same provider-neutral services and jobs. The
+entry point decides what needs refreshing; the job owns provider work; the
+cache owns the last known quote; and the status tracker reports progress.
+
+| Trigger | Scope | What happens |
+| --- | --- | --- |
+| User clicks **Refresh** | All open-position instruments | The controller creates one batch, enqueues supported instruments, and returns immediately. |
+| Five-minute recurring schedule | Instruments with owner trades | The coordinator skips fresh quotes and enqueues only stale or missing ones. |
+| Application startup | Current prices plus historical scopes | The startup coordinator enqueues the normal refresh jobs once; it does not run provider HTTP in the web process. |
+| A trade is saved | Its instrument and required historical date | The trade callback queues targeted current-price and historical work, deduplicated with any existing pass. |
+| Daily schedule | Previous business/trading day | Daily closes, FX, and configured benchmark observations are fetched only when missing. |
+
+For a current quote, the sequence is:
+
+1. `RefreshEnqueuer` checks provider support and writes an instrument marker with
+   a short TTL. A marker means another job already owns the work.
+2. `RefreshCurrentMarketPriceJob` starts or joins the shared market-price batch
+   and checks the normal freshness window. A fresh quote is reported as skipped.
+3. The Yahoo adapter requests one quote through the provider-wide Solid Queue
+   concurrency limit and `RequestThrottle` cache lock.
+4. A valid response is normalized into an immutable `CurrentMarketPrice` and
+   replaces the cache value. A provider failure leaves the previous stale value
+   intact and is recorded in the refresh status.
+5. The marker is removed after success or final failure. It remains during a
+   scheduled retry so a second request cannot race the retry.
+6. The job advances the batch using its `run_id` and broadcasts a Turbo Stream.
+   The subscribed page updates its price, progress count, and final toast
+   without a reload.
+
+Historical refreshes follow the same scheduling and throttle rules, but persist
+daily observations instead of replacing a cache value. They validate the
+instrument, currency, provider, and trading date; weekends and market holidays
+produce no synthetic rows. Chart construction carries the latest real trading
+observation forward per market when a date has no observation.
+
+The web process is intentionally a coordinator, not a worker. `bin/dev` runs
+Rails and Solid Queue together, while production uses the configured Solid
+Queue process (or the Puma-integrated supervisor). If workers are stopped, a
+refresh can remain queued; restarting the worker resumes queued jobs, and a
+page reload reads the shared status and cache state.
+
 ```mermaid
 flowchart TD
   request[Refresh request] --> marker{Deduplication marker exists?}
