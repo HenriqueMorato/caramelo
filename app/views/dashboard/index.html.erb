@@ -15,7 +15,7 @@
   </header>
 
   <% if @dashboard.market_value_displayable? %>
-    <%= render "dashboard/portfolio_state", dashboard: @dashboard if @dashboard.partially_valued? && !RefreshStatus::Presenter.for.current_prices_updating? %>
+    <%= render "dashboard/portfolio_state", dashboard: @dashboard if @dashboard.partially_valued? %>
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]">
       <%= render "dashboard/hero", dashboard: @dashboard %>
       <%= render "dashboard/snapshot", dashboard: @dashboard %>

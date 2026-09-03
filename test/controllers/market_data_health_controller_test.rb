@@ -15,7 +15,7 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "disables manual refresh during the throttle window" do
-    Rails.cache.write(CurrentMarketPriceRefreshesController::MANUAL_COOLDOWN_KEY, Time.current)
+    Rails.cache.write(MarketPrice::ManualRefresh::COOLDOWN_KEY, Time.current)
 
     get market_data_health_url
 
@@ -28,7 +28,9 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     calls = 0
     report = MarketData::HealthReport::Result.new(
       checked_at: Time.current,
-      issues: [ MarketData::HealthReport::Issue.new(code: :missing_current_price, severity: :error, subject: "PETR4", details: "missing") ]
+      issues: [ MarketData::HealthReport::Issue.new(
+        code: :missing_current_price, severity: :error, subject: "PETR4", details: "missing"
+      ) ]
     )
     with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
       with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { calls += 1 }) do
@@ -40,16 +42,16 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, calls
   end
 
-  test "does not repeat an automatic refresh during the cooldown window" do
-    Rails.cache.write(CurrentMarketPriceRefreshesController::MANUAL_COOLDOWN_KEY, Time.current)
+  test "delegates cooldown enforcement to the refresh service" do
+    Rails.cache.write(MarketPrice::ManualRefresh::COOLDOWN_KEY, Time.current)
     calls = 0
 
-    with_stubbed_method(RefreshTradedMarketPricesJob, :enqueue_for, -> { calls += 1 }) do
+    with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { calls += 1 }) do
       get market_data_health_url
     end
 
     assert_response :success
-    assert_equal 0, calls
+    assert_equal 1, calls
   end
 
   test "does not refresh when current prices are healthy" do

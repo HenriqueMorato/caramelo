@@ -18,26 +18,45 @@ module MarketPrice
     end
 
     def call
-      return false unless available?
+      lease_token = acquire_lease
+      return false unless lease_token
 
-      Rails.cache.write(COOLDOWN_KEY, clock.call)
-      instruments = traded_instruments.to_a
-      batch = RefreshStatus::Tracker.enqueue(scope: REFRESH_SCOPE, total_count: instruments.size)
-      instruments.each do |instrument|
-        result = enqueuer.enqueue(instrument:, batch_scope: REFRESH_SCOPE, batch_run_id: batch.run_id)
-        advance_batch if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
+      begin
+        instruments = traded_instruments.to_a
+        @batch = RefreshStatus::Tracker.enqueue(scope: REFRESH_SCOPE, total_count: instruments.size)
+        instruments.each do |instrument|
+          result = enqueuer.enqueue(
+            instrument:, batch_scope: REFRESH_SCOPE, batch_run_id: @batch.run_id
+          )
+          advance_batch if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
+        end
+        @completed = true
+        true
+      rescue StandardError => error
+        RefreshStatus::Tracker.record_failure(@batch, error) if @batch
+        raise
+      ensure
+        release_lease(lease_token) unless @completed
       end
-      true
     end
 
     def available?
-      last_started_at = Rails.cache.read(COOLDOWN_KEY)
-      last_started_at.nil? || clock.call - last_started_at >= COOLDOWN
+      !Rails.cache.exist?(COOLDOWN_KEY)
     end
 
     private
 
     attr_reader :enqueuer, :clock
+
+    def acquire_lease
+      token = SecureRandom.uuid
+      acquired = Rails.cache.write(COOLDOWN_KEY, token, expires_in: COOLDOWN, unless_exist: true)
+      token if acquired
+    end
+
+    def release_lease(token)
+      Rails.cache.delete(COOLDOWN_KEY) if token && Rails.cache.read(COOLDOWN_KEY) == token
+    end
 
     def traded_instruments
       Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))

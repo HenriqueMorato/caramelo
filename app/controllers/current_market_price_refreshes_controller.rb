@@ -1,8 +1,5 @@
 class CurrentMarketPriceRefreshesController < ApplicationController
   allow_unauthenticated_access
-  REFRESH_SCOPE = MarketPrice::ManualRefresh::REFRESH_SCOPE
-  MANUAL_COOLDOWN = MarketPrice::ManualRefresh::COOLDOWN
-  MANUAL_COOLDOWN_KEY = MarketPrice::ManualRefresh::COOLDOWN_KEY
 
   def create
     return head :too_many_requests unless manual_refresh.call

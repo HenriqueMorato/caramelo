@@ -32,7 +32,7 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
   end
 
   test "rejects a manual refresh during the cooldown window" do
-    Rails.cache.write(CurrentMarketPriceRefreshesController::MANUAL_COOLDOWN_KEY, Time.current)
+    Rails.cache.write(MarketPrice::ManualRefresh::COOLDOWN_KEY, Time.current)
 
     post current_market_price_refresh_url, as: :turbo_stream
 
@@ -48,7 +48,7 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
 
     post current_market_price_refresh_url, as: :turbo_stream
 
-    state = RefreshStatus::State.read(CurrentMarketPriceRefreshesController::REFRESH_SCOPE)
+    state = RefreshStatus::State.read(MarketPrice::ManualRefresh::REFRESH_SCOPE)
     assert_equal state.total_count, state.processed_count
     assert_equal "succeeded", state.status
   end
@@ -58,7 +58,7 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
 
     post current_market_price_refresh_url, as: :turbo_stream
 
-    state = RefreshStatus::State.read(CurrentMarketPriceRefreshesController::REFRESH_SCOPE)
+    state = RefreshStatus::State.read(MarketPrice::ManualRefresh::REFRESH_SCOPE)
     assert_equal "succeeded", state.status
     assert_equal "0/0", state.progress_label
   end
