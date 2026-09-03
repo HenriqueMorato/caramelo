@@ -28,3 +28,9 @@
 <% elsif series.missing? %>
   <p class="mt-5 text-sm text-muted" role="status"><%= t("performances.show.Portfolio history unavailable") %></p>
 <% end %>
+
+<% if series.stale_values? && !series.stale? %>
+  <p class="mt-2 text-sm text-muted" role="status">
+    <%= t("performances.show.Stale values remain visible") %>
+  </p>
+<% end %>

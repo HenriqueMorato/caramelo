@@ -158,6 +158,13 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_nil refresh_state
   end
 
+  test "ignores a cached value with the wrong shape" do
+    Rails.cache.write(state_key, "invalid state")
+
+    assert_nil refresh_state
+    assert_equal :queued, enqueue
+  end
+
   private
 
   def enqueue

@@ -48,6 +48,19 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
     assert_empty @portfolio.dates
   end
 
+  test "reusing a builder reloads trades and the requested range" do
+    first = @builder.call(from: @from, to: @from)
+    trades(:owner_voo_buy).update!(quantity: "9")
+
+    second = @builder.call(from: @to, to: @to)
+
+    assert_equal [ @from, @to ], @portfolio.dates
+    assert_equal 2, @portfolio.trade_collection_ids.uniq.length
+    assert_operator second.source_generation, :>, first.source_generation
+    assert_equal @to, second.from
+    assert_equal 1, second.built_count
+  end
+
   test "rejects invalid ranges" do
     assert_raises(ArgumentError) { @builder.call(from: @to, to: @from) }
     assert_raises(ArgumentError) { @builder.call(from: @from.to_s, to: @to) }

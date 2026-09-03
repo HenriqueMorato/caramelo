@@ -9,12 +9,7 @@ class HistoricalExchangeRate
     end
 
     def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true)
-      unless from.is_a?(Date) && to.is_a?(Date)
-        raise ArgumentError, "history range must use dates"
-      end
-      raise ArgumentError, "from must be on or before to" if from > to
-      raise ArgumentError, "history range must be on or before today" if to > Date.current
-
+      validate_range!(from:, to:)
       @base_currency = normalize_currency(base_currency)
       @quote_currency = normalize_currency(quote_currency)
       raise ArgumentError, "currencies must differ" if @base_currency == @quote_currency
@@ -22,13 +17,8 @@ class HistoricalExchangeRate
       @to = to
       @observations = provider.fetch(base_currency: @base_currency, quote_currency: @quote_currency, from:, to:)
       validate_observations!
-      affected_users = []
-      counts = HistoricalExchangeRate.transaction do
-        persist.tap do
-          affected_users = mark_performance_observations_stale
-        end
-      end
-      enqueue_performance_observations(affected_users) if enqueue_performance_rebuild
+      counts = persist_with_invalidation
+      enqueue_performance_observations if enqueue_performance_rebuild
 
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:rate_date),
@@ -38,20 +28,47 @@ class HistoricalExchangeRate
 
     private
 
-    attr_reader :provider, :base_currency, :quote_currency, :from, :to, :observations
+    attr_reader :provider, :base_currency, :quote_currency, :from, :to, :observations, :performance_users
+
+    def validate_range!(from:, to:)
+      unless from.is_a?(Date) && to.is_a?(Date)
+        raise ArgumentError, "history range must use dates"
+      end
+      raise ArgumentError, "from must be on or before to" if from > to
+      raise ArgumentError, "history range must be on or before today" if to > Date.current
+    end
+
+    def persist_with_invalidation
+      HistoricalExchangeRate.transaction do
+        counts = persist
+        @performance_users = mark_performance_observations_stale
+        counts
+      end
+    end
 
     def validate_observations!
       dates = Set.new
       observations.each do |observation|
-        unless observation.base_currency == base_currency && observation.quote_currency == quote_currency && observation.provider == provider.identifier
+        unless matching_pair_and_provider?(observation)
           raise ArgumentError, "historical rate observation does not match pair or provider"
         end
-        unless observation.rate_date.is_a?(Date) && (from..to).cover?(observation.rate_date) && observation.rate_date <= Date.current
+        unless within_requested_range?(observation.rate_date)
           raise ArgumentError, "historical rate observation is outside requested range"
         end
 
-        raise ArgumentError, "historical rate observations contain duplicate dates" unless dates.add?(observation.rate_date)
+        unless dates.add?(observation.rate_date)
+          raise ArgumentError, "historical rate observations contain duplicate dates"
+        end
       end
+    end
+
+    def matching_pair_and_provider?(observation)
+      observation.base_currency == base_currency && observation.quote_currency == quote_currency &&
+        observation.provider == provider.identifier
+    end
+
+    def within_requested_range?(date)
+      date.is_a?(Date) && (from..to).cover?(date) && date <= Date.current
     end
 
     def persist
@@ -91,8 +108,8 @@ class HistoricalExchangeRate
       users
     end
 
-    def enqueue_performance_observations(users)
-      users.each do |user|
+    def enqueue_performance_observations
+      performance_users.each do |user|
         Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
       end
     end
@@ -102,7 +119,8 @@ class HistoricalExchangeRate
     end
 
     def affected_users
-      User.where(id: Trade.where(currency: base_currency).select(:user_id))
+      # Valuation can resolve either the direct rate or its inverse.
+      User.where(id: Trade.where(currency: [ base_currency, quote_currency ]).select(:user_id))
     end
 
     def normalize_currency(currency)

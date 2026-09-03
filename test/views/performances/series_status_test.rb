@@ -37,10 +37,24 @@ class PerformanceSeriesStatusTest < ActionView::TestCase
     assert_select "[role=status]", count: 0
   end
 
+  test "partial and failed ranges disclose stale displayed values" do
+    %i[partial failed].each do |status|
+      render_status(status, stale: true)
+
+      assert_select "[role=status]", /Some displayed values are from an earlier calculation/
+    end
+  end
+
+  test "a stale range does not repeat its last-calculated explanation" do
+    render_status(:stale, stale: true)
+
+    assert_select "[role=status]", count: 1
+  end
+
   private
 
-  def render_status(status)
-    missing = Struct.new(:date) { def missing? = true }.new(Date.current)
+  def render_status(status, stale: false)
+    missing = Struct.new(:date, :stale?) { def missing? = true }.new(Date.current, stale)
     series = Performance::Series::Result.new(
       from: Date.current, to: Date.current, observations: [ missing ], status:, refresh_status: nil
     )

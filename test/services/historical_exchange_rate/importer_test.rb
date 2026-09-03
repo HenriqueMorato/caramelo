@@ -30,6 +30,32 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     assert_equal [ "USD", "BRL" ], @provider.requested_pair
   end
 
+  test "an inverse-rate correction invalidates and rebuilds dependent portfolio values" do
+    user = users(:owner)
+    date = Date.new(2026, 8, 24)
+    trade = trades(:owner_voo_buy)
+    trade.update_columns(traded_on: date)
+    @provider.define_singleton_method(:identifier) { MarketData::YahooFinance::FX_CONFIGURATION.identifier }
+    @provider.rate = BigDecimal("0.2")
+    @importer.call(base_currency: "BRL", quote_currency: "USD", from: date, to: date)
+    DailyClosingPrice.create!(
+      instrument: trade.instrument, trading_date: date, close_price: "100", currency: "USD",
+      provider: "yahoo_finance", observed_at: date.to_time
+    )
+    Performance::ObservationBuilder.new(user:).call(from: date, to: date)
+    observation = user.portfolio_performance_observations.find_by!(observed_on: date)
+    assert_equal BigDecimal("1250"), observation.market_value_amount
+
+    @provider.rate = BigDecimal("0.25")
+    @importer.call(base_currency: "BRL", quote_currency: "USD", from: date, to: date)
+
+    assert_predicate observation.reload, :stale?
+    assert_predicate PortfolioPerformanceMaterialization.for(user:), :pending?
+    Performance::ObservationBuilder.new(user:).call(from: date, to: date)
+    assert_equal BigDecimal("1000"), observation.reload.market_value_amount
+    assert_not_predicate observation, :stale?
+  end
+
   test "returns missing weekdays without invalidating performance when the provider has no observations" do
     date = Date.new(2026, 8, 25)
 

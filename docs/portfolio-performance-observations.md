@@ -61,6 +61,8 @@ database uniqueness constraint protect the results.
 - Imported price or FX corrections invalidate from the earliest imported date.
   The source rows and dirty metadata commit in one transaction; a failed row
   rolls back the entire import batch.
+  FX invalidation considers trades in either currency because valuations may
+  use the stored rate directly or invert it.
 - A batched historical backfill delays its rebuild enqueue until all batches are
   imported.
 - Removing the last trade deletes the derived observations and schedules a cleanup
@@ -90,6 +92,7 @@ dated 20 August changes while it is calculating a day:
 Stale rows remain available as explicitly labeled last-calculated values while
 the background job replaces them. Partial, pending, source-missing, and failed
 states remain distinct in the UI.
+Partial and failed ranges also disclose when their displayed values are stale.
 During a rebuild, opening and endpoint values may belong to different generations.
 If either is stale, their derived gain/return stays unavailable until compatible
 endpoints exist; the individual known market values remain visible. Different

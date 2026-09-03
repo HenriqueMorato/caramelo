@@ -14,25 +14,40 @@ module Performance
 
     def call(from:, to:)
       validate_range!(from:, to:)
-      source_generation = materialization.reload.source_generation
+      prepare_range(from:, to:)
+      return result if dates_to_build.empty?
+
+      if trades.empty?
+        clear_observations
+        return result
+      end
+
+      result(built_count: build_dates, skipped_count: dates.length - dates_to_build.length)
+    end
+
+    private
+
+    attr_reader :user, :store, :portfolio, :materialization, :from, :to,
+      :source_generation, :dates, :dates_to_build
+
+    def prepare_range(from:, to:)
+      @from = from
+      @to = to
+      @source_generation = materialization.reload.source_generation
+      @dates = (from..to).to_a
+      @trades = nil
       records = store.read(from:, to:)
-      dates = (from..to).to_a
-      dates_to_build = dates.select do |date|
+      @dates_to_build = dates.select do |date|
         record = records[date]
         record.nil? || record.stale? || record.source_generation != source_generation
       end
-      if dates_to_build.empty?
-        return Result.new(from:, to:, built_count: 0, skipped_count: dates.length, source_generation:)
-      end
+    end
 
-      trades = user.trades.includes(:instrument).strict_loading.order(:traded_on, :id).to_a
-      if trades.empty?
-        materialization.with_lock do
-          store.delete_all if materialization.source_generation == source_generation
-        end
-        return Result.new(from:, to:, built_count: 0, skipped_count: dates.length, source_generation:)
-      end
+    def trades
+      @trades ||= user.trades.includes(:instrument).strict_loading.order(:traded_on, :id).to_a
+    end
 
+    def build_dates
       built_count = 0
       dates_to_build.each do |date|
         valuation = portfolio.for(
@@ -43,15 +58,18 @@ module Performance
         built_count += 1
       end
 
-      Result.new(
-        from:, to:, built_count:,
-        skipped_count: dates.length - dates_to_build.length, source_generation:
-      )
+      built_count
     end
 
-    private
+    def clear_observations
+      materialization.with_lock do
+        store.delete_all if materialization.source_generation == source_generation
+      end
+    end
 
-    attr_reader :user, :store, :portfolio, :materialization
+    def result(built_count: 0, skipped_count: dates.length)
+      Result.new(from:, to:, built_count:, skipped_count:, source_generation:)
+    end
 
     def publish(valuation, source_generation:)
       materialization.with_lock do

@@ -16,13 +16,8 @@ class DailyClosingPrice
       @to = to
       @observations = provider.fetch(instrument:, from:, to:)
       validate_observations!
-      affected_users = []
-      counts = DailyClosingPrice.transaction do
-        persist.tap do
-          affected_users = mark_performance_observations_stale
-        end
-      end
-      enqueue_performance_observations(affected_users) if enqueue_performance_rebuild
+      counts = persist_with_invalidation
+      enqueue_performance_observations if enqueue_performance_rebuild
 
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:trading_date),
@@ -32,13 +27,22 @@ class DailyClosingPrice
 
     private
 
-    attr_reader :provider, :instrument, :from, :to, :observations
+    attr_reader :provider, :instrument, :from, :to, :observations, :performance_users
+
+    def persist_with_invalidation
+      DailyClosingPrice.transaction do
+        counts = persist
+        @performance_users = mark_performance_observations_stale
+        counts
+      end
+    end
 
     def validate_observations!
       observations.each do |observation|
         observation => { instrument: observed_instrument, currency:, provider: observed_provider }
 
-        unless observed_instrument == instrument && currency == instrument.currency && observed_provider == provider.identifier
+        unless observed_instrument == instrument && currency == instrument.currency &&
+            observed_provider == provider.identifier
           raise ArgumentError, "daily close observation does not match instrument or provider"
         end
       end
@@ -69,8 +73,8 @@ class DailyClosingPrice
       users
     end
 
-    def enqueue_performance_observations(users)
-      users.each do |user|
+    def enqueue_performance_observations
+      performance_users.each do |user|
         Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
       end
     end

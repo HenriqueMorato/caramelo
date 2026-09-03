@@ -51,6 +51,7 @@ en:
       Prices through: Prices through %{date}
       Realized gains to date: Realized gains to date
       Return: Return
+      Stale values remain visible: Some displayed values are from an earlier calculation.
       Try again: Try again
       Unrealized gains to date: Unrealized gains to date
       View exact values: View exact values

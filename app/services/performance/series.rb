@@ -24,8 +24,9 @@ module Performance
       def partial? = status == :partial
       def stale? = status == :stale
       def failed? = status == :failed
+      def stale_values? = observations.any?(&:stale?)
       def refreshing? = %i[queued active].include?(refresh_status)
-      def displayable? = observations.filter_map(&:market_value_amount).any?
+      def displayable? = observations.any? { |observation| observation.market_value_amount }
 
       def missing_dates
         observations.filter_map { |observation| observation.date if observation.missing? }
@@ -51,7 +52,7 @@ module Performance
     def calculate
       validate_range!
       @records = store.read(from:, to:)
-      @refresh_status = enqueue_refresh if rebuild_needed?
+      @refresh_status = enqueue_refresh
       materialization.reload if refresh_status
       @observations = build_observations
       Result.new(from:, to:, observations:, status: result_status, refresh_status:)
@@ -66,12 +67,10 @@ module Performance
       (from..to).to_a
     end
 
-    def rebuild_needed?
-      dates.any? { |date| records[date].nil? || stale_record?(records[date]) }
-    end
-
     def enqueue_refresh
       dirty_dates = dates.select { |date| records[date].nil? || stale_record?(records[date]) }
+      return if dirty_dates.empty?
+
       refresher.enqueue(user:, from: dirty_dates.first, to: dirty_dates.last, reporting_currency:)
     end
 
@@ -139,16 +138,20 @@ module Performance
     def return_ratio_for(date:, record:, opening:, gain_loss_amount:)
       return if date == from || gain_loss_amount.nil?
 
+      capital = weighted_capital(date:, record:, opening:)
+      return if capital.zero?
+
+      decimal(gain_loss_amount / capital)
+    end
+
+    def weighted_capital(date:, record:, opening:)
       # Endpoint cumulative totals preserve the timing of every intervening trade;
       # an unavailable close between these endpoints does not erase its cash flows.
       flow_total = record.cash_flow_total - opening.cash_flow_total
       dated_flow_total = record.dated_cash_flow_total - opening.dated_cash_flow_total
       duration = date.jd - from.jd
       weighted_flows = (date.jd * flow_total - dated_flow_total) / duration
-      weighted_capital = opening.market_value_amount.to_r + weighted_flows
-      return if weighted_capital.zero?
-
-      decimal(gain_loss_amount / weighted_capital)
+      opening.market_value_amount.to_r + weighted_flows
     end
 
     def result_status

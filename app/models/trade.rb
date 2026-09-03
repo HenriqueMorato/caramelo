@@ -50,10 +50,8 @@ class Trade < ApplicationRecord
 
   def mark_performance_observations_stale
     @performance_invalidation_targets = performance_invalidation_targets
-    targets = @performance_invalidation_targets
-    users = User.where(id: targets.keys).index_by(&:id)
-    targets.slice(*users.keys).each do |user_id, from|
-      Performance::ObservationInvalidator.mark!(user: users.fetch(user_id), from:)
+    each_performance_target(@performance_invalidation_targets) do |user, from|
+      Performance::ObservationInvalidator.mark!(user:, from:)
     end
   end
 
@@ -62,9 +60,14 @@ class Trade < ApplicationRecord
     @performance_invalidation_targets = nil
     return unless targets
 
-    users = User.where(id: targets.keys).index_by(&:id)
-    targets.slice(*users.keys).each do |user_id, from|
-      Performance::ObservationInvalidator.enqueue(user: users.fetch(user_id), from:)
+    each_performance_target(targets) do |user, from|
+      Performance::ObservationInvalidator.enqueue(user:, from:)
+    end
+  end
+
+  def each_performance_target(targets)
+    User.where(id: targets.keys).each do |user|
+      yield user, targets.fetch(user.id)
     end
   end
 

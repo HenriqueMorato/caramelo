@@ -42,7 +42,7 @@ module Performance
 
     def self.read(user:, reporting_currency: default_currency)
       payload = Rails.cache.read(state_key(user:, reporting_currency:))
-      return unless payload
+      return unless payload.is_a?(Hash)
 
       values = payload.symbolize_keys
       State.new(
@@ -117,8 +117,7 @@ module Performance
       raise AlreadyRunning, "portfolio performance observations are already rebuilding" unless token
 
       lease_owned = true
-      requested_range = materialization.requested_range
-      self.class.queued(user:, from: requested_range.begin, to: requested_range.end, token:, reporting_currency:)
+      mark_queued(token)
       lease_owned = false
       job_class.perform_now(user_id: user.id, reporting_currency:, lease_token: token)
     rescue StandardError
@@ -131,13 +130,22 @@ module Performance
     attr_reader :user, :from, :to, :reporting_currency, :job_class, :materialization
 
     def enqueue_job(token)
-      requested_range = materialization.requested_range
-      self.class.queued(user:, from: requested_range.begin, to: requested_range.end, token:, reporting_currency:)
+      mark_queued(token)
       job = job_class.perform_later(user_id: user.id, reporting_currency:, lease_token: token)
       return :queued if job.successfully_enqueued?
 
       raise ActiveJob::EnqueueError, "performance observation build could not be enqueued"
     rescue StandardError => error
+      report_enqueue_failure(error, token:)
+    end
+
+    def mark_queued(token)
+      requested_range = materialization.requested_range
+      self.class.queued(user:, from: requested_range.begin, to: requested_range.end, token:, reporting_currency:)
+    end
+
+    def report_enqueue_failure(error, token:)
+      requested_range = materialization.requested_range
       self.class.failed(
         user:, from: requested_range.begin, to: requested_range.end,
         reporting_currency:, token:, error:
@@ -162,17 +170,21 @@ module Performance
         with_current_lease(user:, token:, reporting_currency:) do
           Rails.cache.write(
             state_key(user:, reporting_currency:),
-            {
-              status:,
-              from: from.iso8601,
-              to: to.iso8601,
-              updated_at: Time.current.iso8601(6),
-              error_message:
-            },
+            state_payload(from:, to:, status:, error_message:),
             expires_in: STATE_TTL
           )
         end
         read(user:, reporting_currency:)
+      end
+
+      def state_payload(from:, to:, status:, error_message:)
+        {
+          status:,
+          from: from.iso8601,
+          to: to.iso8601,
+          updated_at: Time.current.iso8601(6),
+          error_message:
+        }
       end
 
       def with_current_lease(user:, token:, reporting_currency:)
