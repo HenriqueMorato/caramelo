@@ -15,7 +15,6 @@ class PositionsController < ApplicationController
       Position::Presenter.for(position_result:)
     end
     @position_groups = @grouping.group(@positions)
-    @has_refreshable_market_prices = @positions.any?(&:market_price_refreshable?)
   end
 
   private

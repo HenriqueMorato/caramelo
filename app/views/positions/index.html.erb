@@ -9,10 +9,6 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
-      <% if @has_refreshable_market_prices %>
-        <%= button_to t("Refresh prices"), current_market_price_refresh_path, class: "ui-button ui-button-primary", form_class: "inline-flex", data: { turbo_submits_with: t("Refreshing") } %>
-      <% end %>
-
       <% if @has_closed_positions %>
         <% if @show_closed %>
           <%= link_to t(".Show open positions"), positions_path, class: "ui-button ui-button-secondary" %>

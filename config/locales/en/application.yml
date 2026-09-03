@@ -84,6 +84,7 @@ en:
       Healthy explanation: No missing or stale records were found for the data currently
         in use.
       Intro: A read-only check of the market data needed by your portfolio.
+      Refresh throttled: Refresh is limited to once every five minutes while automatic updates run in the background.
       Issue list: Data health issues
       Issues found:
         one: 1 data health issue
