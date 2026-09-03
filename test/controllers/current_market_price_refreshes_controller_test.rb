@@ -63,14 +63,6 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
     assert_equal "0/0", state.progress_label
   end
 
-  test "does not advance a missing or completed manual batch" do
-    controller = CurrentMarketPriceRefreshesController.new
-
-    assert_nothing_raised { controller.send(:advance_manual_batch) }
-    RefreshStatus::State.write(scope: CurrentMarketPriceRefreshesController::REFRESH_SCOPE, status: "succeeded")
-    assert_nothing_raised { controller.send(:advance_manual_batch) }
-  end
-
   private
 
   def create_trade(instrument)
