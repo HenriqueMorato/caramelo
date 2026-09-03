@@ -1,20 +1,27 @@
 module RefreshStatus
   class Tracker
     def self.enqueue(scope:, total_count: nil)
-      state = State.write(scope:, status: "queued", total_count:)
+      run_id = SecureRandom.uuid
+      completed = total_count == 0
+      state = State.write(scope:, run_id:, status: completed ? "succeeded" : "queued", total_count:,
+        finished_at: (Time.current if completed))
       Broadcaster.refresh
       state
     end
 
-    def self.perform(scope:, total_count: nil, preserve_progress: false)
-      if preserve_progress && (existing = State.read(scope))&.active?
+    def self.perform(scope:, total_count: nil, preserve_progress: false, run_id: nil)
+      if preserve_progress && (existing = State.read(scope))
+        return existing unless existing.active? && (run_id.nil? || existing.run_id == run_id)
+
         refresh = write(existing, status: "running", started_at: existing.started_at || Time.current)
         Broadcaster.refresh
         yield refresh
         return State.read(scope) || refresh
       end
 
-      refresh = State.write(scope:, status: "running", started_at: Time.current, total_count:)
+      refresh = State.write(
+        scope:, run_id: run_id || SecureRandom.uuid, status: "running", started_at: Time.current, total_count:
+      )
       Broadcaster.refresh
       yield refresh
       refresh = State.read(refresh.scope)
@@ -41,7 +48,8 @@ module RefreshStatus
     end
 
     def self.record_failure(refresh, error)
-      write(refresh, status: "failed", finished_at: Time.current, error_class: error.class.name,
+      latest = State.read(refresh.scope) || refresh
+      write(latest, status: "failed", finished_at: Time.current, error_class: error.class.name,
         error_message: error.message.truncate(500))
       Broadcaster.refresh
     end
@@ -56,6 +64,7 @@ module RefreshStatus
     def self.write(refresh, **attributes)
       State.write(
         scope: refresh.scope,
+        run_id: refresh.run_id,
         status: attributes.fetch(:status, refresh.status),
         started_at: attributes.fetch(:started_at, refresh.started_at),
         finished_at: attributes.fetch(:finished_at, refresh.finished_at),

@@ -84,17 +84,18 @@ en:
       Healthy explanation: No missing or stale records were found for the data currently
         in use.
       Intro: A read-only check of the market data needed by your portfolio.
-      Refresh throttled: Refresh is limited to once every five minutes while automatic updates run in the background.
       Issue list: Data health issues
       Issues found:
         one: 1 data health issue
         other: "%{count} data health issues"
       Page title: Data health · %{application}
+      Refresh throttled: Refresh is limited to once every five minutes while automatic
+        updates run in the background.
   notices:
     Created: "%{model} was created."
     Deleted: "%{model} was deleted."
-    Market price refresh started: Market price refresh started.
     Market price refresh completed: Market price refresh completed.
+    Market price refresh started: Market price refresh started.
     Password reset instructions sent: Password reset instructions sent (if user with
       that email address exists).
     Password was reset: Password has been reset.

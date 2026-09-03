@@ -85,6 +85,34 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_equal 2, state.total_count
   end
 
+  test "tracker preserves a batch when its run id matches" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      state = RefreshStatus::Tracker.enqueue(scope: "matching_batch", total_count: 2)
+      result = RefreshStatus::Tracker.perform(scope: "matching_batch", preserve_progress: true, run_id: state.run_id) { |refresh| refresh }
+
+      assert_equal state.run_id, result.run_id
+      assert_equal "running", result.status
+    end
+  end
+
+  test "tracker ignores a child from a different run" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      state = RefreshStatus::Tracker.enqueue(scope: "stale_batch", total_count: 2)
+      result = RefreshStatus::Tracker.perform(scope: "stale_batch", preserve_progress: true, run_id: "old-run") { flunk "stale child ran" }
+
+      assert_equal state.run_id, result.run_id
+      assert_equal "queued", result.status
+    end
+  end
+
+  test "tracker starts a new state when preserving a missing batch" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      RefreshStatus::Tracker.perform(scope: "missing_batch", total_count: 1, preserve_progress: true) { }
+    end
+
+    assert_equal "running", RefreshStatus::State.read("missing_batch").status
+  end
+
   test "tracker marks a refresh as queued" do
     with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "queued_state", total_count: 4)
@@ -92,6 +120,29 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
       assert_equal "queued", state.status
       assert_equal "queued", RefreshStatus::State.read("queued_state").status
     end
+  end
+
+  test "tracker completes an empty batch immediately" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      state = RefreshStatus::Tracker.enqueue(scope: "empty_batch", total_count: 0)
+
+      assert_equal "succeeded", state.status
+      assert_equal 0, state.processed_count
+      assert state.finished_at
+    end
+  end
+
+  test "tracker preserves progress when recording a failure" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+      state = RefreshStatus::Tracker.enqueue(scope: "failed_batch", total_count: 2)
+      RefreshStatus::Tracker.advance(state)
+      RefreshStatus::Tracker.record_failure(state, RuntimeError.new("provider unavailable"))
+    end
+
+    state = RefreshStatus::State.read("failed_batch")
+    assert_equal "failed", state.status
+    assert_equal 1, state.processed_count
+    assert_equal 2, state.total_count
   end
 
   test "tracker ignores failures for unknown scopes" do

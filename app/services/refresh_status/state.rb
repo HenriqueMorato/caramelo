@@ -3,12 +3,17 @@ module RefreshStatus
     CACHE_PREFIX = "localfolio:refresh_status:v1"
     ACTIVE_TIMEOUT = 10.minutes
     SCOPES_KEY = "#{CACHE_PREFIX}:scopes"
-    DEFAULT_SCOPES = [ RefreshStatus::MARKET_PRICE_SCOPE, "daily_closing_prices", "historical_exchange_rates", "market_benchmarks" ].freeze
+    DEFAULT_SCOPES = [
+      RefreshStatus::MARKET_PRICE_SCOPE, "daily_closing_prices", "historical_exchange_rates", "market_benchmarks"
+    ].freeze
 
-    attr_reader :scope, :status, :started_at, :finished_at, :updated_at, :error_class, :error_message, :processed_count, :total_count
+    attr_reader :scope, :run_id, :status, :started_at, :finished_at, :updated_at,
+      :error_class, :error_message, :processed_count, :total_count
 
-    def initialize(scope:, status:, started_at:, finished_at:, error_class:, error_message:, processed_count:, total_count:, updated_at: nil)
+    def initialize(scope:, run_id: nil, status:, started_at:, finished_at:, error_class:, error_message:,
+      processed_count:, total_count:, updated_at: nil)
       @scope = scope
+      @run_id = run_id
       @status = status
       @started_at = started_at
       @finished_at = finished_at
@@ -37,7 +42,11 @@ module RefreshStatus
       return unless payload
 
       values = payload.symbolize_keys
-      new(**values.merge(started_at: parse_time(values[:started_at]), finished_at: parse_time(values[:finished_at]), updated_at: parse_time(values[:updated_at])))
+      new(**values.merge(
+        started_at: parse_time(values[:started_at]),
+        finished_at: parse_time(values[:finished_at]),
+        updated_at: parse_time(values[:updated_at])
+      ))
     end
 
     def self.scopes
@@ -61,11 +70,11 @@ module RefreshStatus
       states_with_finish_time("failed").max_by(&:finished_at)
     end
 
-    def self.write(scope:, status:, started_at: nil, finished_at: nil, error_class: nil, error_message: nil,
+    def self.write(scope:, run_id: nil, status:, started_at: nil, finished_at: nil, error_class: nil, error_message: nil,
       processed_count: 0, total_count: nil)
       register(scope)
       Rails.cache.write(key(scope), {
-        scope:, status:, started_at: serialize_time(started_at), finished_at: serialize_time(finished_at),
+        scope:, run_id:, status:, started_at: serialize_time(started_at), finished_at: serialize_time(finished_at),
         updated_at: serialize_time(Time.current), error_class:, error_message:, processed_count:, total_count:
       })
       read(scope)

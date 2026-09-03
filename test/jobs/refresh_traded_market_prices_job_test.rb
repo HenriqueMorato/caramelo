@@ -45,11 +45,13 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
       currency: "BRL"
     )
 
-    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ instrument, { force: false, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE } ]) do
-      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument, { force: false, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE } ]) do
-        RefreshTradedMarketPricesJob.new.perform
-      end
+    assert_enqueued_jobs 2, only: RefreshCurrentMarketPriceJob do
+      RefreshTradedMarketPricesJob.new.perform
     end
+
+    refresh_jobs = enqueued_jobs.select { |job| job[:job] == RefreshCurrentMarketPriceJob }
+    assert refresh_jobs.all? { |job| job[:args].last.stringify_keys["batch_scope"] == RefreshStatus::MARKET_PRICE_SCOPE }
+    assert refresh_jobs.all? { |job| job[:args].last.stringify_keys["batch_run_id"].present? }
     assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob do
       build_job(service: unsupported_service).perform
     end

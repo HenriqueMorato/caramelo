@@ -18,12 +18,16 @@ class RefreshTradedMarketPricesJob < ApplicationJob
 
   def perform
     instruments = traded_instruments
-    RefreshStatus::Tracker.perform(scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: instruments.count) do |refresh|
+    RefreshStatus::Tracker.perform(
+      scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: instruments.count
+    ) do |refresh|
       instruments.find_each do |instrument|
         unless market_price_service.supports?(instrument:)
           ActiveSupport::Notifications.instrument(
             "market_price.refresh",
-            event: :skipped, provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier, instrument_id: instrument.id
+            event: :skipped,
+            provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
+            instrument_id: instrument.id
           )
           RefreshStatus::Tracker.advance(refresh)
           next
@@ -31,7 +35,9 @@ class RefreshTradedMarketPricesJob < ApplicationJob
 
         lookup = market_price_service.read(instrument:)
         if lookup&.refresh_needed?
-          result = RefreshCurrentMarketPriceJob.enqueue_for(instrument:, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE)
+          result = RefreshCurrentMarketPriceJob.enqueue_for(
+            instrument:, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE, batch_run_id: refresh.run_id
+          )
           RefreshStatus::Tracker.advance(refresh) if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
         else
           RefreshStatus::Tracker.advance(refresh)

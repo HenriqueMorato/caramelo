@@ -9,9 +9,9 @@ class CurrentMarketPriceRefreshesController < ApplicationController
 
     Rails.cache.write(MANUAL_COOLDOWN_KEY, Time.current)
     instruments = traded_instruments.to_a
-    RefreshStatus::Tracker.enqueue(scope: REFRESH_SCOPE, total_count: instruments.size)
+    batch = RefreshStatus::Tracker.enqueue(scope: REFRESH_SCOPE, total_count: instruments.size)
     instruments.each do |instrument|
-      result = refresh_enqueuer.enqueue(instrument:, batch_scope: REFRESH_SCOPE)
+      result = refresh_enqueuer.enqueue(instrument:, batch_scope: REFRESH_SCOPE, batch_run_id: batch.run_id)
       advance_manual_batch if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
     end
 
@@ -19,9 +19,10 @@ class CurrentMarketPriceRefreshesController < ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
+        status = RefreshStatus::Presenter.for
         render turbo_stream: [
           turbo_stream.replace("flash-messages", partial: "layouts/flash_messages"),
-          turbo_stream.replace("refresh-status", partial: "refresh_status/status", locals: { status: RefreshStatus::Presenter.for, broadcast: true })
+          turbo_stream.replace("refresh-status", partial: "refresh_status/status", locals: { status:, broadcast: true })
         ], status: :accepted
       end
       format.html do
