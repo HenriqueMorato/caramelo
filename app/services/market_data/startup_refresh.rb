@@ -1,7 +1,7 @@
 module MarketData
   class StartupRefresh
     def self.call
-      RefreshStatus::Tracker.enqueue(scope: "current_market_prices", total_count: traded_instrument_count)
+      RefreshStatus::Tracker.enqueue(scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: traded_instrument_count)
       RefreshTradedMarketPricesJob.enqueue_for
       RefreshStatus::Tracker.enqueue(scope: "daily_closing_prices")
       CaptureDailyClosingPricesJob.perform_later

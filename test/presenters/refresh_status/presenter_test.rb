@@ -20,7 +20,7 @@ class RefreshStatus::PresenterTest < ActiveSupport::TestCase
   end
 
   test "identifies aggregate current-price refreshes" do
-    refresh = Refresh.new(started_at: 1.minute.ago, finished_at: nil, scope: "manual_current_market_prices", status: "running",
+    refresh = Refresh.new(started_at: 1.minute.ago, finished_at: nil, scope: RefreshStatus::MARKET_PRICE_SCOPE, status: "running",
       processed_count: 0, total_count: 2)
     presenter = RefreshStatus::Presenter.new(active_refresh: refresh, last_successful_refresh_at: nil,
       latest_failed_refresh: nil)
@@ -29,7 +29,7 @@ class RefreshStatus::PresenterTest < ActiveSupport::TestCase
   end
 
   test "identifies a completed aggregate current-price refresh" do
-    refresh = Refresh.new(started_at: 1.minute.ago, finished_at: Time.current, scope: "manual_current_market_prices", status: "succeeded",
+    refresh = Refresh.new(started_at: 1.minute.ago, finished_at: Time.current, scope: RefreshStatus::MARKET_PRICE_SCOPE, status: "succeeded",
       processed_count: 2, total_count: 2)
     presenter = RefreshStatus::Presenter.new(active_refresh: nil, last_successful_refresh_at: refresh.finished_at,
       latest_successful_refresh: refresh, latest_failed_refresh: nil)

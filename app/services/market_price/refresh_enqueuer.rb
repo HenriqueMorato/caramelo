@@ -6,13 +6,13 @@ module MarketPrice
       @job_class = job_class
     end
 
-    def enqueue(instrument:, refresh_scope: nil)
+    def enqueue(instrument:, batch_scope: nil)
       return unless service.supports?(instrument:)
 
       RefreshStatus::Tracker.enqueue(scope: job_class.refresh_scope(instrument))
       broadcaster.refreshing(instrument:)
-      job = if refresh_scope
-        job_class.enqueue_for(instrument:, force: true, refresh_scope:)
+      job = if batch_scope
+        job_class.enqueue_for(instrument:, force: true, batch_scope:)
       else
         job_class.enqueue_for(instrument:, force: true)
       end

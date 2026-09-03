@@ -24,7 +24,7 @@ module RefreshStatus
     end
 
     def current_prices_updating?
-      active_refresh&.scope.in?(%w[current_market_prices manual_current_market_prices])
+      active_refresh&.scope == RefreshStatus::MARKET_PRICE_SCOPE
     end
 
     def progress_label
@@ -37,7 +37,7 @@ module RefreshStatus
     end
 
     def completed_refresh?
-      latest_successful_refresh&.scope.in?(%w[current_market_prices manual_current_market_prices]) && !updating?
+      latest_successful_refresh&.scope == RefreshStatus::MARKET_PRICE_SCOPE && !updating?
     end
   end
 end

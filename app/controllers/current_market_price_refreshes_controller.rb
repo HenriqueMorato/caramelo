@@ -1,6 +1,6 @@
 class CurrentMarketPriceRefreshesController < ApplicationController
   allow_unauthenticated_access
-  REFRESH_SCOPE = "manual_current_market_prices"
+  REFRESH_SCOPE = RefreshStatus::MARKET_PRICE_SCOPE
   MANUAL_COOLDOWN = 5.minutes
   MANUAL_COOLDOWN_KEY = "localfolio:manual_market_price_refresh:last_started_at"
 
@@ -11,7 +11,7 @@ class CurrentMarketPriceRefreshesController < ApplicationController
     instruments = traded_instruments.to_a
     RefreshStatus::Tracker.enqueue(scope: REFRESH_SCOPE, total_count: instruments.size)
     instruments.each do |instrument|
-      result = refresh_enqueuer.enqueue(instrument:, refresh_scope: REFRESH_SCOPE)
+      result = refresh_enqueuer.enqueue(instrument:, batch_scope: REFRESH_SCOPE)
       advance_manual_batch if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
     end
 

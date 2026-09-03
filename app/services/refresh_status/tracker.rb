@@ -18,7 +18,8 @@ module RefreshStatus
       Broadcaster.refresh
       yield refresh
       refresh = State.read(refresh.scope)
-      refresh = write(refresh, status: "succeeded", finished_at: Time.current) unless refresh.failed?
+      completed = refresh.total_count.nil? || refresh.processed_count >= refresh.total_count
+      refresh = write(refresh, status: "succeeded", finished_at: Time.current) if completed && !refresh.failed?
       Broadcaster.refresh
       refresh
     rescue StandardError => error

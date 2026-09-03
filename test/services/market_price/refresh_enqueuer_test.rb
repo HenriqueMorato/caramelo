@@ -104,7 +104,7 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
   def fake_job_class(events:, result:)
     Object.new.tap do |job_class|
       job_class.define_singleton_method(:refresh_scope) { |instrument| "test_refresh:#{instrument.id}" }
-      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false, refresh_scope: nil|
+      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false, batch_scope: nil|
         events << :enqueue
         result
       end

@@ -3,7 +3,7 @@ module RefreshStatus
     CACHE_PREFIX = "localfolio:refresh_status:v1"
     ACTIVE_TIMEOUT = 10.minutes
     SCOPES_KEY = "#{CACHE_PREFIX}:scopes"
-    DEFAULT_SCOPES = %w[current_market_prices daily_closing_prices historical_exchange_rates market_benchmarks].freeze
+    DEFAULT_SCOPES = [ RefreshStatus::MARKET_PRICE_SCOPE, "daily_closing_prices", "historical_exchange_rates", "market_benchmarks" ].freeze
 
     attr_reader :scope, :status, :started_at, :finished_at, :updated_at, :error_class, :error_message, :processed_count, :total_count
 

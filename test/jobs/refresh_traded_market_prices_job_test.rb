@@ -45,8 +45,8 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
       currency: "BRL"
     )
 
-    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ instrument ]) do
-      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument ]) do
+    assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ instrument, { force: false, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE } ]) do
+      assert_enqueued_with(job: RefreshCurrentMarketPriceJob, args: [ us_instrument, { force: false, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE } ]) do
         RefreshTradedMarketPricesJob.new.perform
       end
     end

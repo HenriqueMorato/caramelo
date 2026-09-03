@@ -11,15 +11,15 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   limits_concurrency key: ->(*) { "provider:yahoo_finance" }, duration: 2.minutes, on_conflict: :block
   discard_on ActiveJob::DeserializationError
 
-  def self.enqueue_for(instrument:, force: false, refresh_scope: nil)
+  def self.enqueue_for(instrument:, force: false, batch_scope: nil)
     marker_key = deduplication_key(instrument)
     unless Rails.cache.write(marker_key, true, expires_in: DEDUPLICATION_WINDOW, unless_exist: true)
       instrument_event(:coalesced, instrument:)
       return COALESCED
     end
 
-    job = if refresh_scope
-      perform_later(instrument, force:, refresh_scope:)
+    job = if batch_scope
+      perform_later(instrument, force:, batch_scope:)
     elsif force
       perform_later(instrument, force: true)
     else
@@ -41,9 +41,9 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     "current_market_price:#{instrument.id}"
   end
 
-  def perform(instrument, force: false, refresh_scope: nil)
+  def perform(instrument, force: false, batch_scope: nil)
     retry_scheduled = false
-    RefreshStatus::Tracker.perform(scope: refresh_scope || self.class.refresh_scope(instrument), preserve_progress: refresh_scope.present?) do
+    RefreshStatus::Tracker.perform(scope: batch_scope || self.class.refresh_scope(instrument), preserve_progress: batch_scope.present?) do
       instrument_event(:attempted, instrument:)
       request_throttle.wait!(instrument:)
       market_price_service.refresh(instrument:, force:)
@@ -66,7 +66,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   ensure
     Rails.cache.delete(self.class.deduplication_key(instrument)) unless retry_scheduled
     broadcast_current(instrument)
-    advance_batch(refresh_scope) if refresh_scope && !retry_scheduled
+    advance_batch(batch_scope) if batch_scope && !retry_scheduled
   end
 
   private
@@ -106,8 +106,8 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     report(error, instrument:)
   end
 
-  def advance_batch(refresh_scope)
-    batch = RefreshStatus::State.read(refresh_scope)
+  def advance_batch(batch_scope)
+    batch = RefreshStatus::State.read(batch_scope)
     RefreshStatus::Tracker.advance(batch) if batch&.active?
   end
 
