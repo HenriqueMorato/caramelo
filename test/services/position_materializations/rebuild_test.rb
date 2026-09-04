@@ -16,4 +16,13 @@ class PositionMaterializations::RebuildTest < ActiveSupport::TestCase
     assert_equal [ instrument.id ], results.map(&:instrument_id)
     assert_predicate results.sole, :complete?
   end
+
+  test "reuses an existing materialization on repeated rebuilds" do
+    instrument = instruments(:voo_arcx)
+
+    PositionMaterializations::Rebuild.call(user: users(:owner), instrument:)
+    results = PositionMaterializations::Rebuild.call(user: users(:owner), instrument:)
+
+    assert_predicate results.sole, :complete?
+  end
 end

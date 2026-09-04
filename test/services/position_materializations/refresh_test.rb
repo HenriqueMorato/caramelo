@@ -61,6 +61,17 @@ class PositionMaterializations::RefreshTest < ActiveSupport::TestCase
     assert_nil @materialization.error_class
   end
 
+  test "refreshes an instrument with no trades" do
+    instrument = Instrument.create!(ticker: "EMPTY", exchange: "XNAS", name: "Empty Instrument", currency: "USD")
+    materialization = PositionMaterialization.create!(user: @user, instrument:)
+
+    PositionMaterializations::Refresh.call(materialization:)
+
+    assert_predicate materialization.reload, :complete?
+    assert_nil materialization.source_trade_id
+    assert_nil materialization.source_trade_updated_at
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

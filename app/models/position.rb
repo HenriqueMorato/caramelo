@@ -117,8 +117,8 @@ class Position
     return replay_overview(owner:) if !include_institutions && owner.position_materializations.none?
     return materialized_overview(owner:) unless include_institutions
 
-    associations = include_institutions ? %i[instrument institution] : :instrument
-    trades_by_instrument = owner.trades.includes(associations).strict_loading.order(:traded_on, :id).group_by(&:instrument)
+    trades_by_instrument = owner.trades.includes(%i[instrument institution]).strict_loading
+      .order(:traded_on, :id).group_by(&:instrument)
 
     trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
       position = materialized_position(instrument, owner:) || new(instrument:, trades:)
