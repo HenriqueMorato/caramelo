@@ -1,8 +1,4 @@
 <% content_for :title, t(".Page title", application: t("LocalFolio")) %>
-<% content_for :head do %>
-  <%# Native history entry keeps browser Back subject to unsaved-change protection. %>
-  <meta name="turbo-visit-control" content="reload">
-<% end %>
 
 <section class="mx-auto max-w-2xl space-y-8">
   <div class="ui-page-header-copy">
@@ -13,8 +9,9 @@
 
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
     <%= form_with model: @owner, url: settings_path, method: :patch, class: "space-y-6",
-      data: { turbo: false, controller: "settings-form", settings_form_discard_value: t(".Discard changes"),
-        action: "submit->settings-form#submit turbo:before-visit@window->settings-form#confirmNavigation beforeunload@window->settings-form#beforeUnload" } do |form| %>
+      data: { controller: "settings-form", settings_form_discard_value: t(".Discard changes"),
+        settings_form_original_currency_value: @owner.reporting_currency_in_database,
+        action: "turbo:submit-start->settings-form#submit turbo:submit-end->settings-form#submitted turbo:before-visit@window->settings-form#confirmNavigation beforeunload@window->settings-form#beforeUnload" } do |form| %>
       <div data-controller="currency-picker" data-action="click@window->currency-picker#outside">
         <%= form.label :reporting_currency, class: "block text-sm font-semibold text-coffee",
           data: { currency_picker_target: "label" } %>

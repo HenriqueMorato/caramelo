@@ -12,13 +12,17 @@ class SettingsTest < ApplicationSystemTestCase
 
   test "saves currency preferences from the sidebar" do
     visit root_path
+    page.execute_script("window.settingsDocumentMarker = 'same-document'")
     within("aside") { click_on "Settings" }
+    assert_equal "same-document", page.evaluate_script("window.settingsDocumentMarker")
     choose_currency "USD"
     click_on "Save preferences"
 
     assert_text "Preferences saved."
     assert_select_value "USD"
     assert_equal "USD", User.owner.reporting_currency
+    assert_equal "same-document", page.evaluate_script("window.settingsDocumentMarker")
+    assert_button "Save preferences", disabled: false
   end
 
   test "shows server validation errors beside the field" do
@@ -103,6 +107,25 @@ class SettingsTest < ApplicationSystemTestCase
     end
     assert_current_path positions_path
     assert_equal "BRL", User.owner.reporting_currency
+  end
+
+  test "Back and Forward restore an unsaved selection without treating it as saved" do
+    visit root_path
+    within("aside") { click_on "Settings" }
+    choose_currency "EUR"
+
+    page.go_back
+    assert_current_path root_path
+    page.go_forward
+    assert_current_path settings_path
+    assert_select_value "EUR"
+    assert_equal "BRL", User.owner.reporting_currency
+
+    dismiss_confirm "Discard your unsaved currency preference?" do
+      within("aside") { click_on "Positions" }
+    end
+    assert_current_path settings_path
+    assert_button "Save preferences", disabled: false
   end
 
   test "fits mobile and desktop layouts and exposes Settings in the mobile menu" do

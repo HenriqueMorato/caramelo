@@ -2,16 +2,19 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["currency"]
-  static values = { discard: String }
+  static values = { discard: String, originalCurrency: String }
 
   connect() {
-    this.originalCurrency = this.currencyTarget.value
     this.submitting = false
   }
 
   submit() {
     this.submitting = true
-    this.element.querySelector("button[type=submit]").disabled = true
+  }
+
+  submitted(event) {
+    if (event.detail.success) this.originalCurrencyValue = this.currencyTarget.value
+    this.submitting = false
   }
 
   confirmNavigation(event) {
@@ -26,6 +29,6 @@ export default class extends Controller {
   }
 
   get unsaved() {
-    return !this.submitting && this.currencyTarget.value !== this.originalCurrency
+    return !this.submitting && this.currencyTarget.value !== this.originalCurrencyValue
   }
 }

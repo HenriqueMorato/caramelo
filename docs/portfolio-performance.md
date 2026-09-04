@@ -133,9 +133,12 @@ is retained and Settings offers **Save again** to retry. Saving an unchanged
 preference can also retry preparation. Unsupported provider pairs remain
 explicitly unavailable rather than falling back to another reporting currency.
 
-Settings uses native entry and submission so browser Back and reload can warn
-about unsaved changes. Ordinary application links also confirm before discarding
-an edited preference.
+Settings uses Turbo navigation and submission, including its submit-button state
+and validation rendering. Reload and ordinary application links warn before
+discarding an edited preference. Turbo Back/Forward restoration cannot be
+cancelled; the cached form retains its selection, and the server-rendered saved
+currency remains the baseline for detecting unsaved changes when returning.
+This draft is temporary browser state, not a saved preference.
 
 ## Historical series
 

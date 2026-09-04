@@ -6,6 +6,8 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Settings"
+    assert_select "form[data-turbo=false]", count: 0
+    assert_select "meta[name=turbo-visit-control]", count: 0
     assert_select "select[name='user[reporting_currency]'] option[selected][value=BRL]"
     assert_select "option[value=USD]"
     assert_select "option[value=EUR]"
