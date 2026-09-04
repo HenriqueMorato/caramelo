@@ -30,17 +30,17 @@ module Performance
       end
     end
 
-    def self.enqueue(user:, from:, to:, reporting_currency: default_currency,
+    def self.enqueue(user:, from:, to:, reporting_currency: user.reporting_currency,
       job_class: BuildPortfolioPerformanceObservationsJob)
       new(user:, from:, to:, reporting_currency:, job_class:).enqueue
     end
 
-    def self.rebuild_now(user:, from:, to:, reporting_currency: default_currency,
+    def self.rebuild_now(user:, from:, to:, reporting_currency: user.reporting_currency,
       job_class: BuildPortfolioPerformanceObservationsJob)
       new(user:, from:, to:, reporting_currency:, job_class:).rebuild_now
     end
 
-    def self.read(user:, reporting_currency: default_currency)
+    def self.read(user:, reporting_currency: user.reporting_currency)
       payload = Rails.cache.read(state_key(user:, reporting_currency:))
       return unless payload.is_a?(Hash)
 
@@ -56,32 +56,32 @@ module Performance
       nil
     end
 
-    def self.running(user:, from:, to:, token:, reporting_currency: default_currency)
+    def self.running(user:, from:, to:, token:, reporting_currency: user.reporting_currency)
       write(user:, from:, to:, token:, reporting_currency:, status: "running")
     end
 
-    def self.queued(user:, from:, to:, token:, reporting_currency: default_currency)
+    def self.queued(user:, from:, to:, token:, reporting_currency: user.reporting_currency)
       write(user:, from:, to:, token:, reporting_currency:, status: "queued")
     end
 
-    def self.succeeded(user:, from:, to:, token:, reporting_currency: default_currency)
+    def self.succeeded(user:, from:, to:, token:, reporting_currency: user.reporting_currency)
       write(user:, from:, to:, token:, reporting_currency:, status: "succeeded")
     end
 
-    def self.failed(user:, from:, to:, error:, token:, reporting_currency: default_currency)
+    def self.failed(user:, from:, to:, error:, token:, reporting_currency: user.reporting_currency)
       write(
         user:, from:, to:, token:, reporting_currency:, status: "failed",
         error_message: error.message.truncate(500)
       )
     end
 
-    def self.release(user:, token:, reporting_currency: default_currency)
+    def self.release(user:, token:, reporting_currency: user.reporting_currency)
       with_current_lease(user:, token:, reporting_currency:) do
         Rails.cache.delete(lease_key(user:, reporting_currency:))
       end
     end
 
-    def self.acquire(user:, reporting_currency: default_currency)
+    def self.acquire(user:, reporting_currency: user.reporting_currency)
       PortfolioPerformanceMaterialization.for(user:, reporting_currency:).with_lock do
         token = SecureRandom.uuid
         acquired = Rails.cache.write(
@@ -199,10 +199,6 @@ module Performance
 
       def lease_key(user:, reporting_currency:)
         "#{CACHE_PREFIX}:#{user.id}:#{reporting_currency}:lease"
-      end
-
-      def default_currency
-        Rails.configuration.x.local_folio.reporting_currency
       end
     end
   end

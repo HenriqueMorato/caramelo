@@ -10,7 +10,7 @@ class PortfolioPerformanceMaterialization < ApplicationRecord
   validates :source_generation, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :requested_range_is_complete_and_chronological
 
-  def self.for(user:, reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
+  def self.for(user:, reporting_currency: user.reporting_currency)
     find_or_create_by!(user:, reporting_currency: CurrencyCode.normalize(reporting_currency))
   end
 

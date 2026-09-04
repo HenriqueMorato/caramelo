@@ -19,7 +19,7 @@
     </div>
     <p class="mt-10 px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Manage") %></p>
     <div class="mt-4 space-y-1">
-      <% [[t("Institutions"), institutions_path, "⌂"], [t("Instruments"), instruments_path, "◉"], [t("Data health"), market_data_health_path, "♥"]].each do |label, path, icon| %>
+      <% [[t("Institutions"), institutions_path, "⌂"], [t("Instruments"), instruments_path, "◉"], [t("Data health"), market_data_health_path, "♥"], [t("Settings"), settings_path, "⚙"]].each do |label, path, icon| %>
         <% active = current_page?(path) %>
         <%= link_to path, class: class_names("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } do %>
           <span class="flex size-8 items-center justify-center text-lg text-coffee/70" aria-hidden="true"><%= icon %></span>
@@ -45,7 +45,7 @@
     <details class="relative">
       <summary class="ui-button ui-button-secondary min-h-11 cursor-pointer list-none px-3 [&::-webkit-details-marker]:hidden">Menu</summary>
       <nav aria-label="<%= t("Primary navigation") %>" class="absolute right-0 top-full z-40 mt-2 w-56 rounded-2xl border border-coffee/10 bg-oat-2 p-2 shadow-lg">
-        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path], [t("Institutions"), institutions_path], [t("Instruments"), instruments_path], [t("Data health"), market_data_health_path]].each do |label, path| %>
+        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path], [t("Institutions"), institutions_path], [t("Instruments"), instruments_path], [t("Data health"), market_data_health_path], [t("Settings"), settings_path]].each do |label, path| %>
           <% active = current_page?(path) %>
           <%= link_to label, path, class: class_names("flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } %>
         <% end %>

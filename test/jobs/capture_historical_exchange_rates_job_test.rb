@@ -1,6 +1,51 @@
 require "test_helper"
 
 class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
+  test "does not change target currency between pairs in one execution" do
+    users(:owner).update!(reporting_currency: "EUR")
+    users(:owner).trades.create!(
+      instrument: instruments(:petr4_bvmf), traded_on: Date.new(2026, 8, 28),
+      side: :buy, quantity: 1, unit_price: 10, currency: "BRL"
+    )
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) do |**arguments|
+      imports << arguments
+      User.owner.update!(reporting_currency: "USD")
+    end
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { throttle }
+
+    job.perform(rate_date: Date.new(2026, 8, 28))
+
+    assert_equal %w[BRL USD], imports.map { |call| call.fetch(:base_currency) }.sort
+    assert_equal [ "EUR" ], imports.map { |call| call.fetch(:quote_currency) }.uniq
+  end
+
+  test "uses the latest reporting preference on each execution" do
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { throttle }
+    users(:owner).update!(reporting_currency: "EUR")
+
+    job.perform(rate_date: Date.new(2026, 8, 28))
+
+    assert_equal [ "EUR" ], imports.map { |call| call.fetch(:quote_currency) }
+    imports.clear
+    users(:owner).update!(reporting_currency: "USD")
+    job.perform(rate_date: Date.new(2026, 8, 28))
+
+    assert_empty imports
+  end
+
   test "builds the default importer and throttle" do
     job = CaptureHistoricalExchangeRatesJob.new
 

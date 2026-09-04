@@ -4,6 +4,16 @@
 historical date. `Performance::Period.for(from:, to:)` compares two such
 valuations and produces the report shown at `/performance`.
 
+Calculations default to the owner's persisted `reporting_currency` (initially
+BRL). An explicit `owner:` keeps another owner's period and valuations scoped
+together. Changing the preference does not convert or rewrite stored trades,
+instrument currencies, closing prices, or FX history. Missing rates for the
+selected currency remain unavailable rather than falling back to BRL values.
+
+Presenters format the currency of the calculated result, not a newly read
+preference. Derived chart observations and refresh leases are isolated by owner
+and currency; an already queued rebuild keeps its original currency.
+
 Period boundaries use `Date.current` in the application's configured
 `America/Sao_Paulo` timezone. Provider observations retain their own persisted
 market dates; LocalFolio does not rewrite them to manufacture a local close.
@@ -81,6 +91,54 @@ When a trade change requires older observations, [Historical data
 backfills](historical-data-backfills.md) coalesce and import that range in the
 background. Performance displays a loading state while relevant work is
 pending.
+
+## Changing reporting currency
+
+**Settings → Reporting currency** saves the owner's preference for portfolio
+totals, performance, and charts. Trades, instrument currencies, fees, and
+historical source prices are not rewritten. A missing conversion stays
+unavailable; an old BRL result is never relabeled as USD or EUR.
+
+The searchable picker filters names and codes after 150 ms without typing
+requests to Yahoo. Arrow keys move through results, Enter selects, and Escape
+or Tab dismisses the list without changing the saved selection. A native select
+remains available without JavaScript. `ReportingCurrency::SUPPORTED_CODES`
+defines the same allowlist used by the picker and server validation: AUD, BRL,
+CAD, CHF, EUR, GBP, JPY, NZD, and USD. These have Yahoo-listed FX pairs; this is
+a curated application list, not a promise that every cross-pair and historical
+date is available. See [Yahoo's currency listings](https://finance.yahoo.com/markets/currencies/).
+
+`SettingsController` saves the preference, then enqueues
+`PrepareReportingCurrencyJob` with that exact currency. A request superseded
+before execution is skipped. `ReportingCurrency::Preparation` groups the owner's
+trades by native currency and prepares each foreign-currency pair:
+
+1. Reuse fresh current FX, otherwise refresh it through the provider throttle.
+2. Look for missing historical FX from seven calendar days before the first
+   trade through today. The lookback supports weekend and holiday valuation.
+3. Reuse existing direct or inverse observations. Fetch missing weekdays in
+   batches of at most 60, without inserting synthetic weekend observations.
+4. Enqueue a performance-series rebuild in the selected currency. Progress
+   counts each prepared currency pair plus this final enqueue step; completion
+   of preparation does not mean the queued rebuild has finished.
+
+For example, changing a portfolio with USD trades to EUR prepares USD/EUR
+current and historical rates. BRL trades additionally require BRL/EUR. EUR
+trades require no conversion. Existing stock-price history is reused, not fetched
+again by this workflow.
+
+Provider and rebuild-enqueue failures are retried by the job. Successful FX
+observations survive a retry. If initial enqueueing fails, the saved preference
+is retained and Settings offers **Save again** to retry. Saving an unchanged
+preference can also retry preparation. Unsupported provider pairs remain
+explicitly unavailable rather than falling back to another reporting currency.
+
+Settings uses Turbo navigation and submission, including its submit-button state
+and validation rendering. Reload and ordinary application links warn before
+discarding an edited preference. Turbo Back/Forward restoration cannot be
+cancelled; the cached form retains its selection, and the server-rendered saved
+currency remains the baseline for detecting unsaved changes when returning.
+This draft is temporary browser state, not a saved preference.
 
 ## Historical series
 

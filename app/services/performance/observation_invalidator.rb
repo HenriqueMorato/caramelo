@@ -2,7 +2,7 @@ module Performance
   class ObservationInvalidator
     def self.mark!(user:, from:)
       currencies = user.portfolio_performance_materializations.pluck(:reporting_currency)
-      currencies |= [ Rails.configuration.x.local_folio.reporting_currency ]
+      currencies |= [ user.reporting_currency ]
       currencies.sort.each { |reporting_currency| new(user:, from:, reporting_currency:).mark! }
     end
 
@@ -10,7 +10,7 @@ module Performance
       new(user:, from:).enqueue
     end
 
-    def initialize(user:, from:, reporting_currency: Rails.configuration.x.local_folio.reporting_currency,
+    def initialize(user:, from:, reporting_currency: user.reporting_currency,
       store: ObservationStore.new(user:, reporting_currency:), refresher: SeriesRefresh,
       materialization: PortfolioPerformanceMaterialization.for(user:, reporting_currency:))
       @user = user

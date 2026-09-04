@@ -62,7 +62,7 @@ module MarketData
 
     def currency_issues
       currencies = owner.trades.distinct.pluck(:currency)
-      reporting_currency = Rails.configuration.x.local_folio.reporting_currency
+      reporting_currency = owner.reporting_currency
       currencies.filter_map do |currency|
         next if currency == reporting_currency
         next if HistoricalExchangeRate.where(base_currency: currency, quote_currency: reporting_currency).exists?

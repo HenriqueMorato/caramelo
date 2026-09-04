@@ -19,20 +19,21 @@ module Performance
       end
     end
 
-    def self.for(from:, to:, portfolio: Portfolio)
-      new(from:, to:, portfolio:).calculate
+    def self.for(from:, to:, portfolio: Portfolio, owner: User.owner)
+      new(from:, to:, portfolio:, owner:).calculate
     end
 
-    def initialize(from:, to:, portfolio:)
+    def initialize(from:, to:, portfolio:, owner:)
       @from = from
       @to = to
       @portfolio = portfolio
+      @owner = owner
     end
 
     def calculate
       validate_range!
-      @opening_valuation = portfolio.for(valuation_date: from)
-      @closing_valuation = portfolio.for(valuation_date: to)
+      @opening_valuation = portfolio.for(valuation_date: from, owner:)
+      @closing_valuation = portfolio.for(valuation_date: to, owner:)
       return missing_result if opening_valuation.missing? || closing_valuation.missing?
 
       @cash_flows = closing_valuation.cash_flows.select { |cash_flow| cash_flow.traded_on > from && cash_flow.traded_on <= to }
@@ -50,11 +51,11 @@ module Performance
 
     private
 
-    attr_reader :from, :to, :portfolio, :opening_valuation, :closing_valuation,
+    attr_reader :from, :to, :portfolio, :owner, :opening_valuation, :closing_valuation,
       :cash_flows, :net_cash_flow_amount, :gain_loss_amount
 
     def reporting_currency
-      Rails.configuration.x.local_folio.reporting_currency
+      closing_valuation.market_value.currency
     end
 
     def missing_result

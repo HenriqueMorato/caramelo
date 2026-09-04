@@ -1,6 +1,19 @@
 require "test_helper"
 
 class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
+  test "refreshes FX for the stored reporting preference" do
+    users(:owner).update!(reporting_currency: "EUR")
+    requests = []
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| }
+    exchange_rate_service = Object.new
+    exchange_rate_service.define_singleton_method(:refresh) { |**arguments| requests << arguments }
+
+    build_job(service:, exchange_rate_service:).perform(instruments(:voo_arcx))
+
+    assert_equal [ { base_currency: "USD", quote_currency: "EUR", force: false } ], requests
+  end
+
   setup do
     Rails.cache.clear
   end

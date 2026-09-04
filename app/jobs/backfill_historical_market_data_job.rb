@@ -12,6 +12,8 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
     end
 
   def perform(backfill)
+    # A preference change during a long backfill must not mix target currencies.
+    @reporting_currency = User.owner.reporting_currency
     RefreshStatus::Tracker.perform(scope: "historical_backfill:#{backfill.id}") do
       from_date, generation = backfill.with_lock { [ backfill.from_date, backfill.generation ] }
 
@@ -48,9 +50,7 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
     @request_throttle ||= MarketData::YahooFinance::RequestThrottle.new
   end
 
-  def reporting_currency
-    Rails.configuration.x.local_folio.reporting_currency
-  end
+  attr_reader :reporting_currency
 
   def date_ranges(from_date, to_date)
     (from_date..to_date).each_slice(BATCH_SIZE).map { |dates| [ dates.first, dates.last ] }

@@ -1,0 +1,39 @@
+<%# locals: (owner:) %>
+
+<div class="relative mt-3" data-currency-picker-target="picker" hidden>
+  <div class="relative">
+    <input id="reporting-currency-search" type="text" role="combobox" autocomplete="off" spellcheck="false"
+      class="min-h-12 w-full rounded-xl border border-coffee/20 bg-oat py-3 pl-4 pr-10 text-base text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel"
+      aria-autocomplete="list" aria-expanded="false" aria-controls="reporting-currency-list"
+      aria-describedby="reporting-currency-help reporting-currency-error"
+      aria-invalid="<%= owner.errors.any? %>"
+      placeholder="<%= t(".Search") %>" data-currency-picker-target="input"
+      data-action="focus->currency-picker#open click->currency-picker#open input->currency-picker#search keydown->currency-picker#keydown">
+    <svg class="pointer-events-none absolute right-4 top-4 size-4 text-caramel-deep" aria-hidden="true"
+      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+      <circle cx="10.5" cy="10.5" r="6.5"></circle>
+      <path d="m16 16 4.5 4.5"></path>
+    </svg>
+  </div>
+  <div class="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-coffee/10 bg-oat-2 shadow-lg"
+    data-currency-picker-target="list" hidden>
+    <ul id="reporting-currency-list" role="listbox" aria-label="<%= t(".Currencies") %>"
+      class="max-h-64 overflow-y-auto overscroll-contain p-1.5">
+      <% reporting_currency_options.each do |label, code| %>
+        <li id="reporting-currency-<%= code %>" role="option" aria-selected="<%= code == owner.reporting_currency %>"
+          class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-coffee hover:bg-caramel/10 data-[active=true]:bg-caramel/15"
+          data-currency-picker-target="option" data-code="<%= code %>"
+          data-action="click->currency-picker#pick">
+          <span class="min-w-10 font-semibold text-caramel-deep" translate="no"><%= code %></span>
+          <span class="min-w-0 break-words"><%= label.split(" — ", 2).last %></span>
+          <span class="ml-auto text-caramel-deep" aria-hidden="true" data-selected-check>
+            <%= "✓" if code == owner.reporting_currency %>
+          </span>
+        </li>
+      <% end %>
+    </ul>
+    <p class="px-4 py-3 text-sm text-muted" role="status" data-currency-picker-target="empty" hidden>
+      <%= t(".No currencies") %>
+    </p>
+  </div>
+</div>

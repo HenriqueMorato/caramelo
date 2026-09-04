@@ -2,7 +2,7 @@ module Performance
   class ObservationStore
     UNIQUE_INDEX = "index_portfolio_performance_observations_uniqueness"
 
-    def initialize(user:, reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
+    def initialize(user:, reporting_currency: user.reporting_currency)
       @user = user
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
     end

@@ -32,6 +32,19 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
     assert_instance_of MarketData::YahooFinance::RequestThrottle, job.send(:request_throttle)
   end
 
+  test "keeps one reporting currency throughout a running backfill" do
+    users(:owner).update!(reporting_currency: "EUR")
+    job = build_job
+    @daily_importer.define_singleton_method(:call) do |**|
+      User.owner.update!(reporting_currency: "USD")
+    end
+
+    travel_to(Date.new(2026, 7, 10)) { job.perform(@backfill) }
+
+    assert_equal 3, @exchange_rate_imports.size
+    assert_equal [ "EUR" ], @exchange_rate_imports.map { |call| call.fetch(:quote_currency) }.uniq
+  end
+
   test "skips FX imports when the trade currency is the reporting currency" do
     @backfill.update!(instrument: instruments(:petr4_bvmf), currency: "BRL")
 

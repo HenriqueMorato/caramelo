@@ -1,0 +1,20 @@
+---
+en:
+  settings:
+    Preparation failed: Your preference was saved, but exchange-rate preparation could
+      not start. Save again to retry.
+    Saved: Preferences saved. Any missing exchange rates will be prepared in the background.
+    currency_picker:
+      Currencies: Reporting currencies
+      No currencies: No matching currencies.
+      Search: Search by name or code…
+    show:
+      Currency help: Use this currency for portfolio totals, performance, and charts.
+        Your trades keep their original currencies.
+      Discard changes: Discard your unsaved currency preference?
+      Introduction: Make your portfolio feel at home.
+      Page title: Settings | %{application}
+      Preparation help: Missing exchange rates may take a moment to prepare. Until
+        then, affected values are shown as unavailable. Save again to retry preparation
+        without changing your preference.
+      Save preferences: Save preferences

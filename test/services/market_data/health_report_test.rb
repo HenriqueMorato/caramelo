@@ -36,6 +36,15 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     refute report.healthy?
   end
 
+  test "reports missing FX against the selected reporting currency" do
+    users(:owner).update!(reporting_currency: "EUR")
+
+    report = MarketData::HealthReport.for(current_market_price_service: CurrentPriceService.new)
+
+    issue = report.issues.find { |item| item.code == :missing_exchange_rate }
+    assert_includes issue.details, "USD/EUR"
+  end
+
   test "labels instruments and benchmarks without exposing record inspection" do
     instrument = instruments(:voo_arcx)
     benchmark = MarketBenchmark.create!(identifier: "HEALTHSP", name: "Health S&P", kind: :price, currency: "USD",
