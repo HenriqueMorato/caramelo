@@ -134,6 +134,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     assert_equal :updating, entry.status
     refute_predicate entry, :actionable?
+    refute_predicate entry, :quote_reset_needed?
   end
 
   test "does not report an expired refresh marker as updating" do

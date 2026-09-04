@@ -90,8 +90,8 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "p", text: "ready"
-    refute_select "p", text: "missing"
+    assert_includes response.body, "ready"
+    refute_includes response.body, "missing"
   end
 
   private

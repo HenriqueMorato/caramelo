@@ -17,6 +17,7 @@ module MarketData
       def updating? = status == :updating
       def interrupted? = status == :interrupted
       def actionable? = actions.any?
+      def quote_reset_needed? = target.kind == :current_price && target.record_id && !healthy? && !updating?
     end
 
     class Result

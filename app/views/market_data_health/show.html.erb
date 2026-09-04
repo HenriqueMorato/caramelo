@@ -71,7 +71,7 @@
                 provider: entry.target.provider
                 } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
               <% end %>
-              <% if entry.target.kind == :current_price && !entry.healthy? && !entry.updating? %>
+              <% if entry.quote_reset_needed? %>
                 <%= button_to t(".Reset quote"), market_data_recovery_path(entry.target.record_id), method: :delete,
               params: { target: {
                 kind: entry.target.kind,
