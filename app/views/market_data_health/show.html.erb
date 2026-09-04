@@ -42,29 +42,50 @@
     </div>
     <p class="mt-2 text-sm text-muted"><%= @report.healthy? ? t(".Healthy explanation") : t(".Recovery explanation") %></p>
 
-    <ul class="mt-5 divide-y divide-coffee/10" aria-label="<%= t(".Issue list") %>">
+    <div class="mt-5 overflow-x-auto">
+      <table class="w-full min-w-[42rem] text-left" aria-label="<%= t(".Issue list") %>">
+        <thead class="border-b border-coffee/10 text-xs font-semibold uppercase tracking-wide text-muted">
+          <tr>
+            <th scope="col" class="pb-3 pr-4"><%= t(".Source") %></th>
+            <th scope="col" class="pb-3 pr-4"><%= t(".Status") %></th>
+            <th scope="col" class="pb-3 pr-4"><%= t(".Details") %></th>
+            <th scope="col" class="pb-3 text-right"><span class="sr-only"><%= t(".Actions") %></span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-coffee/10">
       <% @entries.each do |entry| %>
         <% status_class = entry.healthy? ? "text-leaf" : entry.severity == :error ? "text-guava" : "text-caramel-deep" %>
-        <li class="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <p class="font-semibold text-coffee"><%= entry.label %></p>
-              <span class="text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status %></span>
-            </div>
-            <p class="mt-1 text-sm text-muted"><%= entry.description %></p>
-          </div>
-          <% if entry.actionable? %>
-            <%= button_to t(".Retry"), market_data_recoveries_path,
+        <tr>
+          <th scope="row" class="py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
+          <td class="py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status %></td>
+          <td class="py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
+          <td class="py-4 align-top text-right">
+            <div class="flex justify-end gap-2">
+              <% if entry.actionable? %>
+                <%= button_to t(".Retry"), market_data_recoveries_path,
               params: { target: {
                 kind: entry.target.kind,
                 record_id: entry.target.record_id,
                 base_currency: entry.target.base_currency,
                 quote_currency: entry.target.quote_currency,
                 provider: entry.target.provider
-              } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
-          <% end %>
-        </li>
+                } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
+              <% end %>
+              <% if entry.target.kind == :current_price && !entry.healthy? && !entry.updating? %>
+                <%= button_to t(".Reset quote"), market_data_recovery_path(entry.target.record_id), method: :delete,
+              params: { target: {
+                kind: entry.target.kind,
+                record_id: entry.target.record_id,
+                provider: entry.target.provider
+                  } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
+                  data: { turbo_confirm: t(".Reset quote confirmation") } %>
+              <% end %>
+            </div>
+          </td>
+        </tr>
       <% end %>
-    </ul>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>

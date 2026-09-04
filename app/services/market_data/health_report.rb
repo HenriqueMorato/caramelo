@@ -116,7 +116,14 @@ module MarketData
 
     def current_price_entry(instrument)
       lookup = current_market_price_service.read(instrument:)
-      if lookup.nil? || lookup.missing?
+      refresh_state = RefreshStatus::State.read("current_market_price:#{instrument.id}")
+      if refreshing_state?(refresh_state)
+        entry_for(
+          code: :updating_current_price, status: :updating, severity: nil, subject: instrument,
+          description: "#{instrument.ticker} is being refreshed.",
+          target: Target.new(kind: :current_price, record_id: instrument.id), actions: []
+        )
+      elsif lookup.nil? || lookup.missing?
         entry_for(
           code: :missing_current_price, status: :missing, severity: :error, subject: instrument,
           description: "#{instrument.ticker} has no current market price available.",
@@ -149,6 +156,10 @@ module MarketData
         target: Target.new(kind: :daily_closing_prices, record_id: instrument.id),
         actions: present ? [] : [ :retry ]
       )
+    end
+
+    def refreshing_state?(state)
+      state&.running? && state.updated_at && state.updated_at > RefreshStatus::State::ACTIVE_TIMEOUT.ago
     end
 
     def currency_entries

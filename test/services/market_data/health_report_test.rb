@@ -17,6 +17,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
   end
 
   setup do
+    Rails.cache.clear
     MarketBenchmarkObservation.delete_all
     MarketBenchmark.delete_all
   end
@@ -118,6 +119,50 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     )
 
     refute_predicate report, :current_prices_need_refresh?
+  end
+
+  test "reports a current price as updating while its refresh state is active" do
+    instrument = instruments(:voo_arcx)
+    RefreshStatus::State.write(
+      scope: "current_market_price:#{instrument.id}", status: "running",
+      started_at: Time.current, total_count: 1
+    )
+    service = CurrentPriceService.new
+
+    report = MarketData::HealthReport.for(owner: users(:owner), current_market_price_service: service)
+    entry = report.entries.find { |candidate| candidate.target.kind == :current_price }
+
+    assert_equal :updating, entry.status
+    refute_predicate entry, :actionable?
+  end
+
+  test "does not report an expired refresh marker as updating" do
+    instrument = instruments(:voo_arcx)
+    expired = RefreshStatus::State.new(
+      scope: "current_market_price:#{instrument.id}", run_id: "expired", status: "running",
+      started_at: 11.minutes.ago, finished_at: nil, updated_at: 11.minutes.ago,
+      error_class: nil, error_message: nil, processed_count: 0, total_count: 1
+    )
+
+    report = nil
+    with_stubbed_method(RefreshStatus::State, :read, ->(scope) {
+      scope == "current_market_price:#{instrument.id}" ? expired : nil
+    }) do
+      report = MarketData::HealthReport.for(owner: users(:owner), current_market_price_service: CurrentPriceService.new)
+    end
+    entry = report.entries.find { |candidate| candidate.target.kind == :current_price }
+
+    refute_equal :updating, entry.status
+  end
+
+  private
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
+    yield
+  ensure
+    object.define_singleton_method(method_name) { |*args, **kwargs| original.call(*args, **kwargs) }
   end
 
   test "builds normalized entries from issues" do

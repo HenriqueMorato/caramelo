@@ -56,6 +56,22 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "clears a replaceable quote cache" do
+    result = MarketData::Reset::Result.new(
+      status: :queued,
+      target: MarketData::Target.new(kind: :current_price, record_id: instruments(:voo_arcx).id)
+    )
+
+    with_stubbed_method(MarketData::Reset, :call, ->(**) { result }) do
+      delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
+        target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+      }
+    end
+
+    assert_redirected_to market_data_health_path
+    assert_equal "Quote refresh started.", flash[:notice]
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

@@ -17,6 +17,21 @@ module MarketData
       head :unprocessable_entity
     end
 
+    def destroy
+      target = TargetResolver.call(attributes: target_params)
+      result = Reset.call(target:)
+
+      if result.queued?
+        redirect_to market_data_health_path, notice: "Quote refresh started."
+      elsif result.busy?
+        head :conflict
+      else
+        head :unprocessable_entity
+      end
+    rescue ActionController::ParameterMissing, ActiveRecord::RecordNotFound, ArgumentError
+      head :unprocessable_entity
+    end
+
     private
 
     def target_params
