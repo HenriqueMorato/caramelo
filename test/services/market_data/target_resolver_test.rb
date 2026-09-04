@@ -39,4 +39,25 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
       )
     end
   end
+
+  test "rejects a currency pair unrelated to the reporting currency" do
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::TargetResolver.call(
+        attributes: { kind: "historical_exchange_rates", base_currency: "USD", quote_currency: "EUR" },
+        owner: users(:owner)
+      )
+    end
+  end
+
+  test "ignores caller-supplied provider values" do
+    target = MarketData::TargetResolver.call(
+      attributes: {
+        kind: "historical_exchange_rates", base_currency: "USD", quote_currency: "BRL",
+        provider: "untrusted"
+      },
+      owner: users(:owner)
+    )
+
+    assert_nil target.provider
+  end
 end

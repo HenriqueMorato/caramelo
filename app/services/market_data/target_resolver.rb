@@ -10,7 +10,7 @@ module MarketData
     end
 
     def call
-      target = Target.new(**attributes.slice(:kind, :record_id, :base_currency, :quote_currency, :provider))
+      target = Target.new(**attributes.slice(:kind, :record_id, :base_currency, :quote_currency))
       validate_owner_scope!(target)
       target
     end
@@ -40,8 +40,9 @@ module MarketData
     end
 
     def ensure_traded_currency!(target)
-      currencies = owner.trades.where(currency: [ target.base_currency, target.quote_currency ]).exists?
-      raise ActiveRecord::RecordNotFound unless currencies
+      valid_pair = target.quote_currency == owner.reporting_currency &&
+        owner.trades.where(currency: target.base_currency).exists?
+      raise ActiveRecord::RecordNotFound unless valid_pair
     end
 
     def ensure_benchmark!(target)
