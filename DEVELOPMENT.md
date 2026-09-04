@@ -179,11 +179,38 @@ requests retain the last successful value and are reported through Rails error
 reporting. Exchange-specific holiday calendars remain part of the valuation-date
 work tracked in issue #124.
 
+### Development database storage and migrations
+
+The primary development database remains at `storage/development.sqlite3` so
+it is easy to back up from the checkout. Solid Cache, Solid Queue, and Solid
+Cable use `storage/runtime/`, which is backed by the Linux-native
+`local_folio_runtime-storage` Docker volume. Keeping these high-write,
+replaceable databases off the macOS bind mount avoids filesystem consistency
+issues when Rails and the worker write concurrently.
+
+When upgrading Solid Cache, Solid Queue, or Solid Cable, run the matching
+database task and inspect the generated schema diff before discarding it:
+
+```sh
+bin/rails db:migrate:cache
+bin/rails db:migrate:queue
+bin/rails db:migrate:cable
+bin/rails db:schema:dump:cache
+bin/rails db:schema:dump:queue
+bin/rails db:schema:dump:cable
+```
+
+Keep legitimate schema changes in the corresponding `db/*_schema.rb` file.
+App-specific changes belong in that database's migration directory (for
+example, `db/queue_migrate/`); do not replace them with a rollback merely to
+make the generated schema look unchanged. Stop Rails and Solid Queue before
+running migrations or resetting a runtime database.
+
 ### Rebuilding a local Solid Queue database
 
 The development queue database is replaceable runtime state. If SQLite reports
 `database disk image is malformed`, stop Rails and Solid Queue, move
-`storage/development_queue.sqlite3` outside the repository as a backup, then run:
+the Docker volume aside or remove only the queue database from it, then run:
 
 ```sh
 bin/setup --skip-server
@@ -192,7 +219,8 @@ bin/setup --skip-server
 Rails recreates the queue database from `db/queue_schema.rb`. Verify it with:
 
 ```sh
-sqlite3 storage/development_queue.sqlite3 'PRAGMA integrity_check;'
+docker compose -f .devcontainer/compose.yaml run --rm rails-app \
+  sqlite3 storage/runtime/development_queue.sqlite3 'PRAGMA integrity_check;'
 ```
 
 The command should print `ok`. Do not use this procedure for

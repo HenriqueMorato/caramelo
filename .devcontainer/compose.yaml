@@ -19,6 +19,8 @@ services:
     - ..:/workspaces/local_folio:cached
     # Keep Linux-native gems separate from the host checkout's bundle.
     - bundle:/workspaces/local_folio/vendor/bundle
+    # Keep disposable SQLite backends off the macOS bind mount.
+    - runtime-storage:/workspaces/local_folio/storage/runtime
 
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
@@ -35,3 +37,4 @@ services:
 
 volumes:
   bundle:
+  runtime-storage:
