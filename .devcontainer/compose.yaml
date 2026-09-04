@@ -29,7 +29,19 @@ services:
     # user: vscode
 
     depends_on:
-    - selenium
+      selenium:
+        condition: service_started
+      runtime-storage-init:
+        condition: service_completed_successfully
+
+  runtime-storage-init:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    user: root
+    command: sh -lc "chown -R vscode:vscode /workspaces/local_folio/storage/runtime"
+    volumes:
+    - runtime-storage:/workspaces/local_folio/storage/runtime
 
   selenium:
     image: selenium/standalone-chromium

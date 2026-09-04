@@ -187,6 +187,8 @@ Cable use `storage/runtime/`, which is backed by the Linux-native
 `local_folio_runtime-storage` Docker volume. Keeping these high-write,
 replaceable databases off the macOS bind mount avoids filesystem consistency
 issues when Rails and the worker write concurrently.
+Compose runs a short-lived initialization service first so the volume is
+writable by the `vscode` user used by the Rails container.
 
 When upgrading Solid Cache, Solid Queue, or Solid Cable, run the matching
 database task and inspect the generated schema diff before discarding it:
