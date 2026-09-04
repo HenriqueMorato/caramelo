@@ -19,21 +19,21 @@ class UserTest < ActiveSupport::TestCase
   test "normalizes and persists supported reporting currencies" do
     user = users(:owner)
 
-    %w[BRL USD EUR].each do |currency|
+    ReportingCurrency::SUPPORTED_CODES.each do |currency|
       user.update!(reporting_currency: " #{currency.downcase} ")
 
       assert_equal currency, user.reload.reporting_currency
     end
   end
 
-  test "rejects missing malformed and non ISO reporting currencies" do
+  test "rejects missing malformed and unlisted reporting currencies" do
     user = users(:owner)
 
-    [ nil, "", "US", "USDD", "ZZZ", "BTC" ].each do |currency|
+    [ nil, "", "US", "USDD", "ZZZ", "BTC", "XAU" ].each do |currency|
       user.reporting_currency = currency
 
       assert_not user.valid?, "Expected #{currency.inspect} to be invalid"
-      assert user.errors.of_kind?(:reporting_currency, :invalid)
+      assert user.errors.of_kind?(:reporting_currency, :inclusion)
     end
   end
 
