@@ -46,9 +46,16 @@ module MarketData
       return result(:throttled) unless token
 
       batch = RefreshStatus::Tracker.enqueue(scope: batch_scope, total_count: 1)
-      handler.call(
+      handler_result = handler.call(
         target:, range:, batch_scope:, batch_run_id: batch.run_id, owner:
       )
+
+      if handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED
+        RefreshStatus::Tracker.advance(batch)
+        release_cooldown(token)
+        return result(handler_result.nil? ? :unsupported : :queued, batch:)
+      end
+
       result(:queued, batch:)
     rescue StandardError => error
       release_cooldown(token)

@@ -42,6 +42,29 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_empty @calls
   end
 
+  test "returns unsupported when a handler cannot enqueue work" do
+    handler = ->(**) { nil }
+
+    result = MarketData::Recovery.call(
+      target: @target, cache: @cache, handlers: { current_price: handler }
+    )
+
+    assert_predicate result, :unsupported?
+    assert_equal "succeeded", RefreshStatus::State.read(result.batch_scope).status
+    assert MarketData::Recovery.available?(target: @target, cache: @cache)
+  end
+
+  test "completes the batch when current-price work is coalesced" do
+    handler = ->(**) { RefreshCurrentMarketPriceJob::COALESCED }
+
+    result = MarketData::Recovery.call(
+      target: @target, cache: @cache, handlers: { current_price: handler }
+    )
+
+    assert_predicate result, :queued?
+    assert_equal "succeeded", RefreshStatus::State.read(result.batch_scope).status
+  end
+
   test "releases cooldown and records batch failure when a handler raises" do
     failure = RuntimeError.new("queue unavailable")
     handler = ->(**) { raise failure }
