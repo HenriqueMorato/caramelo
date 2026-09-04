@@ -4,6 +4,7 @@ FROM ghcr.io/rails/devcontainer/images/ruby:$RUBY_VERSION
 
 ARG CURL_IMPERSONATE_VERSION=2.1.1
 ARG NODE_VERSION=24.19.0
+ARG BUNDLER_VERSION=4.0.19
 ARG TARGETARCH
 
 USER root
@@ -45,6 +46,11 @@ RUN mkdir -p /workspaces/local_folio/vendor/bundle && \
     chown -R vscode:vscode /workspaces/local_folio/vendor
 
 USER vscode
+
+# Match the Bundler version recorded in Gemfile.lock to keep setup deterministic.
+RUN /home/vscode/.local/bin/mise exec ruby@${RUBY_VERSION} -- \
+    env PATH="/home/vscode/.local/bin:/home/vscode/.local/share/mise/shims:${PATH}" \
+    gem install bundler --no-document --version "$BUNDLER_VERSION"
 
 RUN /home/vscode/.local/bin/mise use --global node@${NODE_VERSION}
 
