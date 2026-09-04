@@ -119,4 +119,44 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     refute_predicate report, :current_prices_need_refresh?
   end
+
+  test "builds normalized entries from issues" do
+    issue = MarketData::HealthReport::Issue.new(
+      code: :stale_current_price,
+      severity: :warning,
+      subject: instruments(:voo_arcx),
+      details: "stale"
+    )
+
+    result = MarketData::HealthReport::Result.new(checked_at: Time.current, issues: [ issue ])
+    entry = result.entries.first
+
+    assert_equal :current_price, entry.target.kind
+    assert_equal :stale, entry.status
+    assert_equal [ :retry ], entry.actions
+    assert_predicate entry, :actionable?
+  end
+
+  test "builds issues from normalized entries" do
+    entry = MarketData::HealthReport::Entry.new(
+      code: :portfolio_performance,
+      target: MarketData::Target.new(kind: :portfolio_performance),
+      subject: "Portfolio performance",
+      status: :missing,
+      severity: :error,
+      label: "Portfolio performance",
+      description: "history is missing",
+      observed_on: nil,
+      fetched_at: nil,
+      covered_range: nil,
+      missing_range: nil,
+      actions: [ :retry ]
+    )
+
+    result = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [ entry ])
+
+    assert_equal :portfolio_performance, result.issues.first.code
+    assert_equal "Portfolio performance", result.issues.first.subject
+    assert_equal "history is missing", result.issues.first.details
+  end
 end

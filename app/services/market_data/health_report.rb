@@ -8,12 +8,79 @@ module MarketData
         subject.to_s
       end
     end
-    Result = Data.define(:checked_at, :issues) do
+
+    Entry = Data.define(
+      :code, :target, :subject, :status, :severity, :label, :description,
+      :observed_on, :fetched_at, :covered_range, :missing_range, :actions
+    ) do
+      def healthy? = status == :healthy
+      def updating? = status == :updating
+      def interrupted? = status == :interrupted
+      def actionable? = actions.any?
+    end
+
+    class Result
+      attr_reader :checked_at, :issues, :entries
+
+      def initialize(checked_at:, issues: nil, entries: nil)
+        @checked_at = checked_at
+        @entries = entries || issues.map { |issue| entry_for(issue) }
+        @issues = issues || @entries.filter_map { |entry| issue_for(entry) }
+      end
+
       def healthy? = issues.empty?
       def errors = issues.select { |issue| issue.severity == :error }
       def warnings = issues.select { |issue| issue.severity == :warning }
+
       def current_prices_need_refresh?
-        issues.any? { |issue| %i[missing_current_price stale_current_price].include?(issue.code) }
+        entries.any? do |entry|
+          entry.target.kind == :current_price && %i[missing stale].include?(entry.status)
+        end
+      end
+
+      private
+
+      def entry_for(issue)
+        target = target_for(issue)
+        status = issue.code.to_s.start_with?("stale_") ? :stale : :missing
+
+        Entry.new(
+          code: issue.code,
+          target:,
+          subject: issue.subject,
+          status:,
+          severity: issue.severity,
+          label: issue.subject_label,
+          description: issue.details,
+          observed_on: nil,
+          fetched_at: nil,
+          covered_range: nil,
+          missing_range: nil,
+          actions: [ :retry ]
+        )
+      end
+
+      def issue_for(entry)
+        return if entry.healthy?
+
+        Issue.new(
+          code: entry.code,
+          severity: entry.severity,
+          subject: entry.subject,
+          details: entry.description
+        )
+      end
+
+      def target_for(issue)
+        kind = case issue.code
+        when :missing_current_price, :stale_current_price then :current_price
+        when :missing_daily_close then :daily_closing_prices
+        when :missing_exchange_rate then :historical_exchange_rates
+        when :missing_benchmark_data then :benchmark_observations
+        else :portfolio_performance
+        end
+
+        Target.new(kind:, record_id: issue.subject.respond_to?(:id) ? issue.subject.id : nil)
       end
     end
 
@@ -28,8 +95,9 @@ module MarketData
     end
 
     def call
-      issues = instrument_issues + currency_issues + benchmark_issues
-      Result.new(checked_at: Time.current, issues: issues.sort_by { |issue| issue.severity == :error ? 0 : 1 })
+      entries = (instrument_entries + currency_entries + benchmark_entries)
+        .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
+      Result.new(checked_at: Time.current, entries: entries)
     end
 
     private
@@ -40,45 +108,102 @@ module MarketData
       @instruments ||= owner.trades.includes(:instrument).map(&:instrument).uniq
     end
 
-    def instrument_issues
+    def instrument_entries
       instruments.flat_map do |instrument|
-        issues = []
-        lookup = current_market_price_service.read(instrument:)
-        if lookup.nil? || lookup.missing?
-          issues << Issue.new(code: :missing_current_price, severity: :error, subject: instrument,
-            details: "#{instrument.ticker} has no current market price available.")
-        elsif lookup.stale?
-          issues << Issue.new(code: :stale_current_price, severity: :warning, subject: instrument,
-            details: "#{instrument.ticker} has a stale current market price; refresh it to update valuation.")
-        end
-
-        unless instrument.daily_closing_prices.where(trading_date: ..today).exists?
-          issues << Issue.new(code: :missing_daily_close, severity: :warning, subject: instrument,
-            details: "#{instrument.ticker} has no historical closing price stored for the portfolio period.")
-        end
-        issues
+        [ current_price_entry(instrument), daily_close_entry(instrument) ]
       end
     end
 
-    def currency_issues
+    def current_price_entry(instrument)
+      lookup = current_market_price_service.read(instrument:)
+      if lookup.nil? || lookup.missing?
+        entry_for(
+          code: :missing_current_price, status: :missing, severity: :error, subject: instrument,
+          description: "#{instrument.ticker} has no current market price available.",
+          target: Target.new(kind: :current_price, record_id: instrument.id)
+        )
+      elsif lookup.stale?
+        entry_for(
+          code: :stale_current_price, status: :stale, severity: :warning, subject: instrument,
+          description: "#{instrument.ticker} has a stale current market price; refresh it to update valuation.",
+          target: Target.new(kind: :current_price, record_id: instrument.id)
+        )
+      else
+        entry_for(
+          code: :current_price, status: :healthy, severity: nil, subject: instrument,
+          description: "#{instrument.ticker} has a current market price.",
+          target: Target.new(kind: :current_price, record_id: instrument.id), actions: []
+        )
+      end
+    end
+
+    def daily_close_entry(instrument)
+      present = instrument.daily_closing_prices.where(trading_date: ..today).exists?
+      entry_for(
+        code: present ? :daily_close : :missing_daily_close,
+        status: present ? :healthy : :missing,
+        severity: present ? nil : :warning,
+        subject: instrument,
+        description: present ? "#{instrument.ticker} has historical closing prices." :
+          "#{instrument.ticker} has no historical closing price stored for the portfolio period.",
+        target: Target.new(kind: :daily_closing_prices, record_id: instrument.id),
+        actions: present ? [] : [ :retry ]
+      )
+    end
+
+    def currency_entries
       currencies = owner.trades.distinct.pluck(:currency)
       reporting_currency = owner.reporting_currency
-      currencies.filter_map do |currency|
-        next if currency == reporting_currency
-        next if HistoricalExchangeRate.where(base_currency: currency, quote_currency: reporting_currency).exists?
+      currencies.map do |currency|
+        present = currency == reporting_currency || HistoricalExchangeRate.where(
+          base_currency: currency, quote_currency: reporting_currency
+        ).exists?
 
-        Issue.new(code: :missing_exchange_rate, severity: :warning, subject: currency,
-          details: "No historical #{currency}/#{reporting_currency} rates are stored for portfolio performance.")
+        entry_for(
+          code: present ? :exchange_rate : :missing_exchange_rate,
+          status: present ? :healthy : :missing,
+          severity: present ? nil : :warning,
+          subject: currency,
+          description: present ? "Historical #{currency}/#{reporting_currency} rates are available." :
+            "No historical #{currency}/#{reporting_currency} rates are stored for portfolio performance.",
+          target: Target.new(
+            kind: :historical_exchange_rates,
+            base_currency: currency,
+            quote_currency: reporting_currency
+          ),
+          actions: present ? [] : [ :retry ]
+        )
       end
     end
 
-    def benchmark_issues
-      MarketBenchmark.find_each.filter_map do |benchmark|
-        next if benchmark.observations.where(observed_on: ..today).exists?
-
-        Issue.new(code: :missing_benchmark_data, severity: :warning, subject: benchmark,
-          details: "#{benchmark.name} (#{benchmark.identifier}) has no stored observations.")
+    def benchmark_entries
+      MarketBenchmark.find_each.map do |benchmark|
+        present = benchmark.observations.where(observed_on: ..today).exists?
+        entry_for(
+          code: present ? :benchmark_data : :missing_benchmark_data,
+          status: present ? :healthy : :missing,
+          severity: present ? nil : :warning,
+          subject: benchmark,
+          description: present ? "#{benchmark.name} has stored observations." :
+            "#{benchmark.name} (#{benchmark.identifier}) has no stored observations.",
+          target: Target.new(kind: :benchmark_observations, record_id: benchmark.id),
+          actions: present ? [] : [ :retry ]
+        )
       end
+    end
+
+    def entry_for(code:, target:, subject:, status:, severity:, description:, actions: [ :retry ])
+      Entry.new(
+        code:, target:, subject:, status:, severity:, label: subject_label(subject), description:,
+        observed_on: nil, fetched_at: nil, covered_range: nil, missing_range: nil, actions:
+      )
+    end
+
+    def subject_label(subject)
+      return "#{subject.ticker} · #{subject.name}" if subject.respond_to?(:ticker)
+      return "#{subject.name} (#{subject.identifier})" if subject.respond_to?(:identifier)
+
+      subject.to_s
     end
   end
 end
