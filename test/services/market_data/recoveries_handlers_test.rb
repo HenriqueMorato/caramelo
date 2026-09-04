@@ -1,0 +1,109 @@
+require "test_helper"
+
+class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
+  Batch = Struct.new(:scope, :run_id)
+
+  setup do
+    Rails.cache.clear
+    @owner = users(:owner)
+    @instrument = instruments(:voo_arcx)
+    @batch = Batch.new("batch", "run")
+  end
+
+  test "queues daily closing price recovery with default range" do
+    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id)
+    result, enqueued = call_handler(MarketData::Recoveries::DailyClosingPrices, RecoverDailyClosingPricesJob, target:)
+
+    assert result
+    assert_equal Date.current.prev_day, enqueued.fetch(:from)
+    assert_equal Date.current.prev_day, enqueued.fetch(:to)
+  end
+
+  test "queues daily closing price recovery with explicit range" do
+    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id)
+    range = Date.new(2026, 8, 1)..Date.new(2026, 8, 3)
+    _, enqueued = call_handler(MarketData::Recoveries::DailyClosingPrices, RecoverDailyClosingPricesJob, target:, range:)
+
+    assert_equal range.begin, enqueued.fetch(:from)
+    assert_equal range.end, enqueued.fetch(:to)
+  end
+
+  test "raises when daily closing price enqueue fails" do
+    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id)
+    assert_raises(ActiveJob::EnqueueError) do
+      call_handler(MarketData::Recoveries::DailyClosingPrices, RecoverDailyClosingPricesJob, target:, result: nil)
+    end
+  end
+
+  test "queues historical exchange-rate recovery" do
+    target = MarketData::Target.new(kind: :historical_exchange_rates, base_currency: "USD", quote_currency: "BRL")
+    _, enqueued = call_handler(MarketData::Recoveries::HistoricalExchangeRates, RecoverHistoricalExchangeRatesJob,
+      target:, range: Date.new(2026, 8, 1)..Date.new(2026, 8, 3))
+
+    assert_equal "USD", enqueued.fetch(:base_currency)
+    assert_equal Date.new(2026, 8, 1), enqueued.fetch(:from)
+  end
+
+  test "raises when historical exchange-rate enqueue fails" do
+    target = MarketData::Target.new(kind: :historical_exchange_rates, base_currency: "USD", quote_currency: "BRL")
+    assert_raises(ActiveJob::EnqueueError) do
+      call_handler(MarketData::Recoveries::HistoricalExchangeRates, RecoverHistoricalExchangeRatesJob, target:, result: nil)
+    end
+  end
+
+  test "queues benchmark observation recovery" do
+    benchmark = MarketBenchmark.create!(
+      identifier: "HANDLER", name: "Handler benchmark", kind: :price, currency: "USD",
+      provider: "yahoo_finance", provider_identifier: "^HANDLER"
+    )
+    target = MarketData::Target.new(kind: :benchmark_observations, record_id: benchmark.id)
+    _, enqueued = call_handler(MarketData::Recoveries::BenchmarkObservations, RecoverBenchmarkObservationsJob,
+      target:, range: Date.new(2026, 8, 1)..Date.new(2026, 8, 3))
+
+    assert_equal benchmark.id, enqueued.fetch(:benchmark_id)
+    assert_equal Date.new(2026, 8, 3), enqueued.fetch(:to)
+  end
+
+  test "raises when benchmark observation enqueue fails" do
+    target = MarketData::Target.new(kind: :benchmark_observations, record_id: 1)
+    assert_raises(ActiveJob::EnqueueError) do
+      call_handler(MarketData::Recoveries::BenchmarkObservations, RecoverBenchmarkObservationsJob, target:, result: nil)
+    end
+  end
+
+  test "queues a current exchange-rate recovery" do
+    target = MarketData::Target.new(kind: :current_exchange_rate, base_currency: "USD", quote_currency: "BRL")
+    _, enqueued = call_handler(MarketData::Recoveries::CurrentExchangeRate, RecoverCurrentExchangeRateJob, target:)
+
+    assert_equal "USD", enqueued.fetch(:base_currency)
+    assert_equal "BRL", enqueued.fetch(:quote_currency)
+  end
+
+  test "raises when current exchange-rate enqueue fails" do
+    target = MarketData::Target.new(kind: :current_exchange_rate, base_currency: "USD", quote_currency: "BRL")
+    assert_raises(ActiveJob::EnqueueError) do
+      call_handler(MarketData::Recoveries::CurrentExchangeRate, RecoverCurrentExchangeRateJob, target:, result: nil)
+    end
+  end
+
+  private
+
+  def call_handler(service, job_class, target:, range: nil, result: :job)
+    enqueued = nil
+    value = nil
+    with_stubbed_method(RefreshStatus::Tracker, :enqueue, ->(**) { @batch }) do
+      with_stubbed_method(job_class, :perform_later, ->(**arguments) { enqueued = arguments; result }) do
+        value = service.call(target:, range:, batch_scope: "outer", batch_run_id: "outer-run", owner: @owner)
+      end
+    end
+    [ value, enqueued ]
+  end
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
+    yield
+  ensure
+    object.define_singleton_method(method_name) { |*args, **kwargs| original.call(*args, **kwargs) }
+  end
+end
