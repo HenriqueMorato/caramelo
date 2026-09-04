@@ -113,6 +113,7 @@ class SettingsTest < ApplicationSystemTestCase
     visit root_path
     within("aside") { click_on "Settings" }
     choose_currency "EUR"
+    assert_select_value "EUR"
 
     page.go_back
     assert_current_path root_path
