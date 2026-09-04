@@ -38,6 +38,21 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :too_many_requests
   end
 
+  test "returns conflict when quote reset is already active" do
+    result = MarketData::Reset::Result.new(
+      status: :busy,
+      target: MarketData::Target.new(kind: :current_price, record_id: instruments(:voo_arcx).id)
+    )
+
+    with_stubbed_method(MarketData::Reset, :call, ->(**) { result }) do
+      delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
+        target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+      }
+    end
+
+    assert_response :conflict
+  end
+
   test "rejects malformed or out-of-scope targets" do
     post market_data_recoveries_path, params: {
       target: { kind: "current_price", record_id: instruments(:petr4_bvmf).id }
@@ -56,7 +71,7 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  test "clears a replaceable quote cache" do
+  test "queues a replacement for a replaceable quote" do
     result = MarketData::Reset::Result.new(
       status: :queued,
       target: MarketData::Target.new(kind: :current_price, record_id: instruments(:voo_arcx).id)
