@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_03_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_04_152000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -99,6 +99,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_03_120000) do
     t.index ["identifier"], name: "index_market_benchmarks_on_identifier", unique: true
   end
 
+  create_table "market_data_refreshes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "error_class"
+    t.string "error_message"
+    t.datetime "finished_at"
+    t.integer "processed_count", default: 0, null: false
+    t.string "scope", null: false
+    t.datetime "started_at"
+    t.string "status", default: "queued", null: false
+    t.integer "total_count"
+    t.datetime "updated_at", null: false
+    t.index ["scope"], name: "index_market_data_refreshes_on_scope", unique: true
+    t.index ["status"], name: "index_market_data_refreshes_on_status"
+  end
+
   create_table "portfolio_performance_materializations", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "reporting_currency", limit: 3, null: false
@@ -132,6 +147,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_03_120000) do
     t.check_constraint "(status = 'missing' AND market_value_amount IS NULL AND net_cash_flow_amount IS NULL) OR (status IN ('available', 'empty') AND market_value_amount IS NOT NULL AND net_cash_flow_amount IS NOT NULL)", name: "portfolio_performance_observations_amounts_match_status"
     t.check_constraint "source_generation >= 0", name: "portfolio_performance_observations_source_generation"
     t.check_constraint "status IN ('available', 'empty', 'missing')", name: "portfolio_performance_observations_status"
+  end
+
+  create_table "position_materializations", force: :cascade do |t|
+    t.decimal "average_unit_cost", precision: 50, scale: 24, default: "0.0", null: false
+    t.datetime "calculated_at"
+    t.integer "calculated_generation"
+    t.decimal "cost_basis_amount", precision: 50, scale: 24, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.string "error_class"
+    t.text "error_message"
+    t.integer "instrument_id", null: false
+    t.decimal "quantity", precision: 50, scale: 24, default: "0.0", null: false
+    t.decimal "realized_gain_amount", precision: 50, scale: 24, default: "0.0", null: false
+    t.integer "source_generation", default: 0, null: false
+    t.integer "source_trade_id"
+    t.datetime "source_trade_updated_at"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["instrument_id"], name: "index_position_materializations_on_instrument_id"
+    t.index ["user_id", "instrument_id"], name: "index_position_materializations_on_user_and_instrument", unique: true
+    t.index ["user_id"], name: "index_position_materializations_on_user_id"
+    t.check_constraint "source_generation >= 0", name: "position_materializations_source_generation"
+    t.check_constraint "status IN ('pending', 'refreshing', 'complete', 'failed')", name: "position_materializations_status"
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -182,6 +221,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_03_120000) do
   add_foreign_key "market_benchmark_observations", "market_benchmarks"
   add_foreign_key "portfolio_performance_materializations", "users"
   add_foreign_key "portfolio_performance_observations", "users"
+  add_foreign_key "position_materializations", "instruments"
+  add_foreign_key "position_materializations", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "trades", "institutions"
   add_foreign_key "trades", "instruments"

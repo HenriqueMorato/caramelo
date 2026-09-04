@@ -30,7 +30,7 @@ class PositionTest < ActiveSupport::TestCase
   test "loads overview trades and instruments in a bounded number of queries" do
     create_trade(instrument: create_instrument(ticker: "MORE"))
 
-    assert_queries_count(3) { Position.overview }
+    assert_queries_count(4) { Position.overview }
   end
 
   test "keeps invalid instruments visible in the overview without hiding valid positions" do
