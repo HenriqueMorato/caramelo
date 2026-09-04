@@ -30,6 +30,8 @@ module MarketData
 
       from = Date.iso8601(params.require(:from))
       to = Date.iso8601(params.require(:to))
+      raise ArgumentError, "recovery range must be chronological and in the past" unless from <= to && to <= Date.current
+
       from..to
     end
   end
