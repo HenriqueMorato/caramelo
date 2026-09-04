@@ -68,7 +68,7 @@ module MarketData
     attr_reader :target, :range, :owner, :cache, :handlers
 
     def batch_scope
-      @batch_scope ||= "#{BATCH_SCOPE_PREFIX}:#{owner.id}"
+      @batch_scope ||= "#{BATCH_SCOPE_PREFIX}:#{owner.id}:#{SecureRandom.uuid}"
     end
 
     def result(status, batch: nil)

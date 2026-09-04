@@ -76,7 +76,7 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     end
 
     assert MarketData::Recovery.available?(target: @target, cache: @cache)
-    state = RefreshStatus::State.read("market_data_recovery:#{User.owner.id}")
+    state = RefreshStatus::State.latest_failed
     assert_predicate state, :failed?
     assert_equal "queue unavailable", state.error_message
   end
