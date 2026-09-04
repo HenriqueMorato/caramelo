@@ -89,6 +89,10 @@ en:
       Entry count:
         one: 1 source checked
         other: "%{count} sources checked"
+      Filter label: Show
+      Filter all: All
+      Filter attention: Needs attention
+      Filter healthy: Healthy
       Intro: A read-only check of the market data needed by your portfolio.
       Issue list: Data health issues
       Issues found:
