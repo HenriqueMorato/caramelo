@@ -50,6 +50,18 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_predicate MarketData::Reset.call(target: @target, cache: @cache), :busy?
   end
 
+  test "reports unsupported when replacement enqueue returns nil" do
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue) { |**| nil }
+
+    result = nil
+    with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+      result = MarketData::Reset.call(target: @target, cache: @cache)
+    end
+
+    assert_predicate result, :unsupported?
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

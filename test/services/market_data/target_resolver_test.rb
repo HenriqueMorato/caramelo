@@ -60,4 +60,44 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
 
     assert_nil target.provider
   end
+
+  test "resolves a benchmark target" do
+    benchmark = MarketBenchmark.create!(
+      identifier: "RESOLVE", name: "Resolver benchmark", kind: :price, currency: "USD",
+      provider: "yahoo_finance", provider_identifier: "^RESOLVE"
+    )
+
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "benchmark_observations", record_id: benchmark.id }, owner: users(:owner)
+    )
+
+    assert_equal benchmark.id, target.record_id
+  end
+
+  test "allows the owner reporting currency target" do
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "portfolio_performance", record_id: users(:owner).id }, owner: users(:owner)
+    )
+
+    assert_equal :portfolio_performance, target.kind
+  end
+
+  test "ignores an unrecognized target kind from a test double" do
+    fake_target = Struct.new(:kind).new(:unknown)
+    with_stubbed_method(MarketData::Target, :new, ->(**) { fake_target }) do
+      assert_equal fake_target, MarketData::TargetResolver.call(
+        attributes: { kind: "unknown" }, owner: users(:owner)
+      )
+    end
+  end
+
+  private
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
+    yield
+  ensure
+    object.define_singleton_method(method_name) { |*args, **kwargs| original.call(*args, **kwargs) }
+  end
 end

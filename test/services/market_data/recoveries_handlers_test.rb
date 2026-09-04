@@ -86,6 +86,53 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     end
   end
 
+  test "enqueues current price work without creating a target status" do
+    target = MarketData::Target.new(kind: :current_price, record_id: @instrument.id)
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue) { |**| :job }
+
+    result = nil
+    with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+      result = MarketData::Recoveries::CurrentPrice.call(
+        target:, range: nil, batch_scope: "outer", batch_run_id: "outer-run", owner: @owner
+      )
+    end
+
+    assert_equal :job, result
+  end
+
+  test "advances an active target when current price work is coalesced" do
+    target = MarketData::Target.new(kind: :current_price, record_id: @instrument.id)
+    state = RefreshStatus::Tracker.enqueue(scope: target.scope, total_count: 1)
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue) { |**| RefreshCurrentMarketPriceJob::COALESCED }
+    advanced = nil
+
+    with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+      with_stubbed_method(RefreshStatus::Tracker, :advance, ->(value) { advanced = value }) do
+        MarketData::Recoveries::CurrentPrice.call(
+          target:, range: nil, batch_scope: "outer", batch_run_id: "outer-run", owner: @owner
+        )
+      end
+    end
+
+    assert_equal state.run_id, advanced.run_id
+  end
+
+  test "does not advance a missing current price target state" do
+    target = MarketData::Target.new(kind: :current_price, record_id: @instrument.id)
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue) { |**| nil }
+
+    with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+      MarketData::Recoveries::CurrentPrice.call(
+        target:, range: nil, batch_scope: "outer", batch_run_id: "outer-run", owner: @owner
+      )
+    end
+
+    assert_nil RefreshStatus::State.read(target.scope)
+  end
+
   private
 
   def call_handler(service, job_class, target:, range: nil, result: :job)

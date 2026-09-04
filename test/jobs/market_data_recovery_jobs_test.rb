@@ -93,6 +93,24 @@ class MarketDataRecoveryJobsTest < ActiveJob::TestCase
     assert_equal Date.new(2026, 8, 1), calls.sole.fetch(:from)
   end
 
+  test "fails unsupported benchmark providers" do
+    benchmark = MarketBenchmark.create!(identifier: "UNSUPPORTED", name: "Unsupported", kind: :price,
+      currency: "USD", provider: "other", provider_identifier: "^UNSUPPORTED")
+    target = RefreshStatus::Tracker.enqueue(scope: "unsupported_benchmark", total_count: 1)
+    importer = Object.new
+    importer.define_singleton_method(:supports?) { |benchmark:| false }
+
+    with_stubbed_method(MarketBenchmark::Importer, :default, -> { importer }) do
+      RecoverBenchmarkObservationsJob.perform_now(
+        benchmark_id: benchmark.id, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 2),
+        target_scope: target.scope, target_run_id: target.run_id, batch_scope: @batch.scope,
+        batch_run_id: @batch.run_id
+      )
+    end
+
+    assert_predicate RefreshStatus::State.read(target.scope), :failed?
+  end
+
   test "records a failed target and batch when recovery raises" do
     failure = RuntimeError.new("provider unavailable")
     calls = []

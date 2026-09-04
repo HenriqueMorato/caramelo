@@ -183,6 +183,23 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_predicate entry, :actionable?
   end
 
+  test "maps each recoverable issue to its target kind" do
+    subjects = {
+      missing_daily_close: "VOO",
+      missing_exchange_rate: "USD",
+      missing_benchmark_data: "S&P",
+      unknown_issue: "Portfolio"
+    }
+    issues = subjects.map do |code, subject|
+      MarketData::HealthReport::Issue.new(code:, severity: :warning, subject:, details: "missing")
+    end
+
+    result = MarketData::HealthReport::Result.new(checked_at: Time.current, issues:)
+
+    assert_equal %i[daily_closing_prices historical_exchange_rates benchmark_observations portfolio_performance],
+      result.entries.map { |entry| entry.target.kind }
+  end
+
   test "builds issues from normalized entries" do
     entry = MarketData::HealthReport::Entry.new(
       code: :portfolio_performance,

@@ -94,6 +94,29 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     refute_includes response.body, "missing"
   end
 
+  test "filters health entries needing attention" do
+    healthy = MarketData::HealthReport::Entry.new(
+      code: :current_price, target: MarketData::Target.new(kind: :current_price, record_id: 1),
+      subject: "AAPL", status: :healthy, severity: nil, label: "AAPL", description: "ready",
+      observed_on: nil, fetched_at: nil, covered_range: nil, missing_range: nil, actions: []
+    )
+    missing = healthy.with(status: :missing, code: :missing_current_price, severity: :error,
+      description: "missing", actions: [ :retry ])
+    report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [ healthy, missing ])
+
+    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { }) do
+        with_stubbed_method(MarketPrice::ManualRefresh, :available?, -> { true }) do
+          get market_data_health_url(status: "attention")
+        end
+      end
+    end
+
+    assert_response :success
+    assert_includes response.body, "missing"
+    refute_includes response.body, "ready"
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

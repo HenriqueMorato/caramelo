@@ -80,4 +80,35 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_predicate state, :failed?
     assert_equal "queue unavailable", state.error_message
   end
+
+  test "raises when batch creation fails before a batch exists" do
+    failure = RuntimeError.new("batch unavailable")
+    cache = ActiveSupport::Cache::MemoryStore.new
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(RefreshStatus::Tracker, :enqueue, ->(**) { raise failure }) do
+        MarketData::Recovery.call(target: @target, cache:, handlers: { current_price: @handler })
+      end
+    end
+  end
+
+  test "does not delete a cooldown owned by another request" do
+    cache = ActiveSupport::Cache::MemoryStore.new
+    handler = ->(**) { raise "queue unavailable" }
+    cache.define_singleton_method(:read) { |_key| "another-token" }
+
+    assert_raises(RuntimeError) do
+      MarketData::Recovery.call(target: @target, cache:, handlers: { current_price: handler })
+    end
+  end
+
+  private
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
+    yield
+  ensure
+    object.define_singleton_method(method_name) { |*args, **kwargs| original.call(*args, **kwargs) }
+  end
 end
