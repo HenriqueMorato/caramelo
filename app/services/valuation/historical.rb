@@ -12,7 +12,7 @@ module Valuation
 
     def self.for(position:, valuation_date:, exchange_rate_service: HistoricalExchangeRate::Service.new,
       daily_closing_price_provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
-      reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
+      reporting_currency: User.owner.reporting_currency)
       new(
         position:, valuation_date:, exchange_rate_service:, daily_closing_price_provider:,
         reporting_currency:

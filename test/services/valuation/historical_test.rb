@@ -21,6 +21,18 @@ class Valuation::HistoricalTest < ActiveSupport::TestCase
     assert_equal Money.from_amount(result.market_value_amount, "BRL"), result.market_value
   end
 
+  test "uses the stored owner currency for historical valuation" do
+    users(:owner).update!(reporting_currency: "USD")
+    instrument = create_instrument(currency: "USD")
+    create_trade(instrument:, quantity: "1.25")
+    create_daily_close(instrument:, close_price: "12")
+
+    result = valuation_for(instrument:)
+
+    assert_predicate result, :same_currency?
+    assert_equal Money.from_amount(15, "USD"), result.market_value
+  end
+
   test "converts a foreign position with the persisted rate for the same date" do
     instrument = create_instrument(currency: "USD")
     create_trade(instrument:, quantity: "1.23456789")

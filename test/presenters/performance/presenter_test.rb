@@ -12,6 +12,7 @@ class Performance::PresenterTest < ActiveSupport::TestCase
   PerformanceState = Struct.new(:position_results, :empty, :missing, :valuation_date) do
     def empty? = empty
     def missing? = missing
+    def market_value = Money.from_amount(position_results.first.market_value_amount, "BRL")
   end
 
   test "centralizes formatted gains, return, and trend semantics" do

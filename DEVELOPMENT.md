@@ -344,6 +344,12 @@ store other supported currencies such as USD. Never use floating-point columns
 for financial values, and never imply that equal subunits in different
 currencies have been converted.
 
+Portfolio reporting uses `User.owner.reporting_currency`, not Money's global
+default. Read models accepting a `user:` or `owner:` default to that user's
+preference; explicit `reporting_currency:` arguments remain useful for pinned
+background calculations. FX batches snapshot the preference at execution start
+so a later change cannot mix target currencies within one batch.
+
 ## Position calculation conventions
 
 Positions are derived on read from the configured owner's trades; there is no

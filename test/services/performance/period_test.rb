@@ -87,14 +87,14 @@ class Performance::PeriodTest < ActiveSupport::TestCase
   private
 
   StubPortfolio = Data.define(:valuations) do
-    def for(valuation_date:)
+    def for(valuation_date:, owner:)
       valuations.fetch(valuation_date)
     end
   end
 
   ConfiguredPortfolio = Data.define(:exchange_rate_service, :daily_closing_price_provider) do
-    def for(valuation_date:)
-      Performance::Portfolio.for(valuation_date:, exchange_rate_service:, daily_closing_price_provider:)
+    def for(valuation_date:, owner:)
+      Performance::Portfolio.for(valuation_date:, owner:, exchange_rate_service:, daily_closing_price_provider:)
     end
   end
 

@@ -34,7 +34,7 @@ module Performance
     end
 
     def self.for(from:, to:, user: User.owner, store: nil, refresher: SeriesRefresh,
-      materialization: nil, reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
+      materialization: nil, reporting_currency: user.reporting_currency)
       store ||= ObservationStore.new(user:, reporting_currency:)
       materialization ||= PortfolioPerformanceMaterialization.for(user:, reporting_currency:)
       new(from:, to:, user:, store:, refresher:, materialization:).calculate

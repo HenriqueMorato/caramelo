@@ -8,9 +8,11 @@ module Dashboard
       position_results = Position.overview(owner:)
       new(
         owner:,
-        positions: position_results.map { |position_result| Position::Presenter.for(position_result:) },
+        positions: position_results.map do |position_result|
+          Position::Presenter.for(position_result:, reporting_currency: owner.reporting_currency)
+        end,
         recent_trades: owner.trades.includes(:instrument).reverse_chronological.limit(2),
-        performance: Performance::Period.for(from: performance_start(owner, today), to: today)
+        performance: Performance::Period.for(from: performance_start(owner, today), to: today, owner:)
       )
     end
 
@@ -136,7 +138,7 @@ module Dashboard
     attr_reader :owner
 
     def reporting_currency
-      Rails.configuration.x.local_folio.reporting_currency
+      owner.reporting_currency
     end
 
     def available_positions

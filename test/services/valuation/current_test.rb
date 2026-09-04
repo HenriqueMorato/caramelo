@@ -1,6 +1,36 @@
 require "test_helper"
 
 class Valuation::CurrentTest < ActiveSupport::TestCase
+  test "uses the owner preference and skips FX when it matches the instrument" do
+    users(:owner).update!(reporting_currency: "USD")
+    instrument = instruments(:voo_arcx)
+    position = Position.for(instrument:)
+    market_price = market_price_presenter(instrument:, unit_price: "100")
+    exchange_rate_service = FakeExchangeRateService.new(lookup: rate_lookup(rate: "5"))
+
+    result = Valuation::Current.for(position:, market_price:, exchange_rate_service:)
+
+    assert_equal Money.from_amount(250, "USD"), result.market_value
+    assert_predicate result, :same_currency?
+    assert_empty exchange_rate_service.requests
+  end
+
+  test "requests the selected currency and preserves missing FX instead of relabeling a value" do
+    users(:owner).update!(reporting_currency: "EUR")
+    instrument = instruments(:voo_arcx)
+    position = Position.for(instrument:)
+    market_price = market_price_presenter(instrument:, unit_price: "100")
+    exchange_rate_service = FakeExchangeRateService.new(
+      lookup: ExchangeRateCache::Lookup.new(exchange_rate: nil, status: :missing)
+    )
+
+    result = Valuation::Current.for(position:, market_price:, exchange_rate_service:)
+
+    assert_equal [ [ "USD", "EUR" ] ], exchange_rate_service.requests
+    assert_predicate result, :missing?
+    assert_nil result.market_value
+  end
+
   test "converts a foreign market value into the reporting currency" do
     instrument = instruments(:voo_arcx)
     position = Position.for(instrument:)

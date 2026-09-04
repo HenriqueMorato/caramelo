@@ -91,7 +91,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   end
 
   def refresh_exchange_rate(instrument:, force:)
-    reporting_currency = Rails.configuration.x.local_folio.reporting_currency
+    reporting_currency = User.owner.reporting_currency
     return if instrument.currency == reporting_currency
 
     exchange_rate_service.refresh(

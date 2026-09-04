@@ -94,7 +94,7 @@ module Performance
     end
 
     def reporting_currency
-      Rails.configuration.x.local_folio.reporting_currency
+      performance.market_value.currency
     end
   end
 end

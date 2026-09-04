@@ -57,7 +57,7 @@ module Performance
 
     def self.for(valuation_date:, owner: User.owner, instrument: nil, trades: nil, exchange_rate_service: HistoricalExchangeRate::Service.new,
       daily_closing_price_provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
-      reporting_currency: Rails.configuration.x.local_folio.reporting_currency)
+      reporting_currency: owner.reporting_currency)
       new(
         valuation_date:, owner:, instrument:, trades:, exchange_rate_service:, daily_closing_price_provider:,
         reporting_currency:

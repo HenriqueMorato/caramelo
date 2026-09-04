@@ -4,6 +4,16 @@
 historical date. `Performance::Period.for(from:, to:)` compares two such
 valuations and produces the report shown at `/performance`.
 
+Calculations default to the owner's persisted `reporting_currency` (initially
+BRL). An explicit `owner:` keeps another owner's period and valuations scoped
+together. Changing the preference does not convert or rewrite stored trades,
+instrument currencies, closing prices, or FX history. Missing rates for the
+selected currency remain unavailable rather than falling back to BRL values.
+
+Presenters format the currency of the calculated result, not a newly read
+preference. Derived chart observations and refresh leases are isolated by owner
+and currency; an already queued rebuild keeps its original currency.
+
 Period boundaries use `Date.current` in the application's configured
 `America/Sao_Paulo` timezone. Provider observations retain their own persisted
 market dates; LocalFolio does not rewrite them to manufacture a local close.

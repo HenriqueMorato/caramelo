@@ -2,6 +2,8 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
   queue_as :market_prices
 
   def perform(rate_date: nil)
+    # Snapshot once per execution, rather than changing pairs midway through a batch.
+    @reporting_currency = User.owner.reporting_currency
     rate_date ||= TradingCalendar.previous_business_day
 
     currencies = traded_currencies
@@ -38,9 +40,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
     @throttle ||= MarketData::YahooFinance::RequestThrottle.new
   end
 
-  def reporting_currency
-    Rails.configuration.x.local_folio.reporting_currency
-  end
+  attr_reader :reporting_currency
 
   def traded_currencies
     Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
