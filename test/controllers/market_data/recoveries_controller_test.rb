@@ -46,6 +46,16 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "rejects a future or reversed recovery range" do
+    post market_data_recoveries_path, params: {
+      from: Date.current.tomorrow.iso8601,
+      to: Date.current.iso8601,
+      target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+    }
+
+    assert_response :unprocessable_entity
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)
