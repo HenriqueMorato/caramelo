@@ -62,7 +62,7 @@ class PositionMaterializationTest < ActiveJob::TestCase
   test "reassignment enqueues refreshes for both source and destination" do
     other_instrument = Instrument.create!(ticker: "OTHER", exchange: "BVMF",
       name: "Other BRL Instrument", currency: "BRL")
-    assert_enqueued_jobs 4, only: RefreshPositionMaterializationJob do
+    assert_enqueued_jobs 3, only: RefreshPositionMaterializationJob do
       trade = @user.trades.create!(instrument: @instrument, side: :buy, traded_on: Date.current,
         quantity: 1, unit_price: 10, currency: @instrument.currency)
       trade.update!(instrument: other_instrument)

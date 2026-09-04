@@ -77,17 +77,13 @@ class Trade < ApplicationRecord
 
   def position_materialization_targets
     current = [ user_id, instrument_id ]
-    return [ current ] unless previous_changes.key?("user_id") || previous_changes.key?("instrument_id")
+    return [ current ] unless saved_change_to_user_id? || saved_change_to_instrument_id?
 
-    previous = previous_position_materialization_target
-    [ previous, current ].compact.uniq
-  end
-
-  def previous_position_materialization_target
-    [
-      previous_changes.fetch("user_id", [ user_id ]).first,
-      previous_changes.fetch("instrument_id", [ instrument_id ]).first
+    previous = [
+      saved_change_to_user_id&.first || user_id,
+      saved_change_to_instrument_id&.first || instrument_id
     ]
+    [ previous, current ].compact.uniq
   end
 
   def each_performance_target(targets)
