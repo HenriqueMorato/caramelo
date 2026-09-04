@@ -23,6 +23,8 @@ module MarketData
     end
 
     def scope
+      return "current_market_price:#{record_id}" if kind == :current_price
+
       [ "market_data_health", kind, record_id, base_currency, quote_currency, provider ].compact.join(":")
     end
   end

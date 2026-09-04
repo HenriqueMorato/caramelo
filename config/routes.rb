@@ -6,6 +6,9 @@ Rails.application.routes.draw do
   resource :performance, only: :show
   resource :settings, only: %i[show update], controller: :settings
   get "market-data/health", to: "market_data_health#show", as: :market_data_health
+  namespace :market_data, path: "market-data" do
+    resources :recoveries, only: :create
+  end
   resources :positions, only: :index
   resource :current_market_price_refresh, only: :create
   get "transactions", to: "trades#index"

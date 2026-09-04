@@ -3,7 +3,6 @@ module MarketData
     class CurrentPrice
       def self.call(target:, range:, batch_scope:, batch_run_id:, owner:)
         instrument = Instrument.find(target.record_id)
-        RefreshStatus::Tracker.enqueue(scope: target.scope, total_count: 1)
         result = MarketPrice::RefreshEnqueuer.new.enqueue(
           instrument:, batch_scope:, batch_run_id:
         )

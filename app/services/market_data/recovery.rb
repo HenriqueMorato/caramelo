@@ -10,7 +10,13 @@ module MarketData
       def unsupported? = status == :unsupported
     end
 
-    HANDLERS = { current_price: MarketData::Recoveries::CurrentPrice }.freeze
+    HANDLERS = {
+      current_price: MarketData::Recoveries::CurrentPrice,
+      current_exchange_rate: MarketData::Recoveries::CurrentExchangeRate,
+      daily_closing_prices: MarketData::Recoveries::DailyClosingPrices,
+      historical_exchange_rates: MarketData::Recoveries::HistoricalExchangeRates,
+      benchmark_observations: MarketData::Recoveries::BenchmarkObservations
+    }.freeze
 
     def self.call(target:, range: nil, owner: User.owner, cache: Rails.cache, handlers: HANDLERS)
       new(target:, range:, owner:, cache:, handlers:).call
