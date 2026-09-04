@@ -174,6 +174,7 @@ class SettingsTest < ApplicationSystemTestCase
   end
 
   def assert_select_value(value)
-    assert_equal value, find("#user_reporting_currency", visible: false).value
+    currency_name = Money::Currency.find(value).name
+    assert_field "Reporting currency", with: "#{value} — #{currency_name}"
   end
 end
