@@ -93,8 +93,9 @@ Select an instrument to see the same summary beside its complete trade history.
 - An **Open** position has a positive quantity. A **Closed** position has been
   fully sold and can be included from the Positions page when needed.
 
-Positions are calculated from trades rather than stored separately, so editing
-or deleting a trade updates them immediately. Position amounts remain
+Positions are derived from trades and refreshed into a local projection, so
+editing or deleting a trade queues an update without changing the source
+ledger. Position amounts remain
 acquisition costs; current market value is a separate calculation. The
 **Performance** page derives realized and unrealized gains, portfolio value,
 and cash-flow-adjusted returns from persisted daily closes and historical FX.

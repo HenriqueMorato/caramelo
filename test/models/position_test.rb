@@ -30,7 +30,70 @@ class PositionTest < ActiveSupport::TestCase
   test "loads overview trades and instruments in a bounded number of queries" do
     create_trade(instrument: create_instrument(ticker: "MORE"))
 
-    assert_queries_count(3) { Position.overview }
+    assert_queries_count(4) { Position.overview }
+  end
+
+  test "reads a completed materialization for the current position" do
+    instrument = create_instrument
+    materialization = PositionMaterialization.create!(user: users(:owner), instrument:)
+    materialization.update!(status: "complete", calculated_at: Time.current, quantity: 3,
+      cost_basis_amount: 30, average_unit_cost: 10, realized_gain_amount: 4)
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("3"), position.quantity
+    assert_equal BigDecimal("30"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("10"), position.average_unit_cost
+    assert_equal BigDecimal("4"), position.analytical_realized_gain_amount
+  end
+
+  test "overview replays when a materialization has not completed" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 2, unit_price: 7)
+    PositionMaterialization.create!(user: users(:owner), instrument:)
+
+    result = Position.overview.find { |entry| entry.instrument == instrument }
+
+    assert_equal BigDecimal("2"), result.position.quantity
+  end
+
+  test "overview keeps an invalid pending materialization visible" do
+    instrument = create_instrument
+    create_trade(instrument:, side: :sell)
+    PositionMaterialization.create!(user: users(:owner), instrument:)
+
+    result = Position.overview.find { |entry| entry.instrument == instrument }
+
+    assert_predicate result, :invalid?
+  end
+
+  test "reads a completed materialization through the explicit lookup" do
+    instrument = create_instrument
+    materialization = PositionMaterialization.create!(user: users(:owner), instrument:)
+    materialization.update!(status: "complete", calculated_at: Time.current, quantity: 1,
+      cost_basis_amount: 8, average_unit_cost: 8, realized_gain_amount: 0)
+
+    position = Position.materialized_position(instrument, owner: users(:owner))
+
+    assert_equal BigDecimal("1"), position.quantity
+  end
+
+  test "overview uses a completed materialization" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 2, unit_price: 7)
+    materialization = PositionMaterialization.create!(user: users(:owner), instrument:)
+    materialization.update!(status: "complete", calculated_at: Time.current, quantity: 2,
+      cost_basis_amount: 14, average_unit_cost: 7, realized_gain_amount: 0)
+
+    result = Position.overview.find { |entry| entry.instrument == instrument }
+
+    assert_equal BigDecimal("2"), result.position.quantity
+  end
+
+  test "does not use a materialization for another owner" do
+    instrument = create_instrument
+
+    assert_nil Position.materialized_position(instrument, owner: users(:one))
   end
 
   test "keeps invalid instruments visible in the overview without hiding valid positions" do

@@ -209,6 +209,21 @@ class TradeTest < ActiveSupport::TestCase
     end
   end
 
+  test "reports a materialization enqueue failure" do
+    trade = build_trade
+    failure = RuntimeError.new("queue unavailable")
+    reports = []
+
+    with_stubbed_method(RefreshPositionMaterializationJob, :perform_later, ->(**) { raise failure }) do
+      with_stubbed_method(Rails.error, :report, ->(error, **context) { reports << [ error, context ] }) do
+        trade.send(:enqueue_position_materialization_refresh)
+      end
+    end
+
+    assert_equal failure, reports.sole.first
+    assert_equal({ handled: true, context: { trade_id: nil } }, reports.sole.second)
+  end
+
   private
 
   def build_trade(attributes = {})
@@ -236,5 +251,13 @@ class TradeTest < ActiveSupport::TestCase
     yield
   ensure
     Performance::ObservationInvalidator.define_singleton_method(:mark!, original)
+  end
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name, &replacement)
+    yield
+  ensure
+    object.define_singleton_method(method_name, original)
   end
 end

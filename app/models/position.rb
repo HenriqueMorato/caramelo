@@ -86,6 +86,12 @@ class Position
     :first_trade_date, :last_trade_date
 
   def self.for(instrument:, as_of: nil, trades: nil)
+    if trades.nil? && as_of.nil?
+      materialization = PositionMaterialization.where.not(calculated_at: nil)
+        .find_by(user: User.owner, instrument:)
+      return from_materialization(materialization) if materialization
+    end
+
     if trades
       trades = trades.select { |trade| trade.user_id == User.owner.id && trade.instrument == instrument }
       trades = trades.select { |trade| trade.traded_on <= as_of } if as_of
@@ -99,15 +105,59 @@ class Position
     new(instrument:, trades:)
   end
 
+  def self.from_materialization(materialization)
+    new(instrument: materialization.instrument, trades: [], calculation: Calculation.new(
+      quantity: materialization.quantity,
+      cost_basis_amount: materialization.cost_basis_amount,
+      realized_gain_amount: materialization.realized_gain_amount
+    ))
+  end
+
   def self.overview(owner: User.owner, include_institutions: false)
-    associations = include_institutions ? %i[instrument institution] : :instrument
-    trades_by_instrument = owner.trades.includes(associations).strict_loading.order(:traded_on, :id).group_by(&:instrument)
+    return replay_overview(owner:) if !include_institutions && owner.position_materializations.none?
+    return materialized_overview(owner:) unless include_institutions
+
+    trades_by_instrument = owner.trades.includes(%i[instrument institution]).strict_loading
+      .order(:traded_on, :id).group_by(&:instrument)
+
+    trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
+      position = materialized_position(instrument, owner:) || new(instrument:, trades:)
+      CalculationResult.new(instrument:, position:, error: nil)
+    rescue InvalidLongOnlyData => error
+      CalculationResult.new(instrument:, position: nil, error:)
+    end
+  end
+
+  def self.replay_overview(owner:)
+    trades_by_instrument = owner.trades.includes(:instrument).strict_loading.order(:traded_on, :id).group_by(&:instrument)
 
     trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
       CalculationResult.new(instrument:, position: new(instrument:, trades:), error: nil)
     rescue InvalidLongOnlyData => error
       CalculationResult.new(instrument:, position: nil, error:)
     end
+  end
+
+  def self.materialized_overview(owner:)
+    materializations = owner.position_materializations.index_by(&:instrument_id)
+    Instrument.where(id: owner.trades.select(:instrument_id)).alphabetical.map do |instrument|
+      materialization = materializations[instrument.id]
+      position = materialization&.calculated_at ? from_materialization(materialization) : new(
+        instrument:, trades: owner.trades.where(instrument:).order(:traded_on, :id).to_a
+      )
+      CalculationResult.new(instrument:, position:, error: nil)
+    rescue InvalidLongOnlyData => error
+      CalculationResult.new(instrument:, position: nil, error:)
+    end
+  end
+
+  def self.materialized_position(instrument, owner:)
+    return if owner != User.owner
+
+    materialization = PositionMaterialization.find_by(user: owner, instrument:)
+    return unless materialization&.calculated_at
+
+    from_materialization(materialization)
   end
 
   def open?
@@ -120,14 +170,14 @@ class Position
 
   private_class_method :new
 
-  def initialize(instrument:, trades:)
+  def initialize(instrument:, trades:, calculation: nil)
     @instrument = instrument
     @trades = trades.freeze
     @quantity = BigDecimal("0")
     @first_trade_date = trades.first&.traded_on
     @last_trade_date = trades.last&.traded_on
 
-    calculate(trades)
+    calculation ? apply_calculation(calculation) : calculate(trades)
     freeze
   end
 
@@ -138,6 +188,17 @@ class Position
     @cost_basis = Money.from_amount(analytical_cost_basis_amount, instrument.currency)
     @average_unit_cost = calculate_average_unit_cost(calculation.cost_basis_amount, calculation.quantity)
     @analytical_realized_gain_amount = analytical_decimal(calculation.realized_gain_amount)
+    @realized_gain = Money.from_amount(analytical_realized_gain_amount, instrument.currency)
+  end
+
+  def apply_calculation(calculation)
+    @quantity = calculation.quantity
+    @analytical_cost_basis_amount = calculation.cost_basis_amount
+    @cost_basis = Money.from_amount(analytical_cost_basis_amount, instrument.currency)
+    @average_unit_cost = calculate_average_unit_cost(
+      calculation.cost_basis_amount.to_r, calculation.quantity.to_r
+    )
+    @analytical_realized_gain_amount = calculation.realized_gain_amount
     @realized_gain = Money.from_amount(analytical_realized_gain_amount, instrument.currency)
   end
 

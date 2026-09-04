@@ -382,8 +382,9 @@ so a later change cannot mix target currencies within one batch.
 
 ## Position calculation conventions
 
-Positions are derived on read from the configured owner's trades; there is no
-persisted position snapshot. Replay trades chronologically by `traded_on`, then
+Trades remain authoritative; completed position materializations provide the
+normal read path, while direct replay remains available for historical and
+institution-aware calculations. Replay trades chronologically by `traded_on`, then
 `id` for a deterministic same-day tie-break:
 
 - A purchase adds its quantity, precise `quantity * unit_price`, and purchase

@@ -23,6 +23,7 @@ class Trade < ApplicationRecord
   after_save :mark_performance_observations_stale, if: :performance_inputs_changed?
   after_destroy :mark_performance_observations_stale
   after_commit :enqueue_performance_observation_rebuild, on: %i[create update destroy]
+  after_commit :enqueue_position_materialization_refresh, on: %i[create update destroy]
 
   scope :reverse_chronological, -> { order(traded_on: :desc, id: :desc) }
 
@@ -63,6 +64,26 @@ class Trade < ApplicationRecord
     each_performance_target(targets) do |user, from|
       Performance::ObservationInvalidator.enqueue(user:, from:)
     end
+  end
+
+  def enqueue_position_materialization_refresh
+    position_materialization_targets.each do |user_id, instrument_id|
+      PositionMaterialization.find_by(user_id:, instrument_id:)&.queue_refresh!
+      RefreshPositionMaterializationJob.perform_later(user_id:, instrument_id:)
+    end
+  rescue StandardError => error
+    Rails.error.report(error, handled: true, context: { trade_id: id })
+  end
+
+  def position_materialization_targets
+    current = [ user_id, instrument_id ]
+    return [ current ] unless saved_change_to_user_id? || saved_change_to_instrument_id?
+
+    previous = [
+      saved_change_to_user_id&.first || user_id,
+      saved_change_to_instrument_id&.first || instrument_id
+    ]
+    [ previous, current ].compact.uniq
   end
 
   def each_performance_target(targets)
