@@ -84,12 +84,18 @@ en:
       Healthy: Your market data looks healthy.
       Healthy explanation: No missing or stale records were found for the data currently
         in use.
+      Recovery explanation: Retry an unavailable source directly, or refresh all current
+        prices above. Recoveries run in the background and keep the last known values.
+      Entry count:
+        one: 1 source checked
+        other: "%{count} sources checked"
       Intro: A read-only check of the market data needed by your portfolio.
       Issue list: Data health issues
       Issues found:
         one: 1 data health issue
         other: "%{count} data health issues"
       Page title: Data health · %{application}
+      Retry: Retry
       Refresh throttled: Refresh is limited to once every five minutes while automatic
         updates run in the background.
   notices:

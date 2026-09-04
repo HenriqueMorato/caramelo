@@ -20,22 +20,37 @@
   </div>
 
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" role="status">
-    <% if @report.healthy? %>
-      <p class="font-semibold text-leaf"><%= t(".Healthy") %></p>
-      <p class="mt-2 text-sm text-muted"><%= t(".Healthy explanation") %></p>
-    <% else %>
-      <p class="font-semibold text-coffee"><%= t(".Issues found", count: @report.issues.size) %></p>
-      <ul class="mt-5 space-y-3" aria-label="<%= t(".Issue list") %>">
-        <% @report.issues.each do |issue| %>
-          <li class="rounded-xl border border-coffee/10 bg-oat p-4">
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
-              <p class="font-semibold text-coffee"><%= issue.subject_label %></p>
-              <span class="text-xs font-semibold uppercase tracking-wide <%= issue.severity == :error ? "text-guava" : "text-caramel-deep" %>"><%= issue.severity %></span>
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <p class="font-semibold <%= @report.healthy? ? "text-leaf" : "text-coffee" %>">
+        <%= @report.healthy? ? t(".Healthy") : t(".Issues found", count: @report.issues.size) %>
+      </p>
+      <p class="text-sm text-muted"><%= t(".Entry count", count: @report.entries.size) %></p>
+    </div>
+    <p class="mt-2 text-sm text-muted"><%= @report.healthy? ? t(".Healthy explanation") : t(".Recovery explanation") %></p>
+
+    <ul class="mt-5 divide-y divide-coffee/10" aria-label="<%= t(".Issue list") %>">
+      <% @report.entries.each do |entry| %>
+        <% status_class = entry.healthy? ? "text-leaf" : entry.severity == :error ? "text-guava" : "text-caramel-deep" %>
+        <li class="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <p class="font-semibold text-coffee"><%= entry.label %></p>
+              <span class="text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status %></span>
             </div>
-            <p class="mt-1 text-sm text-muted"><%= issue.details %></p>
-          </li>
-        <% end %>
-      </ul>
-    <% end %>
+            <p class="mt-1 text-sm text-muted"><%= entry.description %></p>
+          </div>
+          <% if entry.actionable? %>
+            <%= button_to t(".Retry"), market_data_recoveries_path,
+              params: { target: {
+                kind: entry.target.kind,
+                record_id: entry.target.record_id,
+                base_currency: entry.target.base_currency,
+                quote_currency: entry.target.quote_currency,
+                provider: entry.target.provider
+              } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
   </div>
 </section>
