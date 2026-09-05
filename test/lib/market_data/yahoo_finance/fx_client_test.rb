@@ -9,7 +9,7 @@ class MarketData::YahooFinance::FxClientTest < ActiveSupport::TestCase
 
     assert_equal BigDecimal("5.1234"), rate.rate
     assert_equal Time.at(1_777_000_000).utc, rate.observed_at
-    assert_equal "/v8/finance/chart/USDBRL=X", transport.uri.path
+    assert_equal "/v8/finance/chart/USDBRL%3DX", transport.uri.path
   end
 
   test "rejects a quote whose currency does not match the requested quote" do

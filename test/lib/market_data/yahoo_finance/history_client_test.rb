@@ -18,6 +18,20 @@ class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
     assert_equal Time.zone.local(2026, 8, 27).to_i.to_s, query.fetch("period2")
   end
 
+  test "URL-encodes a benchmark identifier as a path segment" do
+    benchmark_identifier = MarketBenchmark::Providers::YahooFinance::YahooBenchmarkIdentifier.new("^BVSP")
+    result = default_result.merge(
+      meta: default_result[:meta].merge(symbol: "^BVSP", exchangeName: "SAO", instrumentType: "INDEX")
+    )
+    transport = FakeTransport.new(response: response(result:))
+
+    MarketData::YahooFinance::HistoryClient.new(transport:).daily_closes(
+      identifier: benchmark_identifier, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 26)
+    )
+
+    assert_equal "/v8/finance/chart/%5EBVSP", transport.uri.path
+  end
+
   test "rejects malformed quote data" do
     result = default_result.merge(indicators: { quote: [] })
     client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))

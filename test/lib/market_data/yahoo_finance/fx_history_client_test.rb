@@ -7,7 +7,7 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
 
     assert_equal [ BigDecimal("5.432109876543"), BigDecimal("5.5") ], rates.map(&:rate)
     assert_equal [ Date.new(2026, 8, 24), Date.new(2026, 8, 26) ], rates.map(&:rate_date)
-    assert_equal "USDBRL=X", transport.uri.path.split("/").last
+    assert_equal "USDBRL%3DX", transport.uri.path.split("/").last
   end
 
   test "rejects inverted and future ranges" do
