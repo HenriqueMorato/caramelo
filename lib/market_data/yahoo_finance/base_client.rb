@@ -19,7 +19,7 @@ module MarketData
       def chart_uri_for(value:)
         URI::HTTPS.build(
           host: CurlTransport::ALLOWED_HOST,
-          path: "#{ENDPOINT_PATH}/#{value}",
+          path: chart_path(value),
           query: URI.encode_www_form(range: "1d", interval: "1d")
         )
       end
@@ -31,7 +31,7 @@ module MarketData
       def history_uri_for(value:, from:, to:)
         URI::HTTPS.build(
           host: CurlTransport::ALLOWED_HOST,
-          path: "#{ENDPOINT_PATH}/#{value}",
+          path: chart_path(value),
           query: URI.encode_www_form(
             period1: from.in_time_zone.beginning_of_day.to_i,
             period2: (to + 1).in_time_zone.beginning_of_day.to_i,
@@ -39,6 +39,10 @@ module MarketData
             events: "history"
           )
         )
+      end
+
+      def chart_path(value)
+        "#{ENDPOINT_PATH}/#{URI.encode_uri_component(value)}"
       end
 
       def classify_status!(response)
