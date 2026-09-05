@@ -55,8 +55,11 @@
     </div>
   </section>
 
-  <% if @performance_presenter %>
-    <%= render "performance", presenter: @performance_presenter %>
+  <% if @performance_presenters %>
+    <%= render "performance",
+      presenters: @performance_presenters,
+      native_currency: @instrument.currency,
+      reporting_currency: @reporting_currency %>
   <% end %>
 
   <section aria-labelledby="trade-history-heading" class="space-y-4">

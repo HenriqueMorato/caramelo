@@ -13,10 +13,8 @@ class InstrumentsController < ApplicationController
     @position = Position.for(instrument: @instrument, trades: @trades)
     @valuation = Valuation::Current.for(position: @position, market_price: @market_price)
     @performance_pending = HistoricalDataBackfill.pending_for?(instruments: [ @instrument ])
-    @performance = Performance::Portfolio.for(valuation_date: Date.current, instrument: @instrument, trades: @trades)
-    @performance_presenter = Performance::Presenter.for(
-      performance: @performance, pending: @performance_pending
-    )
+    @reporting_currency = owner.reporting_currency
+    @performance_presenters = performance_presenters
   rescue Position::InvalidLongOnlyData => error
     @position_error = error
   end
@@ -55,6 +53,26 @@ class InstrumentsController < ApplicationController
   end
 
   private
+
+  def performance_presenters
+    presenters = { native: performance_presenter(@instrument.currency) }
+    if @instrument.currency != @reporting_currency
+      presenters[:reporting] = performance_presenter(@reporting_currency)
+    end
+    presenters
+  end
+
+  def performance_presenter(currency)
+    performance = Performance::Portfolio.for(
+      valuation_date: Date.current, instrument: @instrument, trades: @trades,
+      reporting_currency: currency
+    )
+    Performance::Presenter.for(performance:, pending: @performance_pending)
+  end
+
+  def owner
+    @owner ||= User.owner
+  end
 
   def set_instrument
     @instrument = Instrument.find(params.expect(:id))

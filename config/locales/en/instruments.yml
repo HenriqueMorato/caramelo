@@ -27,9 +27,12 @@ en:
     show:
       Close as of: Close as of %{date}
       Current position: Current position
+      Currency view: Performance currency
       Delete blocked: Delete this instrument's trades before deleting the instrument.
       Empty history: Add a purchase or sale to begin its history.
       FX as of: FX as of %{date}
+      Instrument currency: "%{currency} · Instrument"
+      My currency: "%{currency} · My currency"
       No performance: Add a trade and a closing price to see performance here.
       No position yet: Record a trade to calculate this position.
       No trades: No trades for this instrument
