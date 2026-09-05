@@ -131,6 +131,72 @@ class TradeTest < ActiveSupport::TestCase
     refute_equal Money.from_cents(2_100, "BRL"), trade.total
   end
 
+  test "captures the owner reporting currency when a paid exchange rate is supplied" do
+    trade = build_trade(
+      instrument: instruments(:voo_arcx), institution: nil, currency: "USD",
+      settlement_exchange_rate: "5.25"
+    )
+
+    assert_predicate trade, :valid?
+    assert_equal "BRL", trade.settlement_currency
+    assert_equal BigDecimal("5.25"), trade.settlement_exchange_rate
+    assert_predicate trade, :explicit_settlement_conversion?
+  end
+
+  test "replaces an injected settlement currency with the owner reporting currency" do
+    trade = build_trade(
+      instrument: instruments(:voo_arcx), institution: nil, currency: "USD",
+      settlement_currency: "EUR", settlement_exchange_rate: "5.25"
+    )
+
+    trade.save!
+
+    assert_equal "BRL", trade.settlement_currency
+  end
+
+  test "preserves a captured settlement currency when the owner preference changes" do
+    trade = build_trade(
+      instrument: instruments(:voo_arcx), institution: nil, currency: "USD",
+      settlement_exchange_rate: "5.25"
+    )
+    trade.save!
+    trade.user.update!(reporting_currency: "EUR")
+
+    trade.update!(settlement_exchange_rate: "5.3")
+
+    assert_equal "BRL", trade.settlement_currency
+  end
+
+  test "clears the captured settlement currency with the paid exchange rate" do
+    trade = build_trade(
+      instrument: instruments(:voo_arcx), institution: nil, currency: "USD",
+      settlement_exchange_rate: "5.25"
+    )
+    trade.save!
+
+    trade.update!(settlement_exchange_rate: nil)
+
+    assert_nil trade.settlement_currency
+    assert_not trade.explicit_settlement_conversion?
+  end
+
+  test "rejects a paid exchange rate for a same-currency trade" do
+    trade = build_trade(settlement_exchange_rate: "1")
+
+    assert_predicate trade, :invalid?
+    assert_includes trade.errors[:settlement_currency], "must differ from the instrument currency"
+  end
+
+  test "cannot infer a settlement currency without an owner" do
+    trade = build_trade(
+      user: nil, instrument: instruments(:voo_arcx), institution: nil,
+      currency: "USD", settlement_exchange_rate: "5.25"
+    )
+
+    assert_predicate trade, :invalid?
+    assert_nil trade.settlement_currency
+  end
+
   test "normalizes blank notes to nil" do
     trade = build_trade(notes: "   ")
 

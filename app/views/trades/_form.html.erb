@@ -3,7 +3,10 @@
 <%= form_with model: trade,
               url: trade.persisted? ? trade_path(trade) : (context_instrument ? instrument_trades_path(context_instrument) : trades_path),
               class: "space-y-6",
-              data: { controller: "trade-form" } do |form| %>
+              data: {
+                controller: "trade-form",
+                trade_form_reporting_currency_value: trade.user.reporting_currency
+              } do |form| %>
   <% if trade.errors.any? %>
     <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-900" role="alert">
       <p class="font-semibold"><%= t("forms.Could not save", count: trade.errors.count, model: Trade.model_name.human.downcase) %></p>
@@ -76,6 +79,24 @@
       <%= form.number_field :fees, value: trade.fees&.to_d, min: 0, step: money_step, inputmode: "decimal", class: "mt-2 block w-full rounded-xl border border-coffee/20 bg-oat-2 px-4 py-3 text-coffee shadow-sm focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20", data: { trade_form_target: "fees" } %>
     </div>
   </div>
+
+  <% settlement_hidden = currency.blank? || currency == trade.user.reporting_currency %>
+  <%= tag.div data: { trade_form_target: "settlement" }, hidden: settlement_hidden do %>
+    <%= form.label :settlement_exchange_rate,
+                   t(".Settlement exchange rate optional"),
+                   class: "block text-sm font-semibold text-coffee" %>
+    <%= form.number_field :settlement_exchange_rate,
+                          min: 0,
+                          step: "0.000000000001",
+                          inputmode: "decimal",
+                          class: "mt-2 block w-full rounded-xl border border-coffee/20 bg-oat-2 px-4 py-3 text-base text-coffee shadow-sm focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20",
+                          data: { trade_form_target: "settlementRate" } %>
+    <p class="mt-1 text-xs text-muted">
+      <span data-trade-form-target="settlementDirection">1 <%= currency %> = … <%= trade.user.reporting_currency %></span>
+      <span aria-hidden="true"> · </span>
+      <%= t(".Settlement exchange rate help") %>
+    </p>
+  <% end %>
 
   <div>
     <%= form.label :institution_id, t(".Institution optional"), class: "block text-sm font-semibold text-coffee" %>

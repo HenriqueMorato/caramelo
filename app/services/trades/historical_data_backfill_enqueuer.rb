@@ -15,6 +15,7 @@ module Trades
 
         HistoricalDataBackfill.enqueue_for(instrument:, currency:, from_date:)
       end
+      enqueue_reporting_currency_preparation
     rescue StandardError => error
       Rails.error.report(error, handled: true, context: { trade_id: trade.id })
     end
@@ -34,6 +35,13 @@ module Trades
         trade.previous_changes.fetch("traded_on", [ trade.traded_on ]).first
       ]
       [ previous_target, current_target ].uniq
+    end
+
+    def enqueue_reporting_currency_preparation
+      return unless trade.saved_change_to_settlement_currency? || trade.saved_change_to_settlement_exchange_rate?
+      return if trade.settlement_currency.blank? || trade.settlement_currency == trade.user.reporting_currency
+
+      PrepareReportingCurrencyJob.enqueue_for(user: trade.user)
     end
   end
 end

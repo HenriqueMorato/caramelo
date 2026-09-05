@@ -25,6 +25,10 @@
     <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
       <span><%= t(".Fees value", fees: trade.fees.format) %></span>
       <span><%= t(".Currency value", currency: trade.currency) %></span>
+      <% if trade.explicit_settlement_conversion? %>
+        <span><%= t(".Paid exchange rate value", native_currency: trade.currency,
+          rate: trade.settlement_exchange_rate.to_s("F"), settlement_currency: trade.settlement_currency) %></span>
+      <% end %>
       <span><%= t(".Institution value", institution: trade.institution&.name || t("None")) %></span>
     </div>
     <div class="ml-auto flex items-center gap-1">

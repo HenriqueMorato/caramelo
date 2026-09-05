@@ -153,4 +153,46 @@ class InstrumentsTest < ApplicationSystemTestCase
       assert_link "Add trade"
     end
   end
+
+  test "switches foreign performance between instrument and owner currencies" do
+    instrument = Instrument.create!(
+      ticker: "PAID", exchange: "XNAS", name: "Paid FX instrument", currency: "USD"
+    )
+    User.owner.trades.create!(
+      instrument:, side: :buy, traded_on: Date.current, quantity: 2,
+      unit_price: 200, fees_cents: 0, currency: "USD", settlement_exchange_rate: "5.25"
+    )
+    DailyClosingPrice.create!(
+      instrument:, trading_date: Date.current, close_price: "220", currency: "USD",
+      provider: "yahoo_finance", observed_at: Time.current
+    )
+    HistoricalExchangeRate.create!(
+      base_currency: "USD", quote_currency: "BRL", rate_date: Date.current,
+      rate: "5.1", provider: "yahoo_finance_fx", observed_at: Time.current,
+      fetched_at: Time.current
+    )
+
+    visit instrument_path(instrument)
+
+    within "[aria-labelledby='instrument-performance-heading']" do
+      assert_text "$400.00"
+      click_on "BRL · My currency"
+      assert_text "R$2.100,00"
+    end
+    assert_current_path instrument_path(instrument, currency_view: "reporting")
+
+    refresh
+
+    within "[aria-labelledby='instrument-performance-heading']" do
+      assert_text "R$2.100,00"
+      assert_no_text "$400.00"
+    end
+
+    page.go_back
+
+    within "[aria-labelledby='instrument-performance-heading']" do
+      assert_text "$400.00"
+      assert_no_text "R$2.100,00"
+    end
+  end
 end

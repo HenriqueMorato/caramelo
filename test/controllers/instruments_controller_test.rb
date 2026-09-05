@@ -48,6 +48,62 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Close as of #{I18n.l(Date.current - 1, format: :long)}"
     assert_match(/20[,.]00%/, response.body)
     assert_match(/Unrealized return.*\+R\$4,00/m, response.body)
+    assert_select "[aria-label='Performance currency']", count: 0
+  end
+
+  test "renders native and owner-currency gains for a foreign instrument" do
+    instrument = Instrument.create!(
+      ticker: "PAID", exchange: "XNAS", name: "Paid FX instrument", currency: "USD"
+    )
+    create_trade(
+      instrument:, side: :buy, quantity: 2, unit_price: 200,
+      settlement_exchange_rate: "5.25"
+    )
+    DailyClosingPrice.create!(
+      instrument:, trading_date: Date.current, close_price: "220", currency: "USD",
+      provider: "yahoo_finance", observed_at: Time.current
+    )
+    HistoricalExchangeRate.create!(
+      base_currency: "USD", quote_currency: "BRL", rate_date: Date.current,
+      rate: "5.1", provider: "yahoo_finance_fx", observed_at: Time.current,
+      fetched_at: Time.current
+    )
+
+    get instrument_url(instrument)
+
+    assert_response :success
+    assert_select "[aria-label='Performance currency']"
+    assert_select "button", text: "USD · Instrument"
+    assert_select "button", text: "BRL · My currency"
+    assert_select "[data-currency-view-name='native']:not([hidden])", text: /\$400\.00.*\$440\.00/m
+    assert_select "[data-currency-view-name='reporting'][hidden]", text: /R\$2.100,00.*R\$2.244,00/m
+
+    get instrument_url(instrument, currency_view: "reporting")
+
+    assert_select "button[data-currency-view-name-param='reporting'][aria-pressed='true']"
+    assert_select "[data-currency-view-name='native'][hidden]"
+    assert_select "[data-currency-view-name='reporting']:not([hidden])", text: /R\$2.100,00.*R\$2.244,00/m
+
+    get instrument_url(instrument, currency_view: "unsupported")
+
+    assert_select "button[data-currency-view-name-param='native'][aria-pressed='true']"
+    assert_select "[data-currency-view-name='native']:not([hidden])"
+  end
+
+  test "keeps native performance available when reporting FX is missing" do
+    instrument = Instrument.create!(
+      ticker: "NOFX", exchange: "XETR", name: "Missing FX instrument", currency: "EUR"
+    )
+    create_trade(instrument:, side: :buy, quantity: 2, unit_price: 100)
+    DailyClosingPrice.create!(
+      instrument:, trading_date: Date.current, close_price: "110", currency: "EUR",
+      provider: "yahoo_finance", observed_at: Time.current
+    )
+
+    get instrument_url(instrument)
+
+    assert_select "[data-currency-view-name='native']", text: /€200,00.*€220,00/m
+    assert_select "[data-currency-view-name='reporting']", text: /Performance unavailable/
   end
 
   test "shows only the configured owner's trades for an instrument" do
@@ -221,15 +277,17 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
   private
 
-  def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1))
+  def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1),
+    unit_price: 10, settlement_exchange_rate: nil)
     User.owner.trades.create!(
       instrument:,
       side:,
       traded_on:,
       quantity:,
-      unit_price: 10,
+      unit_price:,
       fees_cents: 0,
-      currency: instrument.currency
+      currency: instrument.currency,
+      settlement_exchange_rate:
     )
   end
 end

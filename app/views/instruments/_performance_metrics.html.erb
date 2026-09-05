@@ -1,0 +1,53 @@
+<%# locals: (presenter:) %>
+
+<div class="mt-4 flex justify-end text-xs font-medium text-muted">
+  <% if presenter.market_data_as_of %>
+    <%= t("instruments.show.Close as of", date: l(presenter.market_data_as_of, format: :long)) %>
+  <% end %>
+  <% if presenter.exchange_rate_as_of && presenter.exchange_rate_as_of != presenter.market_data_as_of %>
+    <span class="mx-2" aria-hidden="true">·</span>
+    <%= t("instruments.show.FX as of", date: l(presenter.exchange_rate_as_of, format: :long)) %>
+  <% end %>
+</div>
+
+<% if presenter.empty? %>
+  <p class="mt-5 rounded-xl bg-oat px-4 py-3 text-sm text-muted"><%= t("instruments.show.No performance") %></p>
+<% elsif presenter.loading? %>
+  <div class="mt-5 rounded-xl bg-oat px-4 py-3 text-sm text-muted" role="status" aria-live="polite">
+    <p class="font-medium text-coffee"><%= t("instruments.show.Performance loading") %></p>
+    <p class="mt-1"><%= t("instruments.show.Performance loading explanation") %></p>
+  </div>
+<% elsif presenter.unavailable? %>
+  <div class="mt-5 rounded-xl bg-oat px-4 py-3 text-sm text-muted" role="status">
+    <p class="font-medium text-coffee"><%= t("instruments.show.Performance unavailable") %></p>
+    <p class="mt-1"><%= t("instruments.show.Performance unavailable explanation") %></p>
+  </div>
+<% else %>
+  <dl class="mt-5 grid gap-4 text-center sm:grid-cols-2 lg:grid-cols-4">
+    <div class="min-w-0">
+      <dt class="ui-eyebrow"><%= t("Cost basis") %></dt>
+      <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= presenter.cost_basis&.format || t("Not available") %></dd>
+    </div>
+    <div class="min-w-0">
+      <dt class="ui-eyebrow"><%= t("Market value") %></dt>
+      <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= presenter.market_value&.format || t("Not available") %></dd>
+    </div>
+    <div class="min-w-0">
+      <dt class="ui-eyebrow"><%= t("Unrealized return") %></dt>
+      <dd class="mt-1 flex items-center justify-center gap-1 font-mono text-base font-semibold tabular-nums <%= presenter.unrealized_gain_color_class %>">
+        <span aria-hidden="true"><%= presenter.unrealized_gain_arrow %></span>
+        <span><%= presenter.unrealized_gain_label || t("Not available") %></span>
+      </dd>
+    </div>
+    <div class="min-w-0">
+      <dt class="ui-eyebrow"><%= t("Total return") %></dt>
+      <dd class="mt-1 font-mono text-base font-semibold tabular-nums <%= presenter.return_color_class %>"><%= presenter.return_label || t("Not available") %></dd>
+    </div>
+  </dl>
+  <% if presenter.realized_gain? %>
+    <p class="mt-5 border-t border-coffee/10 pt-4 text-sm text-muted">
+      <span class="font-medium text-coffee"><%= t("Realized gains") %>:</span>
+      <span class="font-mono tabular-nums"><%= presenter.realized_gain_label %></span>
+    </p>
+  <% end %>
+<% end %>
