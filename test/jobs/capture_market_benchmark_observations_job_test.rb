@@ -72,6 +72,24 @@ class CaptureMarketBenchmarkObservationsJobTest < ActiveJob::TestCase
     assert_equal({ benchmark:, from: date, to: date }, imports.last)
   end
 
+  test "audits benchmark history across the requested startup range" do
+    benchmark = create_benchmark
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:identifier) { "yahoo_finance" }
+    importer.define_singleton_method(:supports?) { |benchmark:| true }
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureMarketBenchmarkObservationsJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { Object.new.tap { |object| object.define_singleton_method(:wait!) { } } }
+
+    from = Date.new(2026, 1, 5)
+    to = Date.new(2026, 8, 28)
+    job.perform(observed_on: to, from:)
+
+    assert_equal({ benchmark:, from:, to: }, imports.sole)
+  end
+
   test "skips unsupported and already captured benchmarks" do
     supported = create_benchmark
     unsupported = MarketBenchmark.create!(
