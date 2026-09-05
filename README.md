@@ -142,9 +142,23 @@ Each run contains `primary.sqlite3`, `ledger.sqlite3`, `manifest.json`, and
 ledger artifact keeps the owner, trades, and referenced instruments and
 institutions while omitting replaceable market data, sessions, and projections.
 Both artifacts contain private financial information; copy the backup directory
-to protected off-host storage as part of your own backup routine. Seven verified
-runs are retained by default. Override the location and retention with
-`LOCALFOLIO_BACKUP_DIRECTORY` and `LOCALFOLIO_BACKUP_RETENTION`.
+to protected off-host storage as part of your own backup routine. The default
+rotation keeps seven daily, four weekly, and twelve monthly representatives.
+Override it with `LOCALFOLIO_BACKUP_KEEP_DAILY`,
+`LOCALFOLIO_BACKUP_KEEP_WEEKLY`, and `LOCALFOLIO_BACKUP_KEEP_MONTHLY`.
+
+For explicit age-based cleanup, preview first and then delete:
+
+```sh
+bin/backup prune --older-than=30 --dry-run
+bin/backup prune --older-than=30
+```
+
+This deletes only verified backup directories older than the requested number
+of days. Malformed, unverified, and temporary directories remain untouched. A
+recurring maintenance job runs daily at 3am by default; set
+`LOCALFOLIO_BACKUP_SCHEDULE` to customize it. Startup and the first request of
+a new day remain fallback paths.
 
 Verify or rehearse an isolated restore without changing the live database:
 

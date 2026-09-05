@@ -160,8 +160,10 @@ described in [Portfolio Performance](docs/portfolio-performance.md).
 Backups are application services, with `bin/backup` as the operator-facing
 adapter. A low-priority backup is scheduled ten minutes after startup or the
 first request on a new local day when no verified backup exists for that day.
-There is no fixed overnight schedule, so a server that is not used overnight
-does not perform unattended work.
+A recurring maintenance job also attempts a backup daily at 3am when the
+container remains running. Startup and first-request scheduling remain fallback
+paths, and the backup creator still refuses a second verified backup for the
+same local day.
 
 ```sh
 bin/backup create
@@ -176,8 +178,20 @@ Each run is atomically published under `backups/` with a complete
 ledger keeps only the configured owner, that owner's trades, and referenced
 instruments and institutions; cache-like market data, sessions, and derived
 projections are empty. Both files contain sensitive financial data and the
-owner's password digest. The default retention is seven verified runs; set
-`LOCALFOLIO_BACKUP_DIRECTORY` and `LOCALFOLIO_BACKUP_RETENTION` to override it.
+owner's password digest. The default rotation keeps seven daily, four weekly,
+and twelve monthly representatives. Set `LOCALFOLIO_BACKUP_KEEP_DAILY`,
+`LOCALFOLIO_BACKUP_KEEP_WEEKLY`, and `LOCALFOLIO_BACKUP_KEEP_MONTHLY` to
+override it.
+
+For explicit age-based cleanup, preview and then run:
+
+```sh
+bin/backup prune --older-than=30 --dry-run
+bin/backup prune --older-than=30
+```
+
+This deletes only verified runs older than the requested age. Malformed,
+unverified, and temporary directories remain untouched.
 
 Verification checks checksums, SQLite integrity, foreign keys, current pending
 migrations, and the ledger's excluded tables. Restore always targets a new

@@ -7,7 +7,11 @@ class BackupTest < ActiveSupport::TestCase
   setup do
     @destination = Pathname(Dir.mktmpdir("localfolio-backups"))
     @source = Pathname(ActiveRecord::Base.connection_db_config.database)
-    @configuration = Backup::Configuration.new(source_path: @source, destination: @destination, retention_count: 2)
+    @configuration = Backup::Configuration.new(
+      source_path: @source,
+      destination: @destination,
+      retention_policy: Backup::RetentionPolicy.new(daily: 2, weekly: 0, monthly: 0)
+    )
   end
 
   teardown do
@@ -28,10 +32,19 @@ class BackupTest < ActiveSupport::TestCase
     assert_equal 0, verification.record_counts.fetch("ledger").fetch("daily_closing_prices")
   end
 
-  test "requires positive retention" do
+  test "requires a valid retention policy" do
     assert_raises(ArgumentError) do
-      Backup::Configuration.new(source_path: @source, destination: @destination, retention_count: 0)
+      Backup::RetentionPolicy.new(daily: -1, weekly: 0, monthly: 0)
     end
+
+    assert_raises(ArgumentError) { Backup::RetentionPolicy.new(daily: 0, weekly: 0, monthly: 0) }
+  end
+
+  test "ignores retention runs without valid dates" do
+    policy = Backup::RetentionPolicy.new(daily: 1, weekly: 1, monthly: 1)
+
+    assert_empty policy.keep([ [ @destination.join("invalid"), nil ] ])
+    assert_empty policy.send(:representatives, [], 1) { |time| time.to_date }
   end
 
   test "does not create a second verified run on the same local day" do
@@ -49,6 +62,69 @@ class BackupTest < ActiveSupport::TestCase
 
     runs = @destination.children.select { |path| path.directory? && path.join("manifest.json").file? }
     assert_equal 2, runs.size
+  end
+
+  test "retains weekly and monthly representatives without deleting their daily overlap" do
+    policy = Backup::RetentionPolicy.new(daily: 1, weekly: 1, monthly: 2)
+    configuration = Backup::Configuration.new(source_path: @source, destination: @destination, retention_policy: policy)
+    dates = %w[2026-01-15 2026-02-12 2026-03-03]
+    dates.each { |date| Backup::Creator.call(configuration:, now: Time.zone.parse("#{date} 12:00:00")) }
+
+    runs = @destination.children.select { |path| path.directory? && path.join("manifest.json").file? }
+    assert_equal 2, runs.size
+  end
+
+  test "prunes only verified backups older than the requested age" do
+    old = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-08-01 12:00:00"))
+    recent = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    unverified = @destination.join("unverified")
+    FileUtils.mkdir_p(unverified)
+    unverified.join("manifest.json").write(JSON.generate("verified" => false, "created_at" => "2026-08-01T12:00:00Z"))
+
+    result = Backup::Pruner.call(configuration: @configuration, older_than: 30, now: Time.zone.parse("2026-09-05 12:00:00"))
+
+    assert_equal [ old.directory ], result.deleted
+    refute_path_exists old.directory
+    assert_path_exists recent.directory
+    assert_path_exists unverified
+  end
+
+  test "leaves malformed and undated backup manifests untouched" do
+    malformed = @destination.join("malformed")
+    FileUtils.mkdir_p(malformed)
+    malformed.join("manifest.json").write("not json")
+    undated = @destination.join("undated")
+    FileUtils.mkdir_p(undated)
+    undated.join("manifest.json").write(JSON.generate("verified" => true, "created_at" => "bad"))
+
+    result = Backup::Pruner.call(configuration: @configuration, older_than: 1, now: Time.zone.parse("2026-09-05 12:00:00"))
+
+    assert_empty result.deleted
+    assert_path_exists malformed
+    assert_path_exists undated
+  end
+
+  test "rejects a non-positive age and a concurrent prune" do
+    assert_raises(ArgumentError) { Backup::Pruner.call(configuration: @configuration, older_than: 0) }
+
+    lock_path = @destination.join(".localfolio-backup.lock")
+    FileUtils.mkdir_p(@destination)
+    File.open(lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
+      lock.flock(File::LOCK_EX)
+      assert_raises(Backup::AlreadyRunning) do
+        Backup::Pruner.call(configuration: @configuration, older_than: 1)
+      end
+    end
+  end
+
+  test "supports a dry-run age prune without deleting" do
+    old = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-08-01 12:00:00"))
+
+    result = Backup::Pruner.call(configuration: @configuration, older_than: 30, now: Time.zone.parse("2026-09-05 12:00:00"), dry_run: true)
+
+    assert result.dry_run
+    assert_equal [ old.directory ], result.deleted
+    assert_path_exists old.directory
   end
 
   test "restores an artifact to a new isolated destination" do
@@ -131,7 +207,11 @@ class BackupTest < ActiveSupport::TestCase
   end
 
   test "rejects a missing source database" do
-    configuration = Backup::Configuration.new(source_path: @destination.join("missing.sqlite3"), destination: @destination, retention_count: 1)
+    configuration = Backup::Configuration.new(
+      source_path: @destination.join("missing.sqlite3"),
+      destination: @destination,
+      retention_policy: Backup::RetentionPolicy.new(daily: 1, weekly: 0, monthly: 0)
+    )
 
     assert_raises(Backup::Error) { Backup::Creator.call(configuration:) }
   end
@@ -143,7 +223,11 @@ class BackupTest < ActiveSupport::TestCase
     database.execute("PRAGMA foreign_keys = OFF")
     database.execute("DELETE FROM users WHERE email_address = ?", [ Rails.application.config.x.local_folio.owner_email ])
     database.close
-    configuration = Backup::Configuration.new(source_path: source, destination: @destination, retention_count: 1)
+    configuration = Backup::Configuration.new(
+      source_path: source,
+      destination: @destination,
+      retention_policy: Backup::RetentionPolicy.new(daily: 1, weekly: 0, monthly: 0)
+    )
 
     assert_raises(Backup::Error) { Backup::Creator.call(configuration:) }
   end
@@ -156,6 +240,28 @@ class BackupTest < ActiveSupport::TestCase
 
     assert_equal "created", result.status
     refute Backup::Creator.due?(configuration: @configuration, now: Time.zone.parse("2026-09-05 15:00:00"))
+  end
+
+  test "does not prune a verified run with an invalid creation time" do
+    invalid = @destination.join("invalid")
+    FileUtils.mkdir_p(invalid)
+    invalid.join("manifest.json").write(JSON.generate("verified" => true, "created_at" => "bad"))
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+
+    assert_equal "created", result.status
+    assert_path_exists invalid
+  end
+
+  test "does not prune an unverified run during automatic retention" do
+    unverified = @destination.join("unverified")
+    FileUtils.mkdir_p(unverified)
+    unverified.join("manifest.json").write(JSON.generate("verified" => false, "created_at" => "2026-08-01T12:00:00Z"))
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+
+    assert_equal "created", result.status
+    assert_path_exists unverified
   end
 
   test "rejects malformed manifests, checksums, and databases" do

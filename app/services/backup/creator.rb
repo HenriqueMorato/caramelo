@@ -162,12 +162,27 @@ module Backup
     end
 
     def prune_verified_runs
-      runs = configuration.destination.children.select do |path|
-        path.directory? && path.join("manifest.json").file? && JSON.parse(path.join("manifest.json").read)["verified"]
+      runs = configuration.destination.children.filter_map do |path|
+        next unless path.directory? && !path.symlink? && path.join("manifest.json").file?
+        next unless JSON.parse(path.join("manifest.json").read)["verified"]
+
+        time = backup_time(path)
+        [ path, time ] if time
       rescue JSON::ParserError
-        false
-      end.sort.reverse
-      runs.drop(configuration.retention_count).each { |path| FileUtils.rm_rf(path) }
+        nil
+      end
+      keep = retention_policy.keep(runs)
+      (runs.map(&:first) - keep).each { |path| FileUtils.rm_rf(path) }
+    end
+
+    def retention_policy
+      configuration.retention_policy
+    end
+
+    def backup_time(path)
+      Time.iso8601(JSON.parse(path.join("manifest.json").read).fetch("created_at")).in_time_zone
+    rescue JSON::ParserError, ArgumentError, KeyError
+      nil
     end
 
     def verified_backup_for_today?

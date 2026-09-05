@@ -8,6 +8,7 @@ def usage
       bin/backup create
       bin/backup verify BACKUP_DIRECTORY
       bin/backup restore BACKUP_DIRECTORY --artifact=primary|ledger --to=PATH
+      bin/backup prune --older-than=DAYS [--dry-run]
   USAGE
 end
 
@@ -36,6 +37,15 @@ begin
     restored = Backup::Restorer.call(directory:, artifact:, destination:)
     puts "Verified #{restored.artifact} backup restored to: #{restored.restored_path}"
     puts "The live database was not changed."
+  when "prune"
+    age = ARGV.find { |argument| argument.start_with?("--older-than=") }&.split("=", 2)&.last
+    dry_run = ARGV.include?("--dry-run")
+    abort "Usage: bin/backup prune --older-than=DAYS [--dry-run]" unless age
+
+    result = Backup::Pruner.call(older_than: age, dry_run:)
+    action = dry_run ? "Would delete" : "Deleted"
+    puts "#{action} #{result.deleted.length} backup(s) older than #{age} day(s)."
+    result.deleted.each { |path| puts path }
   else
     abort usage
   end
