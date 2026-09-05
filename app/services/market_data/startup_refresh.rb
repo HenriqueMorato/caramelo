@@ -8,13 +8,18 @@ module MarketData
       RefreshStatus::Tracker.enqueue(scope: "historical_exchange_rates")
       CaptureHistoricalExchangeRatesJob.perform_later
       RefreshStatus::Tracker.enqueue(scope: "market_benchmarks")
-      CaptureMarketBenchmarkObservationsJob.perform_later
+      CaptureMarketBenchmarkObservationsJob.perform_later(from: benchmark_history_start)
     end
 
     def self.traded_instrument_count
       Trade.where(user: User.owner).distinct.count(:instrument_id)
     end
 
-    private_class_method :traded_instrument_count
+    def self.benchmark_history_start
+      oldest_trade_date = Trade.where(user: User.owner).minimum(:traded_on)
+      [ oldest_trade_date, TradingCalendar.previous_business_day ].compact.min
+    end
+
+    private_class_method :traded_instrument_count, :benchmark_history_start
   end
 end

@@ -8,7 +8,9 @@ class MarketData::StartupRefreshTest < ActiveSupport::TestCase
       with_stubbed_method(RefreshTradedMarketPricesJob, :enqueue_for, -> { events << :prices }) do
         with_stubbed_method(CaptureDailyClosingPricesJob, :perform_later, -> { events << :closes }) do
           with_stubbed_method(CaptureHistoricalExchangeRatesJob, :perform_later, -> { events << :fx }) do
-            with_stubbed_method(CaptureMarketBenchmarkObservationsJob, :perform_later, -> { events << :benchmarks }) do
+            with_stubbed_method(CaptureMarketBenchmarkObservationsJob, :perform_later, lambda { |**arguments|
+              events << [ :benchmarks, arguments ]
+            }) do
               MarketData::StartupRefresh.call
             end
           end
@@ -16,10 +18,19 @@ class MarketData::StartupRefreshTest < ActiveSupport::TestCase
       end
     end
 
-    assert_equal %i[prices closes fx benchmarks], events
+    assert_equal %i[prices closes fx], events.first(3)
+    assert_equal :benchmarks, events.last.first
+    assert_equal Trade.where(user: User.owner).minimum(:traded_on), events.last.last.fetch(:from)
     assert_equal 1, enqueued_scopes.count { |attributes| attributes[:scope] == "current_market_prices" }
     assert_equal Trade.where(user: User.owner).distinct.count(:instrument_id),
       enqueued_scopes.find { |attributes| attributes[:scope] == "current_market_prices" }[:total_count]
+  end
+
+  test "uses the previous business day as the benchmark start when the owner has no trades" do
+    Trade.delete_all
+
+    assert_equal TradingCalendar.previous_business_day,
+      MarketData::StartupRefresh.send(:benchmark_history_start)
   end
 
   private

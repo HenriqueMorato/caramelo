@@ -106,7 +106,7 @@ module Performance
       materialization.request!(from:, to:)
       return :failed if recent_failure?(self.class.read(user:, reporting_currency:))
       token = acquire_lease
-      return :active unless token
+      return existing_refresh_status unless token
 
       enqueue_job(token)
     end
@@ -157,6 +157,11 @@ module Performance
 
     def acquire_lease
       self.class.acquire(user:, reporting_currency:)
+    end
+
+    def existing_refresh_status
+      state = self.class.read(user:, reporting_currency:)
+      state&.status == "queued" ? :queued : :active
     end
 
     def recent_failure?(state)

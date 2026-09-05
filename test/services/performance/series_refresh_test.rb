@@ -11,7 +11,7 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
 
   test "atomically enqueues one build and coalesces overlapping ranges" do
     assert_equal :queued, enqueue
-    assert_equal :active, Performance::SeriesRefresh.enqueue(
+    assert_equal :queued, Performance::SeriesRefresh.enqueue(
       user: @user, from: @from - 1.month, to: Date.current
     )
 
@@ -19,6 +19,13 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_equal @from - 1.month, @materialization.reload.requested_from
     assert_equal Date.current, @materialization.requested_to
     assert_predicate refresh_state, :active?
+  end
+
+  test "reports an existing running build as active" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+
+    assert_equal :active, enqueue
   end
 
   test "exposes running successful and failed states" do

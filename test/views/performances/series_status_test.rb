@@ -14,10 +14,23 @@ class PerformanceSeriesStatusTest < ActionView::TestCase
     assert_select "[role=status]", text: /still being prepared/, count: 0
   end
 
-  test "stale history identifies displayed values as last calculated" do
-    render_status(:stale)
+  test "queued stale history explains that it is waiting for a worker" do
+    render_status(:stale, refresh_status: :queued)
+
+    assert_select "[role=status]", /update is waiting/
+  end
+
+  test "actively rebuilding stale history identifies displayed values as last calculated" do
+    render_status(:stale, refresh_status: :active)
 
     assert_select "[role=status]", /last calculated values/
+  end
+
+  test "stale history without a rebuild does not claim to be refreshing" do
+    render_status(:stale)
+
+    assert_select "[role=status]", /may be out of date/
+    assert_select "[role=status]", text: /refreshing/, count: 0
   end
 
   test "failed history offers a retry in the same period" do
@@ -53,11 +66,15 @@ class PerformanceSeriesStatusTest < ActionView::TestCase
 
   private
 
-  def render_status(status, stale: false)
+  def render_status(status, stale: false, refresh_status: nil)
     missing = Struct.new(:date, :stale?) { def missing? = true }.new(Date.current, stale)
     series = Performance::Series::Result.new(
-      from: Date.current, to: Date.current, observations: [ missing ], status:, refresh_status: nil
+      from: Date.current, to: Date.current, observations: [ missing ], status:, refresh_status:
     )
-    render partial: "performances/series_status", locals: { series:, selected_period: "year" }
+    render partial: "performances/series_status", locals: {
+      series:,
+      series_presenter: Performance::SeriesPresenter.new(series),
+      selected_period: "year"
+    }
   end
 end

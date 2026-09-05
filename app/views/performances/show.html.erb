@@ -109,7 +109,8 @@
         <span class="text-xs text-muted"><%= @series_presenter.date_range_label %></span>
       </div>
 
-      <%= render "series_status", series: @series, selected_period: @selected_period %>
+      <%= render "series_status", series: @series, series_presenter: @series_presenter,
+        selected_period: @selected_period %>
 
       <% if @series.displayable? %>
         <% chart_data = @series_presenter.chart_data(
@@ -119,8 +120,23 @@
         <div
           class="relative mt-5"
           data-controller="performance-chart"
+          data-action="popstate@window->performance-chart#restoreMode"
           data-performance-chart-data-value="<%= json_escape(chart_data.to_json) %>"
         >
+          <div class="mb-4 flex justify-end">
+            <div class="inline-flex h-[26px] items-center rounded-md border border-coffee/15 bg-oat" role="tablist" aria-label="<%= t(".Chart view") %>">
+              <% [[ "value", t(".Value") ], [ "performance", t("Performance") ]].each do |mode, label| %>
+                <button
+                  type="button"
+                  role="tab"
+                  data-performance-chart-target="tab"
+                  data-performance-chart-mode-param="<%= mode %>"
+                  data-action="performance-chart#selectMode keydown->performance-chart#selectModeWithKeyboard"
+                  class="relative h-[24px] rounded px-2.5 text-xs font-semibold leading-none text-muted transition-colors duration-150 before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel data-[active=true]:bg-coffee data-[active=true]:text-oat"
+                ><%= label %></button>
+              <% end %>
+            </div>
+          </div>
           <div class="relative h-56 sm:h-64">
             <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t(".Portfolio history chart description") %>"></canvas>
           </div>
