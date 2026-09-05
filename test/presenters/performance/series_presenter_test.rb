@@ -32,6 +32,7 @@ class Performance::SeriesPresenterTest < ActiveSupport::TestCase
     assert_equal data[:values], data[:invested_values]
     assert_equal [ "↑ +10.00%", "↓ -20.00%", "→ 0.00%", nil ], data[:formatted_performances]
     assert_equal "Portfolio value", data[:portfolio_value_label]
+    assert_equal "Portfolio return", data[:portfolio_return_label]
     assert_equal "BRL", data[:currency]
     assert_equal [ "Aug 15" ] * 4, data[:labels]
   end

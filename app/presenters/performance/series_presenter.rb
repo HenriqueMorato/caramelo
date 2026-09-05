@@ -26,6 +26,7 @@ module Performance
         performance_ratios: series.observations.map(&:return_ratio),
         benchmarks:,
         portfolio_value_label: I18n.t("performances.show.Portfolio value"),
+        portfolio_return_label: I18n.t("performances.show.Portfolio return"),
         invested_value_label: I18n.t("performances.show.Net invested"),
         return_label: I18n.t("performances.show.Return"),
         currency:,

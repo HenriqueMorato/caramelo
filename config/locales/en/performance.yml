@@ -6,6 +6,7 @@ en:
       Benchmark period: "%{from} – %{to}"
       Benchmark unavailable: Data unavailable
       Cash-flow adjusted: Modified Dietz
+      Chart view: Chart view
       Daily value: Daily value
       Date: Date
       Empty state: Record trades and capture historical market data to calculate performance.
@@ -46,6 +47,7 @@ en:
       Portfolio history update failed: Portfolio history could not be updated
       Portfolio history update failed explanation: Existing financial records are
         safe. Try the calculation again in a moment.
+      Portfolio return: Portfolio return
       Portfolio value: Portfolio value
       Price return: Price return
       Prices through: Prices through %{date}
@@ -54,6 +56,7 @@ en:
       Stale values remain visible: Some displayed values are from an earlier calculation.
       Try again: Try again
       Unrealized gains to date: Unrealized gains to date
+      Value: Value
       View exact values: View exact values
       Week: Week
       Year: Year

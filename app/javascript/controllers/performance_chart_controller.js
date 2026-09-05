@@ -1,5 +1,15 @@
 import { Controller } from "@hotwired/stimulus"
-import { Chart, CategoryScale, Filler, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip } from "chart.js"
+import {
+  Chart,
+  CategoryScale,
+  Filler,
+  Legend,
+  LinearScale,
+  LineController,
+  LineElement,
+  PointElement,
+  Tooltip
+} from "chart.js"
 
 Chart.register(CategoryScale, Filler, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip)
 
@@ -26,26 +36,50 @@ const hoverGuidePlugin = {
   }
 }
 
+const benchmarkColors = { IBOV: "#3f5f86", SP500: "#7b3f78", CDI: "#b27a1f" }
+const fallbackBenchmarkColors = Object.values(benchmarkColors)
+
 export default class extends Controller {
-  static targets = ["canvas"]
+  static targets = ["canvas", "tab"]
   static values = { data: Object }
 
   connect() {
+    this.mode = this.requestedMode()
+    this.portfolioReturnDataset = {
+      label: this.dataValue.portfolio_return_label,
+      data: this.dataValue.performance_ratios.map((value) => value === null ? null : Number(value) * 100),
+      borderColor: "#9b5d31",
+      borderWidth: 3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHitRadius: 16,
+      fill: false,
+      tension: 0.25,
+      hidden: this.mode !== "performance",
+      role: "portfolio-return",
+      yAxisID: "return"
+    }
     this.benchmarkDatasets = (this.dataValue.benchmarks || []).map((benchmark, index) => ({
       label: benchmark.label,
       data: benchmark.values,
-      borderColor: { IBOV: "#3f5f86", SP500: "#7b3f78", CDI: "#b27a1f" }[benchmark.identifier] || ["#3f5f86", "#7b3f78", "#b27a1f"][index % 3],
+      borderColor: benchmarkColors[benchmark.identifier] ||
+        fallbackBenchmarkColors[index % fallbackBenchmarkColors.length],
       borderWidth: 1.75,
       pointRadius: 0,
       pointHitRadius: 12,
       fill: false,
       tension: 0.25,
-      yAxisID: "benchmark"
+      hidden: this.mode !== "performance",
+      role: "benchmark",
+      benchmark,
+      yAxisID: "return"
     }))
-    const benchmarkValues = this.benchmarkDatasets.flatMap((dataset) => dataset.data).filter((value) => value !== null && value !== undefined)
-    const benchmarkMinimum = Math.min(0, ...benchmarkValues)
-    const benchmarkMaximum = Math.max(0, ...benchmarkValues)
-    const benchmarkPadding = Math.max((benchmarkMaximum - benchmarkMinimum) * 0.1, 1)
+    const returnValues = [this.portfolioReturnDataset, ...this.benchmarkDatasets]
+      .flatMap((dataset) => dataset.data)
+      .filter((value) => value !== null && value !== undefined)
+    const returnMinimum = Math.min(0, ...returnValues)
+    const returnMaximum = Math.max(0, ...returnValues)
+    const returnPadding = Math.max((returnMaximum - returnMinimum) * 0.1, 1)
     this.chart = new Chart(this.canvasTarget, {
       type: "line",
       plugins: [hoverGuidePlugin],
@@ -62,7 +96,9 @@ export default class extends Controller {
             pointHoverRadius: 4,
             pointHitRadius: 16,
             fill: true,
-            tension: 0.25
+            tension: 0.25,
+            hidden: this.mode === "performance",
+            role: "portfolio-value"
           },
           {
             label: this.dataValue.invested_value_label,
@@ -74,9 +110,12 @@ export default class extends Controller {
             pointHoverRadius: 3,
             pointHitRadius: 16,
             fill: false,
-            tension: 0.25
+            tension: 0.25,
+            hidden: this.mode === "performance",
+            role: "invested-value"
           },
-          ...this.benchmarkDatasets.map((dataset) => ({ ...dataset, hidden: true }))
+          this.portfolioReturnDataset,
+          ...this.benchmarkDatasets
         ]
       },
       options: {
@@ -93,10 +132,12 @@ export default class extends Controller {
               boxHeight: 3,
               usePointStyle: true,
               padding: 16,
-              generateLabels: (chart) => Chart.defaults.plugins.legend.labels.generateLabels(chart).map((item) => ({
-                ...item,
-                fontColor: chart.data.datasets[item.datasetIndex]?.borderColor || "#4c3d31"
-              }))
+              generateLabels: (chart) => Chart.defaults.plugins.legend.labels.generateLabels(chart)
+                .filter((item) => this.datasetVisibleInMode(chart.data.datasets[item.datasetIndex]))
+                .map((item) => ({
+                  ...item,
+                  fontColor: chart.data.datasets[item.datasetIndex]?.borderColor || "#4c3d31"
+                }))
             },
             onClick: (event, legendItem, legend) => {
               const chart = legend.chart
@@ -122,29 +163,38 @@ export default class extends Controller {
             callbacks: {
               title: (items) => this.dataValue.labels[items[0].dataIndex],
               label: (item) => {
-                if (item.datasetIndex >= 2) {
-                  const benchmark = this.dataValue.benchmarks[item.datasetIndex - 2]
-                  const value = benchmark.values[item.dataIndex]
+                const dataset = item.dataset
+                if (dataset.role === "benchmark") {
+                  const benchmark = dataset.benchmark
+                  const value = dataset.data[item.dataIndex]
                   return value === null || value === undefined
                     ? `${benchmark.label}: Not available`
                     : `${benchmark.label}: ${value > 0 ? "+" : ""}${value.toFixed(2)}%`
                 }
 
-                const formattedValue = item.datasetIndex === 1
+                if (dataset.role === "portfolio-return") {
+                  const value = dataset.data[item.dataIndex]
+                  return value === null || value === undefined
+                    ? `${dataset.label}: Not available`
+                    : `${dataset.label}: ${value > 0 ? "+" : ""}${value.toFixed(2)}%`
+                }
+
+                const formattedValue = dataset.role === "invested-value"
                   ? this.dataValue.formatted_invested_values[item.dataIndex]
                   : this.dataValue.formatted_values[item.dataIndex]
-                const valueLabel = item.datasetIndex === 1
+                const valueLabel = dataset.role === "invested-value"
                   ? this.dataValue.invested_value_label
                   : this.dataValue.portfolio_value_label
-                const performance = item.datasetIndex === 0
+                const performance = dataset.role === "portfolio-value"
                   ? this.dataValue.formatted_performances?.[item.dataIndex]
                   : null
                 const performanceLabel = performance && `${this.dataValue.return_label}: ${performance}`
                 return [`${valueLabel}: ${formattedValue}`, performanceLabel].filter(Boolean)
               },
               labelTextColor: (item) => {
-                if (item.datasetIndex === 1) return "#766b60"
-                if (item.datasetIndex >= 2) return this.chart.data.datasets[item.datasetIndex].borderColor
+                const dataset = item.dataset
+                if (dataset.role === "invested-value") return "#766b60"
+                if (["benchmark", "portfolio-return"].includes(dataset.role)) return dataset.borderColor
 
                 const performance = this.dataValue.performance_ratios?.[item.dataIndex]
                 if (performance === undefined || performance === null || performance === 0) return "#766b60"
@@ -157,6 +207,7 @@ export default class extends Controller {
         scales: {
           x: { grid: { display: false }, ticks: { maxTicksLimit: 7, color: "#766b60" } },
           y: {
+            display: this.mode === "value",
             beginAtZero: true,
             grid: { color: "rgba(76, 61, 49, 0.12)" },
             ticks: {
@@ -166,12 +217,12 @@ export default class extends Controller {
               }).format(value)
             }
           },
-          benchmark: {
-            position: "right",
-            display: false,
-            min: benchmarkMinimum - benchmarkPadding,
-            max: benchmarkMaximum + benchmarkPadding,
-            grid: { drawOnChartArea: false },
+          return: {
+            display: this.mode === "performance",
+            position: "left",
+            min: returnMinimum - returnPadding,
+            max: returnMaximum + returnPadding,
+            grid: { color: "rgba(76, 61, 49, 0.12)" },
             ticks: {
               color: "#766b60",
               callback: (value) => `${value > 0 ? "+" : ""}${value.toFixed(1)}%`
@@ -180,9 +231,69 @@ export default class extends Controller {
         }
       }
     })
+    this.updateTabs()
   }
 
   disconnect() {
     this.chart?.destroy()
+  }
+
+  selectMode(event) {
+    this.setMode(event.params.mode)
+  }
+
+  selectModeWithKeyboard(event) {
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return
+
+    event.preventDefault()
+    const mode = this.mode === "value" ? "performance" : "value"
+    this.setMode(mode)
+    this.tabTargets.find((tab) => tab.dataset.performanceChartModeParam === mode)?.focus()
+  }
+
+  restoreMode() {
+    this.setMode(this.requestedMode(), false)
+  }
+
+  setMode(mode, updateUrl = true) {
+    if (!this.chart || !["value", "performance"].includes(mode)) return
+
+    this.mode = mode
+    this.chart.data.datasets.forEach((dataset, index) => {
+      this.chart.setDatasetVisibility(index, this.datasetVisibleInMode(dataset))
+    })
+    this.chart.options.scales.y.display = mode === "value"
+    this.chart.options.scales.return.display = mode === "performance"
+    this.updateTabs()
+    this.chart.update()
+    if (updateUrl) this.updateUrl()
+  }
+
+  datasetVisibleInMode(dataset) {
+    const valueDataset = ["portfolio-value", "invested-value"].includes(dataset.role)
+    return this.mode === "value" ? valueDataset : !valueDataset
+  }
+
+  updateTabs() {
+    this.tabTargets.forEach((tab) => {
+      const active = tab.dataset.performanceChartModeParam === this.mode
+      tab.dataset.active = active.toString()
+      tab.setAttribute("aria-selected", active.toString())
+      tab.tabIndex = active ? 0 : -1
+    })
+  }
+
+  updateUrl() {
+    const url = new URL(window.location.href)
+    if (this.mode === "value") {
+      url.searchParams.delete("chart")
+    } else {
+      url.searchParams.set("chart", this.mode)
+    }
+    window.history.pushState({}, "", url)
+  }
+
+  requestedMode() {
+    return new URL(window.location.href).searchParams.get("chart") === "performance" ? "performance" : "value"
   }
 }
