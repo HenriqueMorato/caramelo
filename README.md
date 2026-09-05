@@ -128,19 +128,51 @@ To inspect the database with the SQLite console while LocalFolio is running:
 docker exec -it local_folio sqlite3 /rails/storage/production.sqlite3
 ```
 
-Use SQLite's backup command to create a consistent snapshot, then copy it from
-the container to the current host directory:
+LocalFolio can create a verified daily backup containing both the complete
+primary database and a portable trade ledger. The backup is kept outside the
+application database and never uploaded anywhere. From a production container:
 
 ```sh
-docker exec local_folio sqlite3 /rails/storage/production.sqlite3 \
-  ".backup '/tmp/local_folio-backup.sqlite3'"
-docker cp local_folio:/tmp/local_folio-backup.sqlite3 ./local_folio-backup.sqlite3
+docker exec local_folio bin/backup create
+docker cp local_folio:/rails/backups ./local_folio-backups
 ```
 
-The extracted `local_folio-backup.sqlite3` file can be moved to any backup
-location you choose. No external database, cache, queue, market-data
-credentials, or authentication service is required. Refreshing a supported
-current price makes an outbound request to Yahoo Finance.
+Each run contains `primary.sqlite3`, `ledger.sqlite3`, `manifest.json`, and
+`SHA256SUMS`. The primary artifact contains all durable application data. The
+ledger artifact keeps the owner, trades, and referenced instruments and
+institutions while omitting replaceable market data, sessions, and projections.
+Both artifacts contain private financial information; copy the backup directory
+to protected off-host storage as part of your own backup routine. The default
+rotation keeps seven daily, four weekly, and twelve monthly representatives.
+Override it with `LOCALFOLIO_BACKUP_KEEP_DAILY`,
+`LOCALFOLIO_BACKUP_KEEP_WEEKLY`, and `LOCALFOLIO_BACKUP_KEEP_MONTHLY`.
+
+For explicit age-based cleanup, preview first and then delete:
+
+```sh
+bin/backup prune --older-than=30 --dry-run
+bin/backup prune --older-than=30
+```
+
+This deletes only verified backup directories older than the requested number
+of days. Malformed, unverified, and temporary directories remain untouched. A
+recurring maintenance job runs daily at 3am by default; set
+`LOCALFOLIO_BACKUP_SCHEDULE` to customize it. Startup and the first request of
+a new day remain fallback paths.
+
+Verify or rehearse an isolated restore without changing the live database:
+
+```sh
+docker exec local_folio bin/backup verify /rails/backups/2026-09-05T120000.000000Z
+docker exec local_folio bin/backup restore /rails/backups/2026-09-05T120000.000000Z \
+  --artifact=primary --to=/tmp/localfolio-restored.sqlite3
+```
+
+Only replace a production database after stopping the application, verifying an
+isolated restore, and taking the current storage volume out of service. No
+external database, cache, queue, market-data credentials, or authentication
+service is required. Refreshing a supported current price makes an outbound
+request to Yahoo Finance.
 
 The interface is English, the application time zone is
 `America/Sao_Paulo`, and future portfolio reporting defaults to Brazilian real

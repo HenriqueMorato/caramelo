@@ -3,7 +3,10 @@
 
 # This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
 # docker build -t local_folio .
-# docker run -d -p 3000:80 --env-file .env.docker --mount source=local_folio_storage,target=/rails/storage --name local_folio local_folio
+# docker run -d -p 3000:80 --env-file .env.docker \
+#   --mount source=local_folio_storage,target=/rails/storage \
+#   --mount source=local_folio_backups,target=/rails/backups \
+#   --name local_folio local_folio
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 

@@ -11,6 +11,7 @@ SimpleCov.start
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
+require "active_job/enqueuing"
 require_relative "test_helpers/session_test_helper"
 
 module ActiveSupport

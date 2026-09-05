@@ -155,6 +155,51 @@ are described in [Historical Data Backfills](docs/historical-data-backfills.md).
 Portfolio valuation, cash-flow-adjusted returns, and historical-data safety are
 described in [Portfolio Performance](docs/portfolio-performance.md).
 
+### SQLite backups
+
+Backups are application services, with `bin/backup` as the operator-facing
+adapter. A low-priority backup is scheduled ten minutes after startup or the
+first request on a new local day when no verified backup exists for that day.
+A recurring maintenance job also attempts a backup daily at 3am when the
+container remains running. Startup and first-request scheduling remain fallback
+paths, and the backup creator still refuses a second verified backup for the
+same local day.
+
+```sh
+bin/backup create
+bin/backup verify backups/2026-09-05T120000.000000Z
+bin/backup restore backups/2026-09-05T120000.000000Z \
+  --artifact=ledger --to=/tmp/localfolio-ledger.sqlite3
+```
+
+Each run is atomically published under `backups/` with a complete
+`primary.sqlite3`, a filtered `ledger.sqlite3`, `manifest.json`, and
+`SHA256SUMS`. The primary database includes durable and historical records. The
+ledger keeps only the configured owner, that owner's trades, and referenced
+instruments and institutions; cache-like market data, sessions, and derived
+projections are empty. Both files contain sensitive financial data and the
+owner's password digest. The default rotation keeps seven daily, four weekly,
+and twelve monthly representatives. Set `LOCALFOLIO_BACKUP_KEEP_DAILY`,
+`LOCALFOLIO_BACKUP_KEEP_WEEKLY`, and `LOCALFOLIO_BACKUP_KEEP_MONTHLY` to
+override it.
+
+For explicit age-based cleanup, preview and then run:
+
+```sh
+bin/backup prune --older-than=30 --dry-run
+bin/backup prune --older-than=30
+```
+
+This deletes only verified runs older than the requested age. Malformed,
+unverified, and temporary directories remain untouched.
+
+Verification checks checksums, SQLite integrity, foreign keys, current pending
+migrations, and the ledger's excluded tables. Restore always targets a new
+isolated path, refuses the live database and existing destinations, and verifies
+the copied file before publishing it. Replacing production storage is a manual,
+stopped-application operation after an isolated restore rehearsal. CSV export is
+not automatic; it remains the explicit interface work tracked in issue #106.
+
 ### Automatic market-data refreshes
 
 When `bin/dev` is running, the Solid Queue worker schedules a current-price

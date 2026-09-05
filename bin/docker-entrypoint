@@ -4,6 +4,7 @@
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
   ./bin/rails runner "MarketData::StartupRefresh.call"
+  ./bin/rails runner "Backup::Scheduler.enqueue_if_due"
 fi
 
 exec "${@}"

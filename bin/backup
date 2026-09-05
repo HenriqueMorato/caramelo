@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+
+require_relative "../config/environment"
+
+def usage
+  <<~USAGE
+    Usage:
+      bin/backup create
+      bin/backup verify BACKUP_DIRECTORY
+      bin/backup restore BACKUP_DIRECTORY --artifact=primary|ledger --to=PATH
+      bin/backup prune --older-than=DAYS [--dry-run]
+  USAGE
+end
+
+command = ARGV.shift
+
+begin
+  case command
+  when "create"
+    result = Backup::Creator.call
+    puts "Backup #{result.status}."
+    puts "Directory: #{result.directory}" if result.directory
+    puts "Records: #{result.record_counts}" if result.record_counts.any?
+  when "verify"
+    directory = ARGV.shift
+    abort "Usage: bin/backup verify BACKUP_DIRECTORY" unless directory
+
+    verification = Backup::Verifier.call(directory:)
+    puts "Backup verified: #{verification.directory}"
+    puts "Records: #{verification.record_counts}"
+  when "restore"
+    directory = ARGV.shift
+    artifact = ARGV.find { |argument| argument.start_with?("--artifact=") }&.split("=", 2)&.last || "primary"
+    destination = ARGV.find { |argument| argument.start_with?("--to=") }&.split("=", 2)&.last
+    abort "Usage: bin/backup restore BACKUP_DIRECTORY --artifact=primary|ledger --to=PATH" unless directory && destination
+
+    restored = Backup::Restorer.call(directory:, artifact:, destination:)
+    puts "Verified #{restored.artifact} backup restored to: #{restored.restored_path}"
+    puts "The live database was not changed."
+  when "prune"
+    age = ARGV.find { |argument| argument.start_with?("--older-than=") }&.split("=", 2)&.last
+    dry_run = ARGV.include?("--dry-run")
+    abort "Usage: bin/backup prune --older-than=DAYS [--dry-run]" unless age
+
+    result = Backup::Pruner.call(older_than: age, dry_run:)
+    action = dry_run ? "Would delete" : "Deleted"
+    puts "#{action} #{result.deleted.length} backup(s) older than #{age} day(s)."
+    result.deleted.each { |path| puts path }
+  else
+    abort usage
+  end
+rescue Backup::Error => error
+  abort "Backup failed: #{error.message}"
+end
