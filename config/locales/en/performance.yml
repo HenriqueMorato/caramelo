@@ -43,10 +43,16 @@ en:
       Portfolio history is refreshing: Portfolio history is refreshing
       Portfolio history is refreshing explanation: These are the last calculated values.
         Source changes are being applied in the background.
+      Portfolio history may be out of date: Portfolio history may be out of date
+      Portfolio history may be out of date explanation: These are the last calculated
+        values. No update is currently running.
       Portfolio history unavailable: Historical values are incomplete for this period.
       Portfolio history update failed: Portfolio history could not be updated
       Portfolio history update failed explanation: Existing financial records are
         safe. Try the calculation again in a moment.
+      Portfolio history update is waiting: Portfolio history update is waiting
+      Portfolio history update is waiting explanation: These are the last calculated
+        values. The update will begin when a background worker is available.
       Portfolio return: Portfolio return
       Portfolio value: Portfolio value
       Price return: Price return

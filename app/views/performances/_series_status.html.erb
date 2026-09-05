@@ -1,4 +1,4 @@
-<%# locals: (series:, selected_period:) %>
+<%# locals: (series:, series_presenter:, selected_period:) %>
 
 <% if series.pending? %>
   <div class="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
@@ -15,8 +15,8 @@
   </div>
 <% elsif series.stale? %>
   <div class="mt-5 rounded-xl border border-caramel/30 bg-caramel/10 px-4 py-3 text-sm text-coffee" role="status">
-    <p class="font-semibold"><%= t("performances.show.Portfolio history is refreshing") %></p>
-    <p class="mt-1"><%= t("performances.show.Portfolio history is refreshing explanation") %></p>
+    <p class="font-semibold"><%= series_presenter.stale_status_copy.title %></p>
+    <p class="mt-1"><%= series_presenter.stale_status_copy.explanation %></p>
   </div>
 <% elsif series.failed? %>
   <div class="mt-5 rounded-xl border border-red-300/70 bg-red-50 px-4 py-3 text-sm text-red-950" role="alert">

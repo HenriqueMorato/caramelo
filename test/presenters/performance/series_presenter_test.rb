@@ -37,7 +37,27 @@ class Performance::SeriesPresenterTest < ActiveSupport::TestCase
     assert_equal [ "Aug 15" ] * 4, data[:labels]
   end
 
+  test "describes queued running and idle stale history" do
+    assert_equal "Portfolio history update is waiting", presenter_for(:queued).stale_status_copy.title
+    assert_equal "Portfolio history is refreshing", presenter_for(:active).stale_status_copy.title
+
+    copy = presenter_for(nil).stale_status_copy
+    assert_equal "Portfolio history may be out of date", copy.title
+    assert_equal "These are the last calculated values. No update is currently running.", copy.explanation
+  end
+
   private
+
+  def presenter_for(refresh_status)
+    series = Performance::Series::Result.new(
+      from: Date.current,
+      to: Date.current,
+      observations: [],
+      status: :stale,
+      refresh_status:
+    )
+    Performance::SeriesPresenter.new(series)
+  end
 
   def series_with(from, to)
     Performance::Series::Result.new(from:, to:, observations: [], status: :empty, refresh_status: nil)

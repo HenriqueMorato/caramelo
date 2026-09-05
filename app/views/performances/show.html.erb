@@ -109,7 +109,8 @@
         <span class="text-xs text-muted"><%= @series_presenter.date_range_label %></span>
       </div>
 
-      <%= render "series_status", series: @series, selected_period: @selected_period %>
+      <%= render "series_status", series: @series, series_presenter: @series_presenter,
+        selected_period: @selected_period %>
 
       <% if @series.displayable? %>
         <% chart_data = @series_presenter.chart_data(

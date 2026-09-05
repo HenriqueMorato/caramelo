@@ -2,6 +2,9 @@ module Performance
   class SeriesPresenter
     include FinancialDisplay
 
+    # Copy shown for one portfolio-history state.
+    StatusCopy = Data.define(:title, :explanation)
+
     def initialize(series)
       @series = series
     end
@@ -34,9 +37,32 @@ module Performance
       }
     end
 
+    def stale_status_copy
+      @stale_status_copy ||= if series.queued?
+        status_copy(
+          I18n.t("performances.show.Portfolio history update is waiting"),
+          I18n.t("performances.show.Portfolio history update is waiting explanation")
+        )
+      elsif series.refreshing?
+        status_copy(
+          I18n.t("performances.show.Portfolio history is refreshing"),
+          I18n.t("performances.show.Portfolio history is refreshing explanation")
+        )
+      else
+        status_copy(
+          I18n.t("performances.show.Portfolio history may be out of date"),
+          I18n.t("performances.show.Portfolio history may be out of date explanation")
+        )
+      end
+    end
+
     private
 
     attr_reader :series
+
+    def status_copy(title, explanation)
+      StatusCopy.new(title:, explanation:)
+    end
 
     def performance_label(ratio)
       "#{trend_arrow(ratio)} #{signed_percentage(ratio)}" if ratio

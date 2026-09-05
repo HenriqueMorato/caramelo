@@ -25,6 +25,7 @@ module Performance
       def stale? = status == :stale
       def failed? = status == :failed
       def stale_values? = observations.any?(&:stale?)
+      def queued? = refresh_status == :queued
       def refreshing? = %i[queued active].include?(refresh_status)
       def displayable? = observations.any? { |observation| observation.market_value_amount }
 

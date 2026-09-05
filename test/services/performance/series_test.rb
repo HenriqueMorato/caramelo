@@ -115,6 +115,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     result = calculate
 
     assert_predicate result, :pending?
+    assert_predicate result, :queued?
     assert_predicate result, :refreshing?
     assert_equal [ [ @from, @to ] ], @refresher.ranges
     assert_equal [ @from, @from + 1, @to ], result.missing_dates
