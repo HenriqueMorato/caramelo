@@ -59,7 +59,8 @@
     <%= render "performance",
       presenters: @performance_presenters,
       native_currency: @instrument.currency,
-      reporting_currency: @reporting_currency %>
+      reporting_currency: @reporting_currency,
+      currency_view: @currency_view %>
   <% end %>
 
   <section aria-labelledby="trade-history-heading" class="space-y-4">

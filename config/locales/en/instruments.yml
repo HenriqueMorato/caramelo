@@ -26,8 +26,8 @@ en:
       Page title: New instrument · %{application}
     show:
       Close as of: Close as of %{date}
-      Current position: Current position
       Currency view: Performance currency
+      Current position: Current position
       Delete blocked: Delete this instrument's trades before deleting the instrument.
       Empty history: Add a purchase or sale to begin its history.
       FX as of: FX as of %{date}

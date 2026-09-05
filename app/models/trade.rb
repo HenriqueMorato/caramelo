@@ -64,10 +64,14 @@ class Trade < ApplicationRecord
 
   def synchronize_settlement_currency
     if settlement_exchange_rate.present?
-      self.settlement_currency ||= user&.reporting_currency
+      self.settlement_currency = persisted_settlement_currency || user&.reporting_currency
     else
       self.settlement_currency = nil
     end
+  end
+
+  def persisted_settlement_currency
+    settlement_currency_in_database if persisted?
   end
 
   def mark_performance_observations_stale

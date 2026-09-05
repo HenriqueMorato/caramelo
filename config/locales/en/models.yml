@@ -45,10 +45,10 @@ en:
           attributes:
             currency:
               instrument_mismatch: must match the instrument currency
-            settlement_currency:
-              same_as_instrument: must differ from the instrument currency
             institution:
               wrong_owner: must belong to the trade owner
+            settlement_currency:
+              same_as_instrument: must differ from the instrument currency
     models:
       institution:
         one: Institution

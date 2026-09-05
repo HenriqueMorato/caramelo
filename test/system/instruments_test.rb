@@ -181,6 +181,13 @@ class InstrumentsTest < ApplicationSystemTestCase
     end
     assert_current_path instrument_path(instrument, currency_view: "reporting")
 
+    refresh
+
+    within "[aria-labelledby='instrument-performance-heading']" do
+      assert_text "R$2.100,00"
+      assert_no_text "$400.00"
+    end
+
     page.go_back
 
     within "[aria-labelledby='instrument-performance-heading']" do

@@ -6,7 +6,8 @@ en:
     form:
       Derived currency: Derived from the selected instrument.
       Institution optional: Institution (optional)
-      Settlement exchange rate help: Leave blank to use the market rate for the trade date.
+      Settlement exchange rate help: Leave blank to use the market rate for the trade
+        date.
       Settlement exchange rate optional: Exchange rate paid or received (optional)
     index:
       Empty state: Record your first purchase or sale to start the trade history.

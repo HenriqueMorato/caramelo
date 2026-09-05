@@ -16,6 +16,33 @@ class Trades::HistoricalDataBackfillEnqueuerTest < ActiveSupport::TestCase
     assert_equal({ trade_id: trade.id }, reports.sole.last.fetch(:context))
   end
 
+  test "prepares FX when an edit introduces a settlement currency different from reporting" do
+    trade = trades(:owner_voo_buy)
+    trade.update!(settlement_exchange_rate: "5.25")
+    trade.user.update!(reporting_currency: "EUR")
+    preparations = []
+
+    trade.update!(settlement_exchange_rate: "5.3")
+
+    with_stubbed_method(PrepareReportingCurrencyJob, :enqueue_for, ->(**args) { preparations << args }) do
+      Trades::HistoricalDataBackfillEnqueuer.call(trade:)
+    end
+
+    assert_equal [ { user: trade.user } ], preparations
+  end
+
+  test "does not prepare reporting currency when settlement already matches it" do
+    trade = trades(:owner_voo_buy)
+    trade.update!(settlement_exchange_rate: "5.25")
+    preparations = []
+
+    with_stubbed_method(PrepareReportingCurrencyJob, :enqueue_for, ->(**args) { preparations << args }) do
+      Trades::HistoricalDataBackfillEnqueuer.call(trade:)
+    end
+
+    assert_empty preparations
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

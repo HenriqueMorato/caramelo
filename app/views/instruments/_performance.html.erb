@@ -1,4 +1,4 @@
-<%# locals: (presenters:, native_currency:, reporting_currency:) %>
+<%# locals: (presenters:, native_currency:, reporting_currency:, currency_view:) %>
 
 <section aria-labelledby="instrument-performance-heading"
          class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm sm:p-6"
@@ -13,12 +13,12 @@
       <div class="currency-view-options" role="group" aria-label="<%= t("instruments.show.Currency view") %>">
         <button type="button" class="currency-view-option"
                 data-currency-view-target="button" data-currency-view-name-param="native"
-                data-action="currency-view#select" aria-pressed="true">
+                data-action="currency-view#select" aria-pressed="<%= currency_view == :native %>">
           <%= t("instruments.show.Instrument currency", currency: native_currency) %>
         </button>
         <button type="button" class="currency-view-option"
                 data-currency-view-target="button" data-currency-view-name-param="reporting"
-                data-action="currency-view#select" aria-pressed="false">
+                data-action="currency-view#select" aria-pressed="<%= currency_view == :reporting %>">
           <%= t("instruments.show.My currency", currency: reporting_currency) %>
         </button>
       </div>
@@ -26,7 +26,7 @@
   </div>
 
   <% presenters.each do |name, presenter| %>
-    <%= tag.div data: { currency_view_target: "panel", currency_view_name: name }, hidden: name != :native do %>
+    <%= tag.div data: { currency_view_target: "panel", currency_view_name: name }, hidden: name != currency_view do %>
       <%= render "performance_metrics", presenter: %>
     <% end %>
   <% end %>

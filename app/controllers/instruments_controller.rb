@@ -15,6 +15,7 @@ class InstrumentsController < ApplicationController
     @performance_pending = HistoricalDataBackfill.pending_for?(instruments: [ @instrument ])
     @reporting_currency = owner.reporting_currency
     @performance_presenters = performance_presenters
+    @currency_view = requested_currency_view
   rescue Position::InvalidLongOnlyData => error
     @position_error = error
   end
@@ -68,6 +69,12 @@ class InstrumentsController < ApplicationController
       reporting_currency: currency
     )
     Performance::Presenter.for(performance:, pending: @performance_pending)
+  end
+
+  def requested_currency_view
+    return :reporting if params[:currency_view] == "reporting" && @performance_presenters[:reporting]
+
+    :native
   end
 
   def owner

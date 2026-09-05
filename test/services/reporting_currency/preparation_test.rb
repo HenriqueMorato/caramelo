@@ -96,6 +96,20 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_equal %w[BRL USD], @imports.map { |call| call[:base_currency] }.sort
   end
 
+  test "uses the earliest native or settlement trade date for each currency" do
+    @user.update!(reporting_currency: "BRL")
+    trades(:owner_voo_buy).update!(settlement_exchange_rate: "5.25")
+    early_native_trade = @user.trades.create!(
+      instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 8, 1),
+      quantity: 1, unit_price: 1, currency: "BRL"
+    )
+    @user.update!(reporting_currency: "EUR")
+
+    starts = preparation.send(:currency_starts)
+
+    assert_equal early_native_trade.traded_on, starts.fetch("BRL")
+  end
+
   test "an empty portfolio requires neither FX nor a rebuild" do
     @user = users(:two)
 
