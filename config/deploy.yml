@@ -60,10 +60,10 @@ builder:
 # ssh:
 #   user: app
 
-# Use a persistent storage volume.
-#
-# volumes:
-#   - "app_storage:/app/storage"
+# Use separate persistent volumes for the live database and verified backups.
+volumes:
+  - "local_folio_storage:/rails/storage"
+  - "local_folio_backups:/rails/backups"
 
 # Bridge fingerprinted assets, like JS and CSS, between versions to avoid
 # hitting 404 on in-flight requests. Combines all files from new and old

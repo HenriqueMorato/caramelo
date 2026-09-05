@@ -9,4 +9,5 @@ export RUBY_DEBUG_OPEN="true"
 export RUBY_DEBUG_LAZY="true"
 
 bundle exec rails runner "MarketData::StartupRefresh.call"
+bundle exec rails runner "Backup::Scheduler.enqueue_if_due"
 exec bundle exec foreman start -f Procfile.dev "$@"
