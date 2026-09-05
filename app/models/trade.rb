@@ -1,5 +1,8 @@
 class Trade < ApplicationRecord
-  PERFORMANCE_INPUTS = %w[user_id instrument_id side traded_on quantity unit_price fees_cents currency].freeze
+  PERFORMANCE_INPUTS = %w[
+    user_id instrument_id side traded_on quantity unit_price fees_cents currency
+    settlement_currency settlement_exchange_rate
+  ].freeze
 
   belongs_to :user
   belongs_to :instrument
@@ -10,14 +13,20 @@ class Trade < ApplicationRecord
   monetize :fees_cents, with_model_currency: :currency
 
   normalizes :currency, with: ->(currency) { currency.strip.upcase }
+  normalizes :settlement_currency, with: ->(currency) { currency.strip.upcase.presence }
   normalizes :notes, with: ->(notes) { notes.strip.presence }
+
+  before_validation :synchronize_settlement_currency
 
   validates :traded_on, presence: true
   validates :quantity, numericality: { greater_than: 0 }
   validates :unit_price, numericality: { greater_than: 0 }
   validates :fees_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :currency, presence: true, iso_currency: true
+  validates :settlement_currency, iso_currency: true, allow_nil: true
+  validates :settlement_exchange_rate, numericality: { greater_than: 0 }, allow_nil: true
   validate :currency_matches_instrument
+  validate :settlement_currency_differs_from_instrument
   validate :institution_belongs_to_user
 
   after_save :mark_performance_observations_stale, if: :performance_inputs_changed?
@@ -47,7 +56,19 @@ class Trade < ApplicationRecord
     buy? ? -total : total
   end
 
+  def explicit_settlement_conversion?
+    settlement_currency.present? && settlement_exchange_rate.present?
+  end
+
   private
+
+  def synchronize_settlement_currency
+    if settlement_exchange_rate.present?
+      self.settlement_currency ||= user&.reporting_currency
+    else
+      self.settlement_currency = nil
+    end
+  end
 
   def mark_performance_observations_stale
     @performance_invalidation_targets = performance_invalidation_targets
@@ -111,6 +132,12 @@ class Trade < ApplicationRecord
     return if currency.blank? || instrument.blank? || currency == instrument.currency
 
     errors.add(:currency, :instrument_mismatch)
+  end
+
+  def settlement_currency_differs_from_instrument
+    return if settlement_currency.blank? || currency.blank? || settlement_currency != currency
+
+    errors.add(:settlement_currency, :same_as_instrument)
   end
 
   def institution_belongs_to_user

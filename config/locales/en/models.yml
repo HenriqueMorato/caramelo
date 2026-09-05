@@ -21,6 +21,8 @@ en:
         instrument_id: Instrument
         notes: Notes
         quantity: Quantity
+        settlement_currency: Settlement currency
+        settlement_exchange_rate: Exchange rate paid or received
         side: Side
         traded_on: Trade date
         unit_price: Unit price
@@ -43,6 +45,8 @@ en:
           attributes:
             currency:
               instrument_mismatch: must match the instrument currency
+            settlement_currency:
+              same_as_instrument: must differ from the instrument currency
             institution:
               wrong_owner: must belong to the trade owner
     models:

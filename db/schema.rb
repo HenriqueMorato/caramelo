@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_04_152000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_04_213000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -190,6 +190,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_152000) do
     t.integer "instrument_id", null: false
     t.text "notes"
     t.decimal "quantity", precision: 20, scale: 8, null: false
+    t.string "settlement_currency", limit: 3
+    t.decimal "settlement_exchange_rate", precision: 28, scale: 12
     t.string "side", null: false
     t.date "traded_on", null: false
     t.decimal "unit_price", precision: 28, scale: 8, null: false
@@ -199,8 +201,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_152000) do
     t.index ["instrument_id"], name: "index_trades_on_instrument_id"
     t.index ["user_id", "instrument_id", "traded_on"], name: "index_trades_on_user_id_and_instrument_id_and_traded_on"
     t.index ["user_id", "traded_on"], name: "index_trades_on_user_id_and_traded_on"
+    t.check_constraint "(settlement_currency IS NULL) = (settlement_exchange_rate IS NULL)", name: "trades_settlement_conversion_complete"
     t.check_constraint "fees_cents >= 0", name: "trades_fees_nonnegative"
     t.check_constraint "quantity > 0", name: "trades_quantity_positive"
+    t.check_constraint "settlement_currency IS NULL OR settlement_currency <> currency", name: "trades_settlement_currency_distinct"
+    t.check_constraint "settlement_currency IS NULL OR settlement_currency GLOB '[A-Z][A-Z][A-Z]'", name: "trades_settlement_currency_format"
+    t.check_constraint "settlement_exchange_rate IS NULL OR settlement_exchange_rate > 0", name: "trades_settlement_exchange_rate_positive"
     t.check_constraint "side IN ('buy', 'sell')", name: "trades_side_check"
     t.check_constraint "unit_price > 0", name: "trades_unit_price_positive"
   end
