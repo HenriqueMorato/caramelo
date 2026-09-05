@@ -96,7 +96,10 @@ class TradesController < ApplicationController
   end
 
   def trade_params
-    params.expect(trade: %i[instrument_id institution_id side traded_on quantity unit_price fees notes])
+    params.expect(trade: %i[
+      instrument_id institution_id side traded_on quantity unit_price fees
+      settlement_exchange_rate notes
+    ])
   end
 
   def default_institution

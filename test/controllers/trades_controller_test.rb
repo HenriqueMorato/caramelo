@@ -52,6 +52,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "option", text: /#{Regexp.escape(institutions(:other_owner).name)}/, count: 0
     assert_select "option[value='buy'][selected]"
     assert_select "input[name='trade[quantity]'][step='any']"
+    assert_select "[data-trade-form-target='settlement'][hidden]"
   end
 
   test "new global trade does not default to an institution" do
@@ -94,6 +95,9 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name='trade[instrument_id]']", count: 0
     assert_select "input[type='hidden'][name='trade[instrument_id]'][value='#{instrument.id}']"
     assert_select "input[name='trade[currency]'][value='USD'][disabled]"
+    assert_select "[data-trade-form-target='settlement']:not([hidden])"
+    assert_select "input[name='trade[settlement_exchange_rate]']"
+    assert_select "[data-trade-form-target='settlementDirection']", text: /1 USD = … BRL/
     assert_select "option[value='#{institutions(:owner_xp).id}'][selected]"
     assert_select "option[value='#{latest_institution.id}']:not([selected])"
     assert_select "p", text: /VOO/
@@ -138,6 +142,39 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("32.12345678"), trade.unit_price
     assert_equal 490, trade.fees_cents
     assert_backfill(instrument: trade.instrument, currency: "BRL", from_date: Date.new(2026, 8, 20))
+  end
+
+  test "captures the owner currency with an optional paid exchange rate" do
+    assert_difference("User.owner.trades.count") do
+      post trades_url, params: {
+        trade: valid_trade_params.merge(
+          instrument_id: instruments(:voo_arcx).id,
+          settlement_exchange_rate: "5.25",
+          settlement_currency: "EUR"
+        )
+      }
+    end
+
+    trade = Trade.order(:id).last
+    assert_equal "USD", trade.currency
+    assert_equal "BRL", trade.settlement_currency
+    assert_equal BigDecimal("5.25"), trade.settlement_exchange_rate
+  end
+
+  test "preserves an invalid paid exchange rate for correction" do
+    assert_no_difference("Trade.count") do
+      post trades_url, params: {
+        trade: valid_trade_params.merge(
+          instrument_id: instruments(:voo_arcx).id,
+          settlement_exchange_rate: "0"
+        )
+      }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Exchange rate paid or received must be greater than 0/
+    assert_select "input[name='trade[settlement_exchange_rate]'][value='0']"
+    assert_select "[data-trade-form-target='settlement']:not([hidden])"
   end
 
   test "contextual creation cannot be redirected to another instrument" do
