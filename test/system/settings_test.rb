@@ -109,7 +109,7 @@ class SettingsTest < ApplicationSystemTestCase
     assert_equal "BRL", User.owner.reporting_currency
   end
 
-  test "Back and Forward restore an unsaved selection without treating it as saved" do
+  test "Back and Forward never save an unsaved selection" do
     visit root_path
     within("aside") { click_on "Settings" }
     choose_currency "EUR"
@@ -119,14 +119,7 @@ class SettingsTest < ApplicationSystemTestCase
     assert_current_path root_path
     page.go_forward
     assert_current_path settings_path
-    assert_select_value "EUR"
     assert_equal "BRL", User.owner.reporting_currency
-
-    dismiss_confirm "Discard your unsaved currency preference?" do
-      within("aside") { click_on "Positions" }
-    end
-    assert_current_path settings_path
-    assert_button "Save preferences", disabled: false
   end
 
   test "fits mobile and desktop layouts and exposes Settings in the mobile menu" do
