@@ -79,7 +79,16 @@ en:
     Select an instrument: Select an instrument
   market_data_health:
     show:
+      Actions: Actions
       Checked at: Checked at %{time}
+      Details: Details
+      Entry count:
+        one: 1 source checked
+        other: "%{count} sources checked"
+      Filter all: All
+      Filter attention: Needs attention
+      Filter healthy: Healthy
+      Filter label: Show
       Heading: Data health
       Healthy: Your market data looks healthy.
       Healthy explanation: No missing or stale records were found for the data currently
@@ -90,8 +99,16 @@ en:
         one: 1 data health issue
         other: "%{count} data health issues"
       Page title: Data health · %{application}
+      Recovery explanation: Retry an unavailable source directly, or refresh all current
+        prices above. Recoveries run in the background and keep the last known values.
       Refresh throttled: Refresh is limited to once every five minutes while automatic
         updates run in the background.
+      Reset quote: Reset and refetch
+      Reset quote confirmation: Reset this quote and fetch a replacement? The current
+        value stays until a replacement succeeds.
+      Retry: Retry
+      Source: Source
+      Status: Status
   notices:
     Created: "%{model} was created."
     Deleted: "%{model} was deleted."

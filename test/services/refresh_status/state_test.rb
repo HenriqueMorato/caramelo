@@ -36,6 +36,13 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     refute_includes active_scopes, "current_market_price:42"
   end
 
+  test "identifies running states" do
+    assert_predicate RefreshStatus::State.new(
+      scope: "running", run_id: nil, status: "running", started_at: nil, finished_at: nil,
+      updated_at: nil, error_class: nil, error_message: nil, processed_count: 0, total_count: nil
+    ), :running?
+  end
+
   test "reports no progress when total is unknown" do
     state = RefreshStatus::State.write(scope: "unknown_total", status: "queued")
 

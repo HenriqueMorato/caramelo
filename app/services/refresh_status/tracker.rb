@@ -12,7 +12,10 @@ module RefreshStatus
 
     def self.perform(scope:, total_count: nil, preserve_progress: false, run_id: nil)
       existing = State.read(scope) if preserve_progress
-      return preserve(existing, run_id:) { |refresh| yield refresh } if existing
+      if existing
+        refresh = existing
+        return preserve(existing, run_id:) { |state| yield state }
+      end
 
       refresh = start(scope:, total_count:, run_id:)
       yield refresh

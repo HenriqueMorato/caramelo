@@ -19,23 +19,73 @@
     </div>
   </div>
 
+  <nav class="flex flex-wrap items-center gap-3" aria-label="<%= t(".Filter label") %>">
+    <span class="text-sm font-semibold text-muted"><%= t(".Filter label") %></span>
+    <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-white/50 p-1" role="group">
+      <% [["all", t(".Filter all")], ["attention", t(".Filter attention")], ["healthy", t(".Filter healthy")]].each do |value, label| %>
+        <%= link_to label, market_data_health_path(status: value),
+          class: [
+            "grouping-option",
+            ("rounded-md border border-caramel-deep bg-caramel-deep text-white" if @status_filter == value)
+          ].compact.join(" "),
+          aria: { current: (@status_filter == value ? "page" : nil) } %>
+      <% end %>
+    </div>
+  </nav>
+
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" role="status">
-    <% if @report.healthy? %>
-      <p class="font-semibold text-leaf"><%= t(".Healthy") %></p>
-      <p class="mt-2 text-sm text-muted"><%= t(".Healthy explanation") %></p>
-    <% else %>
-      <p class="font-semibold text-coffee"><%= t(".Issues found", count: @report.issues.size) %></p>
-      <ul class="mt-5 space-y-3" aria-label="<%= t(".Issue list") %>">
-        <% @report.issues.each do |issue| %>
-          <li class="rounded-xl border border-coffee/10 bg-oat p-4">
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
-              <p class="font-semibold text-coffee"><%= issue.subject_label %></p>
-              <span class="text-xs font-semibold uppercase tracking-wide <%= issue.severity == :error ? "text-guava" : "text-caramel-deep" %>"><%= issue.severity %></span>
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <p class="font-semibold <%= @report.healthy? ? "text-leaf" : "text-coffee" %>">
+        <%= @report.healthy? ? t(".Healthy") : t(".Issues found", count: @report.issues.size) %>
+      </p>
+      <p class="text-sm text-muted"><%= t(".Entry count", count: @entries.size) %></p>
+    </div>
+    <p class="mt-2 text-sm text-muted"><%= @report.healthy? ? t(".Healthy explanation") : t(".Recovery explanation") %></p>
+
+    <div class="mt-5 overflow-x-auto">
+      <table class="w-full min-w-[42rem] text-left" aria-label="<%= t(".Issue list") %>">
+        <thead class="border-b border-coffee/10 text-xs font-semibold uppercase tracking-wide text-muted">
+          <tr>
+            <th scope="col" class="pb-3 pr-4"><%= t(".Source") %></th>
+            <th scope="col" class="pb-3 pr-4"><%= t(".Status") %></th>
+            <th scope="col" class="pb-3 pr-4"><%= t(".Details") %></th>
+            <th scope="col" class="pb-3 text-right"><span class="sr-only"><%= t(".Actions") %></span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-coffee/10">
+      <% @entries.each do |entry| %>
+        <% status_class = entry.healthy? ? "text-leaf" : entry.severity == :error ? "text-guava" : "text-caramel-deep" %>
+        <tr>
+          <th scope="row" class="py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
+          <td class="py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status %></td>
+          <td class="py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
+          <td class="py-4 align-top text-right">
+            <div class="flex justify-end gap-2">
+              <% if entry.actionable? %>
+                <%= button_to t(".Retry"), market_data_recoveries_path,
+              params: { target: {
+                kind: entry.target.kind,
+                record_id: entry.target.record_id,
+                base_currency: entry.target.base_currency,
+                quote_currency: entry.target.quote_currency,
+                provider: entry.target.provider
+                } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
+              <% end %>
+              <% if entry.quote_reset_needed? %>
+                <%= button_to t(".Reset quote"), market_data_recovery_path(entry.target.record_id), method: :delete,
+              params: { target: {
+                kind: entry.target.kind,
+                record_id: entry.target.record_id,
+                provider: entry.target.provider
+                  } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
+                  data: { turbo_confirm: t(".Reset quote confirmation") } %>
+              <% end %>
             </div>
-            <p class="mt-1 text-sm text-muted"><%= issue.details %></p>
-          </li>
-        <% end %>
-      </ul>
-    <% end %>
+          </td>
+        </tr>
+      <% end %>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>

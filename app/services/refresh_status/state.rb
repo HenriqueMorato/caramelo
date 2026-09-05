@@ -29,6 +29,10 @@ module RefreshStatus
       %w[queued running].include?(status)
     end
 
+    def running?
+      status == "running"
+    end
+
     def failed?
       status == "failed"
     end

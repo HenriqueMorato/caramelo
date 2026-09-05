@@ -1,6 +1,8 @@
 require "test_helper"
 
 class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
+  setup { Rails.cache.clear }
+
   test "broadcasts refreshing before enqueueing the forced job" do
     events = []
     broadcaster = fake_broadcaster(events:)
@@ -13,6 +15,19 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
 
     assert_same job, result
     assert_equal %i[ refreshing enqueue ], events
+  end
+
+  test "does not create a target status when a batch owns progress" do
+    events = []
+    broadcaster = fake_broadcaster(events:)
+    job = Object.new
+    job_class = fake_job_class(events:, result: job)
+
+    MarketPrice::RefreshEnqueuer.new(broadcaster:, job_class:).enqueue(
+      instrument: instruments(:petr4_bvmf), batch_scope: "batch", batch_run_id: "run"
+    )
+
+    refute RefreshStatus::State.read("test_refresh:#{instruments(:petr4_bvmf).id}")
   end
 
   test "restores the current state when enqueueing fails" do
@@ -104,7 +119,7 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
   def fake_job_class(events:, result:)
     Object.new.tap do |job_class|
       job_class.define_singleton_method(:refresh_scope) { |instrument| "test_refresh:#{instrument.id}" }
-      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false, batch_scope: nil|
+      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false, batch_scope: nil, batch_run_id: nil|
         events << :enqueue
         result
       end
