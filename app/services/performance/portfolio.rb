@@ -172,7 +172,7 @@ module Performance
         @exchange_rate_service = exchange_rate_service
         @daily_closing_price_provider = daily_closing_price_provider
         @reporting_currency = reporting_currency
-        @exchange_rate_lookups = {}
+        @exchange_rates = RateLookupCache.new(exchange_rate_service)
       end
 
       def calculate
@@ -183,7 +183,11 @@ module Performance
         daily_closing_price = find_daily_closing_price
         return missing_result(daily_closing_price:) unless daily_closing_price
 
-        rate_lookup = exchange_rate_for(daily_closing_price.currency, valuation_date)
+        rate_lookup = exchange_rates.read(
+          base_currency: daily_closing_price.currency,
+          quote_currency: reporting_currency,
+          rate_date: valuation_date
+        )
         return missing_result(daily_closing_price:, exchange_rate_lookup: rate_lookup) unless rate_lookup.available?
 
         market_value = state.calculation.quantity * daily_closing_price.close_price.to_r * rate_lookup.exchange_rate.rate.to_r
@@ -192,7 +196,8 @@ module Performance
 
       private
 
-      attr_reader :instrument, :trades, :valuation_date, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
+      attr_reader :instrument, :trades, :valuation_date, :daily_closing_price_provider,
+        :reporting_currency, :exchange_rates
 
       # Replay combines the shared moving-average calculation with the
       # reporting-currency trade cash flow that is specific to performance.
@@ -200,10 +205,12 @@ module Performance
 
       def replay_trades
         reporting_amounts = trades.to_h do |trade|
-          rate_lookup = exchange_rate_for(trade.currency, trade.traded_on)
-          return unless rate_lookup.available?
+          settlement = Trades::SettlementValue.for(
+            trade:, reporting_currency:, exchange_rates:
+          )
+          return unless settlement.available?
 
-          [ trade, trade.total_amount.to_r * rate_lookup.exchange_rate.rate.to_r ]
+          [ trade, settlement.amount ]
         end
         calculation = Position::Calculator.for(trades:, amount_for: reporting_amounts.method(:fetch))
         cash_flows = reporting_amounts.map do |trade, amount|
@@ -213,12 +220,6 @@ module Performance
         Replay.new(
           calculation:, net_cash_flow: cash_flows.sum(&:amount),
           invested_amount: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : 0 }, cash_flows:
-        )
-      end
-
-      def exchange_rate_for(base_currency, rate_date)
-        @exchange_rate_lookups[[ base_currency, rate_date ]] ||= exchange_rate_service.read(
-          base_currency:, quote_currency: reporting_currency, rate_date:
         )
       end
 
@@ -262,6 +263,18 @@ module Performance
 
       def decimal(value)
         BigDecimal(value, Position::ANALYTICAL_DECIMAL_PRECISION)
+      end
+
+      class RateLookupCache
+        def initialize(service)
+          @service = service
+          @lookups = {}
+        end
+
+        def read(base_currency:, quote_currency:, rate_date:)
+          key = [ base_currency, quote_currency, rate_date ]
+          @lookups[key] ||= @service.read(base_currency:, quote_currency:, rate_date:)
+        end
       end
     end
   end

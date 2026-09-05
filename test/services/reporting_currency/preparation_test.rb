@@ -82,6 +82,20 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
   end
 
+  test "prepares the captured settlement currency after a reporting currency change" do
+    @user.update!(reporting_currency: "BRL")
+    trades(:owner_voo_buy).update!(settlement_exchange_rate: "5.25")
+    @user.update!(reporting_currency: "EUR")
+
+    travel_to(Date.new(2026, 8, 14)) { preparation.call }
+
+    assert_equal [
+      { base_currency: "BRL", quote_currency: "EUR" },
+      { base_currency: "USD", quote_currency: "EUR" }
+    ], @refreshes.sort_by { |pair| pair[:base_currency] }
+    assert_equal %w[BRL USD], @imports.map { |call| call[:base_currency] }.sort
+  end
+
   test "an empty portfolio requires neither FX nor a rebuild" do
     @user = users(:two)
 

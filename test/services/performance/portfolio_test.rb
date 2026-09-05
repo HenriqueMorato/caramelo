@@ -104,6 +104,42 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal [ [ trade_date, 100 ], [ @date, -84 ] ], result.cash_flows.map { |cash_flow| [ cash_flow.traded_on, cash_flow.amount ] }
   end
 
+  test "uses the actual paid rate for reporting basis and daily FX for market value" do
+    instrument = create_instrument(ticker: "PAID", currency: "USD")
+    create_trade(
+      instrument:, quantity: 2, unit_price: "200", settlement_exchange_rate: "5.25"
+    )
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5.1", rate_date: @date)
+    create_daily_close(instrument:, close_price: "220")
+
+    result = portfolio_for
+    position = result.position_results.sole
+
+    assert_equal BigDecimal("2100"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("2244"), position.market_value_amount
+    assert_equal BigDecimal("144"), position.unrealized_gain_amount
+    assert_equal BigDecimal("144") / BigDecimal("2100"), position.return_ratio
+  end
+
+  test "reports foreign instrument performance natively without using paid or historical FX" do
+    instrument = create_instrument(ticker: "NATIVE", currency: "USD")
+    trade = create_trade(
+      instrument:, quantity: 2, unit_price: "200", settlement_exchange_rate: "5.25"
+    )
+    create_daily_close(instrument:, close_price: "220")
+
+    result = Performance::Portfolio.for(
+      valuation_date: @date, instrument:, trades: [ trade ], reporting_currency: "USD",
+      exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+    )
+    position = result.position_results.sole
+
+    assert_equal BigDecimal("400"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("440"), position.market_value_amount
+    assert_equal BigDecimal("40"), position.unrealized_gain_amount
+    assert_equal BigDecimal("0.1"), position.return_ratio
+  end
+
   test "preserves fractional quantities and precise prices until presentation" do
     instrument = create_instrument(ticker: "FRAC", currency: "USD")
     create_trade(instrument:, quantity: "0.00000001", unit_price: "98765.43218765", fees_cents: 1)
@@ -293,9 +329,11 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     Instrument.create!(ticker:, exchange: "XNAS", name: "#{ticker} instrument", currency:)
   end
 
-  def create_trade(instrument:, side: :buy, traded_on: @date, quantity: 1, unit_price: "1", fees_cents: 0)
+  def create_trade(instrument:, side: :buy, traded_on: @date, quantity: 1, unit_price: "1", fees_cents: 0,
+    settlement_exchange_rate: nil)
     User.owner.trades.create!(
-      instrument:, side:, traded_on:, quantity:, unit_price:, fees_cents:, currency: instrument.currency
+      instrument:, side:, traded_on:, quantity:, unit_price:, fees_cents:, currency: instrument.currency,
+      settlement_exchange_rate:
     )
   end
 

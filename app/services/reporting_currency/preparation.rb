@@ -12,7 +12,7 @@ module ReportingCurrency
     end
 
     def call
-      starts = user.trades.where(traded_on: ..Date.current).group(:currency).minimum(:traded_on)
+      starts = currency_starts
       return if starts.empty?
 
       pairs = starts.except(currency)
@@ -30,6 +30,16 @@ module ReportingCurrency
     private
 
     attr_reader :user, :currency, :exchange_rates, :history, :throttle
+
+    def currency_starts
+      trades = user.trades.where(traded_on: ..Date.current)
+      native_starts = trades.group(:currency).minimum(:traded_on)
+      settlement_starts = trades.where.not(settlement_currency: nil)
+        .group(:settlement_currency).minimum(:traded_on)
+      native_starts.merge(settlement_starts) { |_currency, native_date, settlement_date|
+        [ native_date, settlement_date ].min
+      }
+    end
 
     def enqueue_rebuild(first_trade)
       result = Performance::SeriesRefresh.enqueue(
