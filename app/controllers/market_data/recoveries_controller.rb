@@ -7,14 +7,20 @@ module MarketData
       result = Recovery.call(target:, range: recovery_range)
 
       if result.throttled?
-        head :too_many_requests
+        respond_with_status_toast("This data target was refreshed recently. Try again shortly.",
+          status: :too_many_requests, redirect_to: market_data_health_path)
       elsif result.unsupported?
-        head :unprocessable_entity
+        respond_with_status_toast("This data target cannot be refreshed yet.",
+          status: :unprocessable_entity, redirect_to: market_data_health_path)
+      elsif result.already_running?
+        respond_with_status_toast("A refresh for this data target is already running.",
+          status: :conflict, redirect_to: market_data_health_path)
       else
-        redirect_to market_data_health_path, notice: "Market data recovery started."
+        respond_with_toast("Market data recovery started.", redirect_to: market_data_health_path)
       end
     rescue ActionController::ParameterMissing, ActiveRecord::RecordNotFound, ArgumentError
-      head :unprocessable_entity
+      respond_with_status_toast("This data target is no longer available.",
+        status: :unprocessable_entity, redirect_to: market_data_health_path)
     end
 
     def destroy
@@ -24,14 +30,17 @@ module MarketData
       result = Reset.call(target:, preview_token: params[:preview_token])
 
       if result.queued?
-        redirect_to market_data_health_path, notice: "Quote refresh started."
+        respond_with_toast("Quote refresh started.", redirect_to: market_data_health_path)
       elsif result.busy?
-        head :conflict
+        respond_with_status_toast("A refresh for this quote is already running.",
+          status: :conflict, redirect_to: market_data_health_path)
       else
-        head :unprocessable_entity
+        respond_with_status_toast("This quote cannot be reset.",
+          status: :unprocessable_entity, redirect_to: market_data_health_path)
       end
     rescue ActionController::ParameterMissing, ActiveRecord::RecordNotFound, ArgumentError
-      head :unprocessable_entity
+      respond_with_status_toast("This data target is no longer available.",
+        status: :unprocessable_entity, redirect_to: market_data_health_path)
     end
 
     private

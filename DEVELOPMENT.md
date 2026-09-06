@@ -207,6 +207,12 @@ subunits, and currency columns. It is safe to import into Google Sheets and is
 not included in automatic backup creation. Full multi-dataset export and
 round-trip import remain separate future work in issue #106.
 
+The health-report architecture, coverage rules, refresh statuses, leases,
+publication fences, reset previews, and Turbo row updates are documented in
+[docs/market-data-health.md](docs/market-data-health.md). Run focused checks
+with `bin/rails test test/services/market_data/health_report_test.rb` while
+iterating, then use `bin/ci` before proposing a commit.
+
 ### Feedback surfaces
 
 The application has two feedback surfaces. The layout's flash notification

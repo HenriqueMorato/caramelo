@@ -8,7 +8,11 @@ class RecoverDailyClosingPricesJob < ApplicationJob
       instrument = Instrument.find(instrument_id)
       MarketData::YahooFinance::RequestThrottle.new.wait!(instrument:)
       DailyClosingPrice::Importer.default.call(
-        instrument:, from:, to:, enqueue_performance_rebuild: true
+        instrument:, from:, to:, enqueue_performance_rebuild: true,
+        fence: MarketData::PublicationFence.new(
+          target: MarketData::Target.new(kind: :daily_closing_prices, record_id: instrument.id,
+            provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier)
+        )
       )
     end
   end

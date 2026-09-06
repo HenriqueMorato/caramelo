@@ -31,4 +31,12 @@ class MarketData::TargetTest < ActiveSupport::TestCase
 
     assert_equal direct.publication_scope, inverse.publication_scope
   end
+
+  test "uses canonical publication scopes for current and historical rates" do
+    current = MarketData::Target.new(kind: :current_exchange_rate, base_currency: "brl", quote_currency: "usd")
+    historical = MarketData::Target.new(kind: :historical_exchange_rates, base_currency: "brl", quote_currency: "usd")
+
+    assert_equal "current_exchange_rate:BRL:USD", current.publication_scope
+    assert_equal "historical_exchange_rate:BRL:USD", historical.publication_scope
+  end
 end

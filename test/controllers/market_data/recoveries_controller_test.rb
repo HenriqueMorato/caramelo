@@ -52,6 +52,35 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "returns conflict when target recovery is already running" do
+    with_stubbed_method(MarketData::Recovery, :call, ->(**arguments) {
+      MarketData::Recovery::Result.new(
+        status: :already_running, target: arguments.fetch(:target), batch_scope: nil, batch_run_id: nil
+      )
+    }) do
+      post market_data_recoveries_path, params: {
+        target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+      }
+    end
+
+    assert_response :conflict
+  end
+
+  test "returns an in-page toast for an already-running Turbo recovery" do
+    with_stubbed_method(MarketData::Recovery, :call, ->(**arguments) {
+      MarketData::Recovery::Result.new(
+        status: :already_running, target: arguments.fetch(:target), batch_scope: nil, batch_run_id: nil
+      )
+    }) do
+      post market_data_recoveries_path,
+        params: { target: { kind: "current_price", record_id: instruments(:voo_arcx).id } },
+        as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_includes response.body, "A refresh for this data target is already running."
+  end
+
   test "returns conflict when quote reset is already active" do
     result = MarketData::Reset::Result.new(
       status: :busy,
@@ -87,6 +116,14 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
   test "rejects malformed reset targets" do
     delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
       target: { kind: "unknown", record_id: instruments(:voo_arcx).id }
+    }
+
+    assert_response :unprocessable_entity
+  end
+
+  test "rejects a reset request without a preview token" do
+    delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
+      target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
     }
 
     assert_response :unprocessable_entity

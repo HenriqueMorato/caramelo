@@ -74,6 +74,18 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_empty RefreshStatus::State.active.select { |state| state.scope == "expired_state" }
   end
 
+  test "prunes finished states older than the active timeout" do
+    travel_to 11.minutes.ago do
+      RefreshStatus::State.write(scope: "old_finished", status: "succeeded", finished_at: Time.current)
+    end
+    RefreshStatus::State.write(scope: "recent_finished", status: "succeeded", finished_at: Time.current)
+
+    retained = RefreshStatus::State.prune!
+
+    refute_includes retained, "old_finished"
+    assert_includes retained, "recent_finished"
+  end
+
   test "tracker records completion and failure" do
     with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
       completed = RefreshStatus::Tracker.perform(scope: "tracked_success", total_count: 1) do |refresh|

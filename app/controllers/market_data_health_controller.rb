@@ -6,29 +6,11 @@ class MarketDataHealthController < ApplicationController
     MarketPrice::ManualRefresh.call if @report.current_prices_need_refresh?
     @market_price_refresh_available = MarketPrice::ManualRefresh.available?
     @status_filter = params[:status].presence_in(%w[all attention healthy]) || "all"
-    @entries = filtered_entries
-    @reset_previews = @entries.filter_map do |entry|
-      next unless entry.quote_reset_needed?
-      next unless entry.target.provider
-
-      [ entry.target.record_id, MarketData::ResetPreview.create(target: entry.target).token ]
-    end.to_h
+    @health = MarketData::HealthReportPresenter.new(report: @report, status_filter: @status_filter)
+    @entries = @health.entries
     @backup = Backup::Presenter.new(
       catalog: Backup::Catalog.call,
       state: Backup::State.current
     )
-  end
-
-  private
-
-  def filtered_entries
-    case @status_filter
-    when "attention"
-      @report.entries.reject(&:healthy?)
-    when "healthy"
-      @report.entries.select(&:healthy?)
-    else
-      @report.entries
-    end
   end
 end

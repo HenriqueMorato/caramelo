@@ -1,6 +1,8 @@
 <% content_for :title, t(".Page title", application: t("LocalFolio")) %>
 
 <section class="space-y-8">
+  <%= turbo_stream_from RefreshStatus::Broadcaster::STREAM_NAME %>
+
   <div class="ui-page-header">
     <div class="ui-page-header-copy">
       <p class="ui-eyebrow"><%= t("Market data") %></p>
@@ -36,14 +38,14 @@
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" role="status">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <p class="font-semibold <%= @report.healthy? ? "text-leaf" : "text-coffee" %>">
-        <%= @report.healthy? ? t(".Healthy") : t(".Issues found", count: @report.issues.size) %>
+        <%= @health.healthy? ? t(".Healthy") : t(".Issues found", count: @health.issue_count) %>
       </p>
       <p class="text-sm text-muted"><%= t(".Entry count", count: @entries.size) %></p>
     </div>
     <p class="mt-2 text-sm text-muted"><%= @report.healthy? ? t(".Healthy explanation") : t(".Recovery explanation") %></p>
 
     <div class="mt-5 overflow-x-auto">
-      <table class="w-full min-w-[42rem] text-left" aria-label="<%= t(".Issue list") %>">
+      <table class="w-full text-left" aria-label="<%= t(".Issue list") %>">
         <thead class="border-b border-coffee/10 text-xs font-semibold uppercase tracking-wide text-muted">
           <tr>
             <th scope="col" class="pb-3 pr-4"><%= t(".Source") %></th>
@@ -53,37 +55,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-coffee/10">
-      <% @entries.each do |entry| %>
-        <% status_class = entry.healthy? ? "text-leaf" : entry.severity == :error ? "text-guava" : "text-caramel-deep" %>
-        <tr>
-          <th scope="row" class="py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
-          <td class="py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status %></td>
-          <td class="py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
-          <td class="py-4 align-top text-right">
-            <div class="flex justify-end gap-2">
-              <% if entry.actionable? %>
-                <%= button_to t(".Retry"), market_data_recoveries_path,
-              params: { target: {
-                kind: entry.target.kind,
-                record_id: entry.target.record_id,
-                base_currency: entry.target.base_currency,
-                quote_currency: entry.target.quote_currency,
-                provider: entry.target.provider
-                } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
-              <% end %>
-              <% if entry.quote_reset_needed? %>
-                <%= button_to t(".Reset quote"), market_data_recovery_path(entry.target.record_id), method: :delete,
-              params: { target: {
-                kind: entry.target.kind,
-                record_id: entry.target.record_id,
-                provider: entry.target.provider
-                  }, preview_token: @reset_previews[entry.target.record_id] }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
-                  data: { turbo_confirm: t(".Reset quote confirmation") } %>
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      <% end %>
+          <%= render partial: "entry", collection: @entries, as: :entry, locals: { health: @health } %>
         </tbody>
       </table>
     </div>

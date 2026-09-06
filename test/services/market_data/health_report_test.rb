@@ -2,6 +2,7 @@ require "test_helper"
 
 class MarketData::HealthReportTest < ActiveSupport::TestCase
   Lookup = Data.define(:status) do
+    def fresh? = status == :fresh
     def missing? = status == :missing
     def stale? = status == :stale
   end
@@ -12,6 +13,16 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     end
 
     def read(instrument:)
+      Lookup.new(@status)
+    end
+  end
+
+  class CurrentExchangeRateService
+    def initialize(status: :fresh)
+      @status = status
+    end
+
+    def read(base_currency:, quote_currency:)
       Lookup.new(@status)
     end
   end
@@ -32,9 +43,22 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       today: Date.new(2026, 9, 2)
     )
 
-    assert_equal %i[stale_current_price missing_daily_close missing_exchange_rate missing_benchmark_data], report.issues.map(&:code)
-    assert_equal 4, report.warnings.size
+    assert_equal %i[stale_current_price missing_daily_close missing_current_exchange_rate missing_exchange_rate missing_benchmark_data], report.issues.map(&:code)
+    assert_equal 5, report.warnings.size
     refute report.healthy?
+  end
+
+  test "does not offer recovery for an unsupported benchmark provider" do
+    benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+
+    report = MarketData::HealthReport.for(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      today: Date.new(2026, 9, 2))
+    entry = report.entries.find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :unsupported, entry.status
+    assert_includes entry.description, "no configured recovery provider"
+    refute_predicate entry, :actionable?
   end
 
   test "reports missing FX against the selected reporting currency" do
@@ -44,6 +68,46 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     issue = report.issues.find { |item| item.code == :missing_exchange_rate }
     assert_includes issue.details, "USD/EUR"
+  end
+
+  test "reports stale current FX for an open foreign position" do
+    report = MarketData::HealthReport.for(
+      current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new(status: :stale)
+    )
+
+    entry = report.entries.find { |candidate| candidate.code == :missing_current_exchange_rate }
+    assert_equal :stale, entry.status
+    assert_includes entry.description, "Current USD/BRL exchange rate is stale"
+  end
+
+  test "treats the reporting currency as having no FX gap" do
+    owner = users(:owner)
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), institution: institutions(:owner_xp),
+      side: :buy, traded_on: Date.new(2026, 8, 28), quantity: 1, unit_price: 10, currency: "BRL")
+
+    report = MarketData::HealthReport.for(
+      owner:, current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new
+    )
+
+    refute report.entries.any? { |entry| entry.subject == "BRL" && entry.code == :missing_exchange_rate }
+  end
+
+  test "normalizes weekend trades to the prior business day for FX history" do
+    owner = users(:owner)
+    instrument = Instrument.create!(ticker: "EUNL", exchange: "XETR", name: "European ETF", currency: "EUR")
+    saturday = Date.new(2026, 8, 15)
+    owner.trades.create!(instrument:, institution: institutions(:owner_xp), side: :buy,
+      traded_on: saturday, quantity: 1, unit_price: 10, currency: "EUR")
+    HistoricalExchangeRate.create!(base_currency: "EUR", quote_currency: "BRL", rate_date: saturday - 1.day,
+      rate: 6, provider: "yahoo_finance", observed_at: Time.current, fetched_at: Time.current)
+
+    report = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new)
+
+    entry = report.entries.find { |candidate| candidate.subject == "EUR" && candidate.code == :exchange_rate }
+    assert_equal :healthy, entry.status
   end
 
   test "labels instruments and benchmarks without exposing record inspection" do
@@ -57,6 +121,78 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal "VOO · Vanguard S&P 500 ETF", report.issues.first.subject_label
     benchmark_issue = report.issues.find { |issue| issue.subject == benchmark }
     assert_equal "Health S&P (HEALTHSP)", benchmark_issue.subject_label
+  end
+
+  test "formats an instrument subject label" do
+    report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
+
+    label = report.instance_exec(instruments(:voo_arcx)) { |instrument| subject_label(instrument) }
+
+    assert_equal "VOO · Vanguard S&P 500 ETF", label
+  end
+
+  test "formats identifier and plain subjects when no ticker is available" do
+    report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
+    identifier_subject = Data.define(:name, :identifier).new("S&P 500", "SP500")
+
+    assert_equal "S&P 500 (SP500)", report.instance_exec(identifier_subject) { |subject| subject_label(subject) }
+    assert_equal "Portfolio", report.instance_exec("Portfolio") { |subject| subject_label(subject) }
+  end
+
+  test "exposes the context reporting currency" do
+    context = MarketData::HealthReport::Context.new(owner: users(:owner), today: Date.current)
+
+    assert_equal users(:owner).reporting_currency, context.reporting_currency
+  end
+
+  test "handles a weekend benchmark health window" do
+    benchmark = MarketBenchmark.create!(identifier: "WEEKENDSP", name: "Weekend S&P", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    inspector = MarketData::HealthReport::BenchmarkObservations.new(
+      owner: users(:owner), today: Date.new(2026, 9, 6)
+    )
+
+    entry = inspector.entries.find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :missing, entry.status
+    assert_includes entry.description, Date.new(2026, 9, 4).iso8601
+  end
+
+  test "formats a single benchmark date without a range separator" do
+    inspector = MarketData::HealthReport::BenchmarkObservations.new(owner: users(:owner), today: Date.current)
+
+    assert_equal Date.current.iso8601, inspector.send(:format_ranges, [ Date.current..Date.current ])
+  end
+
+  test "builds current FX entries with optional coverage ranges" do
+    inspector = MarketData::HealthReport::CurrentExchangeRates.new(
+      context: MarketData::HealthReport::Context.new(owner: users(:owner), today: Date.current),
+      service: CurrentExchangeRateService.new
+    )
+    coverage = MarketData::HealthReport::CoverageCalculator.for(required_dates: [], observations: [])
+
+    entry = inspector.send(
+      :build, code: :current_exchange_rate, target: MarketData::Target.new(kind: :current_exchange_rate),
+      subject: "USD", status: :healthy, severity: nil, description: "available", actions: [], coverage:
+    )
+
+    assert_nil entry.covered_range
+    assert_nil entry.missing_range
+  end
+
+  test "covers historical FX inspector fallbacks and range formatting" do
+    owner = users(:owner)
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:)
+
+    assert_empty inspector.send(:observations_for, "BRL", [])
+    assert inspector.entries.any?
+    dates = inspector.send(:historical_rate_dates, "USD")
+    assert_equal owner.trades.where(currency: "USD").distinct.order(:traded_on).pluck(:traded_on).uniq.sort, dates.sort
+    assert_equal "2026-09-01–2026-09-03", inspector.send(
+      :format_ranges, [ Date.new(2026, 9, 1)..Date.new(2026, 9, 3) ]
+    )
   end
 
   test "reports healthy when all required records exist" do
@@ -76,6 +212,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     report = MarketData::HealthReport.for(
       owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new,
       today: Date.new(2026, 9, 2)
     )
 
@@ -95,6 +232,205 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal [ Date.new(2026, 9, 2)..Date.new(2026, 9, 3), Date.new(2026, 9, 5)..Date.new(2026, 9, 7) ],
       coverage.missing_ranges
     assert_predicate coverage, :partial?
+  end
+
+  test "carries a recent real observation across short closures" do
+    friday = Date.new(2026, 9, 4)
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: (friday..friday + 3.days).to_a,
+      observations: [ DailyClosingPrice.new(trading_date: friday) ],
+      carry_forward: true
+    )
+
+    assert_predicate coverage, :complete?
+    assert_empty coverage.missing_ranges
+  end
+
+  test "does not carry observations beyond the historical window" do
+    date = Date.new(2026, 9, 12)
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: [ date ],
+      observations: [ DailyClosingPrice.new(trading_date: date - 8.days) ],
+      carry_forward: true
+    )
+
+    assert_predicate coverage, :missing?
+    assert_equal [ date..date ], coverage.missing_ranges
+  end
+
+  test "returns an empty healthy coverage for no required dates" do
+    coverage = MarketData::HealthReport::CoverageCalculator.for(required_dates: [], observations: [])
+
+    assert_predicate coverage, :complete?
+    refute_predicate coverage, :partial?
+    assert_predicate coverage, :missing?
+    assert_nil coverage.missing_range
+  end
+
+  test "reads observation timestamps from supported attribute names" do
+    observation = Data.define(:observed_on, :observed_at).new(Date.current, Time.current)
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: [ Date.current ], observations: [ observation ]
+    )
+
+    assert_equal Date.current, coverage.latest_observed_on
+    assert_equal observation.observed_at, coverage.latest_fetched_at
+  end
+
+  test "accepts an observation without a fetch timestamp" do
+    observation = Struct.new(:observed_on).new(Date.current)
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: [ Date.current ], observations: [ observation ]
+    )
+
+    assert_nil coverage.latest_fetched_at
+  end
+
+  test "reports a failed current-price refresh with its error message" do
+    instrument = instruments(:voo_arcx)
+    failed = RefreshStatus::State.new(
+      scope: "current_market_price:#{instrument.id}", run_id: "run", status: "failed",
+      started_at: 1.minute.ago, finished_at: Time.current, updated_at: Time.current,
+      error_class: "MarketPrice::ProviderFailure", error_message: "provider timeout",
+      processed_count: 0, total_count: 1
+    )
+
+    report = nil
+    with_stubbed_method(RefreshStatus::State, :read, ->(scope) {
+      scope == "current_market_price:#{instrument.id}" ? failed : nil
+    }) do
+      report = MarketData::HealthReport.for(owner: users(:owner), current_market_price_service: CurrentPriceService.new)
+    end
+
+    entry = report.entries.find { |candidate| candidate.target.kind == :current_price }
+    assert_equal :failed, entry.status
+    assert_equal "provider timeout", entry.description
+  end
+
+  test "reports performance coverage while materialization is pending" do
+    owner = users(:owner)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: owner.trades.minimum(:traded_on), to: Date.current)
+
+    report = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new)
+
+    entry = report.entries.find { |candidate| candidate.code == :portfolio_performance }
+    assert_equal :updating, entry.status
+  end
+
+  test "builds performance coverage without a shared context" do
+    owner = users(:owner)
+    PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+
+    entries = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: Date.current).entries
+
+    assert_equal 1, entries.size
+  end
+
+  test "reports missing performance coverage when materialization is complete but observations are absent" do
+    owner = users(:owner)
+    PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+
+    report = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new)
+
+    entry = report.entries.find { |candidate| candidate.code == :portfolio_performance }
+    assert_equal :missing, entry.status
+    assert_equal :warning, entry.severity
+  end
+
+  test "reports healthy and partial performance coverage" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+
+    (first_date..Date.current).each do |date|
+      PortfolioPerformanceObservation.create!(user: owner, reporting_currency: owner.reporting_currency,
+        observed_on: date, generated_at: Time.current, status: :available,
+        source_generation: materialization.source_generation, market_value_amount: "100", net_cash_flow_amount: "0")
+    end
+    healthy = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new)
+    assert_equal :healthy, healthy.entries.find { |entry| entry.code == :portfolio_performance }.status
+
+    PortfolioPerformanceObservation.where(user: owner, reporting_currency: owner.reporting_currency, observed_on: first_date).delete_all
+    partial = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new)
+    assert_equal :partial, partial.entries.find { |entry| entry.code == :portfolio_performance }.status
+  end
+
+  test "marks partially covered historical sources as partial" do
+    owner = users(:owner)
+    owner.update!(reporting_currency: "BRL")
+    instrument = instruments(:voo_arcx)
+    owner.trades.create!(instrument:, institution: institutions(:owner_inactive), side: :buy,
+      traded_on: Date.new(2026, 9, 1), quantity: 1, unit_price: 10, fees_cents: 0, currency: "USD")
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    partial_date = TradingCalendar.weekdays_between(first_date, Date.new(2026, 9, 1)).first
+    HistoricalExchangeRate.delete_all
+    DailyClosingPrice.create!(instrument:, trading_date: partial_date, close_price: 1,
+      currency: instrument.currency, provider: "yahoo_finance", observed_at: Time.current)
+    HistoricalExchangeRate.create!(base_currency: "USD", quote_currency: "BRL", rate_date: partial_date,
+      rate: 5, provider: "bcb", observed_at: Time.current, fetched_at: Time.current)
+    benchmark = MarketBenchmark.create!(identifier: "PARTIALSP", name: "Partial S&P", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: partial_date, value: 1,
+      currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+
+    report = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new,
+      today: Date.new(2026, 9, 2))
+
+    assert_equal :partial, report.entries.find { |entry| entry.code == :missing_daily_close }.status
+    assert_equal :partial, report.entries.find { |entry| entry.code == :missing_exchange_rate }.status
+    assert_equal :partial, report.entries.find { |entry| entry.subject == benchmark }.status
+  end
+
+  test "returns no daily dates for an instrument without trades" do
+    report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
+
+    dates = MarketData::HealthReport::DailyClosingPrices.new(
+      owner: users(:owner), instruments: [], today: Date.current
+    ).dates_for(instruments(:petr4_bvmf))
+    assert_empty dates
+  end
+
+  test "daily-close inspector skips queries without required dates" do
+    inspector = MarketData::HealthReport::DailyClosingPrices.new(
+      owner: users(:owner), instruments: [ instruments(:petr4_bvmf) ], today: Date.current
+    )
+
+    assert_predicate inspector.entries.first, :healthy?
+  end
+
+  test "daily-close inspector uses the previous business day on weekends" do
+    inspector = MarketData::HealthReport::DailyClosingPrices.new(
+      owner: users(:owner), instruments: [ instruments(:voo_arcx) ], today: Date.new(2026, 9, 6)
+    )
+
+    assert_equal :missing, inspector.entries.first.status
+  end
+
+  test "daily-close inspector reports a complete range" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    from = owner.trades.where(instrument:).minimum(:traded_on)
+    to = Date.new(2026, 9, 4)
+    TradingCalendar.weekdays_between(from, to).each do |date|
+      DailyClosingPrice.create!(instrument:, trading_date: date, close_price: 100,
+        currency: instrument.currency, provider: "yahoo_finance", observed_at: Time.current)
+    end
+
+    inspector = MarketData::HealthReport::DailyClosingPrices.new(owner:, instruments: [ instrument ], today: Date.new(2026, 9, 6))
+
+    assert_equal :healthy, inspector.entries.first.status
+  end
+
+  test "returns no performance entries for an owner without trades" do
+    owner = User.create!(email_address: "health-empty@example.com", password: "password", password_confirmation: "password",
+      reporting_currency: "BRL")
+    PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    report = MarketData::HealthReport.new(owner:, current_market_price_service: CurrentPriceService.new, today: Date.current)
+
+    entries = report.instance_exec { performance_entries }
+    assert_empty entries
   end
 
   test "reports missing current prices and ignores same-currency exchange rates" do
@@ -199,6 +535,16 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :stale, entry.status
     assert_equal [ :retry ], entry.actions
     assert_predicate entry, :actionable?
+  end
+
+  test "gives each entry a stable DOM identifier" do
+    issue = MarketData::HealthReport::Issue.new(
+      code: :missing_current_price, severity: :error, subject: instruments(:voo_arcx), details: "missing"
+    )
+
+    entry = MarketData::HealthReport::Result.new(checked_at: Time.current, issues: [ issue ]).entries.first
+
+    assert_equal "health-entry-current_market_price-#{instruments(:voo_arcx).id}", entry.dom_id
   end
 
   test "maps each recoverable issue to its target kind" do

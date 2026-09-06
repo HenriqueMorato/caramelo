@@ -9,7 +9,7 @@ class CaptureMarketBenchmarkObservationsJob < ApplicationJob
         next if captured?(benchmark, from:, to: observed_on)
 
         throttle.wait!
-        importer.call(benchmark:, from:, to: observed_on)
+        importer.call(benchmark:, from:, to: observed_on, fence: publication_fence(benchmark:))
       rescue StandardError => error
         Rails.error.report(error, handled: true, context: { benchmark_id: benchmark.id, observed_on: })
         RefreshStatus::Tracker.record_failure(refresh, error)
@@ -36,6 +36,13 @@ class CaptureMarketBenchmarkObservationsJob < ApplicationJob
   def captured?(benchmark, from:, to:)
     from == to && MarketBenchmarkObservation.exists?(
       market_benchmark: benchmark, observed_on: to, provider: importer.identifier
+    )
+  end
+
+  def publication_fence(benchmark:)
+    MarketData::PublicationFence.new(
+      target: MarketData::Target.new(kind: :benchmark_observations, record_id: benchmark.id,
+        provider: benchmark.provider)
     )
   end
 end

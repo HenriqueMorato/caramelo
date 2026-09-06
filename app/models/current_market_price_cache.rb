@@ -64,7 +64,8 @@ class CurrentMarketPriceCache
     lookup_for(current_market_price)
   end
 
-  def refresh(instrument:, provider:, force: false)
+  def refresh(instrument:, provider:, force: false, fence: nil)
+    generation = fence&.capture
     provider = CurrentMarketPrice.normalize_provider(provider)
     current_lookup = read(instrument:, provider:)
     return current_lookup if current_lookup.fresh? && !force
@@ -74,7 +75,12 @@ class CurrentMarketPriceCache
       raise CurrentMarketPrice::InvalidValue, "provider does not match refresh"
     end
 
-    write(instrument:, current_market_price:)
+    return write(instrument:, current_market_price:) unless fence
+
+    result = nil
+    return current_lookup if fence.publish(generation) { result = write(instrument:, current_market_price:) } == :superseded
+
+    result
   end
 
   private

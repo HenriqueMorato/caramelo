@@ -66,6 +66,28 @@ class DailyClosingPrice::ImporterTest < ActiveSupport::TestCase
     assert_equal 0, result.updated_count
   end
 
+  test "skips persistence when a newer publication generation wins" do
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation| :superseded }
+
+    result = @importer.call(instrument: @instrument, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24), fence:)
+
+    assert_equal 0, result.created_count
+    assert_empty DailyClosingPrice.where(instrument: @instrument)
+  end
+
+  test "persists inside the fence when its generation is current" do
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation, &block| block.call; :published }
+
+    result = @importer.call(instrument: @instrument, from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24), fence:)
+
+    assert_equal 1, result.created_count
+    assert_predicate DailyClosingPrice.find_by(instrument: @instrument), :present?
+  end
+
   test "rolls back earlier observations when a later row is invalid" do
     fetch = @provider.method(:fetch)
     @provider.define_singleton_method(:fetch) do |**arguments|

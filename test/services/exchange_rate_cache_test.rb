@@ -69,6 +69,28 @@ class ExchangeRateCacheTest < ActiveSupport::TestCase
     assert_predicate lookup, :fresh?
   end
 
+  test "does not publish a rate when its generation is superseded" do
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation| :superseded }
+
+    lookup = @store.refresh(base_currency: "USD", quote_currency: "BRL", provider: "yahoo_finance_fx", fence:) do
+      build_rate(rate: "9")
+    end
+
+    assert_predicate lookup, :missing?
+  end
+
+  test "refreshes a stale rate without a publication fence" do
+    @store.write(exchange_rate: build_rate(rate: "5", fetched_at: 31.minutes.ago))
+
+    lookup = @store.refresh(base_currency: "USD", quote_currency: "BRL", provider: "yahoo_finance_fx") do
+      build_rate(rate: "6")
+    end
+
+    assert_equal BigDecimal("6"), lookup.exchange_rate.rate
+  end
+
   test "requires positive freshness" do
     assert_raises(ArgumentError) { ExchangeRateCache.new(cache: @cache, fresh_for: 0.seconds) }
   end

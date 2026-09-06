@@ -51,11 +51,15 @@ module MarketData
       when :current_price
         CurrentMarketPriceCache.new.read(instrument: Instrument.find(target.record_id), provider: target.provider).current_market_price
       when :daily_closing_prices
-        DailyClosingPrice.where(instrument_id: target.record_id, trading_date: from..to).order(:id).pluck(:id, :updated_at)
+        DailyClosingPrice.where(instrument_id: target.record_id, provider: target.provider,
+          trading_date: from..to).order(:id).pluck(:id, :updated_at)
       when :historical_exchange_rates
-        HistoricalExchangeRate.where(base_currency: target.base_currency, quote_currency: target.quote_currency, rate_date: from..to).order(:id).pluck(:id, :updated_at)
+        historical_rate_rows(target:, from:, to:)
       when :benchmark_observations
-        MarketBenchmarkObservation.where(market_benchmark_id: target.record_id, observed_on: from..to).order(:id).pluck(:id, :updated_at)
+        MarketBenchmarkObservation.joins(:market_benchmark).where(
+          market_benchmark_id: target.record_id,
+          market_benchmarks: { provider: target.provider }, observed_on: from..to
+        ).order(:id).pluck(:id, :updated_at)
       when :portfolio_performance
         PortfolioPerformanceObservation.where(user: owner, reporting_currency: owner.reporting_currency, observed_on: from..to).order(:id).pluck(:id, :updated_at)
       else
@@ -64,12 +68,22 @@ module MarketData
       Digest::SHA256.hexdigest(rows.to_json)
     end
 
+    def self.historical_rate_rows(target:, from:, to:)
+      HistoricalExchangeRate.where(provider: target.provider, rate_date: from..to)
+        .where(
+          "(base_currency = ? AND quote_currency = ?) OR (base_currency = ? AND quote_currency = ?)",
+          target.base_currency, target.quote_currency, target.quote_currency, target.base_currency
+        ).order(:id).pluck(:id, :updated_at)
+    end
+
     def self.default_verifier
       Rails.application.message_verifier("market-data-reset-preview")
     end
 
     def self.canonical_target(target)
-      target.to_h.stringify_keys.transform_values { |value| value.is_a?(Symbol) ? value.to_s : value }
+      target.to_h.stringify_keys.transform_values do |value|
+        value.is_a?(Symbol) || value.is_a?(Integer) ? value.to_s : value
+      end
     end
 
     private_class_method :default_verifier, :fingerprint_for, :canonical_target

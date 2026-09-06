@@ -1,7 +1,7 @@
 module RefreshStatus
   class Tracker
-    def self.enqueue(scope:, total_count: nil)
-      run_id = SecureRandom.uuid
+    def self.enqueue(scope:, total_count: nil, run_id: nil)
+      run_id ||= SecureRandom.uuid
       completed = total_count == 0
       state = State.write(
         scope:, run_id:, status: completed ? "succeeded" : "queued", total_count:,

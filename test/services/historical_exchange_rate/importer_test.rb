@@ -14,6 +14,28 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     assert_equal [ Date.new(2026, 8, 25) ], result.missing_dates
   end
 
+  test "persists inside a current publication fence" do
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation, &block| block.call; :published }
+
+    result = @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24),
+      to: Date.new(2026, 8, 24), fence:)
+
+    assert_equal 1, result.created_count
+  end
+
+  test "skips persistence when a newer publication generation wins" do
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation| :superseded }
+
+    result = @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24),
+      to: Date.new(2026, 8, 24), fence:)
+
+    assert_equal 0, result.created_count
+  end
+
   test "updates corrections without duplicates" do
     @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
     @provider.rate = BigDecimal("6")

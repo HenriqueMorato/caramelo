@@ -36,7 +36,8 @@ class CurrentMarketPriceRefreshesControllerTest < ActionDispatch::IntegrationTes
 
     post current_market_price_refresh_url, as: :turbo_stream
 
-    assert_response :too_many_requests
+    assert_response :success
+    assert_includes response.body, "Refresh is limited to once every five minutes"
     assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob
   end
 

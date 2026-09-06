@@ -8,15 +8,24 @@ class DailyClosingPrice
       @provider = provider
     end
 
-    def call(instrument:, from:, to:, enqueue_performance_rebuild: true)
+    def call(instrument:, from:, to:, enqueue_performance_rebuild: true, fence: nil)
       raise ArgumentError, "from must be on or before to" if from > to
 
+      generation = fence&.capture
       @instrument = instrument
       @from = from
       @to = to
       @observations = provider.fetch(instrument:, from:, to:)
       validate_observations!
-      counts = persist_with_invalidation
+      counts = if fence
+        result = nil
+        return Result.new(from:, to:, observations:, missing_dates: expected_dates - observations.map(&:trading_date),
+          created_count: 0, updated_count: 0) if fence.publish(generation) { result = persist_with_invalidation } == :superseded
+
+        result
+      else
+        persist_with_invalidation
+      end
       enqueue_performance_observations if enqueue_performance_rebuild
 
       Result.new(

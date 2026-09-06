@@ -18,15 +18,24 @@ class MarketBenchmark
       provider.identifier
     end
 
-    def call(benchmark:, from:, to:)
+    def call(benchmark:, from:, to:, fence: nil)
       raise ArgumentError, "from must be on or before to" if from > to
 
+      generation = fence&.capture
       @benchmark = benchmark
       @from = from
       @to = to
       @observations = provider.fetch(benchmark:, from:, to:)
       validate_observations!
-      counts = persist
+      counts = if fence
+        result = nil
+        return Result.new(benchmark:, from:, to:, observations:, missing_dates: expected_dates - observations.map(&:observed_on),
+          created_count: 0, updated_count: 0) if fence.publish(generation) { result = persist } == :superseded
+
+        result
+      else
+        persist
+      end
 
       Result.new(
         benchmark:, from:, to:, observations:, missing_dates: expected_dates - observations.map(&:observed_on),

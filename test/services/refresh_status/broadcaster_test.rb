@@ -5,8 +5,10 @@ class RefreshStatus::BroadcasterTest < ActiveSupport::TestCase
     presenter = Object.new
     calls = []
     with_stubbed_method(RefreshStatus::Presenter, :for, -> { presenter }) do
+      with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { calls << :health }) do
       with_stubbed_method(Turbo::StreamsChannel, :broadcast_replace_to, ->(*args, **kwargs) { calls << [ args, kwargs ] }) do
         RefreshStatus::Broadcaster.refresh
+      end
       end
     end
 

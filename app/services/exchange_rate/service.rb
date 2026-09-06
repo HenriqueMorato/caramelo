@@ -20,7 +20,7 @@ module ExchangeRate
     def refresh(base_currency:, quote_currency:, force: false)
       return same_currency_lookup if base_currency == quote_currency
 
-      cache.refresh(base_currency:, quote_currency:, provider: provider.identifier, force:) do
+      cache.refresh(base_currency:, quote_currency:, provider: provider.identifier, force:, fence: publication_fence(base_currency:, quote_currency:)) do
         provider.fetch(base_currency:, quote_currency:)
       end
     end
@@ -31,6 +31,12 @@ module ExchangeRate
 
     def same_currency_lookup
       ExchangeRateCache::Lookup.new(exchange_rate: nil, status: :same_currency)
+    end
+
+    def publication_fence(base_currency:, quote_currency:)
+      MarketData::PublicationFence.new(
+        target: MarketData::Target.new(kind: :current_exchange_rate, base_currency:, quote_currency:)
+      )
     end
   end
 end

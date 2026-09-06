@@ -23,31 +23,91 @@ class MarketData::ResetTest < ActiveSupport::TestCase
 
     result = nil
     with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
-      result = MarketData::Reset.call(target: @target, cache: @cache)
+      result = MarketData::Reset.call(target: @target, preview_token:, cache: @cache)
     end
 
     assert_predicate result, :queued?
     assert_predicate cache.read(instrument: @instrument, provider: "yahoo_finance"), :fresh?
   end
 
+  test "passes the recovery lease to the replacement job" do
+    arguments = nil
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue) { |**kwargs| arguments = kwargs; :queued_job }
+
+    with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+      result = MarketData::Reset.call(target: @target, preview_token:, cache: @cache)
+      assert_predicate result, :queued?
+    end
+
+    assert arguments[:lease_token].present?
+    assert_equal @target.to_h, arguments[:lease_target]
+  end
+
+  test "verifies a supplied reset preview token" do
+    verified = false
+    with_stubbed_method(MarketData::ResetPreview, :verify, ->(**) { verified = true }) do
+      enqueuer = Object.new
+      enqueuer.define_singleton_method(:enqueue) { |**| :queued_job }
+      with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+        result = MarketData::Reset.call(target: @target, preview_token: "signed", cache: @cache)
+        assert_predicate result, :queued?
+      end
+    end
+
+    assert verified
+  end
+
   test "does not clear unsupported target kinds" do
-    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id)
+    target = MarketData::Target.new(kind: :portfolio_performance)
 
     assert_predicate MarketData::Reset.call(target:, cache: @cache), :unsupported?
   end
 
+  test "reuses the verified preview range for historical recovery targets" do
+    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id,
+      provider: "yahoo_finance")
+    range = Date.new(2026, 8, 24)..Date.new(2026, 8, 28)
+    preview = Struct.new(:range).new(range)
+    recovery = Struct.new(:status).new(:queued)
+    received = nil
+
+    with_stubbed_method(MarketData::ResetPreview, :verify, ->(**) { preview }) do
+      with_stubbed_method(MarketData::Recovery, :call, ->(**kwargs) { received = kwargs; recovery }) do
+        result = MarketData::Reset.call(target:, preview_token: "signed", cache: @cache)
+        assert_predicate result, :queued?
+      end
+    end
+
+    assert_equal range, received[:range]
+    assert_equal target, received[:target]
+  end
+
+  test "requires a signed preview for supported targets" do
+    assert_raises(ArgumentError, "reset preview is required") do
+      MarketData::Reset.call(target: @target, cache: @cache)
+    end
+  end
+
   test "rejects an instrument outside the owner scope" do
-    target = MarketData::Target.new(kind: :current_price, record_id: instruments(:petr4_bvmf).id)
+    target = MarketData::Target.new(kind: :current_price, record_id: instruments(:petr4_bvmf).id,
+      provider: "yahoo_finance")
 
     assert_raises(ActiveRecord::RecordNotFound) do
-      MarketData::Reset.call(target:, cache: @cache)
+      MarketData::Reset.call(target:, preview_token: MarketData::ResetPreview.create(target:).token, cache: @cache)
     end
   end
 
   test "does not clear a quote while its refresh is active" do
     RefreshStatus::Tracker.enqueue(scope: @target.scope, total_count: 1)
 
-    assert_predicate MarketData::Reset.call(target: @target, cache: @cache), :busy?
+    assert_predicate MarketData::Reset.call(target: @target, preview_token:, cache: @cache), :busy?
+  end
+
+  test "reports busy when another recovery lease owns the quote" do
+    with_stubbed_method(MarketData::RecoveryLease, :acquire, ->(**) { nil }) do
+      assert_predicate MarketData::Reset.call(target: @target, preview_token:, cache: @cache), :busy?
+    end
   end
 
   test "reports unsupported when replacement enqueue returns nil" do
@@ -56,13 +116,32 @@ class MarketData::ResetTest < ActiveSupport::TestCase
 
     result = nil
     with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
-      result = MarketData::Reset.call(target: @target, cache: @cache)
+      result = MarketData::Reset.call(target: @target, preview_token:, cache: @cache)
     end
 
     assert_predicate result, :unsupported?
+    assert_nil MarketData::RecoveryLease.current(target: @target, cache: @cache)
+  end
+
+  test "releases the recovery lease when enqueue raises" do
+    failure = RuntimeError.new("queue unavailable")
+    enqueuer = Object.new
+    enqueuer.define_singleton_method(:enqueue) { |**| raise failure }
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+        MarketData::Reset.call(target: @target, preview_token:, cache: @cache)
+      end
+    end
+
+    assert_nil MarketData::RecoveryLease.current(target: @target, cache: @cache)
   end
 
   private
+
+  def preview_token
+    MarketData::ResetPreview.create(target: @target).token
+  end
 
   def with_stubbed_method(object, method_name, replacement)
     original = object.method(method_name)

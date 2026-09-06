@@ -49,12 +49,18 @@ class ExchangeRateCache
     lookup_for(exchange_rate)
   end
 
-  def refresh(base_currency:, quote_currency:, provider:, force: false)
+  def refresh(base_currency:, quote_currency:, provider:, force: false, fence: nil)
+    generation = fence&.capture
     current_lookup = read(base_currency:, quote_currency:, provider:)
     return current_lookup if current_lookup.fresh? && !force
 
     exchange_rate = yield
-    write(exchange_rate:)
+    return write(exchange_rate:) unless fence
+
+    result = nil
+    return current_lookup if fence.publish(generation) { result = write(exchange_rate:) } == :superseded
+
+    result
   end
 
   private

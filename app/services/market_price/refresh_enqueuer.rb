@@ -37,6 +37,9 @@ module MarketPrice
     private
 
     def enqueue_batch(instrument:, batch_scope:, batch_run_id:, lease_token:, lease_target:)
+      RefreshStatus::Tracker.enqueue(
+        scope: job_class.refresh_scope(instrument), run_id: batch_run_id
+      )
       options = { instrument:, force: true, batch_scope:, batch_run_id: }
       options.merge!(lease_token:, lease_target:) if lease_token
       job_class.enqueue_for(**options)
