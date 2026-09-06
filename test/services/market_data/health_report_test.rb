@@ -132,6 +132,69 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal "VOO · Vanguard S&P 500 ETF", label
   end
 
+  test "formats identifier and plain subjects when no ticker is available" do
+    report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
+    identifier_subject = Data.define(:name, :identifier).new("S&P 500", "SP500")
+
+    assert_equal "S&P 500 (SP500)", report.instance_exec(identifier_subject) { |subject| subject_label(subject) }
+    assert_equal "Portfolio", report.instance_exec("Portfolio") { |subject| subject_label(subject) }
+  end
+
+  test "exposes the context reporting currency" do
+    context = MarketData::HealthReport::Context.new(owner: users(:owner), today: Date.current)
+
+    assert_equal users(:owner).reporting_currency, context.reporting_currency
+  end
+
+  test "handles a weekend benchmark health window" do
+    benchmark = MarketBenchmark.create!(identifier: "WEEKENDSP", name: "Weekend S&P", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    inspector = MarketData::HealthReport::BenchmarkObservations.new(
+      owner: users(:owner), today: Date.new(2026, 9, 6)
+    )
+
+    entry = inspector.entries.find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :missing, entry.status
+    assert_includes entry.description, Date.new(2026, 9, 4).iso8601
+  end
+
+  test "formats a single benchmark date without a range separator" do
+    inspector = MarketData::HealthReport::BenchmarkObservations.new(owner: users(:owner), today: Date.current)
+
+    assert_equal Date.current.iso8601, inspector.send(:format_ranges, [ Date.current..Date.current ])
+  end
+
+  test "builds current FX entries with optional coverage ranges" do
+    inspector = MarketData::HealthReport::CurrentExchangeRates.new(
+      context: MarketData::HealthReport::Context.new(owner: users(:owner), today: Date.current),
+      service: CurrentExchangeRateService.new
+    )
+    coverage = MarketData::HealthReport::CoverageCalculator.for(required_dates: [], observations: [])
+
+    entry = inspector.send(
+      :build, code: :current_exchange_rate, target: MarketData::Target.new(kind: :current_exchange_rate),
+      subject: "USD", status: :healthy, severity: nil, description: "available", actions: [], coverage:
+    )
+
+    assert_nil entry.covered_range
+    assert_nil entry.missing_range
+  end
+
+  test "covers historical FX inspector fallbacks and range formatting" do
+    owner = users(:owner)
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:)
+
+    assert_empty inspector.send(:observations_for, "BRL", [])
+    assert inspector.entries.any?
+    dates = inspector.send(:historical_rate_dates, "USD")
+    assert_equal owner.trades.where(currency: "USD").distinct.order(:traded_on).pluck(:traded_on).uniq.sort, dates.sort
+    assert_equal "2026-09-01–2026-09-03", inspector.send(
+      :format_ranges, [ Date.new(2026, 9, 1)..Date.new(2026, 9, 3) ]
+    )
+  end
+
   test "reports healthy when all required records exist" do
     instrument = instruments(:voo_arcx)
     TradingCalendar.weekdays_between(Date.new(2026, 8, 12), Date.new(2026, 9, 1)).each do |date|
@@ -253,6 +316,15 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     entry = report.entries.find { |candidate| candidate.code == :portfolio_performance }
     assert_equal :updating, entry.status
+  end
+
+  test "builds performance coverage without a shared context" do
+    owner = users(:owner)
+    PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+
+    entries = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: Date.current).entries
+
+    assert_equal 1, entries.size
   end
 
   test "reports missing performance coverage when materialization is complete but observations are absent" do

@@ -104,6 +104,12 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_predicate MarketData::Reset.call(target: @target, preview_token:, cache: @cache), :busy?
   end
 
+  test "reports busy when another recovery lease owns the quote" do
+    with_stubbed_method(MarketData::RecoveryLease, :acquire, ->(**) { nil }) do
+      assert_predicate MarketData::Reset.call(target: @target, preview_token:, cache: @cache), :busy?
+    end
+  end
+
   test "reports unsupported when replacement enqueue returns nil" do
     enqueuer = Object.new
     enqueuer.define_singleton_method(:enqueue) { |**| nil }
