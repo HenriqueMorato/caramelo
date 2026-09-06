@@ -85,25 +85,28 @@ module MarketData
       end
     end
 
-    def self.for(owner: User.owner, current_market_price_service: MarketPrice::Service.default, today: Date.current)
-      new(owner:, current_market_price_service:, today:).call
+    def self.for(owner: User.owner, current_market_price_service: MarketPrice::Service.default,
+      current_exchange_rate_service: ExchangeRate::Service.default, today: Date.current)
+      new(owner:, current_market_price_service:, current_exchange_rate_service:, today:).call
     end
 
-    def initialize(owner:, current_market_price_service:, today:)
+    def initialize(owner:, current_market_price_service:, current_exchange_rate_service: ExchangeRate::Service.default,
+      today:)
       @owner = owner
       @current_market_price_service = current_market_price_service
+      @current_exchange_rate_service = current_exchange_rate_service
       @today = today
     end
 
     def call
-      entries = (instrument_entries + currency_entries + benchmark_entries + performance_entries)
+      entries = (instrument_entries + current_exchange_rate_entries + currency_entries + benchmark_entries + performance_entries)
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
 
     private
 
-    attr_reader :owner, :current_market_price_service, :today
+    attr_reader :owner, :current_market_price_service, :current_exchange_rate_service, :today
 
     def instruments
       @instruments ||= owner.trades.includes(:instrument).map(&:instrument).uniq
@@ -239,6 +242,40 @@ module MarketData
           actions: present ? [] : [ :retry ], coverage: coverage
         )
       end
+    end
+
+    def current_exchange_rate_entries
+      foreign_currencies.map do |currency|
+        lookup = current_exchange_rate_service.read(
+          base_currency: currency, quote_currency: owner.reporting_currency
+        )
+        status = lookup.fresh? ? :healthy : lookup.stale? ? :stale : :missing
+        present = status == :healthy
+        entry_for(
+          code: present ? :current_exchange_rate : :missing_current_exchange_rate,
+          status:, severity: present ? nil : :warning, subject: currency,
+          description: current_exchange_rate_description(currency:, status:),
+          target: Target.new(kind: :current_exchange_rate,
+            base_currency: currency, quote_currency: owner.reporting_currency),
+          actions: present ? [] : [ :retry ]
+        )
+      end
+    end
+
+    def foreign_currencies
+      @foreign_currencies ||= instruments.filter_map do |instrument|
+        next unless instrument.currency != owner.reporting_currency && Position.for(instrument:).open?
+
+        instrument.currency
+      end.uniq
+    end
+
+    def current_exchange_rate_description(currency:, status:)
+      pair = "#{currency}/#{owner.reporting_currency}"
+      return "Current #{pair} exchange rate is available." if status == :healthy
+      return "Current #{pair} exchange rate is stale; refresh it to update valuation." if status == :stale
+
+      "Current #{pair} exchange rate is unavailable."
     end
 
     def benchmark_entries

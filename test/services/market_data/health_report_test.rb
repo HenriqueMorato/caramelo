@@ -2,6 +2,7 @@ require "test_helper"
 
 class MarketData::HealthReportTest < ActiveSupport::TestCase
   Lookup = Data.define(:status) do
+    def fresh? = status == :fresh
     def missing? = status == :missing
     def stale? = status == :stale
   end
@@ -12,6 +13,16 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     end
 
     def read(instrument:)
+      Lookup.new(@status)
+    end
+  end
+
+  class CurrentExchangeRateService
+    def initialize(status: :fresh)
+      @status = status
+    end
+
+    def read(base_currency:, quote_currency:)
       Lookup.new(@status)
     end
   end
@@ -32,8 +43,8 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       today: Date.new(2026, 9, 2)
     )
 
-    assert_equal %i[stale_current_price missing_daily_close missing_exchange_rate missing_benchmark_data], report.issues.map(&:code)
-    assert_equal 4, report.warnings.size
+    assert_equal %i[stale_current_price missing_daily_close missing_current_exchange_rate missing_exchange_rate missing_benchmark_data], report.issues.map(&:code)
+    assert_equal 5, report.warnings.size
     refute report.healthy?
   end
 
@@ -44,6 +55,17 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     issue = report.issues.find { |item| item.code == :missing_exchange_rate }
     assert_includes issue.details, "USD/EUR"
+  end
+
+  test "reports stale current FX for an open foreign position" do
+    report = MarketData::HealthReport.for(
+      current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new(status: :stale)
+    )
+
+    entry = report.entries.find { |candidate| candidate.code == :missing_current_exchange_rate }
+    assert_equal :stale, entry.status
+    assert_includes entry.description, "Current USD/BRL exchange rate is stale"
   end
 
   test "labels instruments and benchmarks without exposing record inspection" do
@@ -76,6 +98,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     report = MarketData::HealthReport.for(
       owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new,
       today: Date.new(2026, 9, 2)
     )
 
@@ -238,7 +261,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
   test "returns no daily dates for an instrument without trades" do
     report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
-      today: Date.current)
+      current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
 
     assert_empty report.send(:required_daily_close_dates, instruments(:petr4_bvmf))
   end
