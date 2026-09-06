@@ -197,8 +197,25 @@ Verification checks checksums, SQLite integrity, foreign keys, current pending
 migrations, and the ledger's excluded tables. Restore always targets a new
 isolated path, refuses the live database and existing destinations, and verifies
 the copied file before publishing it. Replacing production storage is a manual,
-stopped-application operation after an isolated restore rehearsal. CSV export is
-not automatic; it remains the explicit interface work tracked in issue #106.
+stopped-application operation after an isolated restore rehearsal.
+
+The Data health page is the browser entry point for this workflow. Its backup
+actions use signed run identifiers rather than filesystem paths. The trade
+export link is explicit and produces a UTF-8, comma-separated
+file with CRLF rows, stable headers, ISO-8601 dates, exact decimal text, fee
+subunits, and currency columns. It is safe to import into Google Sheets and is
+not included in automatic backup creation. Full multi-dataset export and
+round-trip import remain separate future work in issue #106.
+
+### Feedback surfaces
+
+The application has two feedback surfaces. The layout's flash notification
+stack handles full-page redirects and remains available after navigation. The
+layout also owns a reusable fixed Turbo toast target for in-place actions: a
+Turbo response replaces the current toast, keeps its target in the DOM for
+repeated actions, and dismisses it after three seconds. Both surfaces use
+polite live-region semantics and the same success/error visual language; the
+toast is not specific to backups.
 
 ### Automatic market-data refreshes
 

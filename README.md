@@ -160,6 +160,13 @@ recurring maintenance job runs daily at 3am by default; set
 `LOCALFOLIO_BACKUP_SCHEDULE` to customize it. Startup and the first request of
 a new day remain fallback paths.
 
+The Data health page shows the same retained runs without exposing server
+paths. From there you can request a low-priority backup, verify a retained run,
+or download the owner's trades as a UTF-8 CSV. The CSV uses stable headers,
+ISO-8601 dates, exact decimal strings, integer fee subunits, and explicit ISO
+currency columns, so it imports cleanly into Google Sheets. Export is always
+user-triggered; it is not attached to the automatic backup job.
+
 Verify or rehearse an isolated restore without changing the live database:
 
 ```sh

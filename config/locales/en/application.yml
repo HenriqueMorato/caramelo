@@ -4,8 +4,7 @@ en:
   All instruments: "← All instruments"
   Average cost: Average cost
   Back: "← Back"
-  "Backups & exports": Backups & exports
-  Data protection: Data protection
+  Backups & exports: Backups & exports
   Buy: Buy
   Closed: Closed
   Cost basis: Cost basis
@@ -13,6 +12,7 @@ en:
   Current price: Current price
   Dashboard: Dashboard
   Data health: Data health
+  Data protection: Data protection
   Institutions: Institutions
   Instruments: Instruments
   LocalFolio: caramelo
@@ -53,6 +53,18 @@ en:
   Unrealized return: Unrealized return
   Value unavailable: Value unavailable
   Your portfolio is out for a stroll: Your portfolio is out for a stroll.
+  actions:
+    Add: Add %{model}
+    Cancel: Cancel
+    Delete: Delete
+    Edit: Edit
+    Edit model: Edit %{model}
+    View details: View details
+  alerts:
+    Invalid credentials: Try another email address or password.
+    Password reset link expired: Password reset link is invalid or has expired.
+    Passwords did not match: Passwords did not match.
+    Try again later: Try again later.
   backups:
     Actions: Actions
     Backup list: Retained backups
@@ -60,8 +72,9 @@ en:
     Created: Created
     Empty: No verified backup has been retained yet.
     Export trades: Export trades (CSV)
-    Intro: Keep a verified local copy of your durable records and export trades for analysis in Google Sheets.
-    Schedule: "Automatic schedule: %{schedule}"
+    Intro: Keep a verified local copy of your durable records and export trades for
+      analysis in Google Sheets.
+    Schedule: 'Automatic schedule: %{schedule}'
     Size: Size
     Status: Status
     Verify: Verify
@@ -93,18 +106,6 @@ en:
     verification:
       failed: The backup could not be verified.
       ready: The backup passed its integrity checks.
-  actions:
-    Add: Add %{model}
-    Cancel: Cancel
-    Delete: Delete
-    Edit: Edit
-    Edit model: Edit %{model}
-    View details: View details
-  alerts:
-    Invalid credentials: Try another email address or password.
-    Password reset link expired: Password reset link is invalid or has expired.
-    Passwords did not match: Passwords did not match.
-    Try again later: Try again later.
   confirmations:
     Delete record: Delete %{record}?
     Delete trade: Delete this trade?
