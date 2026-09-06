@@ -20,16 +20,19 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     get transactions_url(side: "buy")
 
     assert_response :success
-    assert_select "select[name='side'] option[selected]", "Buys only"
+    assert_select "a[aria-current='page']", "Buys only" do |links|
+      assert_equal transactions_path(side: "buy"), links.sole["href"]
+    end
     assert_select "tr##{dom_id(@trade)}"
-    assert_select "form[action='#{transactions_path}'] a", "Clear"
   end
 
   test "keeps the filter available when no trades match" do
     get transactions_url(side: "sell")
 
     assert_response :success
-    assert_select "select[name='side'] option[selected]", "Sells only"
+    assert_select "a[aria-current='page']", "Sells only" do |links|
+      assert_equal transactions_path(side: "sell"), links.sole["href"]
+    end
     assert_select "tbody td", "No trades match this filter."
   end
 
@@ -38,7 +41,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "tr##{dom_id(@trade)}"
-    assert_select "form[action='#{transactions_path}'] a", count: 0
+    assert_select "a[aria-current='page'][href='#{transactions_path}']", "All trades"
   end
 
   test "renders an empty state" do

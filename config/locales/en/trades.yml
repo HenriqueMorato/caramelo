@@ -13,7 +13,6 @@ en:
       Actions: Actions
       All trades: All trades
       Buys only: Buys only
-      Clear filter: Clear
       Empty state: Record your first purchase or sale to start the trade history.
       Heading: The trail behind the pack.
       Introduction: Every buy and sell, without chasing your tail.
@@ -21,8 +20,8 @@ en:
       No trades yet: No trades yet
       Page title: Transactions · %{application}
       Sells only: Sells only
-      Show: Show
       Trade: Trade
+      Trade filters: Trade filters
     new:
       Introduction: Record an executed purchase or sale.
       Page title: New trade · %{application}

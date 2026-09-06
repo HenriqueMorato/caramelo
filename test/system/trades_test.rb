@@ -17,12 +17,12 @@ class TradesTest < ApplicationSystemTestCase
   test "filters trades immediately when the side changes" do
     visit transactions_path
 
-    select "Sells only", from: "Show"
+    click_on "Sells only"
 
     assert_current_path transactions_path(side: "sell")
     assert_text "No trades match this filter."
 
-    select "All trades", from: "Show"
+    click_on "All trades"
 
     assert_current_path transactions_path
     assert_text "Long-term allocation"
