@@ -129,40 +129,7 @@ module MarketData
     end
 
     def performance_entries
-      materialization = PortfolioPerformanceMaterialization.find_by(
-        user: owner, reporting_currency: owner.reporting_currency
-      )
-      return [] unless materialization
-
-      first_date = owner.trades.minimum(:traded_on)
-      return [] unless first_date
-
-      required_dates = (first_date..today).to_a
-      observations = owner.portfolio_performance_observations.where(
-        reporting_currency: owner.reporting_currency, observed_on: (first_date..today)
-      ).to_a
-      coverage = CoverageCalculator.for(required_dates:, observations:)
-      status = if materialization.pending?
-        :updating
-      elsif coverage.complete?
-        :healthy
-      elsif coverage.partial?
-        :partial
-      else
-        :missing
-      end
-      [ entry_for(
-        code: :portfolio_performance, status:, severity: %i[missing partial].include?(status) ? :warning : nil,
-        subject: "Portfolio performance", description: performance_description(coverage),
-        target: Target.new(kind: :portfolio_performance), actions: status == :healthy ? [] : [ :retry ],
-        coverage:
-      ) ]
-    end
-
-    def performance_description(coverage)
-      return "Portfolio performance is up to date." if coverage.complete?
-
-      "Portfolio performance is missing values for #{format_ranges(coverage.missing_ranges)}."
+      PortfolioPerformance.new(owner:, today:).entries
     end
 
     def format_ranges(ranges)
