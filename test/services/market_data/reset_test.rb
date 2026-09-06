@@ -59,9 +59,28 @@ class MarketData::ResetTest < ActiveSupport::TestCase
   end
 
   test "does not clear unsupported target kinds" do
-    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id)
+    target = MarketData::Target.new(kind: :portfolio_performance)
 
     assert_predicate MarketData::Reset.call(target:, cache: @cache), :unsupported?
+  end
+
+  test "reuses the verified preview range for historical recovery targets" do
+    target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id,
+      provider: "yahoo_finance")
+    range = Date.new(2026, 8, 24)..Date.new(2026, 8, 28)
+    preview = Struct.new(:range).new(range)
+    recovery = Struct.new(:status).new(:queued)
+    received = nil
+
+    with_stubbed_method(MarketData::ResetPreview, :verify, ->(**) { preview }) do
+      with_stubbed_method(MarketData::Recovery, :call, ->(**kwargs) { received = kwargs; recovery }) do
+        result = MarketData::Reset.call(target:, preview_token: "signed", cache: @cache)
+        assert_predicate result, :queued?
+      end
+    end
+
+    assert_equal range, received[:range]
+    assert_equal target, received[:target]
   end
 
   test "requires a signed preview for supported targets" do

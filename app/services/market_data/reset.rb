@@ -1,9 +1,13 @@
 module MarketData
   class Reset
+    SUPPORTED_KINDS = Recovery::HANDLERS.keys.freeze
+
     Result = Data.define(:status, :target) do
       def queued? = status == :queued
       def unsupported? = status == :unsupported
       def busy? = status == :busy
+      def throttled? = status == :throttled
+      def already_running? = status == :already_running
     end
 
     def self.call(target:, preview_token: nil, owner: User.owner, cache: Rails.cache)
@@ -18,11 +22,20 @@ module MarketData
     end
 
     def call
-      return result(:unsupported) unless target.kind == :current_price
+      return result(:unsupported) unless SUPPORTED_KINDS.include?(target.kind)
       raise ArgumentError, "reset preview is required" if preview_token.blank?
 
-      ResetPreview.verify(token: preview_token, target:, owner:)
+      preview = ResetPreview.verify(token: preview_token, target:, owner:)
 
+      return queue_current_price_reset if target.kind == :current_price
+
+      recovery = Recovery.call(target:, range: preview.range, owner:, cache:)
+      result(recovery.status)
+    end
+
+    private
+
+    def queue_current_price_reset
       instrument = Instrument.find(target.record_id)
       raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
       return result(:busy) if RefreshStatus::State.read(target.scope)&.active?
@@ -44,8 +57,6 @@ module MarketData
       RecoveryLease.release(target:, token: lease.token, cache:) if lease
       raise
     end
-
-    private
 
     attr_reader :target, :preview_token, :owner, :cache
 
