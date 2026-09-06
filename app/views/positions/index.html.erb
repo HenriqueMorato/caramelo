@@ -25,7 +25,7 @@
       <%= hidden_field_tag :group_by, @group_by, data: { grouping_target: "primaryInput" } %>
       <%= hidden_field_tag :subgroup_by, @subgroup_by, data: { grouping_target: "secondaryInput" } %>
       <div class="flex flex-wrap items-center justify-end gap-3 py-1">
-        <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-white/50 p-1" role="group" aria-label="<%= t(".Organize") %>">
+        <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-paper/50 p-1" role="group" aria-label="<%= t(".Organize") %>">
           <% grouping_options.drop(1).each do |label, value| %>
             <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-grouping-slot="<%= grouping_slot(value) %>" data-primary-label="<%= t(".Primary grouping") %>" data-secondary-label="<%= t(".Secondary grouping") %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="grouping-option"><%= label %></button>
           <% end %>

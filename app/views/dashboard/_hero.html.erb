@@ -1,17 +1,17 @@
 <%# locals: (dashboard:) %>
 
-<article class="relative min-h-[20rem] overflow-hidden rounded-[1.75rem] bg-coffee p-7 text-oat shadow-[0_18px_50px_rgba(108,64,35,0.16)] sm:p-9">
+<article class="relative min-h-[20rem] overflow-hidden rounded-[1.75rem] bg-hero p-7 text-hero-text shadow-[0_18px_50px_rgba(108,64,35,0.16)] sm:p-9">
   <div class="relative z-10 flex h-full flex-col">
     <div class="flex items-start justify-between gap-5">
       <div>
-        <p class="text-xs font-bold uppercase tracking-[0.16em] text-oat/60"><%= t("dashboard.index.Total portfolio value") %></p>
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-hero-text/60"><%= t("dashboard.index.Total portfolio value") %></p>
         <p class="mt-6 font-mono text-5xl font-semibold tracking-[-0.07em] tabular-nums sm:text-6xl"><%= dashboard.market_value.format %></p>
         <% if dashboard.day_change %>
           <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold <%= dashboard.day_change_color_class %>">
             <span aria-hidden="true"><%= dashboard.day_change_arrow %></span>
             <span><%= dashboard.day_change_amount_label %></span>
             <span><%= dashboard.day_change_ratio_label %></span>
-            <span class="font-normal text-oat/60"><%= t("dashboard.index.Today") %></span>
+            <span class="font-normal text-hero-text/60"><%= t("dashboard.index.Today") %></span>
           </p>
         <% end %>
       </div>
@@ -19,8 +19,8 @@
     </div>
 
     <div class="mt-auto border-t border-oat/15 pt-5">
-      <p class="font-display text-lg leading-tight text-oat"><%= t("dashboard.index.A little green around the edges") %></p>
-      <p class="mt-1 text-sm text-oat/60"><%= t("dashboard.index.That's a good sign") %></p>
+      <p class="font-display text-lg leading-tight text-hero-text"><%= t("dashboard.index.A little green around the edges") %></p>
+      <p class="mt-1 text-sm text-hero-text/60"><%= t("dashboard.index.That's a good sign") %></p>
     </div>
   </div>
 </article>

@@ -2,7 +2,7 @@
 
 <%= form_with(model: institution, class: "space-y-6") do |form| %>
   <% if institution.errors.any? %>
-    <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-900" role="alert">
+    <div class="ui-form-errors" role="alert">
       <p class="font-semibold"><%= t("forms.Could not save", count: institution.errors.count, model: Institution.model_name.human.downcase) %></p>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
         <% institution.errors.each do |error| %>
@@ -14,13 +14,13 @@
 
   <div>
     <%= form.label :name, class: "block text-sm font-semibold text-coffee" %>
-    <%= form.text_field :name, required: true, autofocus: true, autocomplete: "organization", class: [ "mt-2 block w-full rounded-xl border bg-oat-2 px-4 py-3 text-coffee shadow-sm focus:outline-none focus:ring-2", { "border-coffee/20 focus:border-caramel focus:ring-caramel/20": institution.errors[:name].none?, "border-red-400 focus:border-red-600 focus:ring-red-200": institution.errors[:name].any? } ] %>
+    <%= form.text_field :name, required: true, autofocus: true, autocomplete: "organization", class: [ "ui-field", { "ui-field-invalid": institution.errors[:name].any? } ] %>
   </div>
 
   <div>
     <%= form.label :notes, class: "block text-sm font-semibold text-coffee" %>
     <p class="mt-1 text-sm text-muted"><%= t(".Notes help") %></p>
-    <%= form.text_area :notes, rows: 5, class: [ "mt-2 block w-full rounded-xl border bg-oat-2 px-4 py-3 text-coffee shadow-sm focus:outline-none focus:ring-2", { "border-coffee/20 focus:border-caramel focus:ring-caramel/20": institution.errors[:notes].none?, "border-red-400 focus:border-red-600 focus:ring-red-200": institution.errors[:notes].any? } ] %>
+    <%= form.text_area :notes, rows: 5, class: [ "ui-field", { "ui-field-invalid": institution.errors[:notes].any? } ] %>
   </div>
 
   <div class="flex items-start gap-3 rounded-xl border border-coffee/10 bg-oat p-4">

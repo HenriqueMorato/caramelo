@@ -15,7 +15,7 @@
       </thead>
       <tbody class="divide-y divide-coffee/10">
         <% positions.each do |presenter| %>
-          <tr class="<%= presenter.invalid? ? "bg-red-50/50" : "hover:bg-oat/60" %>">
+          <tr class="<%= presenter.invalid? ? "bg-danger-surface/50" : "hover:bg-oat/60" %>">
             <th scope="row" class="min-w-56 px-5 py-4 font-normal sm:px-6">
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-mono text-base font-bold text-coffee"><%= link_to presenter.instrument.ticker, presenter.instrument, class: "hover:text-caramel-deep", data: { turbo_frame: "_top" } %></h2>
@@ -35,7 +35,7 @@
               </p>
             </th>
             <% if presenter.invalid? %>
-              <td colspan="5" class="px-4 py-4 text-sm text-red-900">
+              <td colspan="5" class="px-4 py-4 text-sm text-danger-text">
                 <div role="alert">
                   <p class="font-semibold"><%= t("positions.index.Position could not be calculated") %></p>
                   <p class="mt-1"><%= t("positions.index.Sales exceed purchases", date: l(presenter.error.trade.traded_on, format: :long)) %></p>

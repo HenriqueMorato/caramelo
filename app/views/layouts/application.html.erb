@@ -1,5 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html
+  data-controller="appearance"
+  data-action="click@window->appearance#closeMenus keydown.esc@window->appearance#closeMenus storage@window->appearance#storedPreferenceChanged turbo:load@window->appearance#refreshControls"
+  data-appearance="system"
+  data-theme="light"
+>
   <head>
     <title><%= content_for(:title) || t("LocalFolio") %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,6 +12,7 @@
     <meta name="application-name" content="<%= t("LocalFolio") %>">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#f6efe4">
+    <%= render "layouts/appearance_bootstrap" %>
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
@@ -27,7 +33,7 @@
   <body class="min-h-screen bg-oat text-coffee antialiased">
     <a
       href="#main-content"
-      class="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-lg focus-visible:bg-coffee focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-oat"
+      class="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-lg focus-visible:bg-hero focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-hero-text"
     >
       <%= t("Skip to content") %>
     </a>
