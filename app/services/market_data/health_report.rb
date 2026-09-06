@@ -159,10 +159,14 @@ module MarketData
 
     def daily_close_entry(instrument)
       required_dates = required_daily_close_dates(instrument)
-      observations = instrument.daily_closing_prices.where(
-        trading_date: (required_dates.min..today)
-      ).to_a
-      coverage = CoverageCalculator.for(required_dates:, observations:)
+      observations = if required_dates.empty?
+        []
+      else
+        instrument.daily_closing_prices.where(
+          trading_date: (HistoricalObservationWindow.for(required_dates.min).begin..today)
+        ).to_a
+      end
+      coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: true)
       present = coverage.complete?
       entry_for(
         code: present ? :daily_close : :missing_daily_close,
@@ -216,7 +220,7 @@ module MarketData
             observations: required_dates.map { |date| HistoricalExchangeRate.new(rate_date: date) }
           )
         else
-          CoverageCalculator.for(required_dates:, observations: observations + inverse_observations)
+          CoverageCalculator.for(required_dates:, observations: observations + inverse_observations, carry_forward: true)
         end
         present = coverage.complete?
 
@@ -241,8 +245,10 @@ module MarketData
       MarketBenchmark.find_each.map do |benchmark|
         first_date = owner.trades.minimum(:traded_on) || historical_end_date
         required_dates = TradingCalendar.weekdays_between(first_date, historical_end_date)
-        observations = benchmark.observations.where(observed_on: (required_dates.min..historical_end_date)).to_a
-        coverage = CoverageCalculator.for(required_dates:, observations:)
+        observations = benchmark.observations.where(
+          observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..historical_end_date)
+        ).to_a
+        coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: true)
         present = coverage.complete?
         entry_for(
           code: present ? :benchmark_data : :missing_benchmark_data,

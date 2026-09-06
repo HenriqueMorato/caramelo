@@ -97,6 +97,30 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_predicate coverage, :partial?
   end
 
+  test "carries a recent real observation across short closures" do
+    friday = Date.new(2026, 9, 4)
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: (friday..friday + 3.days).to_a,
+      observations: [ DailyClosingPrice.new(trading_date: friday) ],
+      carry_forward: true
+    )
+
+    assert_predicate coverage, :complete?
+    assert_empty coverage.missing_ranges
+  end
+
+  test "does not carry observations beyond the historical window" do
+    date = Date.new(2026, 9, 12)
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: [ date ],
+      observations: [ DailyClosingPrice.new(trading_date: date - 8.days) ],
+      carry_forward: true
+    )
+
+    assert_predicate coverage, :missing?
+    assert_equal [ date..date ], coverage.missing_ranges
+  end
+
   test "returns an empty healthy coverage for no required dates" do
     coverage = MarketData::HealthReport::CoverageCalculator.for(required_dates: [], observations: [])
 
