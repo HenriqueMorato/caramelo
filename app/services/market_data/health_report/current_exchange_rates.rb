@@ -1,9 +1,8 @@
 module MarketData
   class HealthReport
     class CurrentExchangeRates
-      def initialize(owner:, instruments:, service:)
-        @owner = owner
-        @instruments = instruments
+      def initialize(context:, service:)
+        @context = context
         @service = service
       end
 
@@ -13,7 +12,9 @@ module MarketData
 
       private
 
-      attr_reader :owner, :instruments, :service
+      attr_reader :context, :service
+
+      delegate :owner, :instruments, to: :context
 
       def entry_for(currency)
         lookup = service.read(base_currency: currency, quote_currency: owner.reporting_currency)

@@ -98,7 +98,7 @@ module MarketData
     end
 
     def call
-      exchange_rates = CurrentExchangeRates.new(owner:, instruments:, service: current_exchange_rate_service).entries
+      exchange_rates = CurrentExchangeRates.new(context:, service: current_exchange_rate_service).entries
       historical_rates = HistoricalExchangeRates.new(owner:, context:).entries
       benchmarks = BenchmarkObservations.new(owner:, today:, context:).entries
       entries = (instrument_entries + exchange_rates + historical_rates + benchmarks + performance_entries)
