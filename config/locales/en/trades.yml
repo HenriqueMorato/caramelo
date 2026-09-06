@@ -10,10 +10,19 @@ en:
         date.
       Settlement exchange rate optional: Exchange rate paid or received (optional)
     index:
+      Actions: Actions
+      All trades: All trades
+      Buys only: Buys only
+      Clear filter: Clear
       Empty state: Record your first purchase or sale to start the trade history.
-      Introduction: Review executed purchases and sales across your portfolio.
+      Heading: The trail behind the pack.
+      Introduction: Every buy and sell, without chasing your tail.
+      No matching trades: No trades match this filter.
       No trades yet: No trades yet
       Page title: Transactions · %{application}
+      Sells only: Sells only
+      Show: Show
+      Trade: Trade
     new:
       Introduction: Record an executed purchase or sale.
       Page title: New trade · %{application}

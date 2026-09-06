@@ -4,16 +4,64 @@
   <div class="ui-page-header">
     <div class="ui-page-header-copy">
       <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>
-      <h1 class="ui-page-title"><%= t("Transactions") %></h1>
+      <h1 class="ui-page-title"><%= t(".Heading") %></h1>
       <p class="ui-page-intro"><%= t(".Introduction") %></p>
     </div>
 
     <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary w-fit" %>
   </div>
 
-  <% if @trades.any? %>
-    <div class="space-y-4">
-      <%= render @trades %>
+  <% if @has_trades %>
+    <div>
+      <%= form_with url: transactions_path, method: :get, class: "flex flex-wrap items-center gap-2 rounded-t-xl border border-coffee/10 bg-paper px-4 py-3", data: { controller: "auto-submit" } do |form| %>
+        <%= form.label :side, t(".Show"), class: "text-xs font-semibold text-muted" %>
+        <%= form.select :side,
+                        [ [ t(".All trades"), "" ], [ t(".Buys only"), "buy" ], [ t(".Sells only"), "sell" ] ],
+                        { selected: @side },
+                        class: "min-h-9 w-32 rounded-lg border border-coffee/15 bg-oat-2 px-3 text-sm text-coffee focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20",
+                        data: { action: "change->auto-submit#submit" } %>
+        <% if @side %>
+          <%= link_to t(".Clear filter"), transactions_path, class: "text-xs font-semibold text-caramel-deep hover:text-coffee" %>
+        <% else %>
+          <span class="invisible text-xs font-semibold" aria-hidden="true"><%= t(".Clear filter") %></span>
+        <% end %>
+      <% end %>
+
+      <div class="overflow-x-auto rounded-b-xl border border-t-0 border-coffee/10 bg-oat-2">
+        <table class="ui-data-table min-w-[58rem] table-fixed text-sm">
+          <colgroup>
+            <col class="w-[25%]">
+            <col class="w-[14%]">
+            <col class="w-[9%]">
+            <col class="w-[9%]">
+            <col class="w-[13%]">
+            <col class="w-[9%]">
+            <col class="w-[11%]">
+            <col class="w-[10%]">
+          </colgroup>
+          <thead>
+            <tr class="text-xs uppercase tracking-[0.08em] text-muted">
+              <th scope="col" class="px-4 py-3 font-semibold"><%= t(".Trade") %></th>
+              <th scope="col" class="px-4 py-3 font-semibold"><%= Trade.human_attribute_name(:traded_on) %></th>
+              <th scope="col" class="px-4 py-3 text-center font-semibold"><%= Trade.human_attribute_name(:side) %></th>
+              <th scope="col" class="px-4 py-3 text-center font-semibold"><%= Trade.human_attribute_name(:quantity) %></th>
+              <th scope="col" class="px-4 py-3 text-center font-semibold"><%= Trade.human_attribute_name(:unit_price) %></th>
+              <th scope="col" class="px-4 py-3 text-center font-semibold"><%= Trade.human_attribute_name(:fees) %></th>
+              <th scope="col" class="px-4 py-3 text-center font-semibold"><%= t("Total") %></th>
+              <th scope="col" class="px-4 py-3"><span class="sr-only"><%= t(".Actions") %></span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-coffee/10">
+            <% if @trades.any? %>
+              <%= render partial: "table_row", collection: @trades, as: :trade %>
+            <% else %>
+              <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-sm text-muted"><%= t(".No matching trades") %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
     </div>
   <% else %>
     <div class="rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center">

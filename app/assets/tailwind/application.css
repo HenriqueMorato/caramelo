@@ -115,6 +115,7 @@ html[data-theme="dark"] {
   html {
     color-scheme: light;
     background: var(--caramelo-canvas);
+    scrollbar-gutter: stable;
     -webkit-tap-highlight-color: rgb(201 122 69 / 18%);
   }
 
@@ -303,9 +304,12 @@ html[data-theme="dark"] {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
 
-  .ui-badge-open,
-  .ui-badge-buy {
+  .ui-badge-open {
     @apply bg-caramel/15 text-coffee;
+  }
+
+  .ui-badge-buy {
+    @apply bg-leaf/15 text-leaf;
   }
 
   .ui-badge-closed,

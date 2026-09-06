@@ -14,6 +14,20 @@ class TradesTest < ApplicationSystemTestCase
     assert_no_text "Other owner trade"
   end
 
+  test "filters trades immediately when the side changes" do
+    visit transactions_path
+
+    select "Sells only", from: "Show"
+
+    assert_current_path transactions_path(side: "sell")
+    assert_text "No trades match this filter."
+
+    select "All trades", from: "Show"
+
+    assert_current_path transactions_path
+    assert_text "Long-term allocation"
+  end
+
   test "shows an empty state without owner trades" do
     Trade.where(user: User.owner).delete_all
 
@@ -131,11 +145,13 @@ class TradesTest < ApplicationSystemTestCase
     click_on "Update Trade"
 
     assert_text "Trade was updated."
-    assert_text "SELL"
-    assert_selector ".ui-badge-sell", text: "SELL"
-    assert_text "1 × $620.00"
-    assert_text "Reduced position"
-    assert_text "Banco do Brasil"
+    within "#trade_#{trade.id}" do
+      assert_selector ".ui-badge-sell", text: "SELL"
+      assert_selector "td", exact_text: "1"
+      assert_selector "td", exact_text: "$620.00"
+      assert_text "Reduced position"
+      assert_text "Banco do Brasil"
+    end
   end
 
   test "edits a trade with a high precise unit price" do
