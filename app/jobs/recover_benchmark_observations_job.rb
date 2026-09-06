@@ -10,7 +10,9 @@ class RecoverBenchmarkObservationsJob < ApplicationJob
       raise ArgumentError, "benchmark provider is unsupported" unless importer.supports?(benchmark:)
 
       MarketData::YahooFinance::RequestThrottle.new.wait!
-      importer.call(benchmark:, from:, to:)
+      importer.call(benchmark:, from:, to:, fence: MarketData::PublicationFence.new(
+        target: MarketData::Target.new(kind: :benchmark_observations, record_id: benchmark.id, provider: benchmark.provider)
+      ))
     end
   end
 end

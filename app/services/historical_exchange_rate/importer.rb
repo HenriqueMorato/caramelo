@@ -8,8 +8,9 @@ class HistoricalExchangeRate
       @provider = provider
     end
 
-    def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true)
+    def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true, fence: nil)
       validate_range!(from:, to:)
+      generation = fence&.capture
       @base_currency = normalize_currency(base_currency)
       @quote_currency = normalize_currency(quote_currency)
       raise ArgumentError, "currencies must differ" if @base_currency == @quote_currency
@@ -17,7 +18,15 @@ class HistoricalExchangeRate
       @to = to
       @observations = provider.fetch(base_currency: @base_currency, quote_currency: @quote_currency, from:, to:)
       validate_observations!
-      counts = persist_with_invalidation
+      counts = if fence
+        result = nil
+        return Result.new(from:, to:, observations:, missing_dates: expected_dates - observations.map(&:rate_date),
+          created_count: 0, updated_count: 0) if fence.publish(generation) { result = persist_with_invalidation } == :superseded
+
+        result
+      else
+        persist_with_invalidation
+      end
       enqueue_performance_observations if enqueue_performance_rebuild
 
       Result.new(

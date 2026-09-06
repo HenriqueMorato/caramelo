@@ -7,7 +7,11 @@ class RecoverHistoricalExchangeRatesJob < ApplicationJob
     run_target(target_scope:, target_run_id:, batch_scope:, batch_run_id:, lease_token:, lease_target:) do
       MarketData::YahooFinance::RequestThrottle.new.wait!
       HistoricalExchangeRate::Importer.default.call(
-        base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true
+        base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true,
+        fence: MarketData::PublicationFence.new(
+          target: MarketData::Target.new(kind: :historical_exchange_rates,
+            base_currency:, quote_currency:, provider: MarketData::YahooFinance::FX_CONFIGURATION.identifier)
+        )
       )
     end
   end

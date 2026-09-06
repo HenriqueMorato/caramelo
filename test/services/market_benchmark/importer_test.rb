@@ -15,6 +15,41 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     assert_equal "yahoo_finance", importer.identifier
   end
 
+  test "persists inside a current publication fence" do
+    benchmark = MarketBenchmark.create!(identifier: "FENCE", name: "Fenced benchmark", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^FENCE")
+    observation = MarketBenchmarkObservation::Observation.new(market_benchmark: benchmark,
+      observed_on: Date.new(2026, 8, 28), value: BigDecimal("5000"), currency: "USD",
+      provider: "yahoo_finance", observed_at: Time.current)
+    provider = Object.new
+    provider.define_singleton_method(:identifier) { "yahoo_finance" }
+    provider.define_singleton_method(:fetch) { |**| [ observation ] }
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation, &block| block.call; :published }
+
+    result = MarketBenchmark::Importer.new(provider:).call(benchmark:, from: observation.observed_on,
+      to: observation.observed_on, fence:)
+
+    assert_equal 1, result.created_count
+  end
+
+  test "skips persistence when a newer publication generation wins" do
+    benchmark = MarketBenchmark.create!(identifier: "SUPERSEDED", name: "Superseded benchmark", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^SUPERSEDED")
+    provider = Object.new
+    provider.define_singleton_method(:identifier) { "yahoo_finance" }
+    provider.define_singleton_method(:fetch) { |**| [] }
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation| :superseded }
+
+    result = MarketBenchmark::Importer.new(provider:).call(benchmark:, from: Date.new(2026, 8, 28),
+      to: Date.new(2026, 8, 28), fence:)
+
+    assert_equal 0, result.created_count
+  end
+
   test "rejects a reversed date range" do
     provider = Object.new
     provider.define_singleton_method(:identifier) { "yahoo_finance" }
