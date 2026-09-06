@@ -99,7 +99,8 @@ module MarketData
     end
 
     def call
-      entries = (instrument_entries + current_exchange_rate_entries + currency_entries + benchmark_entries + performance_entries)
+      exchange_rates = CurrentExchangeRates.new(owner:, instruments:, service: current_exchange_rate_service).entries
+      entries = (instrument_entries + exchange_rates + benchmark_entries + performance_entries)
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
@@ -118,91 +119,12 @@ module MarketData
       current.zip(daily).flat_map(&:compact)
     end
 
-    def currency_entries
-      currencies = owner.trades.distinct.pluck(:currency)
-      reporting_currency = owner.reporting_currency
-      currencies.map do |currency|
-        required_dates = historical_rate_dates(currency)
-        query_range = HistoricalObservationWindow.for(required_dates.min).begin..required_dates.max
-        observations = HistoricalExchangeRate.where(
-          base_currency: currency, quote_currency: reporting_currency, rate_date: query_range
-        ).to_a
-        inverse_observations = HistoricalExchangeRate.where(
-          base_currency: reporting_currency, quote_currency: currency, rate_date: query_range
-        ).to_a
-        coverage = if currency == reporting_currency
-          CoverageCalculator.for(
-            required_dates:,
-            observations: required_dates.map { |date| HistoricalExchangeRate.new(rate_date: date) }
-          )
-        else
-          CoverageCalculator.for(required_dates:, observations: observations + inverse_observations, carry_forward: true)
-        end
-        present = coverage.complete?
-
-        entry_for(
-          code: present ? :exchange_rate : :missing_exchange_rate,
-          status: present ? :healthy : coverage.partial? ? :partial : :missing,
-          severity: present ? nil : :warning,
-          subject: currency,
-          description: present ? "Historical #{currency}/#{reporting_currency} rates are available." :
-            "Historical #{currency}/#{reporting_currency} rates are missing for #{format_ranges(coverage.missing_ranges)}.",
-          target: Target.new(
-            kind: :historical_exchange_rates,
-            base_currency: currency,
-            quote_currency: reporting_currency
-          ),
-          actions: present ? [] : [ :retry ], coverage: coverage
-        )
-      end
-    end
-
-    def historical_rate_dates(currency)
-      owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on).map do |date|
-        TradingCalendar.weekend?(date) ? TradingCalendar.previous_business_day(date + 1.day) : date
-      end.uniq
-    end
-
-    def current_exchange_rate_entries
-      foreign_currencies.map do |currency|
-        lookup = current_exchange_rate_service.read(
-          base_currency: currency, quote_currency: owner.reporting_currency
-        )
-        status = lookup.fresh? ? :healthy : lookup.stale? ? :stale : :missing
-        present = status == :healthy
-        entry_for(
-          code: present ? :current_exchange_rate : :missing_current_exchange_rate,
-          status:, severity: present ? nil : :warning, subject: currency,
-          description: current_exchange_rate_description(currency:, status:),
-          target: Target.new(kind: :current_exchange_rate,
-            base_currency: currency, quote_currency: owner.reporting_currency),
-          actions: present ? [] : [ :retry ]
-        )
-      end
-    end
-
-    def foreign_currencies
-      @foreign_currencies ||= instruments.filter_map do |instrument|
-        next unless instrument.currency != owner.reporting_currency && Position.for(instrument:).open?
-
-        instrument.currency
-      end.uniq
-    end
-
     def historical_end_date
       @historical_end_date ||= if TradingCalendar.weekend?(today)
         TradingCalendar.previous_business_day(today + 1.day)
       else
         TradingCalendar.previous_business_day(today)
       end
-    end
-
-    def current_exchange_rate_description(currency:, status:)
-      pair = "#{currency}/#{owner.reporting_currency}"
-      return "Current #{pair} exchange rate is available." if status == :healthy
-      return "Current #{pair} exchange rate is stale; refresh it to update valuation." if status == :stale
-
-      "Current #{pair} exchange rate is unavailable."
     end
 
     def benchmark_entries
