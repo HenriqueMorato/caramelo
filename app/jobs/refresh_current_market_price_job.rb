@@ -11,7 +11,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   limits_concurrency key: ->(*) { "provider:yahoo_finance" }, duration: 2.minutes, on_conflict: :block
   discard_on ActiveJob::DeserializationError
 
-  def self.enqueue_for(instrument:, force: false, batch_scope: nil, batch_run_id: nil)
+  def self.enqueue_for(instrument:, force: false, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
     marker_key = deduplication_key(instrument)
     unless Rails.cache.write(marker_key, true, expires_in: DEDUPLICATION_WINDOW, unless_exist: true)
       instrument_event(:coalesced, instrument:)
@@ -19,7 +19,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     end
 
     job = if batch_scope
-      perform_later(instrument, force:, batch_scope:, batch_run_id:)
+      perform_later(instrument, force:, batch_scope:, batch_run_id:, lease_token:, lease_target:)
     elsif force
       perform_later(instrument, force: true)
     else
@@ -41,7 +41,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     "current_market_price:#{instrument.id}"
   end
 
-  def perform(instrument, force: false, batch_scope: nil, batch_run_id: nil)
+  def perform(instrument, force: false, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
     retry_scheduled = false
     return if batch_scope && !batch_active?(batch_scope, batch_run_id)
 
@@ -70,6 +70,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     Rails.cache.delete(self.class.deduplication_key(instrument)) unless retry_scheduled
     broadcast_current(instrument)
     advance_batch(batch_scope, batch_run_id) if batch_scope && !retry_scheduled
+    release_lease(lease_token, lease_target)
   end
 
   private
@@ -121,6 +122,14 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
 
   def report(error, instrument:)
     Rails.error.report(error, handled: true, context: { instrument_id: instrument.id })
+  end
+
+  def release_lease(token, target_attributes)
+    return unless token && target_attributes
+
+    MarketData::RecoveryLease.release(
+      target: MarketData::Target.new(**target_attributes.symbolize_keys), token:
+    )
   end
 
   def retry_provider_failure(error)

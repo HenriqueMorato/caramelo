@@ -3,7 +3,7 @@ module MarketData
     module JobSupport
       private
 
-      def run_target(target_scope:, target_run_id:, batch_scope:, batch_run_id:)
+      def run_target(target_scope:, target_run_id:, batch_scope:, batch_run_id:, lease_token: nil, lease_target: nil)
         completed = false
         RefreshStatus::Tracker.perform(
           scope: target_scope, total_count: 1, preserve_progress: true, run_id: target_run_id
@@ -17,6 +17,15 @@ module MarketData
         Rails.error.report(error, handled: true, context: { target_scope: })
       ensure
         BatchProgress.advance(scope: batch_scope, run_id: batch_run_id) if completed
+        release_lease(lease_token, lease_target)
+      end
+
+      def release_lease(token, target_attributes)
+        return unless token && target_attributes
+
+        MarketData::RecoveryLease.release(
+          target: MarketData::Target.new(**target_attributes.symbolize_keys), token:
+        )
       end
     end
   end

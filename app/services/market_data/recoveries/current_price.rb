@@ -1,10 +1,10 @@
 module MarketData
   module Recoveries
     class CurrentPrice
-      def self.call(target:, range:, batch_scope:, batch_run_id:, owner:)
+      def self.call(target:, range:, batch_scope:, batch_run_id:, owner:, lease_token: nil)
         instrument = Instrument.find(target.record_id)
         result = MarketPrice::RefreshEnqueuer.new.enqueue(
-          instrument:, batch_scope:, batch_run_id:
+          instrument:, batch_scope:, batch_run_id:, lease_token:, lease_target: target.to_h
         )
         advance_target(target) if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
         result
