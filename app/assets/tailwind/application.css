@@ -34,6 +34,8 @@
   --caramelo-on-accent: #ffffff;
   --caramelo-hero: #2e211c;
   --caramelo-hero-text: #f6efe4;
+  --caramelo-summary: #2e211c;
+  --caramelo-summary-text: #ffffff;
   --caramelo-warning-surface: #fff3d6;
   --caramelo-warning-border: #e7bd66;
   --caramelo-warning-text: #62420d;
@@ -64,6 +66,8 @@ html[data-theme="dark"] {
   --caramelo-on-accent: #21120c;
   --caramelo-hero: #2b211c;
   --caramelo-hero-text: #f4eadf;
+  --caramelo-summary: #4a3025;
+  --caramelo-summary-text: #f4eadf;
   --caramelo-warning-surface: #362b18;
   --caramelo-warning-border: #80662d;
   --caramelo-warning-text: #f2d58b;
@@ -192,7 +196,10 @@ html[data-theme="dark"] {
   }
 
   .ui-summary-item-primary {
-    @apply border-coffee bg-coffee text-on-accent sm:px-6 sm:py-5;
+    @apply sm:px-6 sm:py-5;
+    background-color: var(--caramelo-summary);
+    border-color: var(--caramelo-summary);
+    color: var(--caramelo-summary-text);
   }
 
   .ui-summary-item dt {
@@ -204,11 +211,12 @@ html[data-theme="dark"] {
   }
 
   .ui-summary-item-primary dt {
-    @apply text-on-accent/70;
+    color: color-mix(in srgb, var(--caramelo-summary-text) 70%, transparent);
   }
 
   .ui-summary-item-primary dd {
-    @apply text-3xl text-on-accent;
+    @apply text-3xl;
+    color: var(--caramelo-summary-text);
   }
 
   .ui-data-table {
