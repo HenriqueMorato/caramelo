@@ -23,7 +23,7 @@ module MarketPrice
 
     def refresh(instrument:, force: false)
       ensure_supported!(instrument)
-      cache.refresh(instrument:, provider: provider.identifier, force:) do
+      cache.refresh(instrument:, provider: provider.identifier, force:, fence: publication_fence(instrument)) do
         provider.fetch(instrument:)
       end
     end
@@ -36,6 +36,12 @@ module MarketPrice
       return if supports?(instrument:)
 
       raise UnsupportedInstrument, "instrument #{instrument.id || instrument.ticker} is not supported"
+    end
+
+    def publication_fence(instrument)
+      MarketData::PublicationFence.new(
+        target: MarketData::Target.new(kind: :current_price, record_id: instrument.id, provider: provider.identifier)
+      )
     end
   end
 end

@@ -199,6 +199,18 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
     assert_equal BigDecimal("10"), lookup.current_market_price.unit_price
   end
 
+  test "does not publish a quote when its generation is superseded" do
+    fence = Object.new
+    fence.define_singleton_method(:capture) { "generation-1" }
+    fence.define_singleton_method(:publish) { |generation| :superseded }
+
+    lookup = @store.refresh(instrument: @instrument, provider: "example", fence:) do
+      build_current_market_price(unit_price: "99")
+    end
+
+    assert_predicate lookup, :missing?
+  end
+
   test "requires a positive freshness duration" do
     assert_raises(ArgumentError) do
       CurrentMarketPriceCache.new(cache: @cache, fresh_for: 0.seconds)
