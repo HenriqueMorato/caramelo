@@ -60,7 +60,8 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
 
     with_stubbed_method(MarketData::Reset, :call, ->(**) { result }) do
       delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
-        target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+        target: { kind: "current_price", record_id: instruments(:voo_arcx).id },
+        preview_token: reset_preview_token
       }
     end
 
@@ -75,7 +76,8 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
 
     with_stubbed_method(MarketData::Reset, :call, ->(**) { result }) do
       delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
-        target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+        target: { kind: "current_price", record_id: instruments(:voo_arcx).id },
+        preview_token: reset_preview_token
       }
     end
 
@@ -136,7 +138,8 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
 
     with_stubbed_method(MarketData::Reset, :call, ->(**) { result }) do
       delete market_data_recovery_path(instruments(:voo_arcx).id), params: {
-        target: { kind: "current_price", record_id: instruments(:voo_arcx).id }
+        target: { kind: "current_price", record_id: instruments(:voo_arcx).id },
+        preview_token: reset_preview_token
       }
     end
 
@@ -145,6 +148,13 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def reset_preview_token
+    MarketData::ResetPreview.create(
+      target: MarketData::Target.new(kind: :current_price, record_id: instruments(:voo_arcx).id,
+        provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier), owner: users(:owner)
+    ).token
+  end
 
   def with_stubbed_method(object, method_name, replacement)
     original = object.method(method_name)

@@ -19,7 +19,9 @@ module MarketData
 
     def destroy
       target = TargetResolver.call(attributes: target_params)
-      result = Reset.call(target:)
+      raise ArgumentError, "reset preview is required" if params[:preview_token].blank?
+
+      result = Reset.call(target:, preview_token: params[:preview_token])
 
       if result.queued?
         redirect_to market_data_health_path, notice: "Quote refresh started."
