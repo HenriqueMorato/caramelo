@@ -18,6 +18,10 @@ module MarketData
       def interrupted? = status == :interrupted
       def actionable? = actions.any?
       def quote_reset_needed? = target.kind == :current_price && target.record_id && !healthy? && !updating?
+
+      def dom_id
+        "health-entry-#{target.scope.gsub(/[^a-zA-Z0-9_-]/, "-")}"
+      end
     end
 
     class Result

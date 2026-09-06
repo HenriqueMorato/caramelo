@@ -452,6 +452,16 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_predicate entry, :actionable?
   end
 
+  test "gives each entry a stable DOM identifier" do
+    issue = MarketData::HealthReport::Issue.new(
+      code: :missing_current_price, severity: :error, subject: instruments(:voo_arcx), details: "missing"
+    )
+
+    entry = MarketData::HealthReport::Result.new(checked_at: Time.current, issues: [ issue ]).entries.first
+
+    assert_equal "health-entry-current_market_price-#{instruments(:voo_arcx).id}", entry.dom_id
+  end
+
   test "maps each recoverable issue to its target kind" do
     subjects = {
       missing_daily_close: "VOO",
