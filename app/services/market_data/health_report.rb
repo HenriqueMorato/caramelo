@@ -92,16 +92,15 @@ module MarketData
 
     def initialize(owner:, current_market_price_service:, current_exchange_rate_service: ExchangeRate::Service.default,
       today:)
-      @owner = owner
+      @context = Context.new(owner:, today:)
       @current_market_price_service = current_market_price_service
       @current_exchange_rate_service = current_exchange_rate_service
-      @today = today
     end
 
     def call
       exchange_rates = CurrentExchangeRates.new(owner:, instruments:, service: current_exchange_rate_service).entries
-      historical_rates = HistoricalExchangeRates.new(owner:).entries
-      benchmarks = BenchmarkObservations.new(owner:, today:).entries
+      historical_rates = HistoricalExchangeRates.new(owner:, context:).entries
+      benchmarks = BenchmarkObservations.new(owner:, today:, context:).entries
       entries = (instrument_entries + exchange_rates + historical_rates + benchmarks + performance_entries)
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
@@ -109,10 +108,12 @@ module MarketData
 
     private
 
-    attr_reader :owner, :current_market_price_service, :current_exchange_rate_service, :today
+    attr_reader :context, :current_market_price_service, :current_exchange_rate_service
+
+    delegate :owner, :today, to: :context
 
     def instruments
-      @instruments ||= owner.trades.includes(:instrument).map(&:instrument).uniq
+      context.instruments
     end
 
     def instrument_entries
@@ -122,7 +123,7 @@ module MarketData
     end
 
     def performance_entries
-      PortfolioPerformance.new(owner:, today:).entries
+      PortfolioPerformance.new(owner:, today:, context:).entries
     end
 
     def subject_label(subject)

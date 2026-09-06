@@ -1,9 +1,10 @@
 module MarketData
   class HealthReport
     class PortfolioPerformance
-      def initialize(owner:, today:)
+      def initialize(owner:, today:, context: nil)
         @owner = owner
         @today = today
+        @context = context
       end
 
       def entries
@@ -12,7 +13,7 @@ module MarketData
         )
         return [] unless materialization
 
-        first_date = owner.trades.minimum(:traded_on)
+        first_date = context&.first_trade_date || owner.trades.minimum(:traded_on)
         return [] unless first_date
 
         required_dates = (first_date..today).to_a
@@ -26,7 +27,7 @@ module MarketData
 
       private
 
-      attr_reader :owner, :today
+      attr_reader :owner, :today, :context
 
       def status_for(materialization, coverage)
         return :updating if materialization.pending?

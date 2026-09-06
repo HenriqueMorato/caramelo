@@ -1,17 +1,19 @@
 module MarketData
   class HealthReport
     class HistoricalExchangeRates
-      def initialize(owner:)
+      def initialize(owner:, context: nil)
         @owner = owner
+        @context = context
       end
 
       def entries
-        owner.trades.distinct.pluck(:currency).map { |currency| entry_for(currency) }
+        currencies = context ? context.currencies : owner.trades.distinct.pluck(:currency)
+        currencies.map { |currency| entry_for(currency) }
       end
 
       private
 
-      attr_reader :owner
+      attr_reader :owner, :context
 
       def entry_for(currency)
         required_dates = historical_rate_dates(currency)
@@ -50,7 +52,9 @@ module MarketData
       end
 
       def historical_rate_dates(currency)
-        owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on).map do |date|
+        dates = context ? context.trades.select { |trade| trade.currency == currency }.map(&:traded_on) :
+          owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on)
+        dates.uniq.map do |date|
           TradingCalendar.weekend?(date) ? TradingCalendar.previous_business_day(date + 1.day) : date
         end.uniq
       end

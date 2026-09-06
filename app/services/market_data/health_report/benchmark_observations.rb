@@ -1,9 +1,10 @@
 module MarketData
   class HealthReport
     class BenchmarkObservations
-      def initialize(owner:, today:)
+      def initialize(owner:, today:, context: nil)
         @owner = owner
         @today = today
+        @context = context
       end
 
       def entries
@@ -12,7 +13,7 @@ module MarketData
 
       private
 
-      attr_reader :owner, :today
+      attr_reader :owner, :today, :context
 
       def entry_for(benchmark)
         required_dates = TradingCalendar.weekdays_between(first_date, historical_end_date)
@@ -33,7 +34,7 @@ module MarketData
       end
 
       def first_date
-        @first_date ||= owner.trades.minimum(:traded_on) || historical_end_date
+        @first_date ||= context&.first_trade_date || owner.trades.minimum(:traded_on) || historical_end_date
       end
 
       def historical_end_date
