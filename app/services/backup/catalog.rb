@@ -16,7 +16,7 @@ module Backup
     end
 
     def call
-      entries = discovered_entries.sort_by { |entry| entry.created_at || Time.at(0) }.reverse
+      entries = verify_latest(discovered_entries.sort_by { |entry| entry.created_at || Time.at(0) }.reverse)
       CatalogResult.new(
         entries:,
         latest: entries.find(&:ready?),
@@ -45,7 +45,7 @@ module Backup
       manifest = JSON.parse(path.join("manifest.json").read)
       created_at = Time.iso8601(manifest.fetch("created_at")).in_time_zone
       verified_at = manifest["verified_at"] && Time.iso8601(manifest["verified_at"]).in_time_zone
-      status = entry_status(path, manifest)
+      status = entry_status(manifest)
       Entry.new(
         identifier: Locator.identifier_for(path), created_at:, verified_at:,
         primary_size: artifact_size(path, "primary"), ledger_size: artifact_size(path, "ledger"),
@@ -59,13 +59,24 @@ module Backup
       )
     end
 
-    def entry_status(path, manifest)
-      return :invalid unless manifest["verified"]
+    def entry_status(manifest)
+      manifest["verified"] ? :ready : :invalid
+    end
 
-      verifier.call(directory: path)
-      :ready
-    rescue Backup::Error, SQLite3::Exception
-      :invalid
+    def verify_latest(entries)
+      entries.each_index do |index|
+        candidate = entries[index]
+        next unless candidate.ready?
+
+        begin
+          verifier.call(directory: Locator.resolve(candidate.identifier, configuration:))
+          return entries
+        rescue Backup::Error, SQLite3::Exception
+          entries[index] = candidate.with(status: :invalid)
+        end
+      end
+
+      entries
     end
 
     def artifact_size(path, artifact)

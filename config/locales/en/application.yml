@@ -87,7 +87,7 @@ en:
       completed: The latest backup completed successfully.
       failed: The latest backup failed. The previous verified copy is still retained.
       interrupted: The previous backup worker stopped before completing.
-      invalid: A retained backup needs verification before it can be used.
+      invalid: This retained backup failed verification and is not restore-ready.
       missing: No backup has been retained yet.
       queued: A backup is waiting to run.
       ready: A verified backup is available for today.
@@ -97,7 +97,7 @@ en:
       completed: Completed
       failed: Failed
       interrupted: Interrupted
-      invalid: Needs verification
+      invalid: Invalid
       missing: Not available
       queued: Queued
       ready: Ready

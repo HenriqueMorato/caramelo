@@ -441,6 +441,18 @@ class BackupTest < ActiveSupport::TestCase
     ENV["LOCALFOLIO_BACKUP_DIRECTORY"] = previous
   end
 
+  test "backup job records failure before re-raising creation errors" do
+    error = RuntimeError.new("backup unavailable")
+
+    with_stubbed_method(Backup::Creator, :call, ->(**) { raise error }) do
+      assert_raises(RuntimeError) { CreateBackupJob.perform_now }
+    end
+
+    state = Backup::State.current
+    assert state.failed?
+    assert_equal "RuntimeError", state.error
+  end
+
   private
 
   def rewrite_checksums(directory)

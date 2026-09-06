@@ -1,7 +1,8 @@
 module Backup
   class State
     KEY = "localfolio:backup:state"
-    TTL = 30.minutes
+    INTERRUPTED_AFTER = 30.minutes
+    TTL = 2.hours
 
     def self.current(cache: Rails.cache, now: Time.current)
       new(cache:, now:, attributes: cache.read(KEY)).normalized
@@ -41,7 +42,7 @@ module Backup
       @started_at = parse_time(@attributes&.fetch(:started_at, nil) || @attributes&.fetch("started_at", nil))
       @completed_at = parse_time(@attributes&.fetch(:completed_at, nil) || @attributes&.fetch("completed_at", nil))
       @error = @attributes&.fetch(:error, nil) || @attributes&.fetch("error", nil)
-      @status = "interrupted" if @status == "running" && @started_at && @started_at < @now - TTL
+      @status = "interrupted" if @status == "running" && @started_at && @started_at < @now - INTERRUPTED_AFTER
       self
     end
 

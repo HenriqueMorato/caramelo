@@ -9,7 +9,7 @@ module Backup
     def self.resolve(identifier, configuration: Configuration.default)
       basename = verifier.verify(identifier, purpose: PURPOSE)
       raise Error, "invalid backup identifier" if basename.blank?
-      raise Error, "invalid backup identifier" unless basename.match?(/\A[\w.-]+\z/)
+      raise Error, "invalid backup identifier" unless basename.match?(/\A[\w.-]+\z/) && !basename.start_with?(".")
 
       candidate = configuration.destination.join(basename)
       root = configuration.destination.realpath

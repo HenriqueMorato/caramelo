@@ -10,9 +10,10 @@ module Backup
       state.queued!
       job.perform_later
       :queued
-    rescue StandardError
+    rescue StandardError => error
       cache.delete(CLAIM_KEY)
-      raise
+      state.failed!(error)
+      raise Backup::Error, "backup could not be queued", cause: error
     end
 
     def self.release(cache: Rails.cache)

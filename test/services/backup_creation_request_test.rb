@@ -50,9 +50,15 @@ class BackupCreationRequestTest < ActiveSupport::TestCase
     end
     state = Class.new do
       def self.queued! = true
+      class << self
+        attr_accessor :failure
+        def failed!(error) = self.failure = error
+      end
     end
 
-    assert_raises(RuntimeError) { Backup::CreationRequest.call(creator:, job:, state:) }
+    error = assert_raises(Backup::Error) { Backup::CreationRequest.call(creator:, job:, state:) }
+    assert_equal "backup could not be queued", error.message
+    assert_equal "queue unavailable", state.failure.message
     refute Rails.cache.exist?(Backup::CreationRequest::CLAIM_KEY)
   end
 end
