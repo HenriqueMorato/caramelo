@@ -12,7 +12,7 @@ module MarketPrice
       RefreshStatus::Tracker.enqueue(scope: job_class.refresh_scope(instrument)) unless batch_scope
       broadcaster.refreshing(instrument:)
       job = if batch_scope
-        job_class.enqueue_for(instrument:, force: true, batch_scope:, batch_run_id:, lease_token:, lease_target:)
+        enqueue_batch(instrument:, batch_scope:, batch_run_id:, lease_token:, lease_target:)
       else
         job_class.enqueue_for(instrument:, force: true)
       end
@@ -35,6 +35,12 @@ module MarketPrice
     end
 
     private
+
+    def enqueue_batch(instrument:, batch_scope:, batch_run_id:, lease_token:, lease_target:)
+      options = { instrument:, force: true, batch_scope:, batch_run_id: }
+      options.merge!(lease_token:, lease_target:) if lease_token
+      job_class.enqueue_for(**options)
+    end
 
     attr_reader :service, :broadcaster, :job_class
   end
