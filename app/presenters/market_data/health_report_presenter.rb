@@ -25,6 +25,21 @@ module MarketData
     def healthy? = report.healthy?
     def issue_count = report.issues.size
 
+    def status_label(entry)
+      entry.status.to_s.humanize
+    end
+
+    def status_icon(entry)
+      { healthy: "✓", updating: "↻", queued: "↻", failed: "!", interrupted: "!", stale: "•", partial: "•", missing: "!" }[entry.status] || "•"
+    end
+
+    def status_class(entry)
+      return "text-leaf" if entry.healthy?
+      return "text-guava" if entry.severity == :error
+
+      "text-caramel-deep"
+    end
+
     private
 
     def build_reset_previews(preview_factory)

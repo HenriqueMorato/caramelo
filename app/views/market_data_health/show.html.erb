@@ -54,10 +54,12 @@
         </thead>
         <tbody class="divide-y divide-coffee/10">
       <% @entries.each do |entry| %>
-        <% status_class = entry.healthy? ? "text-leaf" : entry.severity == :error ? "text-guava" : "text-caramel-deep" %>
         <tr>
           <th scope="row" class="max-w-[12rem] break-words py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
-          <td class="whitespace-nowrap py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status.to_s.humanize %></td>
+          <td class="whitespace-nowrap py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= @health.status_class(entry) %>">
+            <span aria-hidden="true"><%= @health.status_icon(entry) %></span>
+            <span><%= @health.status_label(entry) %></span>
+          </td>
           <td class="break-words py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
           <td class="whitespace-nowrap py-4 align-top text-right">
             <div class="flex justify-end gap-2">
