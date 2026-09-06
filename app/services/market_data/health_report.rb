@@ -62,7 +62,7 @@ module MarketData
       end
 
       def issue_for(entry)
-        return if entry.healthy?
+        return if entry.healthy? || entry.severity.nil?
 
         Issue.new(
           code: entry.code,
@@ -96,7 +96,7 @@ module MarketData
     end
 
     def call
-      entries = (instrument_entries + currency_entries + benchmark_entries)
+      entries = (instrument_entries + currency_entries + benchmark_entries + performance_entries)
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
@@ -146,17 +146,34 @@ module MarketData
     end
 
     def daily_close_entry(instrument)
-      present = instrument.daily_closing_prices.where(trading_date: ..today).exists?
+      required_dates = required_daily_close_dates(instrument)
+      observations = instrument.daily_closing_prices.where(
+        trading_date: (required_dates.min..today)
+      ).to_a
+      coverage = CoverageCalculator.for(required_dates:, observations:)
+      present = coverage.complete?
       entry_for(
         code: present ? :daily_close : :missing_daily_close,
-        status: present ? :healthy : :missing,
+        status: present ? :healthy : coverage.partial? ? :partial : :missing,
         severity: present ? nil : :warning,
         subject: instrument,
-        description: present ? "#{instrument.ticker} has historical closing prices." :
-          "#{instrument.ticker} has no historical closing price stored for the portfolio period.",
+        description: daily_close_description(instrument, coverage),
         target: Target.new(kind: :daily_closing_prices, record_id: instrument.id),
-        actions: present ? [] : [ :retry ]
+        actions: present ? [] : [ :retry ], coverage: coverage
       )
+    end
+
+    def required_daily_close_dates(instrument)
+      trade_dates = owner.trades.where(instrument:).order(:traded_on, :id).pluck(:traded_on)
+      return [] if trade_dates.empty?
+
+      TradingCalendar.weekdays_between(trade_dates.first, historical_end_date)
+    end
+
+    def daily_close_description(instrument, coverage)
+      return "#{instrument.ticker} has historical closing prices." if coverage.complete?
+
+      "#{instrument.ticker} is missing historical closing prices for #{format_ranges(coverage.missing_ranges)}."
     end
 
     def refreshing_state?(state)
@@ -167,47 +184,114 @@ module MarketData
       currencies = owner.trades.distinct.pluck(:currency)
       reporting_currency = owner.reporting_currency
       currencies.map do |currency|
-        present = currency == reporting_currency || HistoricalExchangeRate.where(
-          base_currency: currency, quote_currency: reporting_currency
-        ).exists?
+        required_dates = owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on)
+        observations = HistoricalExchangeRate.where(
+          base_currency: currency, quote_currency: reporting_currency, rate_date: required_dates
+        ).to_a
+        inverse_observations = HistoricalExchangeRate.where(
+          base_currency: reporting_currency, quote_currency: currency, rate_date: required_dates
+        ).to_a
+        coverage = if currency == reporting_currency
+          CoverageCalculator.for(
+            required_dates:,
+            observations: required_dates.map { |date| HistoricalExchangeRate.new(rate_date: date) }
+          )
+        else
+          CoverageCalculator.for(required_dates:, observations: observations + inverse_observations)
+        end
+        present = coverage.complete?
 
         entry_for(
           code: present ? :exchange_rate : :missing_exchange_rate,
-          status: present ? :healthy : :missing,
+          status: present ? :healthy : coverage.partial? ? :partial : :missing,
           severity: present ? nil : :warning,
           subject: currency,
           description: present ? "Historical #{currency}/#{reporting_currency} rates are available." :
-            "No historical #{currency}/#{reporting_currency} rates are stored for portfolio performance.",
+            "Historical #{currency}/#{reporting_currency} rates are missing for #{format_ranges(coverage.missing_ranges)}.",
           target: Target.new(
             kind: :historical_exchange_rates,
             base_currency: currency,
             quote_currency: reporting_currency
           ),
-          actions: present ? [] : [ :retry ]
+          actions: present ? [] : [ :retry ], coverage: coverage
         )
       end
     end
 
     def benchmark_entries
       MarketBenchmark.find_each.map do |benchmark|
-        present = benchmark.observations.where(observed_on: ..today).exists?
+        first_date = owner.trades.minimum(:traded_on) || historical_end_date
+        required_dates = TradingCalendar.weekdays_between(first_date, historical_end_date)
+        observations = benchmark.observations.where(observed_on: (required_dates.min..historical_end_date)).to_a
+        coverage = CoverageCalculator.for(required_dates:, observations:)
+        present = coverage.complete?
         entry_for(
           code: present ? :benchmark_data : :missing_benchmark_data,
-          status: present ? :healthy : :missing,
+          status: present ? :healthy : coverage.partial? ? :partial : :missing,
           severity: present ? nil : :warning,
           subject: benchmark,
           description: present ? "#{benchmark.name} has stored observations." :
-            "#{benchmark.name} (#{benchmark.identifier}) has no stored observations.",
+            "#{benchmark.name} (#{benchmark.identifier}) is missing observations for #{format_ranges(coverage.missing_ranges)}.",
           target: Target.new(kind: :benchmark_observations, record_id: benchmark.id),
-          actions: present ? [] : [ :retry ]
+          actions: present ? [] : [ :retry ], coverage: coverage
         )
       end
     end
 
-    def entry_for(code:, target:, subject:, status:, severity:, description:, actions: [ :retry ])
+    def performance_entries
+      materialization = PortfolioPerformanceMaterialization.find_by(
+        user: owner, reporting_currency: owner.reporting_currency
+      )
+      return [] unless materialization
+
+      first_date = owner.trades.minimum(:traded_on)
+      return [] unless first_date
+
+      required_dates = (first_date..today).to_a
+      observations = owner.portfolio_performance_observations.where(
+        reporting_currency: owner.reporting_currency, observed_on: (first_date..today)
+      ).to_a
+      coverage = CoverageCalculator.for(required_dates:, observations:)
+      status = if materialization.pending?
+        :updating
+      elsif coverage.complete?
+        :healthy
+      elsif coverage.partial?
+        :partial
+      else
+        :missing
+      end
+      [ entry_for(
+        code: :portfolio_performance, status:, severity: %i[missing partial].include?(status) ? :warning : nil,
+        subject: "Portfolio performance", description: performance_description(coverage),
+        target: Target.new(kind: :portfolio_performance), actions: status == :healthy ? [] : [ :retry ],
+        coverage:
+      ) ]
+    end
+
+    def performance_description(coverage)
+      return "Portfolio performance is up to date." if coverage.complete?
+
+      "Portfolio performance is missing values for #{format_ranges(coverage.missing_ranges)}."
+    end
+
+    def format_ranges(ranges)
+      ranges.map { |range| range.begin == range.end ? range.begin.iso8601 : "#{range.begin}–#{range.end}" }.join(", ")
+    end
+
+    def historical_end_date
+      @historical_end_date ||= if TradingCalendar.weekend?(today)
+        TradingCalendar.previous_business_day(today + 1.day)
+      else
+        TradingCalendar.previous_business_day(today)
+      end
+    end
+
+    def entry_for(code:, target:, subject:, status:, severity:, description:, actions: [ :retry ], coverage: nil)
       Entry.new(
         code:, target:, subject:, status:, severity:, label: subject_label(subject), description:,
-        observed_on: nil, fetched_at: nil, covered_range: nil, missing_range: nil, actions:
+        observed_on: nil, fetched_at: nil, covered_range: coverage&.covered_range,
+        missing_range: coverage&.missing_range, actions:
       )
     end
 
