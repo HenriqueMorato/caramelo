@@ -6,12 +6,12 @@
       <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted"><%= t("dashboard.index.Your little pack") %></p>
       <h3 class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t("dashboard.index.Holdings") %></h3>
     </div>
-    <%= link_to t("dashboard.index.View all holdings"), positions_path, class: "text-sm font-bold text-caramel-deep hover:text-caramel" %>
+    <%= link_to t("dashboard.index.See all"), positions_path, class: "text-sm font-bold text-caramel-deep hover:text-caramel" %>
   </div>
 
   <% if dashboard.open_positions.any? %>
     <div class="mt-6 space-y-4">
-      <% dashboard.top_positions.each do |position| %>
+      <% dashboard.top_positions.first(3).each do |position| %>
         <%= link_to position.instrument, class: "-mx-2 flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-caramel/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" do %>
           <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-caramel/15 font-mono text-xs font-semibold text-caramel-deep" translate="no"><%= position.instrument.ticker.first(4) %></span>
           <span class="min-w-0 flex-1">
@@ -29,7 +29,7 @@
   <div class="mt-7 border-t border-coffee/10 pt-5" id="activity">
     <div class="flex items-center justify-between gap-4">
       <h4 class="text-sm font-semibold text-coffee"><%= t("dashboard.index.Recent activity") %></h4>
-      <%= link_to t("dashboard.index.View all trades"), transactions_path, class: "text-xs font-bold text-caramel-deep hover:text-caramel" %>
+      <%= link_to t("dashboard.index.See all"), transactions_path, class: "text-xs font-bold text-caramel-deep hover:text-caramel" %>
     </div>
     <% if dashboard.recent_trades.any? %>
       <div class="mt-2 divide-y divide-coffee/10">
