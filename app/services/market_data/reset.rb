@@ -19,7 +19,9 @@ module MarketData
 
     def call
       return result(:unsupported) unless target.kind == :current_price
-      ResetPreview.verify(token: preview_token, target:, owner:) if preview_token
+      raise ArgumentError, "reset preview is required" if preview_token.blank?
+
+      ResetPreview.verify(token: preview_token, target:, owner:)
 
       instrument = Instrument.find(target.record_id)
       raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)

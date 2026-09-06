@@ -23,7 +23,7 @@ class MarketData::ResetTest < ActiveSupport::TestCase
 
     result = nil
     with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
-      result = MarketData::Reset.call(target: @target, cache: @cache)
+      result = MarketData::Reset.call(target: @target, preview_token:, cache: @cache)
     end
 
     assert_predicate result, :queued?
@@ -50,18 +50,25 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_predicate MarketData::Reset.call(target:, cache: @cache), :unsupported?
   end
 
+  test "requires a signed preview for supported targets" do
+    assert_raises(ArgumentError, "reset preview is required") do
+      MarketData::Reset.call(target: @target, cache: @cache)
+    end
+  end
+
   test "rejects an instrument outside the owner scope" do
-    target = MarketData::Target.new(kind: :current_price, record_id: instruments(:petr4_bvmf).id)
+    target = MarketData::Target.new(kind: :current_price, record_id: instruments(:petr4_bvmf).id,
+      provider: "yahoo_finance")
 
     assert_raises(ActiveRecord::RecordNotFound) do
-      MarketData::Reset.call(target:, cache: @cache)
+      MarketData::Reset.call(target:, preview_token: MarketData::ResetPreview.create(target:).token, cache: @cache)
     end
   end
 
   test "does not clear a quote while its refresh is active" do
     RefreshStatus::Tracker.enqueue(scope: @target.scope, total_count: 1)
 
-    assert_predicate MarketData::Reset.call(target: @target, cache: @cache), :busy?
+    assert_predicate MarketData::Reset.call(target: @target, preview_token:, cache: @cache), :busy?
   end
 
   test "reports unsupported when replacement enqueue returns nil" do
@@ -70,13 +77,17 @@ class MarketData::ResetTest < ActiveSupport::TestCase
 
     result = nil
     with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
-      result = MarketData::Reset.call(target: @target, cache: @cache)
+      result = MarketData::Reset.call(target: @target, preview_token:, cache: @cache)
     end
 
     assert_predicate result, :unsupported?
   end
 
   private
+
+  def preview_token
+    MarketData::ResetPreview.create(target: @target).token
+  end
 
   def with_stubbed_method(object, method_name, replacement)
     original = object.method(method_name)
