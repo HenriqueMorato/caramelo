@@ -124,7 +124,7 @@ en:
     show:
       Actions: Actions
       Checked at: Checked at %{time}
-      Confirm reset quote: Replace and refetch
+      Confirm reset quote: Replace & refetch
       Details: Details
       Entry count:
         one: 1 source checked

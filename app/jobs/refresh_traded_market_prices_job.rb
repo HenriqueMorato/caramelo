@@ -35,6 +35,9 @@ class RefreshTradedMarketPricesJob < ApplicationJob
 
         lookup = market_price_service.read(instrument:)
         if lookup&.refresh_needed?
+          RefreshStatus::Tracker.enqueue(
+            scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument), run_id: refresh.run_id
+          )
           result = RefreshCurrentMarketPriceJob.enqueue_for(
             instrument:, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE, batch_run_id: refresh.run_id
           )

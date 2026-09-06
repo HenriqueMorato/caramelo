@@ -52,6 +52,11 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     refresh_jobs = enqueued_jobs.select { |job| job[:job] == RefreshCurrentMarketPriceJob }
     assert refresh_jobs.all? { |job| job[:args].last.stringify_keys["batch_scope"] == RefreshStatus::MARKET_PRICE_SCOPE }
     assert refresh_jobs.all? { |job| job[:args].last.stringify_keys["batch_run_id"].present? }
+    refresh_jobs.each do |job|
+      instrument_id = job[:args].first["_aj_globalid"].split("/").last.to_i
+      state = RefreshStatus::State.read("current_market_price:#{instrument_id}")
+      assert_equal job[:args].last.stringify_keys["batch_run_id"], state.run_id
+    end
     assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob do
       build_job(service: unsupported_service).perform
     end
