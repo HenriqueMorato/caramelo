@@ -68,6 +68,19 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_includes entry.description, "Current USD/BRL exchange rate is stale"
   end
 
+  test "treats the reporting currency as having no FX gap" do
+    owner = users(:owner)
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), institution: institutions(:owner_xp),
+      side: :buy, traded_on: Date.new(2026, 8, 28), quantity: 1, unit_price: 10, currency: "BRL")
+
+    report = MarketData::HealthReport.for(
+      owner:, current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new
+    )
+
+    refute report.entries.any? { |entry| entry.subject == "BRL" && entry.code == :missing_exchange_rate }
+  end
+
   test "labels instruments and benchmarks without exposing record inspection" do
     instrument = instruments(:voo_arcx)
     benchmark = MarketBenchmark.create!(identifier: "HEALTHSP", name: "Health S&P", kind: :price, currency: "USD",
@@ -79,6 +92,15 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal "VOO · Vanguard S&P 500 ETF", report.issues.first.subject_label
     benchmark_issue = report.issues.find { |issue| issue.subject == benchmark }
     assert_equal "Health S&P (HEALTHSP)", benchmark_issue.subject_label
+  end
+
+  test "formats an instrument subject label" do
+    report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
+
+    label = report.instance_exec(instruments(:voo_arcx)) { |instrument| subject_label(instrument) }
+
+    assert_equal "VOO · Vanguard S&P 500 ETF", label
   end
 
   test "reports healthy when all required records exist" do
@@ -263,7 +285,41 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     report = MarketData::HealthReport.new(owner: users(:owner), current_market_price_service: CurrentPriceService.new,
       current_exchange_rate_service: CurrentExchangeRateService.new, today: Date.current)
 
-    assert_empty report.send(:required_daily_close_dates, instruments(:petr4_bvmf))
+    dates = MarketData::HealthReport::DailyClosingPrices.new(
+      owner: users(:owner), instruments: [], today: Date.current
+    ).dates_for(instruments(:petr4_bvmf))
+    assert_empty dates
+  end
+
+  test "daily-close inspector skips queries without required dates" do
+    inspector = MarketData::HealthReport::DailyClosingPrices.new(
+      owner: users(:owner), instruments: [ instruments(:petr4_bvmf) ], today: Date.current
+    )
+
+    assert_predicate inspector.entries.first, :healthy?
+  end
+
+  test "daily-close inspector uses the previous business day on weekends" do
+    inspector = MarketData::HealthReport::DailyClosingPrices.new(
+      owner: users(:owner), instruments: [ instruments(:voo_arcx) ], today: Date.new(2026, 9, 6)
+    )
+
+    assert_equal :missing, inspector.entries.first.status
+  end
+
+  test "daily-close inspector reports a complete range" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    from = owner.trades.where(instrument:).minimum(:traded_on)
+    to = Date.new(2026, 9, 4)
+    TradingCalendar.weekdays_between(from, to).each do |date|
+      DailyClosingPrice.create!(instrument:, trading_date: date, close_price: 100,
+        currency: instrument.currency, provider: "yahoo_finance", observed_at: Time.current)
+    end
+
+    inspector = MarketData::HealthReport::DailyClosingPrices.new(owner:, instruments: [ instrument ], today: Date.new(2026, 9, 6))
+
+    assert_equal :healthy, inspector.entries.first.status
   end
 
   test "returns no performance entries for an owner without trades" do
@@ -272,7 +328,8 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
     report = MarketData::HealthReport.new(owner:, current_market_price_service: CurrentPriceService.new, today: Date.current)
 
-    assert_empty report.send(:performance_entries)
+    entries = report.instance_exec { performance_entries }
+    assert_empty entries
   end
 
   test "reports missing current prices and ignores same-currency exchange rates" do

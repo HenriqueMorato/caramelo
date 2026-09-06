@@ -114,42 +114,8 @@ module MarketData
 
     def instrument_entries
       current = CurrentPrices.new(instruments:, service: current_market_price_service).entries
-      current.zip(instruments.map { |instrument| daily_close_entry(instrument) }).flat_map(&:compact)
-    end
-
-    def daily_close_entry(instrument)
-      required_dates = required_daily_close_dates(instrument)
-      observations = if required_dates.empty?
-        []
-      else
-        instrument.daily_closing_prices.where(
-          trading_date: (HistoricalObservationWindow.for(required_dates.min).begin..today)
-        ).to_a
-      end
-      coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: true)
-      present = coverage.complete?
-      entry_for(
-        code: present ? :daily_close : :missing_daily_close,
-        status: present ? :healthy : coverage.partial? ? :partial : :missing,
-        severity: present ? nil : :warning,
-        subject: instrument,
-        description: daily_close_description(instrument, coverage),
-        target: Target.new(kind: :daily_closing_prices, record_id: instrument.id),
-        actions: present ? [] : [ :retry ], coverage: coverage
-      )
-    end
-
-    def required_daily_close_dates(instrument)
-      trade_dates = owner.trades.where(instrument:).order(:traded_on, :id).pluck(:traded_on)
-      return [] if trade_dates.empty?
-
-      TradingCalendar.weekdays_between(trade_dates.first, historical_end_date)
-    end
-
-    def daily_close_description(instrument, coverage)
-      return "#{instrument.ticker} has historical closing prices." if coverage.complete?
-
-      "#{instrument.ticker} is missing historical closing prices for #{format_ranges(coverage.missing_ranges)}."
+      daily = DailyClosingPrices.new(owner:, instruments:, today:).entries
+      current.zip(daily).flat_map(&:compact)
     end
 
     def currency_entries
@@ -214,6 +180,14 @@ module MarketData
 
         instrument.currency
       end.uniq
+    end
+
+    def historical_end_date
+      @historical_end_date ||= if TradingCalendar.weekend?(today)
+        TradingCalendar.previous_business_day(today + 1.day)
+      else
+        TradingCalendar.previous_business_day(today)
+      end
     end
 
     def current_exchange_rate_description(currency:, status:)
@@ -285,14 +259,6 @@ module MarketData
 
     def format_ranges(ranges)
       ranges.map { |range| range.begin == range.end ? range.begin.iso8601 : "#{range.begin}–#{range.end}" }.join(", ")
-    end
-
-    def historical_end_date
-      @historical_end_date ||= if TradingCalendar.weekend?(today)
-        TradingCalendar.previous_business_day(today + 1.day)
-      else
-        TradingCalendar.previous_business_day(today)
-      end
     end
 
     def entry_for(code:, target:, subject:, status:, severity:, description:, actions: [ :retry ], coverage: nil)
