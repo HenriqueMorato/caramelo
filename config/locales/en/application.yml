@@ -59,7 +59,7 @@ en:
     Create backup: Create backup
     Created: Created
     Empty: No verified backup has been retained yet.
-    Export trades: Export trades
+    Export trades: Export trades (CSV)
     Intro: Keep a verified local copy of your durable records and export trades for analysis in Google Sheets.
     Schedule: "Automatic schedule: %{schedule}"
     Size: Size

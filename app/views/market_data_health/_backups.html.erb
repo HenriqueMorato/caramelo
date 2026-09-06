@@ -11,6 +11,7 @@
       <% unless backup.active? %>
         <%= button_to t("backups.Create backup"), backups_creation_path, class: "ui-button ui-button-secondary", form_class: "shrink-0" %>
       <% end %>
+      <%= link_to t("backups.Export trades"), trade_export_path(format: :csv), class: "ui-button ui-button-secondary" %>
     </div>
   </div>
 

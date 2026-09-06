@@ -10,6 +10,7 @@ Rails.application.routes.draw do
     resource :creation, only: :create
     resources :verifications, only: :create
   end
+  resource :trade_export, only: :show
   namespace :market_data, path: "market-data" do
     resources :recoveries, only: %i[create destroy]
   end

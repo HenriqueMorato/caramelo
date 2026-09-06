@@ -18,6 +18,8 @@ gem "stimulus-rails"
 gem "tailwindcss-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
+# CSV is a default gem on older Ruby versions and must be declared explicitly on Ruby 4.
+gem "csv"
 # Store monetary values as integer subunits with ISO currencies [https://github.com/RubyMoney/money-rails]
 gem "money-rails", "~> 3.0"
 
