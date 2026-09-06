@@ -19,6 +19,23 @@
     </div>
   </div>
 
+  <% available_values = @positions.filter_map { |position| position.valuation.market_value } %>
+  <% latest_market_data = @positions.filter_map { |position| position.market_price.current_market_price&.fetched_at }.max %>
+  <dl class="ui-summary-grid" aria-label="<%= t("Portfolio holdings") %>">
+    <div class="ui-summary-item">
+      <dt><%= t("Market value") %></dt>
+      <dd><%= available_values.any? ? Money.from_amount(available_values.sum(&:amount), User.owner.reporting_currency).format : t("Not available") %></dd>
+    </div>
+    <div class="ui-summary-item">
+      <dt><%= t(".Open positions") %></dt>
+      <dd><%= @positions.count { |position| !position.invalid? && position.position.open? } %></dd>
+    </div>
+    <div class="ui-summary-item">
+      <dt><%= t(".Updated") %></dt>
+      <dd class="text-base"><%= latest_market_data ? l(latest_market_data, format: :short) : t("Not available") %></dd>
+    </div>
+  </dl>
+
   <div data-controller="grouping">
     <%= form_with url: positions_path, method: :get, data: { grouping_target: "form", turbo_frame: "positions-list", turbo_action: "advance" } do |form| %>
       <%= hidden_field_tag :closed, "1" if @show_closed %>

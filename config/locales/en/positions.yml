@@ -15,6 +15,7 @@ en:
       No grouping: None
       No open positions: No open positions
       No positions yet: No positions yet
+      Open positions: Open positions
       Organize: Organize
       Page title: Positions · %{application}
       Position: Position
@@ -25,3 +26,4 @@ en:
       Secondary grouping: secondary grouping
       Show open positions: Show open positions only
       Subheading: Every position, in one calm place.
+      Updated: Updated

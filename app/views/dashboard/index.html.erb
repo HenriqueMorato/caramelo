@@ -3,7 +3,7 @@
 <section class="space-y-10">
   <header class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <p class="text-xs font-bold uppercase tracking-[0.16em] text-muted">
+      <p class="ui-eyebrow">
         <%= l Date.current, format: :long %>
       </p>
       <h1 class="mt-3 font-display text-4xl font-semibold leading-none tracking-tight text-coffee sm:text-5xl">
@@ -11,7 +11,7 @@
       </h1>
       <p class="mt-3 text-sm text-muted"><%= t(".Portfolio introduction") %></p>
     </div>
-    <%= link_to t(".Add transaction"), new_trade_path, class: "ui-button bg-caramel text-oat shadow-sm hover:bg-caramel-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" %>
+    <%= link_to t(".Add transaction"), new_trade_path, class: "ui-button ui-button-primary" %>
   </header>
 
   <% if @dashboard.market_value_displayable? %>
@@ -24,5 +24,5 @@
     <%= render "dashboard/portfolio_state", dashboard: @dashboard %>
   <% end %>
 
-  <%= render "dashboard/long_view", dashboard: @dashboard if @dashboard.market_value_displayable? %>
+  <%= render "dashboard/long_view", dashboard: @dashboard, series: @series, series_presenter: @series_presenter if @dashboard.market_value_displayable? %>
 </section>

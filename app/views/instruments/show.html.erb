@@ -5,7 +5,7 @@
     <%= link_to t("All instruments"), instruments_path, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
   </div>
 
-  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
+  <div class="ui-panel p-6 sm:p-8">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div class="ui-page-header-copy">
         <p class="ui-eyebrow"><%= Instrument.model_name.human %></p>
@@ -17,7 +17,7 @@
     </div>
   </div>
 
-  <section aria-labelledby="position-summary-heading" class="rounded-2xl border bg-oat-2 p-5 shadow-sm sm:p-6 <%= @position_error ? "border-danger-border" : "border-coffee/10" %>">
+  <section aria-labelledby="position-summary-heading" class="ui-panel p-5 sm:p-6 <%= @position_error ? "border-danger-border" : "" %>">
     <div class="flex flex-wrap items-center gap-2">
       <h2 id="position-summary-heading" class="text-lg font-semibold text-coffee"><%= t(".Current position") %></h2>
       <% if @position_error %>
@@ -73,7 +73,7 @@
     </div>
 
     <% if @trades.any? %>
-      <div class="space-y-4">
+      <div class="ui-panel divide-y divide-coffee/10 overflow-hidden">
         <%= render @trades %>
       </div>
     <% else %>

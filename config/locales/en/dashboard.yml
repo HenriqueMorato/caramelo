@@ -23,6 +23,7 @@ en:
       Open data health: Open data health
       Page title: Dashboard · %{application}
       Partial market data summary: Some positions need current market data.
+      Performance chart description: Portfolio value over time.
       Performance history coming soon: Historical performance will appear here after
         daily history is available.
       Portfolio activity: Portfolio activity

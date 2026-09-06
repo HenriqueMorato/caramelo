@@ -33,7 +33,7 @@
       <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary mt-5" %>
     </div>
   <% else %>
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
         <p class="text-sm font-medium text-muted"><%= t(".Portfolio value") %></p>
         <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.closing_valuation.market_value.format %></p>

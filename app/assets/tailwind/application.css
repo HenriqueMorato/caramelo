@@ -179,6 +179,30 @@ html[data-theme="dark"] {
     @apply transition-[border-color,box-shadow] hover:border-coffee/20 hover:shadow-sm;
   }
 
+  .ui-panel {
+    @apply rounded-[1.25rem] border border-coffee/10 bg-oat-2 shadow-none;
+  }
+
+  .ui-summary-grid {
+    @apply grid gap-3 sm:grid-cols-3;
+  }
+
+  .ui-summary-item {
+    @apply rounded-xl bg-oat px-4 py-3;
+  }
+
+  .ui-summary-item dt {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-muted;
+  }
+
+  .ui-summary-item dd {
+    @apply mt-2 font-mono text-lg font-semibold tabular-nums text-coffee;
+  }
+
+  .ui-data-table {
+    @apply w-full border-collapse text-left;
+  }
+
   .ui-form-errors {
     @apply rounded-xl border border-danger-border bg-danger-surface p-4 text-danger-text;
   }

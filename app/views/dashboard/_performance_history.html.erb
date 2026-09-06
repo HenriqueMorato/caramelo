@@ -1,5 +1,30 @@
-<%# locals: () %>
+<%# locals: (series:, series_presenter:) %>
 
-<article class="flex min-h-64 items-center justify-center rounded-[1.25rem] border border-dashed border-coffee/15 bg-oat-2 px-6 text-center text-sm text-muted">
-  <%= t("dashboard.index.Performance history coming soon") %>
+<article class="rounded-[1.25rem] border border-coffee/10 bg-oat-2 p-5 sm:p-6">
+  <% if series&.displayable? %>
+    <% currency = series.observations.find { |observation| observation.market_value&.currency }&.market_value&.currency&.iso_code || User.owner.reporting_currency %>
+    <% chart_data = series_presenter.chart_data(benchmarks: [], currency:) %>
+  <% end %>
+
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <p class="ui-eyebrow"><%= t("Performance") %></p>
+      <p class="mt-2 text-sm text-muted"><%= series_presenter&.date_range_label || t("dashboard.index.Performance history coming soon") %></p>
+    </div>
+    <% if chart_data %>
+      <span class="font-mono text-sm font-semibold tabular-nums text-caramel-deep"><%= chart_data[:formatted_performances].compact.last || t("Not available") %></span>
+    <% end %>
+  </div>
+
+  <% if series&.displayable? %>
+    <div class="relative mt-5" data-controller="performance-chart" data-action="appearance:change@window->performance-chart#refreshTheme" data-performance-chart-data-value="<%= json_escape(chart_data.to_json) %>">
+      <div class="relative h-48 sm:h-56">
+        <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t("dashboard.index.Performance chart description") %>"></canvas>
+      </div>
+    </div>
+  <% else %>
+    <div class="mt-5 flex min-h-48 items-center justify-center rounded-xl border border-dashed border-coffee/15 bg-oat px-6 text-center text-sm text-muted">
+      <%= t("dashboard.index.Performance history coming soon") %>
+    </div>
+  <% end %>
 </article>
