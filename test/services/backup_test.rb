@@ -424,10 +424,12 @@ class BackupTest < ActiveSupport::TestCase
         raise "queue unavailable"
       end
     end
-    now = Time.zone.parse("2026-09-06 12:00:00")
+    now = Time.zone.parse("2099-12-31 12:00:00")
 
     assert_raises(RuntimeError) { Backup::Scheduler.enqueue_if_due(now:, creator:, job:) }
     refute Rails.cache.exist?("#{Backup::Scheduler::KEY_PREFIX}#{now.to_date.iso8601}")
+  ensure
+    Rails.cache.delete("#{Backup::Scheduler::KEY_PREFIX}#{now.to_date.iso8601}")
   end
 
   test "backup job delegates creation" do

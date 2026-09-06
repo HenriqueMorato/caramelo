@@ -15,8 +15,8 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     result, enqueued = call_handler(MarketData::Recoveries::DailyClosingPrices, RecoverDailyClosingPricesJob, target:)
 
     assert result
-    assert_equal Date.current.prev_day, enqueued.fetch(:from)
-    assert_equal Date.current.prev_day, enqueued.fetch(:to)
+    assert_equal TradingCalendar.previous_business_day, enqueued.fetch(:from)
+    assert_equal TradingCalendar.previous_business_day, enqueued.fetch(:to)
   end
 
   test "queues daily closing price recovery with explicit range" do
