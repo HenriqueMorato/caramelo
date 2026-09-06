@@ -27,12 +27,22 @@ module MarketData
       raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
       return result(:busy) if RefreshStatus::State.read(target.scope)&.active?
 
+      lease = RecoveryLease.acquire(target:, cache:)
+      return result(:busy) unless lease
+
       status = nil
       PublicationFence.new(target:, cache:).advance do
-        job = MarketPrice::RefreshEnqueuer.new.enqueue(instrument:, batch_scope: nil, batch_run_id: nil)
+        job = MarketPrice::RefreshEnqueuer.new.enqueue(
+          instrument:, batch_scope: nil, batch_run_id: nil,
+          lease_token: lease.token, lease_target: target.to_h
+        )
         status = job ? :queued : :unsupported
+        RecoveryLease.release(target:, token: lease.token, cache:) unless job
       end
       result(status)
+    rescue StandardError
+      RecoveryLease.release(target:, token: lease.token, cache:) if lease
+      raise
     end
 
     private
