@@ -73,6 +73,24 @@ class MarketData::ResetPreviewTest < ActiveSupport::TestCase
     assert_equal Digest::SHA256.hexdigest("[]"), digest
   end
 
+  test "fingerprints both currency directions for the selected provider" do
+    target = MarketData::Target.new(
+      kind: :historical_exchange_rates, base_currency: "USD", quote_currency: "BRL",
+      provider: "yahoo_finance_fx"
+    )
+    date = Date.new(2026, 9, 1)
+    attributes = { rate_date: date, rate: 5, observed_at: Time.current, fetched_at: Time.current }
+    HistoricalExchangeRate.create!(**attributes, base_currency: "USD", quote_currency: "BRL", provider: target.provider)
+    first_digest = MarketData::ResetPreview.send(
+      :fingerprint_for, target:, owner: users(:owner), from: date, to: date
+    )
+
+    HistoricalExchangeRate.create!(**attributes, base_currency: "BRL", quote_currency: "USD", provider: target.provider)
+    refute_equal first_digest, MarketData::ResetPreview.send(
+      :fingerprint_for, target:, owner: users(:owner), from: date, to: date
+    )
+  end
+
   test "rejects an expired signed preview" do
     verifier = Object.new
     verifier.define_singleton_method(:verify) do |token|
