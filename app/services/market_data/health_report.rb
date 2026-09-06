@@ -120,28 +120,8 @@ module MarketData
       current.zip(daily).flat_map(&:compact)
     end
 
-    def historical_end_date
-      @historical_end_date ||= if TradingCalendar.weekend?(today)
-        TradingCalendar.previous_business_day(today + 1.day)
-      else
-        TradingCalendar.previous_business_day(today)
-      end
-    end
-
     def performance_entries
       PortfolioPerformance.new(owner:, today:).entries
-    end
-
-    def format_ranges(ranges)
-      ranges.map { |range| range.begin == range.end ? range.begin.iso8601 : "#{range.begin}–#{range.end}" }.join(", ")
-    end
-
-    def entry_for(code:, target:, subject:, status:, severity:, description:, actions: [ :retry ], coverage: nil)
-      Entry.new(
-        code:, target:, subject:, status:, severity:, label: subject_label(subject), description:,
-        observed_on: nil, fetched_at: nil, covered_range: coverage&.covered_range,
-        missing_range: coverage&.missing_range, actions:
-      )
     end
 
     def subject_label(subject)
