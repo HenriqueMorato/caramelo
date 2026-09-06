@@ -43,6 +43,23 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     ), :running?
   end
 
+  test "distinguishes queued and interrupted active states" do
+    queued = RefreshStatus::State.new(
+      scope: "queued", run_id: nil, status: "queued", started_at: Time.current,
+      finished_at: nil, updated_at: Time.current, error_class: nil, error_message: nil,
+      processed_count: 0, total_count: 1
+    )
+    interrupted = RefreshStatus::State.new(
+      scope: queued.scope, run_id: queued.run_id, status: queued.status, started_at: queued.started_at,
+      finished_at: nil, updated_at: 11.minutes.ago, error_class: nil, error_message: nil,
+      processed_count: 0, total_count: 1
+    )
+
+    assert_predicate queued, :queued?
+    refute_predicate queued, :interrupted?
+    assert_predicate interrupted, :interrupted?
+  end
+
   test "reports no progress when total is unknown" do
     state = RefreshStatus::State.write(scope: "unknown_total", status: "queued")
 

@@ -33,6 +33,14 @@ module RefreshStatus
       status == "running"
     end
 
+    def queued?
+      status == "queued"
+    end
+
+    def interrupted?
+      active? && (!updated_at || updated_at <= ACTIVE_TIMEOUT.ago)
+    end
+
     def failed?
       status == "failed"
     end
@@ -64,6 +72,15 @@ module RefreshStatus
         state = read(scope)
         state if state&.active? && state.updated_at && state.updated_at > ACTIVE_TIMEOUT.ago
       end
+    end
+
+    def self.prune!
+      retained = scopes.select do |scope|
+        state = read(scope)
+        state && (!state.finished_at || state.updated_at > ACTIVE_TIMEOUT.ago)
+      end
+      Rails.cache.write(SCOPES_KEY, retained)
+      retained
     end
 
     def self.latest_successful

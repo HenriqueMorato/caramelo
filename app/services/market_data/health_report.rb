@@ -118,7 +118,19 @@ module MarketData
     def current_price_entry(instrument)
       lookup = current_market_price_service.read(instrument:)
       refresh_state = RefreshStatus::State.read("current_market_price:#{instrument.id}")
-      if refreshing_state?(refresh_state)
+      if refresh_state&.interrupted?
+        entry_for(
+          code: :interrupted_current_price, status: :interrupted, severity: :error, subject: instrument,
+          description: "#{instrument.ticker} refresh stopped before completing.",
+          target: current_price_target(instrument)
+        )
+      elsif refresh_state&.failed?
+        entry_for(
+          code: :failed_current_price, status: :failed, severity: :error, subject: instrument,
+          description: refresh_state.error_message.presence || "#{instrument.ticker} refresh failed.",
+          target: current_price_target(instrument)
+        )
+      elsif refreshing_state?(refresh_state)
         entry_for(
           code: :updating_current_price, status: :updating, severity: nil, subject: instrument,
           description: "#{instrument.ticker} is being refreshed.",
@@ -184,7 +196,7 @@ module MarketData
     end
 
     def refreshing_state?(state)
-      state&.running? && state.updated_at && state.updated_at > RefreshStatus::State::ACTIVE_TIMEOUT.ago
+      state&.active? && !state.interrupted?
     end
 
     def currency_entries
