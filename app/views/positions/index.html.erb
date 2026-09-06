@@ -9,6 +9,7 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
+      <%= link_to t(".Add instrument"), new_instrument_path, class: "ui-button ui-button-primary" %>
       <% if @has_closed_positions %>
         <% if @show_closed %>
           <%= link_to t(".Show open positions"), positions_path, class: "ui-button ui-button-secondary" %>
@@ -20,19 +21,19 @@
   </div>
 
   <% available_values = @positions.filter_map { |position| position.valuation.market_value } %>
-  <% latest_market_data = @positions.filter_map { |position| position.market_price.current_market_price&.fetched_at }.max %>
-  <dl class="ui-summary-grid" aria-label="<%= t("Portfolio holdings") %>">
+  <% total_value = available_values.any? ? Money.from_amount(available_values.sum(&:amount), User.owner.reporting_currency) : nil %>
+  <dl class="ui-summary-grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr]" aria-label="<%= t("Portfolio holdings") %>">
+    <div class="ui-summary-item ui-summary-item-primary">
+      <dt><%= t(".Total value") %></dt>
+      <dd><%= total_value&.format || t("Not available") %></dd>
+    </div>
     <div class="ui-summary-item">
-      <dt><%= t("Market value") %></dt>
-      <dd><%= available_values.any? ? Money.from_amount(available_values.sum(&:amount), User.owner.reporting_currency).format : t("Not available") %></dd>
+      <dt><%= t("dashboard.index.Today") %></dt>
+      <dd class="<%= @dashboard&.day_change_color_class %>"><%= @dashboard&.day_change_ratio_label || t("Not available") %></dd>
     </div>
     <div class="ui-summary-item">
       <dt><%= t(".Open positions") %></dt>
       <dd><%= @positions.count { |position| !position.invalid? && position.position.open? } %></dd>
-    </div>
-    <div class="ui-summary-item">
-      <dt><%= t(".Updated") %></dt>
-      <dd class="text-base"><%= latest_market_data ? l(latest_market_data, format: :short) : t("Not available") %></dd>
     </div>
   </dl>
 

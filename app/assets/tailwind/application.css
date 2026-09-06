@@ -188,7 +188,11 @@ html[data-theme="dark"] {
   }
 
   .ui-summary-item {
-    @apply rounded-xl bg-oat px-4 py-3;
+    @apply rounded-xl border border-coffee/10 bg-paper px-5 py-4;
+  }
+
+  .ui-summary-item-primary {
+    @apply border-coffee bg-coffee text-on-accent sm:px-6 sm:py-5;
   }
 
   .ui-summary-item dt {
@@ -196,7 +200,15 @@ html[data-theme="dark"] {
   }
 
   .ui-summary-item dd {
-    @apply mt-2 font-mono text-lg font-semibold tabular-nums text-coffee;
+    @apply mt-2 font-mono text-2xl font-semibold tabular-nums text-coffee;
+  }
+
+  .ui-summary-item-primary dt {
+    @apply text-on-accent/70;
+  }
+
+  .ui-summary-item-primary dd {
+    @apply text-3xl text-on-accent;
   }
 
   .ui-data-table {

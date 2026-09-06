@@ -2,6 +2,7 @@
 en:
   positions:
     index:
+      Add instrument: Add instrument
       Clear: Clear
       Closed positions hidden: Include closed positions to review the complete trade
         history.
@@ -26,4 +27,4 @@ en:
       Secondary grouping: secondary grouping
       Show open positions: Show open positions only
       Subheading: Every position, in one calm place.
-      Updated: Updated
+      Total value: Total value
