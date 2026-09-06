@@ -10,7 +10,11 @@ module RefreshStatus
         partial: "refresh_status/status",
         locals: { status: Presenter.for, broadcast: true }
       )
-      MarketData::HealthReportBroadcaster.refresh
+      begin
+        MarketData::HealthReportBroadcaster.refresh
+      rescue StandardError => error
+        Rails.error.report(error, handled: true, context: { source: "health_report_broadcast" })
+      end
     end
   end
 end
