@@ -24,4 +24,11 @@ class MarketData::TargetTest < ActiveSupport::TestCase
 
     assert_equal "unsupported market data target", error.message
   end
+
+  test "uses a shared publication scope for inverse currency pairs" do
+    direct = MarketData::Target.new(kind: :historical_exchange_rates, base_currency: "USD", quote_currency: "BRL")
+    inverse = MarketData::Target.new(kind: :historical_exchange_rates, base_currency: "BRL", quote_currency: "USD")
+
+    assert_equal direct.publication_scope, inverse.publication_scope
+  end
 end

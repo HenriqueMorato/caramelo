@@ -27,5 +27,12 @@ module MarketData
 
       [ "market_data_health", kind, record_id, base_currency, quote_currency, provider ].compact.join(":")
     end
+
+    def publication_scope
+      return "current_exchange_rate:#{[ base_currency, quote_currency ].sort.join(":")}" if kind == :current_exchange_rate
+      return "historical_exchange_rate:#{[ base_currency, quote_currency ].sort.join(":")}" if kind == :historical_exchange_rates
+
+      scope
+    end
   end
 end
