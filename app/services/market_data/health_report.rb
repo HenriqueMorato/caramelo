@@ -100,8 +100,9 @@ module MarketData
 
     def call
       exchange_rates = CurrentExchangeRates.new(owner:, instruments:, service: current_exchange_rate_service).entries
+      historical_rates = HistoricalExchangeRates.new(owner:).entries
       benchmarks = BenchmarkObservations.new(owner:, today:).entries
-      entries = (instrument_entries + exchange_rates + benchmarks + performance_entries)
+      entries = (instrument_entries + exchange_rates + historical_rates + benchmarks + performance_entries)
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
