@@ -113,51 +113,8 @@ module MarketData
     end
 
     def instrument_entries
-      instruments.flat_map do |instrument|
-        [ current_price_entry(instrument), daily_close_entry(instrument) ]
-      end
-    end
-
-    def current_price_entry(instrument)
-      lookup = current_market_price_service.read(instrument:)
-      refresh_state = RefreshStatus::State.read("current_market_price:#{instrument.id}")
-      if refresh_state&.interrupted?
-        entry_for(
-          code: :interrupted_current_price, status: :interrupted, severity: :error, subject: instrument,
-          description: "#{instrument.ticker} refresh stopped before completing.",
-          target: current_price_target(instrument)
-        )
-      elsif refresh_state&.failed?
-        entry_for(
-          code: :failed_current_price, status: :failed, severity: :error, subject: instrument,
-          description: refresh_state.error_message.presence || "#{instrument.ticker} refresh failed.",
-          target: current_price_target(instrument)
-        )
-      elsif refreshing_state?(refresh_state)
-        entry_for(
-          code: :updating_current_price, status: :updating, severity: nil, subject: instrument,
-          description: "#{instrument.ticker} is being refreshed.",
-          target: current_price_target(instrument), actions: []
-        )
-      elsif lookup.nil? || lookup.missing?
-        entry_for(
-          code: :missing_current_price, status: :missing, severity: :error, subject: instrument,
-          description: "#{instrument.ticker} has no current market price available.",
-          target: current_price_target(instrument)
-        )
-      elsif lookup.stale?
-        entry_for(
-          code: :stale_current_price, status: :stale, severity: :warning, subject: instrument,
-          description: "#{instrument.ticker} has a stale current market price; refresh it to update valuation.",
-          target: current_price_target(instrument)
-        )
-      else
-        entry_for(
-          code: :current_price, status: :healthy, severity: nil, subject: instrument,
-          description: "#{instrument.ticker} has a current market price.",
-          target: current_price_target(instrument), actions: []
-        )
-      end
+      current = CurrentPrices.new(instruments:, service: current_market_price_service).entries
+      current.zip(instruments.map { |instrument| daily_close_entry(instrument) }).flat_map(&:compact)
     end
 
     def daily_close_entry(instrument)
@@ -189,21 +146,10 @@ module MarketData
       TradingCalendar.weekdays_between(trade_dates.first, historical_end_date)
     end
 
-    def current_price_target(instrument)
-      Target.new(
-        kind: :current_price, record_id: instrument.id,
-        provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
-      )
-    end
-
     def daily_close_description(instrument, coverage)
       return "#{instrument.ticker} has historical closing prices." if coverage.complete?
 
       "#{instrument.ticker} is missing historical closing prices for #{format_ranges(coverage.missing_ranges)}."
-    end
-
-    def refreshing_state?(state)
-      state&.active? && !state.interrupted?
     end
 
     def currency_entries
