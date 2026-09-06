@@ -15,7 +15,7 @@
       <span class="group relative inline-flex">
         <%= button_to t("Refresh prices"), current_market_price_refresh_path, disabled: !@market_price_refresh_available, class: "ui-button ui-button-primary disabled:cursor-not-allowed disabled:opacity-50", form_class: "inline-flex", aria: { describedby: ("refresh-throttle-tooltip" if refresh_title) }, data: { turbo_submits_with: t("Refreshing") } %>
         <% if refresh_title %>
-          <span id="refresh-throttle-tooltip" role="tooltip" class="pointer-events-none absolute right-0 top-full z-10 mt-2 w-72 rounded-lg bg-coffee px-3 py-2 text-left text-xs leading-5 text-oat opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"><%= refresh_title %></span>
+          <span id="refresh-throttle-tooltip" role="tooltip" class="pointer-events-none absolute right-0 top-full z-10 mt-2 w-72 rounded-lg bg-hero px-3 py-2 text-left text-xs leading-5 text-hero-text opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"><%= refresh_title %></span>
         <% end %>
       </span>
     </div>
@@ -23,12 +23,12 @@
 
   <nav class="flex flex-wrap items-center gap-3" aria-label="<%= t(".Filter label") %>">
     <span class="text-sm font-semibold text-muted"><%= t(".Filter label") %></span>
-    <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-white/50 p-1" role="group">
+    <div class="inline-flex max-w-full overflow-x-auto rounded-md bg-paper/50 p-1" role="group">
       <% [["all", t(".Filter all")], ["attention", t(".Filter attention")], ["healthy", t(".Filter healthy")]].each do |value, label| %>
         <%= link_to label, market_data_health_path(status: value),
           class: [
             "grouping-option",
-            ("rounded-md border border-caramel-deep bg-caramel-deep text-white" if @status_filter == value)
+            ("rounded-md border border-caramel-deep bg-caramel-deep text-on-accent" if @status_filter == value)
           ].compact.join(" "),
           aria: { current: (@status_filter == value ? "page" : nil) } %>
       <% end %>

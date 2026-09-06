@@ -28,7 +28,7 @@ const hoverGuidePlugin = {
     context.beginPath()
     context.setLineDash([3, 4])
     context.lineWidth = 1
-    context.strokeStyle = "rgba(155, 93, 49, 0.42)"
+    context.strokeStyle = themeColor("--caramelo-chart-guide")
     context.moveTo(x, top)
     context.lineTo(x, bottom)
     context.stroke()
@@ -36,8 +36,13 @@ const hoverGuidePlugin = {
   }
 }
 
-const benchmarkColors = { IBOV: "#3f5f86", SP500: "#7b3f78", CDI: "#b27a1f" }
-const fallbackBenchmarkColors = Object.values(benchmarkColors)
+const benchmarkColorProperties = {
+  IBOV: "--caramelo-benchmark-ibov",
+  SP500: "--caramelo-benchmark-sp500",
+  CDI: "--caramelo-benchmark-cdi"
+}
+
+const themeColor = (property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim()
 
 export default class extends Controller {
   static targets = ["canvas", "tab"]
@@ -45,10 +50,11 @@ export default class extends Controller {
 
   connect() {
     this.mode = this.requestedMode()
+    this.colors = this.themeColors()
     this.portfolioReturnDataset = {
       label: this.dataValue.portfolio_return_label,
       data: this.dataValue.performance_ratios.map((value) => value === null ? null : Number(value) * 100),
-      borderColor: "#9b5d31",
+      borderColor: this.colors.portfolio,
       borderWidth: 3,
       pointRadius: 0,
       pointHoverRadius: 4,
@@ -62,8 +68,7 @@ export default class extends Controller {
     this.benchmarkDatasets = (this.dataValue.benchmarks || []).map((benchmark, index) => ({
       label: benchmark.label,
       data: benchmark.values,
-      borderColor: benchmarkColors[benchmark.identifier] ||
-        fallbackBenchmarkColors[index % fallbackBenchmarkColors.length],
+      borderColor: this.benchmarkColor(benchmark.identifier, index),
       borderWidth: 1.75,
       pointRadius: 0,
       pointHitRadius: 12,
@@ -89,8 +94,8 @@ export default class extends Controller {
           {
             label: this.dataValue.portfolio_value_label,
             data: this.dataValue.values,
-            borderColor: "#9b5d31",
-            backgroundColor: "rgba(196, 129, 79, 0.14)",
+            borderColor: this.colors.portfolio,
+            backgroundColor: this.colors.portfolioFill,
             borderWidth: 3,
             pointRadius: 0,
             pointHoverRadius: 4,
@@ -103,7 +108,7 @@ export default class extends Controller {
           {
             label: this.dataValue.invested_value_label,
             data: this.dataValue.invested_values,
-            borderColor: "#766b60",
+            borderColor: this.colors.invested,
             borderDash: [5, 4],
             borderWidth: 2.25,
             pointRadius: 0,
@@ -127,7 +132,7 @@ export default class extends Controller {
           legend: {
             display: true,
             labels: {
-              color: "#4c3d31",
+              color: this.colors.text,
               boxWidth: 20,
               boxHeight: 3,
               usePointStyle: true,
@@ -136,7 +141,7 @@ export default class extends Controller {
                 .filter((item) => this.datasetVisibleInMode(chart.data.datasets[item.datasetIndex]))
                 .map((item) => ({
                   ...item,
-                  fontColor: chart.data.datasets[item.datasetIndex]?.borderColor || "#4c3d31"
+                  fontColor: chart.data.datasets[item.datasetIndex]?.borderColor || this.colors.text
                 }))
             },
             onClick: (event, legendItem, legend) => {
@@ -150,14 +155,14 @@ export default class extends Controller {
             mode: "index",
             intersect: false,
             displayColors: false,
-            backgroundColor: "#fbf8f2",
-            borderColor: "rgba(76, 61, 49, 0.16)",
+            backgroundColor: this.colors.tooltip,
+            borderColor: this.colors.border,
             borderWidth: 1,
             cornerRadius: 8,
             padding: 10,
-            titleColor: "#4c3d31",
+            titleColor: this.colors.text,
             titleFont: { family: "inherit", size: 12, weight: "600" },
-            bodyColor: "#4c3d31",
+            bodyColor: this.colors.text,
             bodyFont: { family: "inherit", size: 12, weight: "600" },
             bodySpacing: 4,
             callbacks: {
@@ -193,25 +198,25 @@ export default class extends Controller {
               },
               labelTextColor: (item) => {
                 const dataset = item.dataset
-                if (dataset.role === "invested-value") return "#766b60"
+                if (dataset.role === "invested-value") return this.colors.invested
                 if (["benchmark", "portfolio-return"].includes(dataset.role)) return dataset.borderColor
 
                 const performance = this.dataValue.performance_ratios?.[item.dataIndex]
-                if (performance === undefined || performance === null || performance === 0) return "#766b60"
+                if (performance === undefined || performance === null || performance === 0) return this.colors.invested
 
-                return performance < 0 ? "#e76f51" : "#56805d"
+                return performance < 0 ? this.colors.negative : this.colors.positive
               }
             }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 7, color: "#766b60" } },
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 7, color: this.colors.invested } },
           y: {
             display: this.mode === "value",
             beginAtZero: true,
-            grid: { color: "rgba(76, 61, 49, 0.12)" },
+            grid: { color: this.colors.grid },
             ticks: {
-              color: "#766b60",
+              color: this.colors.invested,
               callback: (value) => new Intl.NumberFormat(this.dataValue.locale, {
                 style: "currency", currency: this.dataValue.currency, maximumFractionDigits: 2
               }).format(value)
@@ -222,9 +227,9 @@ export default class extends Controller {
             position: "left",
             min: returnMinimum - returnPadding,
             max: returnMaximum + returnPadding,
-            grid: { color: "rgba(76, 61, 49, 0.12)" },
+            grid: { color: this.colors.grid },
             ticks: {
-              color: "#766b60",
+              color: this.colors.invested,
               callback: (value) => `${value > 0 ? "+" : ""}${value.toFixed(1)}%`
             }
           }
@@ -253,6 +258,30 @@ export default class extends Controller {
 
   restoreMode() {
     this.setMode(this.requestedMode(), false)
+  }
+
+  refreshTheme() {
+    if (!this.chart) return
+
+    this.colors = this.themeColors()
+    this.chart.data.datasets.forEach((dataset, index) => {
+      if (dataset.role === "portfolio-value") dataset.backgroundColor = this.colors.portfolioFill
+      dataset.borderColor = this.datasetColor(dataset, index)
+    })
+    this.chart.options.plugins.legend.labels.color = this.colors.text
+    Object.assign(this.chart.options.plugins.tooltip, {
+      backgroundColor: this.colors.tooltip,
+      borderColor: this.colors.border,
+      titleColor: this.colors.text,
+      bodyColor: this.colors.text
+    })
+    this.chart.options.scales.x.ticks.color = this.colors.invested
+    const verticalScales = [this.chart.options.scales.y, this.chart.options.scales.return]
+    verticalScales.forEach((scale) => {
+      scale.grid.color = this.colors.grid
+      scale.ticks.color = this.colors.invested
+    })
+    this.chart.update("none")
   }
 
   setMode(mode, updateUrl = true) {
@@ -295,5 +324,32 @@ export default class extends Controller {
 
   requestedMode() {
     return new URL(window.location.href).searchParams.get("chart") === "performance" ? "performance" : "value"
+  }
+
+  datasetColor(dataset, index) {
+    if (dataset.role === "benchmark") return this.benchmarkColor(dataset.benchmark.identifier, index)
+    if (dataset.role === "invested-value") return this.colors.invested
+
+    return this.colors.portfolio
+  }
+
+  benchmarkColor(identifier, index) {
+    const properties = Object.values(benchmarkColorProperties)
+    const property = benchmarkColorProperties[identifier] || properties[index % properties.length]
+    return themeColor(property)
+  }
+
+  themeColors() {
+    return {
+      portfolio: themeColor("--caramelo-chart-line"),
+      portfolioFill: themeColor("--caramelo-chart-fill"),
+      invested: themeColor("--caramelo-chart-invested"),
+      text: themeColor("--caramelo-ink"),
+      tooltip: themeColor("--caramelo-raised"),
+      border: themeColor("--caramelo-chart-border"),
+      grid: themeColor("--caramelo-chart-grid"),
+      positive: themeColor("--caramelo-positive"),
+      negative: themeColor("--caramelo-negative")
+    }
   }
 }

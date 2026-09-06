@@ -1,12 +1,12 @@
 <%# locals: (series:, series_presenter:, selected_period:) %>
 
 <% if series.pending? %>
-  <div class="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+  <div class="mt-5 rounded-xl border border-warning-border bg-warning-surface px-4 py-3 text-sm text-warning-text" role="status">
     <p class="font-semibold"><%= t("performances.show.Portfolio history is building") %></p>
     <p class="mt-1"><%= t("performances.show.Portfolio history is building explanation") %></p>
   </div>
 <% elsif series.partial? %>
-  <div class="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+  <div class="mt-5 rounded-xl border border-warning-border bg-warning-surface px-4 py-3 text-sm text-warning-text" role="status">
     <p class="font-semibold"><%= t("performances.show.Portfolio history is partially available") %></p>
     <p class="mt-1">
       <%= t("performances.show.Portfolio history is partially available explanation",
@@ -19,7 +19,7 @@
     <p class="mt-1"><%= series_presenter.stale_status_copy.explanation %></p>
   </div>
 <% elsif series.failed? %>
-  <div class="mt-5 rounded-xl border border-red-300/70 bg-red-50 px-4 py-3 text-sm text-red-950" role="alert">
+  <div class="mt-5 rounded-xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger-text" role="alert">
     <p class="font-semibold"><%= t("performances.show.Portfolio history update failed") %></p>
     <p class="mt-1"><%= t("performances.show.Portfolio history update failed explanation") %></p>
     <%= link_to t("performances.show.Try again"), performance_path(period: selected_period),

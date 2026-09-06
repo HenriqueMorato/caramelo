@@ -1,30 +1,30 @@
-<div class="mx-auto md:w-2/3 w-full">
+<div class="mx-auto w-full max-w-lg">
   <% if alert = flash[:alert] %>
-    <p class="py-2 px-3 bg-red-50 mb-5 text-red-500 font-medium rounded-lg inline-block" id="alert"><%= alert %></p>
+    <p class="ui-form-errors mb-5" id="alert"><%= alert %></p>
   <% end %>
 
   <% if notice = flash[:notice] %>
-    <p class="py-2 px-3 bg-green-50 mb-5 text-green-500 font-medium rounded-lg inline-block" id="notice"><%= notice %></p>
+    <p class="mb-5 rounded-xl border border-leaf/30 bg-leaf/10 p-4 font-medium text-leaf" id="notice"><%= notice %></p>
   <% end %>
 
-  <h1 class="font-bold text-4xl"><%= t(".Sign in") %></h1>
+  <h1 class="ui-page-title"><%= t(".Sign in") %></h1>
 
   <%= form_with url: session_url, class: "contents" do |form| %>
     <div class="my-5">
-      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: t(".Email placeholder"), value: params[:email_address], class: "block shadow-sm rounded-md border border-gray-400 focus:outline-blue-600 px-3 py-2 mt-2 w-full" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", spellcheck: false, placeholder: t(".Email placeholder"), value: params[:email_address], class: "ui-field" %>
     </div>
 
     <div class="my-5">
-      <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: t(".Password placeholder"), maxlength: 72, class: "block shadow-sm rounded-md border border-gray-400 focus:outline-blue-600 px-3 py-2 mt-2 w-full" %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: t(".Password placeholder"), maxlength: 72, class: "ui-field" %>
     </div>
 
     <div class="col-span-6 sm:flex sm:items-center sm:gap-4">
       <div class="inline">
-        <%= form.submit t(".Sign in"), class: "w-full sm:w-auto text-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
+        <%= form.submit t(".Sign in"), class: "ui-button ui-button-primary min-h-11 w-full cursor-pointer sm:w-auto" %>
       </div>
 
-      <div class="mt-4 text-sm text-gray-500 sm:mt-0">
-        <%= link_to t(".Forgot password?"), new_password_path, class: "text-gray-700 underline hover:no-underline" %>
+      <div class="mt-4 text-sm text-muted sm:mt-0">
+        <%= link_to t(".Forgot password?"), new_password_path, class: "text-caramel-deep underline hover:text-coffee hover:no-underline" %>
       </div>
     </div>
   <% end %>

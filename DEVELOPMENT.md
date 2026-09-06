@@ -223,6 +223,23 @@ repeated actions, and dismisses it after three seconds. Both surfaces use
 polite live-region semantics and the same success/error visual language; the
 toast is not specific to backups.
 
+### Appearance themes
+
+Appearance is a browser-local preference until account preferences are modeled.
+The three supported values—`light`, `dark`, and `system`—are stored under
+`local_folio.appearance`. The layout's small inline bootstrap applies the saved
+choice before loading CSS, so the first paint uses the correct palette.
+
+`data-appearance` on `<html>` records the selected preference, while
+`data-theme` records the resolved `light` or `dark` palette. Keep application
+colors in the semantic Caramelo variables in
+`app/assets/tailwind/application.css`; do not add page-specific dark-mode
+utilities. The appearance controller synchronizes the Settings and navigation
+controls, follows operating-system changes in System mode, updates browser
+theme color, and emits `appearance:change`. Chart.js listens for that event and
+recolors the existing chart without rebuilding its financial data. The PWA
+manifest intentionally retains the light palette as its static fallback.
+
 ### Automatic market-data refreshes
 
 When `bin/dev` is running, the Solid Queue worker schedules a current-price

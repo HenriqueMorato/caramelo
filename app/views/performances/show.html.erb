@@ -11,7 +11,7 @@
     <nav aria-label="<%= t(".Period selection") %>" class="flex flex-wrap gap-2">
       <% PerformancesController::PERIODS.each_key do |period| %>
         <% selected = @selected_period == period %>
-        <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "rounded-lg px-3 py-2 text-sm font-semibold #{selected ? "bg-caramel-deep text-white" : "border border-coffee/20 bg-oat-2 text-coffee/80 hover:bg-oat"}" %>
+        <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "rounded-lg px-3 py-2 text-sm font-semibold #{selected ? "bg-caramel-deep text-on-accent" : "border border-coffee/20 bg-oat-2 text-coffee/80 hover:bg-oat"}" %>
       <% end %>
     </nav>
   </div>
@@ -22,7 +22,7 @@
     else
       [ ".Historical data unavailable", ".Historical data unavailable explanation" ]
     end %>
-    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950" role="status">
+    <div class="rounded-2xl border border-warning-border bg-warning-surface p-6 text-warning-text" role="status">
       <h2 class="font-semibold"><%= t(title_key) %></h2>
       <p class="mt-2 text-sm leading-6"><%= t(explanation_key) %></p>
     </div>
@@ -48,7 +48,7 @@
 
       <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
         <p class="text-sm font-medium text-muted"><%= t(".Gain or loss") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight <%= @performance.gain_loss_amount.negative? ? "text-red-700" : "text-caramel-deep" %>"><%= @performance.gain_loss.format %></p>
+        <p class="mt-2 font-mono text-2xl font-bold tracking-tight <%= @performance.gain_loss_amount.negative? ? "text-guava" : "text-caramel-deep" %>"><%= @performance.gain_loss.format %></p>
         <p class="mt-2 text-xs text-muted"><%= t(".Excluding trade cash flows") %></p>
       </article>
 
@@ -89,7 +89,7 @@
             <article class="rounded-xl border border-coffee/10 bg-oat p-4">
               <p class="text-sm font-semibold text-coffee"><%= benchmark.name %></p>
               <% if result.available? %>
-                <p class="mt-2 font-mono text-xl font-bold tabular-nums <%= result.return_ratio.negative? ? "text-red-700" : "text-caramel-deep" %>"><%= "+" if result.return_ratio.positive? %><%= number_to_percentage(result.return_ratio * 100, precision: 2) %></p>
+                <p class="mt-2 font-mono text-xl font-bold tabular-nums <%= result.return_ratio.negative? ? "text-guava" : "text-caramel-deep" %>"><%= "+" if result.return_ratio.positive? %><%= number_to_percentage(result.return_ratio * 100, precision: 2) %></p>
                 <p class="mt-1 text-xs text-muted"><%= t(".Benchmark period", from: l(result.first_observation.observed_on, format: :short), to: l(result.last_observation.observed_on, format: :short)) %></p>
               <% else %>
                 <p class="mt-2 text-sm text-muted"><%= t(".Benchmark unavailable") %></p>
@@ -120,7 +120,7 @@
         <div
           class="relative mt-5"
           data-controller="performance-chart"
-          data-action="popstate@window->performance-chart#restoreMode"
+          data-action="popstate@window->performance-chart#restoreMode appearance:change@window->performance-chart#refreshTheme"
           data-performance-chart-data-value="<%= json_escape(chart_data.to_json) %>"
         >
           <div class="mb-4 flex justify-end">
@@ -132,7 +132,7 @@
                   data-performance-chart-target="tab"
                   data-performance-chart-mode-param="<%= mode %>"
                   data-action="performance-chart#selectMode keydown->performance-chart#selectModeWithKeyboard"
-                  class="relative h-[24px] rounded px-2.5 text-xs font-semibold leading-none text-muted transition-colors duration-150 before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel data-[active=true]:bg-coffee data-[active=true]:text-oat"
+                  class="relative h-[24px] rounded px-2.5 text-xs font-semibold leading-none text-muted transition-colors duration-150 before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel data-[active=true]:bg-caramel-deep data-[active=true]:text-on-accent"
                 ><%= label %></button>
               <% end %>
             </div>

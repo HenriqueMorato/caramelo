@@ -1,0 +1,27 @@
+<%# locals: () %>
+
+<%# Applies the saved or system theme before CSS paints, preventing a wrong-theme flash. %>
+<script nonce="<%= content_security_policy_nonce %>">
+  (() => {
+    const root = document.documentElement
+    const storageKey = "local_folio.appearance"
+    const validAppearances = ["light", "dark", "system"]
+    let appearance = "system"
+
+    try {
+      const savedAppearance = window.localStorage.getItem(storageKey)
+      if (validAppearances.includes(savedAppearance)) appearance = savedAppearance
+    } catch (_) {
+      // Storage may be unavailable in privacy-restricted browser contexts.
+    }
+
+    const systemIsDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const theme = appearance === "system" ? (systemIsDark ? "dark" : "light") : appearance
+
+    root.dataset.appearance = appearance
+    root.dataset.theme = theme
+    root.style.colorScheme = theme
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", theme === "dark" ? "#17120f" : "#f6efe4")
+  })()
+</script>

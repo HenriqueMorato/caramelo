@@ -1,0 +1,21 @@
+<%# locals: (compact: false) %>
+
+<div
+  class="<%= compact ? "grid grid-cols-3 gap-1" : "grid gap-2 sm:grid-cols-3" %>"
+  role="group"
+  aria-label="<%= t("appearance.Label") %>"
+>
+  <% [["light", t("appearance.Light")], ["dark", t("appearance.Dark")], ["system", t("appearance.System")]].each do |mode, label| %>
+    <button
+      type="button"
+      class="appearance-option min-h-11 <%= compact ? "px-2 text-xs md:min-h-9" : "px-4 text-sm md:min-h-10" %>"
+      data-appearance-target="option"
+      data-appearance-mode="<%= mode %>"
+      data-appearance-mode-param="<%= mode %>"
+      data-action="appearance#select"
+      aria-pressed="false"
+    >
+      <%= label %>
+    </button>
+  <% end %>
+</div>

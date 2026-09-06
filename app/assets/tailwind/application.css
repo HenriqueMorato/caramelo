@@ -19,28 +19,112 @@
 @theme {
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Literata", Georgia, ui-serif, serif;
-  --color-oat: #f6efe4;
-  --color-oat-2: #fbf8f2;
-  --color-caramel: #c97a45;
-  --color-caramel-deep: #8d4b2e;
-  --color-coffee: #2e211c;
-  --color-muted: #7e6f67;
-  --color-leaf: #56805d;
-  --color-guava: #e76f51;
-  --color-brand-50: #fbf4eb;
-  --color-brand-100: #f2ddc8;
-  --color-brand-600: #c97a45;
-  --color-brand-700: #a95e37;
-  --color-brand-800: #8d4b2e;
+}
+
+:root {
+  --caramelo-canvas: #f6efe4;
+  --caramelo-surface: #fbf8f2;
+  --caramelo-raised: #fffaf3;
+  --caramelo-caramel: #c97a45;
+  --caramelo-caramel-strong: #8d4b2e;
+  --caramelo-ink: #2e211c;
+  --caramelo-muted: #7e6f67;
+  --caramelo-positive: #56805d;
+  --caramelo-negative: #c95038;
+  --caramelo-on-accent: #ffffff;
+  --caramelo-hero: #2e211c;
+  --caramelo-hero-text: #f6efe4;
+  --caramelo-warning-surface: #fff3d6;
+  --caramelo-warning-border: #e7bd66;
+  --caramelo-warning-text: #62420d;
+  --caramelo-danger-surface: #fff0ec;
+  --caramelo-danger-border: #e7a393;
+  --caramelo-danger-text: #7b2f20;
+  --caramelo-chart-line: #9b5d31;
+  --caramelo-chart-fill: rgb(196 129 79 / 14%);
+  --caramelo-chart-guide: rgb(155 93 49 / 42%);
+  --caramelo-chart-grid: rgb(76 61 49 / 12%);
+  --caramelo-chart-border: rgb(76 61 49 / 16%);
+  --caramelo-chart-invested: #766b60;
+  --caramelo-benchmark-ibov: #3f5f86;
+  --caramelo-benchmark-sp500: #7b3f78;
+  --caramelo-benchmark-cdi: #a66c12;
+}
+
+html[data-theme="dark"] {
+  --caramelo-canvas: #17120f;
+  --caramelo-surface: #211916;
+  --caramelo-raised: #2b211c;
+  --caramelo-caramel: #dfa06f;
+  --caramelo-caramel-strong: #efb487;
+  --caramelo-ink: #f4eadf;
+  --caramelo-muted: #b9aaa0;
+  --caramelo-positive: #86b88d;
+  --caramelo-negative: #ef8a72;
+  --caramelo-on-accent: #21120c;
+  --caramelo-hero: #2b211c;
+  --caramelo-hero-text: #f4eadf;
+  --caramelo-warning-surface: #362b18;
+  --caramelo-warning-border: #80662d;
+  --caramelo-warning-text: #f2d58b;
+  --caramelo-danger-surface: #38201b;
+  --caramelo-danger-border: #8f4b3e;
+  --caramelo-danger-text: #f4a391;
+  --caramelo-chart-line: #efb487;
+  --caramelo-chart-fill: rgb(223 160 111 / 16%);
+  --caramelo-chart-guide: rgb(239 180 135 / 48%);
+  --caramelo-chart-grid: rgb(244 234 223 / 12%);
+  --caramelo-chart-border: rgb(244 234 223 / 16%);
+  --caramelo-chart-invested: #b9aaa0;
+  --caramelo-benchmark-ibov: #78a7dc;
+  --caramelo-benchmark-sp500: #d58bd0;
+  --caramelo-benchmark-cdi: #e2ad54;
+}
+
+@theme inline {
+  --color-oat: var(--caramelo-canvas);
+  --color-oat-2: var(--caramelo-surface);
+  --color-paper: var(--caramelo-raised);
+  --color-caramel: var(--caramelo-caramel);
+  --color-caramel-deep: var(--caramelo-caramel-strong);
+  --color-coffee: var(--caramelo-ink);
+  --color-muted: var(--caramelo-muted);
+  --color-leaf: var(--caramelo-positive);
+  --color-guava: var(--caramelo-negative);
+  --color-on-accent: var(--caramelo-on-accent);
+  --color-hero: var(--caramelo-hero);
+  --color-hero-text: var(--caramelo-hero-text);
+  --color-warning-surface: var(--caramelo-warning-surface);
+  --color-warning-border: var(--caramelo-warning-border);
+  --color-warning-text: var(--caramelo-warning-text);
+  --color-danger-surface: var(--caramelo-danger-surface);
+  --color-danger-border: var(--caramelo-danger-border);
+  --color-danger-text: var(--caramelo-danger-text);
+  --color-brand-50: var(--caramelo-raised);
+  --color-brand-100: var(--caramelo-surface);
+  --color-brand-600: var(--caramelo-caramel);
+  --color-brand-700: var(--caramelo-caramel-strong);
+  --color-brand-800: var(--caramelo-caramel-strong);
 }
 
 @layer base {
   html {
     color-scheme: light;
+    background: var(--caramelo-canvas);
+    -webkit-tap-highlight-color: rgb(201 122 69 / 18%);
   }
+
+  html[data-theme="dark"] { color-scheme: dark; }
 
   body {
     overflow-x: hidden;
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: var(--caramelo-surface);
+    color: var(--caramelo-ink);
   }
 }
 
@@ -79,6 +163,14 @@
     overscroll-behavior: contain;
   }
 
+  .appearance-option {
+    @apply inline-flex items-center justify-center rounded-lg border border-coffee/15 bg-oat-2 font-semibold text-muted transition-transform hover:border-caramel hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel active:scale-[0.97];
+  }
+
+  .appearance-option[data-active="true"] {
+    @apply border-caramel-deep bg-caramel-deep text-on-accent;
+  }
+
   .ui-card {
     @apply rounded-[1.25rem] border border-coffee/10 bg-oat-2 shadow-none;
   }
@@ -87,16 +179,28 @@
     @apply transition-[border-color,box-shadow] hover:border-coffee/20 hover:shadow-sm;
   }
 
+  .ui-form-errors {
+    @apply rounded-xl border border-danger-border bg-danger-surface p-4 text-danger-text;
+  }
+
+  .ui-field {
+    @apply mt-2 block min-h-11 w-full rounded-xl border border-coffee/20 bg-oat-2 px-4 py-3 text-base text-coffee shadow-sm focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20;
+  }
+
+  .ui-field-invalid {
+    @apply border-danger-border focus:border-guava focus:ring-guava/20;
+  }
+
   .ui-button {
     @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2;
   }
 
   .ui-button-primary {
-    @apply bg-brand-700 text-white shadow-sm hover:bg-brand-800;
+    @apply bg-brand-700 text-on-accent shadow-sm hover:bg-brand-800;
   }
 
   .ui-button-secondary {
-    @apply border border-coffee/15 bg-oat-2 text-coffee shadow-sm hover:bg-white;
+    @apply border border-coffee/15 bg-oat-2 text-coffee shadow-sm hover:bg-paper;
   }
 
   .ui-button-danger {
@@ -108,11 +212,11 @@
   }
 
   .grouping-option[data-grouping-slot="primary"] {
-    @apply rounded-md border border-brand-700 bg-brand-700 text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-brand-800;
+    @apply rounded-md border border-brand-700 bg-brand-700 text-on-accent shadow-inner ring-1 ring-inset ring-paper/60 hover:bg-brand-800;
   }
 
   .grouping-option[data-grouping-slot="secondary"] {
-    @apply rounded-md border border-caramel-deep bg-caramel text-white shadow-inner ring-1 ring-inset ring-white/60 hover:bg-caramel-deep;
+    @apply rounded-md border border-caramel-deep bg-caramel text-on-accent shadow-inner ring-1 ring-inset ring-paper/60 hover:bg-caramel-deep;
   }
 
   .grouping-option[data-grouping-slot=""] {
@@ -128,7 +232,7 @@
   }
 
   .currency-view-option[data-active="true"] {
-    @apply bg-caramel-deep text-white shadow-sm;
+    @apply bg-caramel-deep text-on-accent shadow-sm;
   }
 
   .ui-eyebrow {
@@ -175,7 +279,7 @@
 
   .ui-badge-attention,
   .ui-badge-sell {
-    @apply bg-red-100 text-red-800;
+    @apply bg-danger-surface text-danger-text;
   }
 
   .ui-empty-state {
