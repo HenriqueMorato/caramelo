@@ -29,10 +29,6 @@ module MarketData
       entry.status.to_s.humanize
     end
 
-    def status_icon(entry)
-      { healthy: "✓", updating: "↻", queued: "↻", failed: "!", interrupted: "!", stale: "•", partial: "•", missing: "!" }[entry.status] || "•"
-    end
-
     def status_class(entry)
       return "text-leaf" if entry.healthy?
       return "text-guava" if entry.severity == :error

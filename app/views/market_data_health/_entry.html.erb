@@ -3,7 +3,6 @@
 <tr id="<%= entry.dom_id %>">
   <th scope="row" class="max-w-[12rem] break-words py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
   <td class="whitespace-nowrap py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= health.status_class(entry) %>">
-    <span aria-hidden="true"><%= health.status_icon(entry) %></span>
     <span><%= health.status_label(entry) %></span>
   </td>
   <td class="break-words py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>

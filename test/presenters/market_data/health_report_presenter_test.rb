@@ -38,7 +38,7 @@ class MarketData::HealthReportPresenterTest < ActiveSupport::TestCase
     assert_nil presenter.reset_preview_for(entries.first)
   end
 
-  test "presents status with a label, icon, and semantic tone" do
+  test "presents status with a label and semantic tone" do
     presenter = MarketData::HealthReportPresenter.new(report: report_with(entries: [], issues: []))
     healthy = Struct.new(:status, :severity) do
       def healthy? = status == :healthy
@@ -48,9 +48,8 @@ class MarketData::HealthReportPresenterTest < ActiveSupport::TestCase
     end.new(:failed, :error)
 
     assert_equal "Healthy", presenter.status_label(healthy)
-    assert_equal "✓", presenter.status_icon(healthy)
     assert_equal "text-leaf", presenter.status_class(healthy)
-    assert_equal "!", presenter.status_icon(failed)
+    assert_equal "Failed", presenter.status_label(failed)
     assert_equal "text-guava", presenter.status_class(failed)
   end
 
