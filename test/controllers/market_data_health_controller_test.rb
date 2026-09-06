@@ -11,6 +11,7 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", "Data health"
     assert_select "[role=status]"
+    assert_select "turbo-cable-stream-source[signed-stream-name]"
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
