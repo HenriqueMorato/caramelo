@@ -81,7 +81,9 @@ module MarketData
     end
 
     def self.canonical_target(target)
-      target.to_h.stringify_keys.transform_values { |value| value.is_a?(Symbol) ? value.to_s : value }
+      target.to_h.stringify_keys.transform_values do |value|
+        value.is_a?(Symbol) || value.is_a?(Integer) ? value.to_s : value
+      end
     end
 
     private_class_method :default_verifier, :fingerprint_for, :canonical_target

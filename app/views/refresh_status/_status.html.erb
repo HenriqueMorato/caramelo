@@ -8,7 +8,7 @@
 
 <div id="<%= RefreshStatus::Broadcaster::TARGET %>" class="<%= status.updating? || status.failed? || status.last_successful_refresh_at ? "block" : "hidden" %>" aria-live="polite">
   <% if status.updating? %>
-    <p class="pointer-events-auto relative inline-flex items-start gap-3 overflow-hidden rounded-2xl border border-caramel/25 bg-oat-2/95 px-4 py-3 text-left text-sm font-medium text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm" role="status">
+    <p class="pointer-events-none relative inline-flex items-start gap-3 overflow-hidden rounded-2xl border border-caramel/25 bg-oat-2/95 px-4 py-3 text-left text-sm font-medium text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm" role="status">
       <span class="mt-0.5 flex size-5 shrink-0 animate-spin items-center justify-center rounded-full border-2 border-caramel/25 border-t-caramel" aria-hidden="true"></span>
       <%= t("Market data updating") %>
       <% if status.progress_label %><span class="leading-5 text-muted">(<%= status.progress_label %>)</span><% end %>

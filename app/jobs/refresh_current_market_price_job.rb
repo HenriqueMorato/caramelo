@@ -45,8 +45,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     retry_scheduled = false
     return if batch_scope && !batch_active?(batch_scope, batch_run_id)
 
-    RefreshStatus::Tracker.perform(scope: batch_scope || self.class.refresh_scope(instrument),
-      preserve_progress: batch_scope.present?, run_id: batch_run_id) do
+    RefreshStatus::Tracker.perform(scope: self.class.refresh_scope(instrument), run_id: batch_run_id) do
       instrument_event(:attempted, instrument:)
       request_throttle.wait!(instrument:)
       market_price_service.refresh(instrument:, force:)

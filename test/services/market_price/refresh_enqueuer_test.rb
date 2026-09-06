@@ -17,7 +17,7 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     assert_equal %i[ refreshing enqueue ], events
   end
 
-  test "does not create a target status when a batch owns progress" do
+  test "assigns the batch run to the target status" do
     events = []
     broadcaster = fake_broadcaster(events:)
     job = Object.new
@@ -27,7 +27,9 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
       instrument: instruments(:petr4_bvmf), batch_scope: "batch", batch_run_id: "run"
     )
 
-    refute RefreshStatus::State.read("test_refresh:#{instruments(:petr4_bvmf).id}")
+    state = RefreshStatus::State.read("test_refresh:#{instruments(:petr4_bvmf).id}")
+    assert_equal "run", state.run_id
+    assert_equal "queued", state.status
   end
 
   test "passes lease details to a batch job" do

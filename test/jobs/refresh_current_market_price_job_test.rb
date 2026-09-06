@@ -239,6 +239,20 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal 1, state.processed_count
   end
 
+  test "completes the instrument state when refreshing through a batch" do
+    instrument = instruments(:petr4_bvmf)
+    batch = RefreshStatus::Tracker.enqueue(scope: "test_batch", total_count: 1)
+    RefreshStatus::Tracker.enqueue(scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument),
+      run_id: batch.run_id)
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| }
+
+    build_job(service:).perform(instrument, batch_scope: "test_batch", batch_run_id: batch.run_id)
+
+    state = RefreshStatus::State.read(RefreshCurrentMarketPriceJob.refresh_scope(instrument))
+    assert_equal "succeeded", state.status
+  end
+
   test "does not advance an already completed batch" do
     instrument = instruments(:petr4_bvmf)
     scope = "test_completed_market_price_batch"

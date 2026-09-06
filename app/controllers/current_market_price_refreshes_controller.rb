@@ -2,7 +2,13 @@ class CurrentMarketPriceRefreshesController < ApplicationController
   allow_unauthenticated_access
 
   def create
-    return head :too_many_requests unless manual_refresh.call
+    unless manual_refresh.call
+      return respond_with_status_toast(
+        t("market_data_health.show.Refresh throttled"),
+        status: :too_many_requests,
+        redirect_to: market_data_health_path
+      )
+    end
 
     flash.now[:notice] = t("notices.Market price refresh started")
 

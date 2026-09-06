@@ -19,6 +19,19 @@ class MarketData::ResetPreviewTest < ActiveSupport::TestCase
     refute_predicate verified, :expired?
   end
 
+  test "verifies a preview when the form submits record id as a string" do
+    target = MarketData::Target.new(kind: :current_price, record_id: @instrument.id,
+      provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier)
+    preview = MarketData::ResetPreview.create(target:, owner: users(:owner))
+    submitted_target = MarketData::Target.new(kind: :current_price, record_id: @instrument.id.to_s,
+      provider: target.provider)
+
+    verified = MarketData::ResetPreview.verify(token: preview.token, target: submitted_target,
+      owner: users(:owner))
+
+    assert_equal target.record_id.to_s, verified.target.record_id.to_s
+  end
+
   test "rejects a preview after the source fingerprint changes" do
     preview = MarketData::ResetPreview.create(target: @target, owner: users(:owner))
     DailyClosingPrice.create!(instrument: @instrument, trading_date: preview.range.begin, close_price: 1,

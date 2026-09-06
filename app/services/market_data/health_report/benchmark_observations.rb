@@ -22,14 +22,15 @@ module MarketData
         ).to_a
         coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: true)
         present = coverage.complete?
+        supported = MarketBenchmark::Importer.default.supports?(benchmark:)
         HealthReport::Entry.new(
           code: present ? :benchmark_data : :missing_benchmark_data,
           target: Target.new(kind: :benchmark_observations, record_id: benchmark.id), subject: benchmark,
-          status: present ? :healthy : coverage.partial? ? :partial : :missing,
+          status: present ? :healthy : supported ? coverage.partial? ? :partial : :missing : :unsupported,
           severity: present ? nil : :warning, label: subject_label(benchmark),
-          description: description(benchmark, coverage), observed_on: nil, fetched_at: nil,
+          description: description(benchmark, coverage, supported:), observed_on: nil, fetched_at: nil,
           covered_range: coverage.covered_range, missing_range: coverage.missing_range,
-          actions: present ? [] : [ :retry ]
+          actions: present || !supported ? [] : [ :retry ]
         )
       end
 
@@ -45,8 +46,9 @@ module MarketData
         end
       end
 
-      def description(benchmark, coverage)
+      def description(benchmark, coverage, supported:)
         return "#{benchmark.name} has stored observations." if coverage.complete?
+        return "#{benchmark.name} has no configured recovery provider." unless supported
 
         "#{benchmark.name} (#{benchmark.identifier}) is missing observations for #{format_ranges(coverage.missing_ranges)}."
       end
