@@ -100,7 +100,8 @@ module MarketData
 
     def call
       exchange_rates = CurrentExchangeRates.new(owner:, instruments:, service: current_exchange_rate_service).entries
-      entries = (instrument_entries + exchange_rates + benchmark_entries + performance_entries)
+      benchmarks = BenchmarkObservations.new(owner:, today:).entries
+      entries = (instrument_entries + exchange_rates + benchmarks + performance_entries)
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
@@ -124,28 +125,6 @@ module MarketData
         TradingCalendar.previous_business_day(today + 1.day)
       else
         TradingCalendar.previous_business_day(today)
-      end
-    end
-
-    def benchmark_entries
-      MarketBenchmark.find_each.map do |benchmark|
-        first_date = owner.trades.minimum(:traded_on) || historical_end_date
-        required_dates = TradingCalendar.weekdays_between(first_date, historical_end_date)
-        observations = benchmark.observations.where(
-          observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..historical_end_date)
-        ).to_a
-        coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: true)
-        present = coverage.complete?
-        entry_for(
-          code: present ? :benchmark_data : :missing_benchmark_data,
-          status: present ? :healthy : coverage.partial? ? :partial : :missing,
-          severity: present ? nil : :warning,
-          subject: benchmark,
-          description: present ? "#{benchmark.name} has stored observations." :
-            "#{benchmark.name} (#{benchmark.identifier}) is missing observations for #{format_ranges(coverage.missing_ranges)}.",
-          target: Target.new(kind: :benchmark_observations, record_id: benchmark.id),
-          actions: present ? [] : [ :retry ], coverage: coverage
-        )
       end
     end
 
