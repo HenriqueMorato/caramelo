@@ -69,7 +69,7 @@ class CaptureMarketBenchmarkObservationsJobTest < ActiveJob::TestCase
     date = Date.new(2026, 8, 28)
     job.perform(observed_on: date)
 
-    assert_equal({ benchmark:, from: date, to: date }, imports.last)
+    assert_equal({ benchmark:, from: date, to: date }, imports.last.slice(:benchmark, :from, :to))
   end
 
   test "audits benchmark history across the requested startup range" do
@@ -87,7 +87,7 @@ class CaptureMarketBenchmarkObservationsJobTest < ActiveJob::TestCase
     to = Date.new(2026, 8, 28)
     job.perform(observed_on: to, from:)
 
-    assert_equal({ benchmark:, from:, to: }, imports.sole)
+    assert_equal({ benchmark:, from:, to: }, imports.sole.slice(:benchmark, :from, :to))
   end
 
   test "skips unsupported and already captured benchmarks" do

@@ -8,7 +8,7 @@ class CaptureDailyClosingPricesJob < ApplicationJob
         next if DailyClosingPrice.exists?(instrument:, trading_date:, provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER)
 
         request_throttle.wait!(instrument:)
-        importer.call(instrument:, from: trading_date, to: trading_date)
+        importer.call(instrument:, from: trading_date, to: trading_date, fence: publication_fence(instrument:))
       rescue StandardError => error
         Rails.error.report(error, handled: true, context: { instrument_id: instrument.id, trading_date: })
         RefreshStatus::Tracker.record_failure(refresh, error)
@@ -30,5 +30,12 @@ class CaptureDailyClosingPricesJob < ApplicationJob
 
   def traded_instruments
     Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
+  end
+
+  def publication_fence(instrument:)
+    MarketData::PublicationFence.new(
+      target: MarketData::Target.new(kind: :daily_closing_prices, record_id: instrument.id,
+        provider: DailyClosingPrice::Providers::YahooFinance::IDENTIFIER)
+    )
   end
 end

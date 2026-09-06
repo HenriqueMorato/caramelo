@@ -19,7 +19,8 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
           base_currency: currency,
           quote_currency: reporting_currency,
           from: rate_date,
-          to: rate_date
+          to: rate_date,
+          fence: publication_fence(currency:)
         )
       rescue StandardError => error
         Rails.error.report(error, handled: true, context: { currency:, rate_date: })
@@ -46,5 +47,13 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
     Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
       .where.not(currency: reporting_currency).distinct
       .pluck(:currency)
+  end
+
+  def publication_fence(currency:)
+    MarketData::PublicationFence.new(
+      target: MarketData::Target.new(kind: :historical_exchange_rates,
+        base_currency: currency, quote_currency: reporting_currency,
+        provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER)
+    )
   end
 end
