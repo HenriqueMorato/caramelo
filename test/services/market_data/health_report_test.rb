@@ -61,14 +61,18 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
   test "reports healthy when all required records exist" do
     instrument = instruments(:voo_arcx)
-    DailyClosingPrice.create!(instrument:, trading_date: Date.new(2026, 9, 1), close_price: 620,
-      currency: instrument.currency, provider: "yahoo_finance", observed_at: Time.current)
-    HistoricalExchangeRate.create!(base_currency: "USD", quote_currency: "BRL", rate_date: Date.new(2026, 9, 1),
+    TradingCalendar.weekdays_between(Date.new(2026, 8, 12), Date.new(2026, 9, 1)).each do |date|
+      DailyClosingPrice.create!(instrument:, trading_date: date, close_price: 620,
+        currency: instrument.currency, provider: "yahoo_finance", observed_at: Time.current)
+    end
+    HistoricalExchangeRate.create!(base_currency: "USD", quote_currency: "BRL", rate_date: Date.new(2026, 8, 12),
       rate: 5, provider: "bcb", observed_at: Time.current, fetched_at: Time.current)
     benchmark = MarketBenchmark.create!(identifier: "HEALTHSP", name: "Health S&P", kind: :price, currency: "USD",
       provider: "yahoo_finance", provider_identifier: "^GSPC")
-    MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: Date.new(2026, 9, 1), value: 1,
-      currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    TradingCalendar.weekdays_between(Date.new(2026, 8, 12), Date.new(2026, 9, 1)).each do |date|
+      MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: date, value: 1,
+        currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    end
 
     report = MarketData::HealthReport.for(
       owner: users(:owner), current_market_price_service: CurrentPriceService.new,
@@ -77,6 +81,20 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     assert report.healthy?
     assert_empty report.issues
+  end
+
+  test "compacts missing coverage dates into ranges" do
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: (Date.new(2026, 9, 1)..Date.new(2026, 9, 7)).to_a,
+      observations: [
+        DailyClosingPrice.new(trading_date: Date.new(2026, 9, 1)),
+        DailyClosingPrice.new(trading_date: Date.new(2026, 9, 4))
+      ]
+    )
+
+    assert_equal [ Date.new(2026, 9, 2)..Date.new(2026, 9, 3), Date.new(2026, 9, 5)..Date.new(2026, 9, 7) ],
+      coverage.missing_ranges
+    assert_predicate coverage, :partial?
   end
 
   test "reports missing current prices and ignores same-currency exchange rates" do
