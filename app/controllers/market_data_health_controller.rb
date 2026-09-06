@@ -11,7 +11,7 @@ class MarketDataHealthController < ApplicationController
       next unless entry.quote_reset_needed?
       next unless entry.target.provider
 
-      [ entry.target.record_id, MarketData::ResetPreview.create(target: entry.target).token ]
+      [ entry.target.record_id, MarketData::ResetPreview.create(target: entry.target) ]
     end.to_h
     @backup = Backup::Presenter.new(
       catalog: Backup::Catalog.call,

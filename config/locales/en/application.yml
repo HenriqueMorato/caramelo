@@ -147,8 +147,10 @@ en:
       Refresh throttled: Refresh is limited to once every five minutes while automatic
         updates run in the background.
       Reset quote: Reset and refetch
-      Reset quote confirmation: Reset this quote and fetch a replacement? The current
-        value stays until a replacement succeeds.
+      Reset quote preview heading: Review quote replacement
+      Reset quote preview copy: The cached quote from %{from} through %{to} will be replaced after a fresh fetch. Your existing quote remains available until then.
+      Reset quote preview expires: Preview expires %{time}.
+      Confirm reset quote: Replace and refetch
       Retry: Retry
       Source: Source
       Status: Status
