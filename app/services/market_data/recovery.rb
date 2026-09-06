@@ -8,6 +8,7 @@ module MarketData
       def queued? = status == :queued
       def throttled? = status == :throttled
       def unsupported? = status == :unsupported
+      def already_running? = status == :already_running
     end
 
     HANDLERS = {
@@ -42,23 +43,31 @@ module MarketData
       handler = handlers[target.kind]
       return result(:unsupported) unless handler
 
+      lease = RecoveryLease.acquire(target:, cache:)
+      return result(:already_running) unless lease
+
       token = acquire_cooldown
-      return result(:throttled) unless token
+      unless token
+        RecoveryLease.release(target:, token: lease.token, cache:)
+        return result(:throttled)
+      end
 
       batch = RefreshStatus::Tracker.enqueue(scope: batch_scope, total_count: 1)
       handler_result = handler.call(
-        target:, range:, batch_scope:, batch_run_id: batch.run_id, owner:
+        target:, range:, batch_scope:, batch_run_id: batch.run_id, owner:, lease_token: lease.token
       )
 
       if handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED
         RefreshStatus::Tracker.advance(batch)
         release_cooldown(token)
+        RecoveryLease.release(target:, token: lease.token, cache:)
         return result(handler_result.nil? ? :unsupported : :queued, batch:)
       end
 
       result(:queued, batch:)
     rescue StandardError => error
       release_cooldown(token)
+      RecoveryLease.release(target:, token: lease&.token, cache:) if lease
       RefreshStatus::Tracker.record_failure(batch, error) if batch
       raise
     end

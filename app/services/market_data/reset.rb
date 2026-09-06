@@ -6,18 +6,20 @@ module MarketData
       def busy? = status == :busy
     end
 
-    def self.call(target:, owner: User.owner, cache: Rails.cache)
-      new(target:, owner:, cache:).call
+    def self.call(target:, preview_token: nil, owner: User.owner, cache: Rails.cache)
+      new(target:, preview_token:, owner:, cache:).call
     end
 
-    def initialize(target:, owner:, cache:)
+    def initialize(target:, preview_token:, owner:, cache:)
       @target = target
+      @preview_token = preview_token
       @owner = owner
       @cache = cache
     end
 
     def call
       return result(:unsupported) unless target.kind == :current_price
+      ResetPreview.verify(token: preview_token, target:, owner:) if preview_token
 
       instrument = Instrument.find(target.record_id)
       raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
@@ -33,7 +35,7 @@ module MarketData
 
     private
 
-    attr_reader :target, :owner, :cache
+    attr_reader :target, :preview_token, :owner, :cache
 
     def result(status)
       Result.new(status:, target:)

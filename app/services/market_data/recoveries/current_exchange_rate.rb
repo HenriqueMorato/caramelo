@@ -1,7 +1,7 @@
 module MarketData
   module Recoveries
     class CurrentExchangeRate
-      def self.call(target:, range:, batch_scope:, batch_run_id:, owner:)
+      def self.call(target:, range:, batch_scope:, batch_run_id:, owner:, lease_token: nil)
         target_batch = RefreshStatus::Tracker.enqueue(scope: target.scope, total_count: 1)
         job = RecoverCurrentExchangeRateJob.perform_later(
           base_currency: target.base_currency,
@@ -9,7 +9,7 @@ module MarketData
           target_scope: target.scope,
           target_run_id: target_batch.run_id,
           batch_scope:,
-          batch_run_id:
+          batch_run_id:, lease_token:, lease_target: target.to_h
         )
         raise ActiveJob::EnqueueError, "current exchange-rate recovery could not be enqueued" unless job
 

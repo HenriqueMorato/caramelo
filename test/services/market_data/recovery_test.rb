@@ -28,7 +28,7 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
 
     result = MarketData::Recovery.call(target: @target, cache: @cache, handlers:)
 
-    assert_predicate result, :throttled?
+    assert_predicate result, :already_running?
     assert_equal 1, @calls.size
     refute MarketData::Recovery.available?(target: @target, cache: @cache)
   end

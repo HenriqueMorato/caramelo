@@ -7,6 +7,12 @@ class MarketDataHealthController < ApplicationController
     @market_price_refresh_available = MarketPrice::ManualRefresh.available?
     @status_filter = params[:status].presence_in(%w[all attention healthy]) || "all"
     @entries = filtered_entries
+    @reset_previews = @entries.filter_map do |entry|
+      next unless entry.quote_reset_needed?
+      next unless entry.target.provider
+
+      [ entry.target.record_id, MarketData::ResetPreview.create(target: entry.target).token ]
+    end.to_h
     @backup = Backup::Presenter.new(
       catalog: Backup::Catalog.call,
       state: Backup::State.current
