@@ -5,10 +5,10 @@ module Backups
     def create
       directory = Backup::Locator.resolve(params.expect(:identifier))
       Backup::Verifier.call(directory:)
-      redirect_to market_data_health_path(anchor: "backups"), notice: t("backups.verification.ready")
+      respond_with_toast(t("backups.verification.ready"), redirect_to: market_data_health_path(anchor: "backups"))
     rescue Backup::Error => error
       Rails.error.report(error, handled: true)
-      redirect_to market_data_health_path(anchor: "backups"), alert: t("backups.verification.failed")
+      respond_with_toast(t("backups.verification.failed"), alert: true, redirect_to: market_data_health_path(anchor: "backups"))
     end
   end
 end

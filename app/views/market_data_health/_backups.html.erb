@@ -9,7 +9,7 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <% unless backup.active? %>
-        <%= button_to t("backups.Create backup"), backups_creation_path, class: "ui-button ui-button-secondary", form_class: "shrink-0" %>
+        <%= button_to t("backups.Create backup"), backups_creation_path, class: "ui-button ui-button-secondary", form_class: "shrink-0", form: { data: { turbo_stream: true } } %>
       <% end %>
       <%= link_to t("backups.Export trades"), trade_export_path(format: :csv), class: "ui-button ui-button-secondary" %>
     </div>
@@ -45,7 +45,7 @@
               <td class="py-4 pr-4 text-sm text-muted"><%= number_to_human_size(entry.primary_size + entry.ledger_size) %></td>
               <td class="py-4 text-right">
                 <% if entry.ready? %>
-                  <%= button_to t("backups.Verify"), backups_verifications_path, params: { identifier: entry.identifier }, class: "ui-button ui-button-secondary", form_class: "inline-flex" %>
+                  <%= button_to t("backups.Verify"), backups_verifications_path, params: { identifier: entry.identifier }, class: "ui-button ui-button-secondary", form_class: "inline-flex", form: { data: { turbo_stream: true } } %>
                 <% end %>
               </td>
             </tr>

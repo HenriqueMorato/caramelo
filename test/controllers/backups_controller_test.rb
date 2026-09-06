@@ -24,6 +24,20 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     refute_includes flash[:alert], "database.sqlite3"
   end
 
+  test "replaces the local backup toast through Turbo without leaving the page" do
+    with_stubbed_method(Backup::CreationRequest, :call, -> { :queued }) do
+      post backups_creation_url, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_includes response.media_type, "text/vnd.turbo-stream.html"
+    assert_includes response.body, "toast-feedback"
+    assert_includes response.body, "toast"
+    assert_equal 1, response.body.scan('class="toast ').length
+    assert_includes response.body, "Backup creation started in the background."
+    refute response.redirect?
+  end
+
   test "verifies a signed backup identifier and returns to the backup section" do
     directory = Pathname("/tmp/backup-run")
     verified_directory = nil
@@ -45,6 +59,30 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to "#{market_data_health_path}#backups"
     refute_includes flash[:alert], "database.sqlite3"
+  end
+
+  test "replaces the verification toast through Turbo without leaving the page" do
+    with_stubbed_method(Backup::Locator, :resolve, ->(_identifier) { Pathname("/tmp/backup-run") }) do
+      with_stubbed_method(Backup::Verifier, :call, ->(**) { true }) do
+        post backups_verifications_url, params: { identifier: "signed" }, as: :turbo_stream
+      end
+    end
+
+    assert_response :success
+    assert_includes response.body, "The backup passed its integrity checks."
+    refute response.redirect?
+  end
+
+  test "keeps the backup feedback target available for repeated verification" do
+    with_stubbed_method(Backup::Locator, :resolve, ->(_identifier) { Pathname("/tmp/backup-run") }) do
+      with_stubbed_method(Backup::Verifier, :call, ->(**) { true }) do
+        post backups_verifications_url, params: { identifier: "signed" }, as: :turbo_stream
+        post backups_verifications_url, params: { identifier: "signed" }, as: :turbo_stream
+      end
+    end
+
+    assert_response :success
+    assert_includes response.body, "toast-feedback"
   end
 
   private
