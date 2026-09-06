@@ -10,6 +10,7 @@ module RefreshStatus
         partial: "refresh_status/status",
         locals: { status: Presenter.for, broadcast: true }
       )
+      MarketData::HealthReportBroadcaster.refresh
     end
   end
 end
