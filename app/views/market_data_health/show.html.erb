@@ -77,7 +77,7 @@
                 kind: entry.target.kind,
                 record_id: entry.target.record_id,
                 provider: entry.target.provider
-                  } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
+                  }, preview_token: @reset_previews[entry.target.record_id] }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
                   data: { turbo_confirm: t(".Reset quote confirmation") } %>
               <% end %>
             </div>

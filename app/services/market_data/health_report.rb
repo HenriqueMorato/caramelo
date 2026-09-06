@@ -122,25 +122,25 @@ module MarketData
         entry_for(
           code: :updating_current_price, status: :updating, severity: nil, subject: instrument,
           description: "#{instrument.ticker} is being refreshed.",
-          target: Target.new(kind: :current_price, record_id: instrument.id), actions: []
+          target: current_price_target(instrument), actions: []
         )
       elsif lookup.nil? || lookup.missing?
         entry_for(
           code: :missing_current_price, status: :missing, severity: :error, subject: instrument,
           description: "#{instrument.ticker} has no current market price available.",
-          target: Target.new(kind: :current_price, record_id: instrument.id)
+          target: current_price_target(instrument)
         )
       elsif lookup.stale?
         entry_for(
           code: :stale_current_price, status: :stale, severity: :warning, subject: instrument,
           description: "#{instrument.ticker} has a stale current market price; refresh it to update valuation.",
-          target: Target.new(kind: :current_price, record_id: instrument.id)
+          target: current_price_target(instrument)
         )
       else
         entry_for(
           code: :current_price, status: :healthy, severity: nil, subject: instrument,
           description: "#{instrument.ticker} has a current market price.",
-          target: Target.new(kind: :current_price, record_id: instrument.id), actions: []
+          target: current_price_target(instrument), actions: []
         )
       end
     end
@@ -168,6 +168,13 @@ module MarketData
       return [] if trade_dates.empty?
 
       TradingCalendar.weekdays_between(trade_dates.first, historical_end_date)
+    end
+
+    def current_price_target(instrument)
+      Target.new(
+        kind: :current_price, record_id: instrument.id,
+        provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
+      )
     end
 
     def daily_close_description(instrument, coverage)
