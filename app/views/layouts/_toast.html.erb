@@ -1,0 +1,8 @@
+<%# locals: (message:, alert: false) %>
+
+<% if message %>
+  <p data-controller="notification" data-notification-duration-value="3000" class="toast pointer-events-auto relative inline-flex max-w-[calc(100vw-2rem)] items-start gap-3 overflow-hidden rounded-2xl border <%= alert ? "border-guava/25" : "border-leaf/25" %> bg-oat-2/95 px-4 py-3 text-sm font-medium text-coffee shadow-[0_12px_30px_-14px_rgb(46_33_28_/_0.45)] backdrop-blur-sm motion-safe:animate-[toast-in_180ms_cubic-bezier(0.23,1,0.32,1)]" role="<%= alert ? "alert" : "status" %>">
+    <span><%= message %></span>
+    <span class="absolute inset-x-0 bottom-0 h-0.5 origin-left <%= alert ? "bg-guava" : "bg-leaf" %> motion-safe:animate-[toast-progress_3s_linear_forwards]" aria-hidden="true"></span>
+  </p>
+<% end %>

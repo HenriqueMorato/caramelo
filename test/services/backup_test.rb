@@ -424,10 +424,12 @@ class BackupTest < ActiveSupport::TestCase
         raise "queue unavailable"
       end
     end
-    now = Time.zone.parse("2026-09-06 12:00:00")
+    now = Time.zone.parse("2099-12-31 12:00:00")
 
     assert_raises(RuntimeError) { Backup::Scheduler.enqueue_if_due(now:, creator:, job:) }
     refute Rails.cache.exist?("#{Backup::Scheduler::KEY_PREFIX}#{now.to_date.iso8601}")
+  ensure
+    Rails.cache.delete("#{Backup::Scheduler::KEY_PREFIX}#{now.to_date.iso8601}")
   end
 
   test "backup job delegates creation" do
@@ -439,6 +441,18 @@ class BackupTest < ActiveSupport::TestCase
     assert @destination.children.any? { |path| path.directory? }
   ensure
     ENV["LOCALFOLIO_BACKUP_DIRECTORY"] = previous
+  end
+
+  test "backup job records failure before re-raising creation errors" do
+    error = RuntimeError.new("backup unavailable")
+
+    with_stubbed_method(Backup::Creator, :call, ->(**) { raise error }) do
+      assert_raises(RuntimeError) { CreateBackupJob.perform_now }
+    end
+
+    state = Backup::State.current
+    assert state.failed?
+    assert_equal "RuntimeError", state.error
   end
 
   private

@@ -4,6 +4,7 @@ en:
   All instruments: "← All instruments"
   Average cost: Average cost
   Back: "← Back"
+  Backups & exports: Backups & exports
   Buy: Buy
   Closed: Closed
   Cost basis: Cost basis
@@ -11,6 +12,7 @@ en:
   Current price: Current price
   Dashboard: Dashboard
   Data health: Data health
+  Data protection: Data protection
   Institutions: Institutions
   Instruments: Instruments
   LocalFolio: caramelo
@@ -63,6 +65,47 @@ en:
     Password reset link expired: Password reset link is invalid or has expired.
     Passwords did not match: Passwords did not match.
     Try again later: Try again later.
+  backups:
+    Actions: Actions
+    Backup list: Retained backups
+    Create backup: Create backup
+    Created: Created
+    Empty: No verified backup has been retained yet.
+    Export trades: Export trades (CSV)
+    Intro: Keep a verified local copy of your durable records and export trades for
+      analysis in Google Sheets.
+    Schedule: 'Automatic schedule: %{schedule}'
+    Size: Size
+    Status: Status
+    Verify: Verify
+    creation:
+      already_queued: A backup is already queued or running.
+      failed: The backup could not be queued. Try again shortly.
+      not_due: A verified backup is already available for today.
+      queued: Backup creation started in the background.
+    status_explanations:
+      completed: The latest backup completed successfully.
+      failed: The latest backup failed. The previous verified copy is still retained.
+      interrupted: The previous backup worker stopped before completing.
+      invalid: This retained backup failed verification and is not restore-ready.
+      missing: No backup has been retained yet.
+      queued: A backup is waiting to run.
+      ready: A verified backup is available for today.
+      running: A backup is being created now.
+      stale: The latest verified backup is from an earlier day.
+    statuses:
+      completed: Completed
+      failed: Failed
+      interrupted: Interrupted
+      invalid: Invalid
+      missing: Not available
+      queued: Queued
+      ready: Ready
+      running: Running
+      stale: Stale
+    verification:
+      failed: The backup could not be verified.
+      ready: The backup passed its integrity checks.
   confirmations:
     Delete record: Delete %{record}?
     Delete trade: Delete this trade?

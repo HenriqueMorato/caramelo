@@ -67,7 +67,11 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
 
   test "releases cooldown and records batch failure when a handler raises" do
     failure = RuntimeError.new("queue unavailable")
-    handler = ->(**) { raise failure }
+    batch_scope = nil
+    handler = lambda do |**arguments|
+      batch_scope = arguments.fetch(:batch_scope)
+      raise failure
+    end
 
     assert_raises(RuntimeError) do
       MarketData::Recovery.call(
@@ -76,7 +80,7 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     end
 
     assert MarketData::Recovery.available?(target: @target, cache: @cache)
-    state = RefreshStatus::State.latest_failed
+    state = RefreshStatus::State.read(batch_scope)
     assert_predicate state, :failed?
     assert_equal "queue unavailable", state.error_message
   end

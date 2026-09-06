@@ -7,6 +7,10 @@ class MarketDataHealthController < ApplicationController
     @market_price_refresh_available = MarketPrice::ManualRefresh.available?
     @status_filter = params[:status].presence_in(%w[all attention healthy]) || "all"
     @entries = filtered_entries
+    @backup = Backup::Presenter.new(
+      catalog: Backup::Catalog.call,
+      state: Backup::State.current
+    )
   end
 
   private

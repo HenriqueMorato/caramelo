@@ -75,4 +75,14 @@ module Backup
   Verification = Data.define(:directory, :record_counts, :verified_at)
   Restore = Data.define(:directory, :artifact, :restored_path, :verification)
   PruneResult = Data.define(:deleted, :skipped, :dry_run)
+
+  Entry = Data.define(
+    :identifier, :created_at, :verified_at, :primary_size, :ledger_size,
+    :record_counts, :status
+  ) do
+    def ready? = status == :ready
+    def invalid? = status == :invalid
+  end
+
+  CatalogResult = Data.define(:entries, :latest, :status, :retention_policy, :schedule)
 end
