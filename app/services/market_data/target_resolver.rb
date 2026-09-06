@@ -12,7 +12,7 @@ module MarketData
     def call
       target = Target.new(**attributes.slice(:kind, :record_id, :base_currency, :quote_currency))
       validate_owner_scope!(target)
-      target
+      target_with_provider(target)
     end
 
     private
@@ -53,6 +53,18 @@ module MarketData
       return if target.record_id.nil? || target.record_id == owner.id
 
       raise ActiveRecord::RecordNotFound
+    end
+
+    def target_with_provider(target)
+      provider = case target.kind
+      when :current_price, :daily_closing_prices
+        MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
+      when :current_exchange_rate, :historical_exchange_rates
+        MarketData::YahooFinance::FX_CONFIGURATION.identifier
+      when :benchmark_observations
+        MarketBenchmark.find(target.record_id).provider
+      end
+      Target.new(**target.to_h, provider:)
     end
   end
 end

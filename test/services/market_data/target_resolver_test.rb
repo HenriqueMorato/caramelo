@@ -58,7 +58,7 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
       owner: users(:owner)
     )
 
-    assert_nil target.provider
+    assert_equal MarketData::YahooFinance::FX_CONFIGURATION.identifier, target.provider
   end
 
   test "resolves a benchmark target" do
