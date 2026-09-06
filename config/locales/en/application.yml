@@ -124,6 +124,7 @@ en:
     show:
       Actions: Actions
       Checked at: Checked at %{time}
+      Confirm reset quote: Replace and refetch
       Details: Details
       Entry count:
         one: 1 source checked
@@ -147,10 +148,11 @@ en:
       Refresh throttled: Refresh is limited to once every five minutes while automatic
         updates run in the background.
       Reset quote: Reset and refetch
-      Reset quote preview heading: Review quote replacement
-      Reset quote preview copy: The cached quote from %{from} through %{to} will be replaced after a fresh fetch. Your existing quote remains available until then.
+      Reset quote preview copy: The cached quote from %{from} through %{to} will be
+        replaced after a fresh fetch. Your existing quote remains available until
+        then.
       Reset quote preview expires: Preview expires %{time}.
-      Confirm reset quote: Replace and refetch
+      Reset quote preview heading: Review quote replacement
       Retry: Retry
       Source: Source
       Status: Status
