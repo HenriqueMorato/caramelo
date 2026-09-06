@@ -43,7 +43,7 @@
     <p class="mt-2 text-sm text-muted"><%= @report.healthy? ? t(".Healthy explanation") : t(".Recovery explanation") %></p>
 
     <div class="mt-5 overflow-x-auto">
-      <table class="w-full min-w-[42rem] text-left" aria-label="<%= t(".Issue list") %>">
+      <table class="w-full text-left" aria-label="<%= t(".Issue list") %>">
         <thead class="border-b border-coffee/10 text-xs font-semibold uppercase tracking-wide text-muted">
           <tr>
             <th scope="col" class="pb-3 pr-4"><%= t(".Source") %></th>
@@ -56,12 +56,13 @@
       <% @entries.each do |entry| %>
         <% status_class = entry.healthy? ? "text-leaf" : entry.severity == :error ? "text-guava" : "text-caramel-deep" %>
         <tr>
-          <th scope="row" class="py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
-          <td class="py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status %></td>
-          <td class="py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
-          <td class="py-4 align-top text-right">
+          <th scope="row" class="max-w-[12rem] break-words py-4 pr-4 align-top font-semibold text-coffee"><%= entry.label %></th>
+          <td class="whitespace-nowrap py-4 pr-4 align-top text-xs font-semibold uppercase tracking-wide <%= status_class %>"><%= entry.status.to_s.humanize %></td>
+          <td class="break-words py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
+          <td class="whitespace-nowrap py-4 align-top text-right">
             <div class="flex justify-end gap-2">
               <% if entry.actionable? %>
+                <% range_params = entry.missing_range ? { from: entry.missing_range.begin.iso8601, to: entry.missing_range.end.iso8601 } : {} %>
                 <%= button_to t(".Retry"), market_data_recoveries_path,
               params: { target: {
                 kind: entry.target.kind,
@@ -69,7 +70,7 @@
                 base_currency: entry.target.base_currency,
                 quote_currency: entry.target.quote_currency,
                 provider: entry.target.provider
-                } }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
+                }.merge(range_params) }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0" %>
               <% end %>
               <% if entry.quote_reset_needed? %>
                 <%= button_to t(".Reset quote"), market_data_recovery_path(entry.target.record_id), method: :delete,

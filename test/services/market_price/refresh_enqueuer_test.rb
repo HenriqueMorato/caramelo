@@ -30,6 +30,19 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     refute RefreshStatus::State.read("test_refresh:#{instruments(:petr4_bvmf).id}")
   end
 
+  test "passes lease details to a batch job" do
+    events = []
+    job = Object.new
+    job_class = fake_job_class(events:, result: job)
+
+    MarketPrice::RefreshEnqueuer.new(broadcaster: fake_broadcaster(events:), job_class:).enqueue(
+      instrument: instruments(:petr4_bvmf), batch_scope: "batch", batch_run_id: "run",
+      lease_token: "lease", lease_target: { kind: :current_price, record_id: 1 }
+    )
+
+    assert_equal :enqueue, events.last
+  end
+
   test "restores the current state when enqueueing fails" do
     events = []
     broadcaster = fake_broadcaster(events:)
@@ -119,7 +132,7 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
   def fake_job_class(events:, result:)
     Object.new.tap do |job_class|
       job_class.define_singleton_method(:refresh_scope) { |instrument| "test_refresh:#{instrument.id}" }
-      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false, batch_scope: nil, batch_run_id: nil|
+      job_class.define_singleton_method(:enqueue_for) do |instrument:, force: false, batch_scope: nil, batch_run_id: nil, **|
         events << :enqueue
         result
       end

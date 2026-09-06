@@ -54,6 +54,45 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert MarketData::Recovery.available?(target: @target, cache: @cache)
   end
 
+  test "returns throttled and releases its lease when cooldown is taken" do
+    cache = ActiveSupport::Cache::MemoryStore.new
+    cache.write(MarketData::Recovery.cooldown_key(@target), "other-worker")
+
+    result = MarketData::Recovery.call(
+      target: @target, cache:, handlers: { current_price: @handler }
+    )
+
+    assert_predicate result, :throttled?
+    assert_nil MarketData::RecoveryLease.current(target: @target, cache:)
+  end
+
+  test "does not release a cooldown without its owner token" do
+    service = MarketData::Recovery.new(target: @target, range: nil, owner: users(:owner), cache: @cache,
+      handlers: { current_price: @handler })
+    assert_nil service.send(:release_cooldown, nil)
+  end
+
+  test "does not release a lease when lease acquisition itself fails" do
+    failure = RuntimeError.new("lease backend unavailable")
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(MarketData::RecoveryLease, :acquire, ->(**) { raise failure }) do
+        MarketData::Recovery.call(target: @target, cache: @cache, handlers: { current_price: @handler })
+      end
+    end
+  end
+
+  test "handles an exception while reporting an already-running lease" do
+    failure = RuntimeError.new("result failed")
+    service = MarketData::Recovery.new(target: @target, range: nil, owner: users(:owner), cache: @cache,
+      handlers: { current_price: @handler })
+    service.define_singleton_method(:result) { |*| raise failure }
+
+    assert_raises(RuntimeError) do
+      with_stubbed_method(MarketData::RecoveryLease, :acquire, ->(**) { nil }) { service.call }
+    end
+  end
+
   test "completes the batch when current-price work is coalesced" do
     handler = ->(**) { RefreshCurrentMarketPriceJob::COALESCED }
 

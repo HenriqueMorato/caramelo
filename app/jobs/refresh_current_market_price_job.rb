@@ -70,7 +70,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     Rails.cache.delete(self.class.deduplication_key(instrument)) unless retry_scheduled
     broadcast_current(instrument)
     advance_batch(batch_scope, batch_run_id) if batch_scope && !retry_scheduled
-    release_lease(lease_token, lease_target)
+    release_lease(lease_token, lease_target) unless retry_scheduled
   end
 
   private

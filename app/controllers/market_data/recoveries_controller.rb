@@ -10,6 +10,8 @@ module MarketData
         head :too_many_requests
       elsif result.unsupported?
         head :unprocessable_entity
+      elsif result.already_running?
+        head :conflict
       else
         redirect_to market_data_health_path, notice: "Market data recovery started."
       end

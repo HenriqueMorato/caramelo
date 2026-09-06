@@ -2,7 +2,8 @@ module MarketData
   # A short-lived distributed lease prevents duplicate recovery jobs for one
   # target while allowing unrelated instruments and pairs to proceed.
   class RecoveryLease
-    TTL = 30.minutes
+    # Keep the lease just beyond the refresh-state interruption window.
+    TTL = RefreshStatus::State::ACTIVE_TIMEOUT + 1.minute
     PREFIX = "localfolio:market_data:recovery_lease"
 
     Lease = Data.define(:target, :token, :expires_at) do

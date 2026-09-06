@@ -30,6 +30,20 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_predicate cache.read(instrument: @instrument, provider: "yahoo_finance"), :fresh?
   end
 
+  test "verifies a supplied reset preview token" do
+    verified = false
+    with_stubbed_method(MarketData::ResetPreview, :verify, ->(**) { verified = true }) do
+      enqueuer = Object.new
+      enqueuer.define_singleton_method(:enqueue) { |**| :queued_job }
+      with_stubbed_method(MarketPrice::RefreshEnqueuer, :new, -> { enqueuer }) do
+        result = MarketData::Reset.call(target: @target, preview_token: "signed", cache: @cache)
+        assert_predicate result, :queued?
+      end
+    end
+
+    assert verified
+  end
+
   test "does not clear unsupported target kinds" do
     target = MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id)
 

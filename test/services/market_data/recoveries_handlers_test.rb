@@ -3,11 +3,30 @@ require "test_helper"
 class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
   Batch = Struct.new(:scope, :run_id)
 
+  class JobSupportProbe
+    include MarketData::Recoveries::JobSupport
+
+    def run(**options, &block)
+      run_target(**options, &block)
+    end
+  end
+
   setup do
     Rails.cache.clear
     @owner = users(:owner)
     @instrument = instruments(:voo_arcx)
     @batch = Batch.new("batch", "run")
+  end
+
+  test "job support releases a supplied lease after completing" do
+    target = MarketData::Target.new(kind: :current_price, record_id: @instrument.id)
+    released = []
+    with_stubbed_method(MarketData::RecoveryLease, :release, ->(**arguments) { released << arguments }) do
+      JobSupportProbe.new.run(target_scope: "probe", target_run_id: nil, batch_scope: nil, batch_run_id: nil,
+        lease_token: "lease", lease_target: target.to_h) { }
+    end
+
+    assert_equal "lease", released.sole.fetch(:token)
   end
 
   test "queues daily closing price recovery with default range" do

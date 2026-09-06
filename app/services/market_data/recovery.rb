@@ -67,7 +67,7 @@ module MarketData
       result(:queued, batch:)
     rescue StandardError => error
       release_cooldown(token)
-      RecoveryLease.release(target:, token: lease&.token, cache:) if lease
+      RecoveryLease.release(target:, token: lease.token, cache:) if lease
       RefreshStatus::Tracker.record_failure(batch, error) if batch
       raise
     end

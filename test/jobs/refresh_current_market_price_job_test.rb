@@ -128,6 +128,50 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert Rails.cache.exist?(RefreshCurrentMarketPriceJob.deduplication_key(instrument))
   end
 
+  test "retains a recovery lease while a provider retry is scheduled" do
+    instrument = instruments(:petr4_bvmf)
+    failure = MarketPrice::ProviderFailure.new(
+      provider_identifier: "yahoo_finance", message: "rate limited",
+      cause: MarketData::YahooFinance::RateLimited.new(status: 429, headers: { "retry-after" => "60" })
+    )
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise failure }
+    job = build_job(service:)
+    job.define_singleton_method(:retry_job) { |**| }
+    job.define_singleton_method(:retry_random) { 0 }
+    released = false
+    job.define_singleton_method(:release_lease) { |*, **| released = true }
+
+    job.perform(instrument, lease_token: "lease", lease_target: { kind: "current_price", record_id: instrument.id })
+
+    refute released
+  end
+
+  test "releases a supplied recovery lease after a successful refresh" do
+    instrument = instruments(:petr4_bvmf)
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| }
+    released = []
+    job = build_job(service:)
+    job.define_singleton_method(:release_lease) { |token, target| released << [ token, target ] }
+
+    job.perform(instrument, lease_token: "lease", lease_target: { kind: "current_price", record_id: instrument.id })
+
+    assert_equal [ [ "lease", { kind: "current_price", record_id: instrument.id } ] ], released
+  end
+
+  test "releases a lease through the job's release helper" do
+    instrument = instruments(:petr4_bvmf)
+    released = []
+    with_stubbed_method(MarketData::RecoveryLease, :release, ->(**arguments) { released << arguments }) do
+      build_job(service: Object.new).send(
+        :release_lease, "lease", { "kind" => "current_price", "record_id" => instrument.id }
+      )
+    end
+
+    assert_equal "lease", released.sole.fetch(:token)
+  end
+
   test "reports broadcast failures without failing the job" do
     instrument = instruments(:petr4_bvmf)
     failure = RuntimeError.new("broadcast unavailable")

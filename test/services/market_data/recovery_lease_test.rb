@@ -24,4 +24,12 @@ class MarketData::RecoveryLeaseTest < ActiveSupport::TestCase
     MarketData::RecoveryLease.release(target: @target, token: lease.token)
     assert_nil MarketData::RecoveryLease.current(target: @target)
   end
+
+  test "ignores malformed cached lease payloads" do
+    cache = ActiveSupport::Cache::MemoryStore.new
+    key = MarketData::RecoveryLease.send(:key, @target)
+    cache.write(key, { token: "token", expires_at: "not-a-time" })
+
+    assert_nil MarketData::RecoveryLease.current(target: @target, cache:)
+  end
 end
