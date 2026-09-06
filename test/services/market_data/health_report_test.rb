@@ -81,6 +81,22 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     refute report.entries.any? { |entry| entry.subject == "BRL" && entry.code == :missing_exchange_rate }
   end
 
+  test "normalizes weekend trades to the prior business day for FX history" do
+    owner = users(:owner)
+    instrument = Instrument.create!(ticker: "EUNL", exchange: "XETR", name: "European ETF", currency: "EUR")
+    saturday = Date.new(2026, 8, 15)
+    owner.trades.create!(instrument:, institution: institutions(:owner_xp), side: :buy,
+      traded_on: saturday, quantity: 1, unit_price: 10, currency: "EUR")
+    HistoricalExchangeRate.create!(base_currency: "EUR", quote_currency: "BRL", rate_date: saturday - 1.day,
+      rate: 6, provider: "yahoo_finance", observed_at: Time.current, fetched_at: Time.current)
+
+    report = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new)
+
+    entry = report.entries.find { |candidate| candidate.subject == "EUR" && candidate.code == :exchange_rate }
+    assert_equal :healthy, entry.status
+  end
+
   test "labels instruments and benchmarks without exposing record inspection" do
     instrument = instruments(:voo_arcx)
     benchmark = MarketBenchmark.create!(identifier: "HEALTHSP", name: "Health S&P", kind: :price, currency: "USD",

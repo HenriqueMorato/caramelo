@@ -122,12 +122,13 @@ module MarketData
       currencies = owner.trades.distinct.pluck(:currency)
       reporting_currency = owner.reporting_currency
       currencies.map do |currency|
-        required_dates = owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on)
+        required_dates = historical_rate_dates(currency)
+        query_range = HistoricalObservationWindow.for(required_dates.min).begin..required_dates.max
         observations = HistoricalExchangeRate.where(
-          base_currency: currency, quote_currency: reporting_currency, rate_date: required_dates
+          base_currency: currency, quote_currency: reporting_currency, rate_date: query_range
         ).to_a
         inverse_observations = HistoricalExchangeRate.where(
-          base_currency: reporting_currency, quote_currency: currency, rate_date: required_dates
+          base_currency: reporting_currency, quote_currency: currency, rate_date: query_range
         ).to_a
         coverage = if currency == reporting_currency
           CoverageCalculator.for(
@@ -154,6 +155,12 @@ module MarketData
           actions: present ? [] : [ :retry ], coverage: coverage
         )
       end
+    end
+
+    def historical_rate_dates(currency)
+      owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on).map do |date|
+        TradingCalendar.weekend?(date) ? TradingCalendar.previous_business_day(date + 1.day) : date
+      end.uniq
     end
 
     def current_exchange_rate_entries
