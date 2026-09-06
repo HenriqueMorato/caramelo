@@ -1,0 +1,58 @@
+<%# locals: (backup:) %>
+
+<section id="backups" class="scroll-mt-8 rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" aria-labelledby="backups-heading">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="ui-eyebrow"><%= t("Data protection") %></p>
+      <h2 id="backups-heading" class="mt-1 text-2xl font-semibold text-coffee"><%= t("Backups & exports") %></h2>
+      <p class="mt-2 max-w-2xl text-sm text-muted"><%= t("backups.Intro") %></p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <% unless backup.active? %>
+        <%= button_to t("backups.Create backup"), backups_creation_path, class: "ui-button ui-button-secondary", form_class: "shrink-0" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="mt-6 rounded-xl border border-coffee/10 bg-white/45 p-4" role="status" aria-live="polite">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <p class="font-semibold text-coffee"><%= t("backups.statuses.#{backup.status_key}") %></p>
+      <% if backup.latest %>
+        <p class="text-sm text-muted"><%= l(backup.latest.created_at, format: :short) %></p>
+      <% end %>
+    </div>
+    <p class="mt-1 text-sm text-muted"><%= t("backups.status_explanations.#{backup.status_key}") %></p>
+    <p class="mt-2 text-xs text-muted"><%= t("backups.Schedule", schedule: backup.schedule) %></p>
+  </div>
+
+  <% if backup.entries.any? %>
+    <div class="mt-6 overflow-x-auto">
+      <table class="w-full min-w-[42rem] text-left" aria-label="<%= t("backups.Backup list") %>">
+        <thead class="border-b border-coffee/10 text-xs font-semibold uppercase tracking-wide text-muted">
+          <tr>
+            <th scope="col" class="pb-3 pr-4"><%= t("backups.Created") %></th>
+            <th scope="col" class="pb-3 pr-4"><%= t("backups.Status") %></th>
+            <th scope="col" class="pb-3 pr-4"><%= t("backups.Size") %></th>
+            <th scope="col" class="pb-3 text-right"><span class="sr-only"><%= t("backups.Actions") %></span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-coffee/10">
+          <% backup.entries.each do |entry| %>
+            <tr>
+              <th scope="row" class="py-4 pr-4 font-semibold text-coffee"><%= entry.created_at ? l(entry.created_at, format: :short) : t("Not available") %></th>
+              <td class="py-4 pr-4 text-sm text-muted"><%= t("backups.statuses.#{entry.status}") %></td>
+              <td class="py-4 pr-4 text-sm text-muted"><%= number_to_human_size(entry.primary_size + entry.ledger_size) %></td>
+              <td class="py-4 text-right">
+                <% if entry.ready? %>
+                  <%= button_to t("backups.Verify"), backups_verifications_path, params: { identifier: entry.identifier }, class: "ui-button ui-button-secondary", form_class: "inline-flex" %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <p class="mt-6 rounded-xl border border-dashed border-coffee/20 p-5 text-sm text-muted"><%= t("backups.Empty") %></p>
+  <% end %>
+</section>

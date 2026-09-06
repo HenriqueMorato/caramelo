@@ -3,6 +3,14 @@ class CreateBackupJob < ApplicationJob
   queue_with_priority 100
 
   def perform
-    Backup::Creator.call
+    Backup::State.running!
+    result = Backup::Creator.call
+    Backup::State.completed!(result)
+    result
+  rescue StandardError => error
+    Backup::State.failed!(error)
+    raise
+  ensure
+    Backup::CreationRequest.release
   end
 end

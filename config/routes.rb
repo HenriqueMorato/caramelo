@@ -6,6 +6,10 @@ Rails.application.routes.draw do
   resource :performance, only: :show
   resource :settings, only: %i[show update], controller: :settings
   get "market-data/health", to: "market_data_health#show", as: :market_data_health
+  namespace :backups do
+    resource :creation, only: :create
+    resources :verifications, only: :create
+  end
   namespace :market_data, path: "market-data" do
     resources :recoveries, only: %i[create destroy]
   end
