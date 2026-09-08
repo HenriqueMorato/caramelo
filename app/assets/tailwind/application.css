@@ -30,6 +30,7 @@
   --caramelo-ink: #2e211c;
   --caramelo-muted: #7e6f67;
   --caramelo-positive: #56805d;
+  --caramelo-positive-on-dark: #76ad80;
   --caramelo-negative: #c95038;
   --caramelo-on-accent: #ffffff;
   --caramelo-hero: #2e211c;
@@ -62,6 +63,7 @@ html[data-theme="dark"] {
   --caramelo-ink: #f4eadf;
   --caramelo-muted: #b9aaa0;
   --caramelo-positive: #86b88d;
+  --caramelo-positive-on-dark: #76ad80;
   --caramelo-negative: #ef8a72;
   --caramelo-on-accent: #21120c;
   --caramelo-hero: #2b211c;
@@ -94,6 +96,7 @@ html[data-theme="dark"] {
   --color-coffee: var(--caramelo-ink);
   --color-muted: var(--caramelo-muted);
   --color-leaf: var(--caramelo-positive);
+  --color-positive-on-dark: var(--caramelo-positive-on-dark);
   --color-guava: var(--caramelo-negative);
   --color-on-accent: var(--caramelo-on-accent);
   --color-hero: var(--caramelo-hero);
@@ -220,6 +223,20 @@ html[data-theme="dark"] {
     color: var(--caramelo-summary-text);
   }
 
+  .ui-highlight-panel {
+    background-color: var(--caramelo-summary);
+    border-color: var(--caramelo-summary);
+    color: var(--caramelo-summary-text);
+  }
+
+  .ui-highlight-muted {
+    color: color-mix(in srgb, var(--caramelo-summary-text) 70%, transparent);
+  }
+
+  .ui-highlight-divider {
+    border-color: color-mix(in srgb, var(--caramelo-summary-text) 14%, transparent);
+  }
+
   .ui-data-table {
     @apply w-full border-collapse text-left;
   }
@@ -253,12 +270,14 @@ html[data-theme="dark"] {
   }
 
   .grouping-option,
-  .trade-filter-option {
+  .trade-filter-option,
+  .period-option {
     @apply inline-flex min-h-0 h-[26px] shrink-0 items-center justify-center whitespace-nowrap rounded-none border-l border-coffee/10 px-2 py-1 text-xs font-semibold transition-[background-color,color,box-shadow,transform] duration-150 first:border-l-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-inset active:scale-[0.97] active:shadow-inner;
   }
 
   .grouping-option[data-grouping-slot="primary"],
-  .trade-filter-option[aria-current="page"] {
+  .trade-filter-option[aria-current="page"],
+  .period-option[aria-current="page"] {
     @apply rounded-md border border-brand-700 bg-brand-700 text-on-accent shadow-inner ring-1 ring-inset ring-paper/60 hover:bg-brand-800;
   }
 
@@ -267,7 +286,8 @@ html[data-theme="dark"] {
   }
 
   .grouping-option[data-grouping-slot=""],
-  .trade-filter-option:not([aria-current]) {
+  .trade-filter-option:not([aria-current]),
+  .period-option:not([aria-current]) {
     @apply bg-transparent text-muted hover:bg-oat hover:text-coffee;
   }
 

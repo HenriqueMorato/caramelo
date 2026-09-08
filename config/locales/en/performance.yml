@@ -2,16 +2,14 @@
 en:
   performances:
     show:
+      Across the trail: Across the trail
       All: All time
-      Benchmark period: "%{from} – %{to}"
       Benchmark unavailable: Data unavailable
-      Cash-flow adjusted: Modified Dietz
       Chart view: Chart view
-      Daily value: Daily value
       Date: Date
       Empty state: Record trades and capture historical market data to calculate performance.
-      Excluding trade cash flows: Excluding purchases and sale proceeds
-      Gain or loss: Gain / loss
+      Eyebrow: Portfolio performance
+      Heading: How the pack is doing.
       Historical data is loading: Historical data is loading
       Historical data is loading explanation: We are fetching daily closing prices
         and exchange rates for your trades. Check back shortly.
@@ -19,12 +17,9 @@ en:
       Historical data unavailable explanation: This period needs a persisted closing
         price and exchange rate for every held instrument. LocalFolio never substitutes
         a current quote.
-      Introduction: Review daily portfolio value and returns calculated from recorded
-        trades and durable historical market data.
+      Introduction: The return, the rhythm, and what’s pulling its weight.
       Market benchmarks: Market benchmarks
       Market benchmarks explanation: Reference returns for the selected period.
-      Market prices and FX rates through: Market prices through %{market_price_date};
-        FX rates through %{exchange_rate_date}
       Month: Month
       Net invested: Net invested
       No performance yet: No performance yet
@@ -55,10 +50,10 @@ en:
         values. The update will begin when a background worker is available.
       Portfolio return: Portfolio return
       Portfolio value: Portfolio value
-      Price return: Price return
-      Prices through: Prices through %{date}
       Realized gains to date: Realized gains to date
       Return: Return
+      Return methodology: Returns use Modified Dietz and exclude purchases and sale
+        proceeds.
       Stale values remain visible: Some displayed values are from an earlier calculation.
       Try again: Try again
       Unrealized gains to date: Unrealized gains to date

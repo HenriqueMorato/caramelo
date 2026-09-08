@@ -13,7 +13,7 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     get performance_url(period: "week")
 
     assert_response :success
-    assert_select "h1", "Performance"
+    assert_select "h1", "How the pack is doing."
     assert_select "a[href=?]", performance_path(period: "week"), "Week"
     assert_select "body", /R\$22,00/
     assert_select "body", /R\$2,00/
@@ -83,7 +83,7 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", /\+5\.00%/
   end
 
-  test "shows separate market price and FX dates when observations differ" do
+  test "keeps internal market observation dates out of the summary" do
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "FXDATE", exchange: "XNAS", name: "Foreign performance stock", currency: "USD")
     create_trade(instrument:, traded_on: Date.current)
@@ -97,8 +97,8 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     get performance_url(period: "all")
 
     assert_response :success
-    assert_select "body", /Market prices through/
-    assert_select "body", /FX rates through/
+    assert_select "body", text: /Market prices through/, count: 0
+    assert_select "body", text: /FX rates through/, count: 0
   end
 
   test "shows the empty state without owner trades" do
