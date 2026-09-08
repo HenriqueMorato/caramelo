@@ -10,11 +10,13 @@ class InstrumentsController < ApplicationController
   def show
     @trades = User.owner.trades.where(instrument: @instrument).includes(:instrument, :institution).strict_loading.reverse_chronological.load
     @market_price = MarketPrice::Presenter.for(instrument: @instrument)
+    @header_presenter = Instrument::HeaderPresenter.for(instrument: @instrument, market_price: @market_price)
     @position = Position.for(instrument: @instrument, trades: @trades)
     @valuation = Valuation::Current.for(position: @position, market_price: @market_price)
     @performance_pending = HistoricalDataBackfill.pending_for?(instruments: [ @instrument ])
     @reporting_currency = owner.reporting_currency
     @performance_presenters = performance_presenters
+    @price_history_presenter = DailyClosingPrice::SeriesPresenter.for(instrument: @instrument)
     @currency_view = requested_currency_view
   rescue Position::InvalidLongOnlyData => error
     @position_error = error

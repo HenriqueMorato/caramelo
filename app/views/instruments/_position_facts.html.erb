@@ -1,0 +1,61 @@
+<%# locals: (presenter:, position:, instrument:, valuation:, market_price:, native:) %>
+
+<% market_value = presenter.market_value || (valuation.market_value if native && valuation.available?) %>
+<% cost_basis = presenter.cost_basis || (position.cost_basis if native) %>
+
+<% if presenter.loading? %>
+  <div class="rounded-xl bg-oat px-4 py-3 text-sm text-muted" role="status" aria-live="polite">
+    <p class="font-medium text-coffee"><%= t("instruments.show.Performance loading") %></p>
+    <p class="mt-1"><%= t("instruments.show.Performance loading explanation") %></p>
+  </div>
+<% elsif presenter.unavailable? %>
+  <div class="rounded-xl bg-oat px-4 py-3 text-sm text-muted" role="status">
+    <p class="font-medium text-coffee"><%= t("instruments.show.Performance unavailable") %></p>
+    <p class="mt-1"><%= t("instruments.show.Performance unavailable explanation") %></p>
+  </div>
+<% end %>
+
+<dl class="<%= "mt-4" if presenter.loading? || presenter.unavailable? %> divide-y divide-coffee/10">
+    <div class="flex items-center justify-between gap-4 py-3 first:pt-0">
+      <dt class="flex items-center gap-2 text-sm text-muted">
+        <%= t("Market value") %>
+        <% if valuation.stale? %>
+          <span class="ui-badge ui-badge-stale px-1.5 py-0.5 text-[0.6rem] normal-case tracking-normal"><%= t("Stale") %></span>
+        <% end %>
+      </dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= market_value&.format || t("Value unavailable") %></dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="text-sm text-muted"><%= t("Average cost") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= format_currency_amount position.average_unit_cost, instrument.currency %></dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="text-sm text-muted"><%= t("Current price") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= render "current_market_prices/current_market_price", market_price:, refreshing: false, compact: true %></dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="text-sm text-muted"><%= t("Quantity") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= format_quantity position.quantity %></dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="text-sm text-muted"><%= t("Cost basis") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= cost_basis&.format || t("Not available") %></dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="text-sm text-muted"><%= t("Unrealized return") %></dt>
+      <dd class="flex items-center gap-1 font-mono text-sm font-semibold tabular-nums <%= presenter.unrealized_gain_color_class %>">
+        <span aria-hidden="true"><%= presenter.unrealized_gain_arrow %></span>
+        <span><%= presenter.unrealized_gain_label || t("Not available") %></span>
+      </dd>
+    </div>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <dt class="text-sm text-muted"><%= t("Total return") %></dt>
+      <dd class="font-mono text-sm font-semibold tabular-nums <%= presenter.return_color_class %>"><%= presenter.return_label || t("Not available") %></dd>
+    </div>
+    <% if presenter.realized_gain? %>
+      <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
+        <dt class="text-sm text-muted"><%= t("Realized gains") %></dt>
+        <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= presenter.realized_gain_label %></dd>
+      </div>
+    <% end %>
+</dl>

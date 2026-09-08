@@ -1,67 +1,48 @@
 <% content_for :title, t(".Page title", instrument: @instrument.ticker, application: t("LocalFolio")) %>
 
-<section class="mx-auto max-w-4xl space-y-8">
-  <div>
-    <%= link_to t("All instruments"), instruments_path, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
-  </div>
+<section class="mx-auto max-w-6xl space-y-8">
+  <%= link_to t("All instruments"), instruments_path, class: "inline-flex min-h-11 items-center text-sm font-semibold text-caramel-deep hover:text-coffee" %>
 
-  <div class="ui-panel p-6 sm:p-8">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div class="ui-page-header-copy">
-        <p class="ui-eyebrow"><%= Instrument.model_name.human %></p>
-        <h1 class="font-mono ui-page-title"><%= @instrument.ticker %></h1>
-        <p class="ui-page-intro"><%= @instrument.name %></p>
+  <header class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex min-w-0 items-center gap-4">
+      <span class="flex size-16 shrink-0 items-center justify-center rounded-[1.1rem] bg-caramel/15 font-mono text-sm font-semibold text-caramel-deep" aria-hidden="true">
+        <%= @header_presenter.ticker_mark %>
+      </span>
+      <div class="min-w-0">
+        <h1 class="font-mono text-3xl font-semibold tracking-tight text-coffee sm:text-4xl"><%= @instrument.ticker %></h1>
+        <p class="mt-1 truncate text-sm text-muted"><%= @instrument.name %> · <%= @header_presenter.asset_type_label %> · <%= @instrument.currency %></p>
       </div>
-
-      <span class="w-fit rounded-full bg-coffee/5 px-3 py-1 font-mono text-xs font-semibold text-coffee/80"><%= @instrument.exchange %> · <%= @instrument.currency %></span>
     </div>
-  </div>
 
-  <section aria-labelledby="position-summary-heading" class="ui-panel p-5 sm:p-6 <%= @position_error ? "border-danger-border" : "" %>">
-    <div class="flex flex-wrap items-center gap-2">
-      <h2 id="position-summary-heading" class="text-lg font-semibold text-coffee"><%= t(".Current position") %></h2>
-      <% if @position_error %>
-        <span class="ui-badge ui-badge-attention"><%= t("Needs attention") %></span>
-      <% elsif @position.first_trade_date.nil? %>
-        <span class="ui-badge ui-badge-closed"><%= t(".No trades status") %></span>
-      <% elsif @position.closed? %>
-        <span class="ui-badge ui-badge-closed"><%= t("Closed") %></span>
-      <% else %>
-        <span class="ui-badge ui-badge-open"><%= t("Open") %></span>
+    <div class="sm:text-right">
+      <p class="font-mono text-2xl font-semibold tracking-tight tabular-nums text-coffee"><%= @header_presenter.price_label || t("Price unavailable") %></p>
+      <% if @header_presenter.day_change_label %>
+        <p class="mt-1 flex items-center gap-2 text-xs font-semibold sm:justify-end <%= @header_presenter.day_change_color_class %>">
+          <span aria-hidden="true"><%= @header_presenter.day_change_arrow %></span>
+          <span><%= @header_presenter.day_change_label %></span>
+          <span><%= @header_presenter.day_change_ratio_label %></span>
+          <span class="font-normal text-muted"><%= t("dashboard.index.Today") %></span>
+        </p>
       <% end %>
     </div>
+  </header>
 
-    <div class="mt-5">
-      <% if @position_error %>
-        <div class="rounded-xl bg-danger-surface px-4 py-3 text-sm text-danger-text" role="alert">
-          <p class="font-semibold"><%= t(".Position could not be calculated") %></p>
-          <p class="mt-1"><%= t(".Sales exceed purchases", date: l(@position_error.trade.traded_on, format: :long)) %></p>
-        </div>
-        <div class="mt-4">
-          <%= render "current_market_prices/current_market_price", market_price: @market_price, refreshing: false %>
-        </div>
-      <% elsif @position.first_trade_date.nil? %>
-        <div class="flex flex-col items-start gap-3 rounded-xl bg-oat px-4 py-3 ring-1 ring-inset ring-coffee/5 sm:flex-row sm:items-center">
-          <p class="text-sm text-muted"><%= t(".No position yet") %></p>
-          <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(@instrument), class: "shrink-0 text-sm font-semibold text-caramel-deep hover:text-coffee" %>
-        </div>
-        <div class="mt-4">
-          <%= render "current_market_prices/current_market_price", market_price: @market_price, refreshing: false %>
-        </div>
-      <% else %>
-        <%= render "positions/metrics", position: @position, instrument: @instrument, valuation: @valuation, market_price: @market_price %>
-      <% end %>
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)] lg:items-start">
+    <% if @performance_presenters %>
+      <%= render "performance", price_history_presenter: @price_history_presenter %>
+    <% end %>
 
-    </div>
-  </section>
-
-  <% if @performance_presenters %>
-    <%= render "performance",
+    <%= render "position_summary",
+      instrument: @instrument,
+      position: @position,
+      position_error: @position_error,
+      valuation: @valuation,
+      market_price: @market_price,
       presenters: @performance_presenters,
       native_currency: @instrument.currency,
       reporting_currency: @reporting_currency,
       currency_view: @currency_view %>
-  <% end %>
+  </div>
 
   <section aria-labelledby="trade-history-heading" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -73,7 +54,7 @@
     </div>
 
     <% if @trades.any? %>
-      <div class="ui-panel divide-y divide-coffee/10 overflow-hidden">
+      <div class="space-y-2">
         <%= render @trades %>
       </div>
     <% else %>

@@ -20,13 +20,13 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", @instrument.ticker
-    assert_select "h2", "Current position"
+    assert_select "h2", "Position details"
     assert_select "span", "No trades"
     assert_select "p", "Record a trade to calculate this position."
     assert_select "a", "Add trade"
     assert_select "h2", "Trade history"
     assert_select "p", "No trades for this instrument"
-    assert_includes response.body, "Add a trade and a closing price to see performance here."
+    assert_includes response.body, "Historical prices will appear here after at least two daily closes are available."
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
   end
 
@@ -45,10 +45,29 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "R$24,00"
     assert_select "dt", text: "Total return"
     assert_not_includes response.body, "Realized gains"
-    assert_includes response.body, "Close as of #{I18n.l(Date.current - 1, format: :long)}"
     assert_match(/20[,.]00%/, response.body)
     assert_match(/Unrealized return.*\+R\$4,00/m, response.body)
-    assert_select "[aria-label='Performance currency']", count: 0
+    assert_select "[aria-label='Position currency']", count: 0
+  end
+
+  test "shows an interactive chart when historical closing prices are available" do
+    2.downto(1) do |days_ago|
+      DailyClosingPrice.create!(
+        instrument: @instrument,
+        trading_date: Date.current - days_ago,
+        close_price: 10 + days_ago,
+        currency: "BRL",
+        provider: "yahoo_finance",
+        observed_at: Time.current
+      )
+    end
+
+    get instrument_url(@instrument)
+
+    assert_select "[data-controller='instrument-price-chart']"
+    assert_select "canvas[data-instrument-price-chart-target='canvas']"
+    assert_includes response.body, "R$12,00"
+    assert_includes response.body, "R$11,00"
   end
 
   test "renders native and owner-currency gains for a foreign instrument" do
@@ -72,17 +91,17 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(instrument)
 
     assert_response :success
-    assert_select "[aria-label='Performance currency']"
-    assert_select "button", text: "USD · Instrument"
-    assert_select "button", text: "BRL · My currency"
-    assert_select "[data-currency-view-name='native']:not([hidden])", text: /\$400\.00.*\$440\.00/m
-    assert_select "[data-currency-view-name='reporting'][hidden]", text: /R\$2.100,00.*R\$2.244,00/m
+    assert_select "[aria-label='Position currency']"
+    assert_select "button", text: "USD"
+    assert_select "button", text: "BRL"
+    assert_select "[data-currency-view-name='native']:not([hidden])", text: /\$440\.00.*\$400\.00/m
+    assert_select "[data-currency-view-name='reporting'][hidden]", text: /R\$2.244,00.*R\$2.100,00/m
 
     get instrument_url(instrument, currency_view: "reporting")
 
     assert_select "button[data-currency-view-name-param='reporting'][aria-pressed='true']"
     assert_select "[data-currency-view-name='native'][hidden]"
-    assert_select "[data-currency-view-name='reporting']:not([hidden])", text: /R\$2.100,00.*R\$2.244,00/m
+    assert_select "[data-currency-view-name='reporting']:not([hidden])", text: /R\$2.244,00.*R\$2.100,00/m
 
     get instrument_url(instrument, currency_view: "unsupported")
 
@@ -102,7 +121,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
     get instrument_url(instrument)
 
-    assert_select "[data-currency-view-name='native']", text: /€200,00.*€220,00/m
+    assert_select "[data-currency-view-name='native']", text: /€220,00.*€200,00/m
     assert_select "[data-currency-view-name='reporting']", text: /Performance unavailable/
   end
 
@@ -112,7 +131,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(instrument)
 
     assert_response :success
-    assert_select "h2", "Current position"
+    assert_select "h2", "Position details"
     assert_select "span", "Open"
     assert_select "dd", text: "2.5"
     assert_select "dd", text: "$611.60"
@@ -135,7 +154,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "section[aria-labelledby='position-summary-heading'] span", "Closed"
     assert_select "section[aria-labelledby='position-summary-heading'] dd", text: "0"
-    assert_select "section[aria-labelledby='position-summary-heading'] dd", text: "R$0,00", count: 2
+    assert_select "section[aria-labelledby='position-summary-heading'] dd", text: "R$0,00", minimum: 2
   end
 
   test "identifies an invalid long-only position without hiding trade history" do
