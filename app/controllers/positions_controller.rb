@@ -14,6 +14,7 @@ class PositionsController < ApplicationController
     @positions = visible_results.map do |position_result|
       Position::Presenter.for(position_result:)
     end
+    @dashboard = Dashboard::Presenter.for unless @positions.any?(&:invalid?)
     @position_groups = @grouping.group(@positions)
   end
 

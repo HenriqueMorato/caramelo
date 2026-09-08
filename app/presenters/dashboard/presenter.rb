@@ -109,6 +109,10 @@ module Dashboard
       open_positions.any? && open_positions.all? { |position| position.valuation.market_value.present? }
     end
 
+    def complete_market_value
+      market_value if no_open_positions? || market_value_available?
+    end
+
     def has_trades?
       positions.any?
     end

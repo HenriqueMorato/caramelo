@@ -12,6 +12,7 @@ class PerformancesController < ApplicationController
     @selected_period = params[:period].presence_in(PERIODS.keys) || "month"
     @performance = Performance::Period.for(from: period_start, to: Date.current)
     if @performance.available?
+      @period_presenter = Performance::PeriodPresenter.new(@performance)
       @series = Performance::Series.for(from: period_start, to: Date.current)
       @series_presenter = Performance::SeriesPresenter.new(@series)
       @benchmark_results = benchmark_results

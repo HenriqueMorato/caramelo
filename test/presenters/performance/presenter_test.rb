@@ -92,6 +92,8 @@ class Performance::PresenterTest < ActiveSupport::TestCase
     assert_nil nil_result.realized_gain
     assert_nil nil_result.unrealized_gain
     assert_nil nil_result.return_ratio
+    assert_nil nil_result.market_data_as_of
+    assert_nil nil_result.exchange_rate_as_of
   end
 
   private

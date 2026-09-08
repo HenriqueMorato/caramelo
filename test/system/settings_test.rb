@@ -146,7 +146,9 @@ class SettingsTest < ApplicationSystemTestCase
   test "unsaved preference cancels native unloading" do
     visit root_path
     within("aside") { click_on "Settings" }
-    choose_currency "EUR"
+    original_currency = find("#user_reporting_currency", visible: false).value
+    changed_currency = original_currency == "EUR" ? "USD" : "EUR"
+    choose_currency changed_currency
 
     # HTTP-only WebDriver suppresses beforeunload prompts; assert cancellation instead.
     assert page.evaluate_script(<<~JS)
@@ -156,7 +158,7 @@ class SettingsTest < ApplicationSystemTestCase
         return event.defaultPrevented
       })()
     JS
-    choose_currency "BRL"
+    choose_currency original_currency
     assert_not page.evaluate_script(<<~JS)
       (() => {
         const event = new Event("beforeunload", { cancelable: true })

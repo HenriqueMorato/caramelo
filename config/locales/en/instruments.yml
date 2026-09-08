@@ -8,6 +8,8 @@ en:
     other: Other
     stock: Stock
   instruments:
+    actions:
+      Label: Actions for %{instrument}
     edit:
       Introduction: Update the instrument details before recording or reviewing trades.
       Page title: Edit %{instrument} · %{application}
@@ -25,21 +27,16 @@ en:
       Introduction: Add a stock, fund, or other instrument to use with trades.
       Page title: New instrument · %{application}
     show:
-      Close as of: Close as of %{date}
-      Currency view: Performance currency
-      Current position: Current position
+      Change as of: as of %{date}
+      Closing price: Closing price
+      Currency view: Position currency
+      Date: Date
       Delete blocked: Delete this instrument's trades before deleting the instrument.
       Empty history: Add a purchase or sale to begin its history.
-      FX as of: FX as of %{date}
-      Instrument currency: "%{currency} · Instrument"
-      My currency: "%{currency} · My currency"
-      No performance: Add a trade and a closing price to see performance here.
       No position yet: Record a trade to calculate this position.
       No trades: No trades for this instrument
       No trades status: No trades
       Page title: "%{instrument} · %{application}"
-      Performance description: Gains and value at the latest available close. Return
-        is total gain divided by cumulative purchases.
       Performance loading: Performance data is loading
       Performance loading explanation: We are fetching the historical data needed
         for this instrument.
@@ -47,7 +44,14 @@ en:
       Performance unavailable explanation: A closing price or exchange rate is missing
         for this instrument.
       Position could not be calculated: Position could not be calculated
+      Position details: Position details
+      Price history: Price history
+      Price history description: Historical closing prices in %{instrument}
+      Price history unavailable: Historical prices will appear here after at least
+        two daily closes are available.
       Sales exceed purchases: Recorded sales exceed purchases on %{date}. Review this
         instrument's trades.
+      Six months: Six months
       Trade history: Trade history
       Trade history description: Purchases and sales recorded for this instrument.
+      View exact prices: View exact prices

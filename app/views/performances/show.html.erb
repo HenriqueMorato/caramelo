@@ -3,15 +3,16 @@
 <section class="space-y-8">
   <div class="ui-page-header">
     <div class="ui-page-header-copy">
-      <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>
-      <h1 class="ui-page-title"><%= t("Performance") %></h1>
+      <p class="ui-eyebrow"><%= t(".Eyebrow") %></p>
+      <h1 class="ui-page-title"><%= t(".Heading") %></h1>
       <p class="ui-page-intro"><%= t(".Introduction") %></p>
     </div>
 
-    <nav aria-label="<%= t(".Period selection") %>" class="flex flex-wrap gap-2">
+    <nav aria-label="<%= t(".Period selection") %>" class="inline-flex rounded-md bg-paper/50 p-1">
       <% PerformancesController::PERIODS.each_key do |period| %>
         <% selected = @selected_period == period %>
-        <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "rounded-lg px-3 py-2 text-sm font-semibold #{selected ? "bg-caramel-deep text-on-accent" : "border border-coffee/20 bg-oat-2 text-coffee/80 hover:bg-oat"}" %>
+        <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "period-option",
+          aria: { current: ("page" if selected) } %>
       <% end %>
     </nav>
   </div>
@@ -33,64 +34,55 @@
       <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_trade_path, class: "ui-button ui-button-primary mt-5" %>
     </div>
   <% else %>
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Portfolio value") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.closing_valuation.market_value.format %></p>
-        <% market_price_date = @performance.closing_valuation.market_price_as_of %>
-        <% exchange_rate_date = @performance.closing_valuation.exchange_rate_as_of %>
-        <% if market_price_date && exchange_rate_date && market_price_date != exchange_rate_date %>
-          <p class="mt-2 text-xs text-muted"><%= t(".Market prices and FX rates through", market_price_date: l(market_price_date, format: :long), exchange_rate_date: l(exchange_rate_date, format: :long)) %></p>
-        <% elsif market_price_date %>
-          <p class="mt-2 text-xs text-muted"><%= t(".Prices through", date: l(market_price_date, format: :long)) %></p>
-        <% end %>
+    <div class="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
+      <article class="ui-panel p-6 sm:p-8">
+        <p class="ui-eyebrow"><%= t(".Portfolio return") %></p>
+        <p class="mt-5 font-mono text-4xl font-semibold tracking-[-0.06em] text-coffee sm:text-6xl">
+          <%= @period_presenter.return_label || t("Not available") %>
+        </p>
+        <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold <%= @period_presenter.gain_loss_color_class %>">
+          <span aria-hidden="true"><%= @period_presenter.gain_loss_arrow %></span>
+          <span><%= @period_presenter.gain_loss_label %></span>
+          <span class="font-normal text-muted"><%= @series_presenter.date_range_label %></span>
+        </div>
       </article>
 
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Gain or loss") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight <%= @performance.gain_loss_amount.negative? ? "text-guava" : "text-caramel-deep" %>"><%= @performance.gain_loss.format %></p>
-        <p class="mt-2 text-xs text-muted"><%= t(".Excluding trade cash flows") %></p>
-      </article>
-
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Price return") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.return_available? ? number_to_percentage(@performance.return_ratio * 100, precision: 2) : t("Not available") %></p>
-        <p class="mt-2 text-xs text-muted"><%= t(".Cash-flow adjusted") %></p>
-      </article>
-
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Daily value") %></p>
-        <p class="mt-2 font-mono text-2xl font-bold tracking-tight text-coffee"><%= @performance.closing_valuation.market_value.format %></p>
-        <p class="mt-2 text-xs text-muted"><%= l(@performance.to, format: :long) %></p>
-      </article>
-    </div>
-
-    <div class="grid gap-4 md:grid-cols-3">
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Realized gains to date") %></p>
-        <p class="mt-2 font-mono text-xl font-bold text-coffee"><%= @performance.closing_valuation.realized_gain.format %></p>
-      </article>
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Unrealized gains to date") %></p>
-        <p class="mt-2 font-mono text-xl font-bold text-coffee"><%= @performance.closing_valuation.unrealized_gain.format %></p>
-      </article>
-      <article class="rounded-2xl border border-coffee/10 bg-oat-2 p-5 shadow-sm">
-        <p class="text-sm font-medium text-muted"><%= t(".Net invested") %></p>
-        <p class="mt-2 font-mono text-xl font-bold text-coffee"><%= @performance.net_cash_flow.format %></p>
-      </article>
+      <aside class="ui-highlight-panel rounded-[1.25rem] border p-6" aria-labelledby="return-snapshot-heading">
+        <h2 id="return-snapshot-heading" class="font-display text-2xl font-semibold tracking-tight"><%= t(".Across the trail") %></h2>
+        <dl class="mt-5 grid grid-cols-2 gap-x-5 gap-y-5">
+          <div>
+            <dt class="ui-highlight-muted text-xs"><%= t(".Portfolio value") %></dt>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= @performance.closing_valuation.market_value.format %></dd>
+          </div>
+          <div>
+            <dt class="ui-highlight-muted text-xs"><%= t(".Net invested") %></dt>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= @performance.net_cash_flow.format %></dd>
+          </div>
+          <div>
+            <dt class="ui-highlight-muted text-xs"><%= t(".Realized gains to date") %></dt>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= @performance.closing_valuation.realized_gain.format %></dd>
+          </div>
+          <div>
+            <dt class="ui-highlight-muted text-xs"><%= t(".Unrealized gains to date") %></dt>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums <%= @period_presenter.unrealized_gain_color_class %>"><%= @performance.closing_valuation.unrealized_gain.format %></dd>
+          </div>
+        </dl>
+        <p class="ui-highlight-divider ui-highlight-muted mt-5 border-t pt-4 text-xs leading-5"><%= t(".Return methodology") %></p>
+      </aside>
     </div>
 
     <% if @benchmark_results.present? %>
-      <section class="rounded-2xl border border-coffee/10 bg-oat-2 p-5" aria-labelledby="market-benchmarks-heading">
-        <h2 id="market-benchmarks-heading" class="text-lg font-semibold text-coffee"><%= t(".Market benchmarks") %></h2>
-        <p class="mt-1 text-sm text-muted"><%= t(".Market benchmarks explanation") %></p>
-        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+      <section class="ui-panel px-5 py-4 sm:px-6" aria-labelledby="market-benchmarks-heading">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="market-benchmarks-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t(".Market benchmarks") %></h2>
+          <p class="text-xs text-muted"><%= t(".Market benchmarks explanation") %></p>
+        </div>
+        <div class="mt-3 grid gap-0 sm:grid-cols-3 sm:divide-x sm:divide-coffee/10">
           <% @benchmark_results.each do |benchmark, result| %>
-            <article class="rounded-xl border border-coffee/10 bg-oat p-4">
-              <p class="text-sm font-semibold text-coffee"><%= benchmark.name %></p>
+            <article class="border-t border-coffee/10 py-3 text-center first:border-t-0 sm:border-t-0 sm:px-5 sm:first:pl-0 sm:last:pr-0">
+              <h3 class="truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted"><%= benchmark.name %></h3>
               <% if result.available? %>
-                <p class="mt-2 font-mono text-xl font-bold tabular-nums <%= result.return_ratio.negative? ? "text-guava" : "text-caramel-deep" %>"><%= "+" if result.return_ratio.positive? %><%= number_to_percentage(result.return_ratio * 100, precision: 2) %></p>
-                <p class="mt-1 text-xs text-muted"><%= t(".Benchmark period", from: l(result.first_observation.observed_on, format: :short), to: l(result.last_observation.observed_on, format: :short)) %></p>
+                <p class="mt-2 font-mono text-lg font-semibold tabular-nums text-coffee"><%= "+" if result.return_ratio.positive? %><%= number_to_percentage(result.return_ratio * 100, precision: 2) %></p>
               <% else %>
                 <p class="mt-2 text-sm text-muted"><%= t(".Benchmark unavailable") %></p>
               <% end %>

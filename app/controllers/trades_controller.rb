@@ -7,6 +7,9 @@ class TradesController < ApplicationController
 
   def index
     @trades = owner.trades.includes(:instrument, :institution).strict_loading.reverse_chronological
+    @has_trades = @trades.exists?
+    @side = params[:side].presence_in(Trade.sides.keys)
+    @trades = @trades.where(side: @side) if @side
   end
 
   def new

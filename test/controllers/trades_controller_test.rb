@@ -9,11 +9,39 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     get transactions_url
 
     assert_response :success
-    assert_select "h1", "Transactions"
-    assert_select "article", text: /Banco do Brasil.*Long-term allocation/m
+    assert_select "h1", "The trail behind the pack."
+    assert_select "tr", text: /Banco do Brasil.*Long-term allocation/m
     assert_select "a[href='#{edit_trade_path(@trade)}']", "Edit"
     assert_select "form[action='#{trade_path(@trade)}'] button", "Delete"
-    assert_select "article", text: /Other owner trade/, count: 0
+    assert_select "tr", text: /Other owner trade/, count: 0
+  end
+
+  test "filters trades by side" do
+    get transactions_url(side: "buy")
+
+    assert_response :success
+    assert_select "a[aria-current='page']", "Buys only" do |links|
+      assert_equal transactions_path(side: "buy"), links.sole["href"]
+    end
+    assert_select "tr##{dom_id(@trade)}"
+  end
+
+  test "keeps the filter available when no trades match" do
+    get transactions_url(side: "sell")
+
+    assert_response :success
+    assert_select "a[aria-current='page']", "Sells only" do |links|
+      assert_equal transactions_path(side: "sell"), links.sole["href"]
+    end
+    assert_select "tbody td", "No trades match this filter."
+  end
+
+  test "ignores an unsupported side filter" do
+    get transactions_url(side: "dividend")
+
+    assert_response :success
+    assert_select "tr##{dom_id(@trade)}"
+    assert_select "a[aria-current='page'][href='#{transactions_path}']", "All trades"
   end
 
   test "renders an empty state" do

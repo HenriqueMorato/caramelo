@@ -30,10 +30,13 @@
   --caramelo-ink: #2e211c;
   --caramelo-muted: #7e6f67;
   --caramelo-positive: #56805d;
+  --caramelo-positive-on-dark: #76ad80;
   --caramelo-negative: #c95038;
   --caramelo-on-accent: #ffffff;
   --caramelo-hero: #2e211c;
   --caramelo-hero-text: #f6efe4;
+  --caramelo-summary: #2e211c;
+  --caramelo-summary-text: #ffffff;
   --caramelo-warning-surface: #fff3d6;
   --caramelo-warning-border: #e7bd66;
   --caramelo-warning-text: #62420d;
@@ -60,10 +63,13 @@ html[data-theme="dark"] {
   --caramelo-ink: #f4eadf;
   --caramelo-muted: #b9aaa0;
   --caramelo-positive: #86b88d;
+  --caramelo-positive-on-dark: #76ad80;
   --caramelo-negative: #ef8a72;
   --caramelo-on-accent: #21120c;
   --caramelo-hero: #2b211c;
   --caramelo-hero-text: #f4eadf;
+  --caramelo-summary: #4a3025;
+  --caramelo-summary-text: #f4eadf;
   --caramelo-warning-surface: #362b18;
   --caramelo-warning-border: #80662d;
   --caramelo-warning-text: #f2d58b;
@@ -90,6 +96,7 @@ html[data-theme="dark"] {
   --color-coffee: var(--caramelo-ink);
   --color-muted: var(--caramelo-muted);
   --color-leaf: var(--caramelo-positive);
+  --color-positive-on-dark: var(--caramelo-positive-on-dark);
   --color-guava: var(--caramelo-negative);
   --color-on-accent: var(--caramelo-on-accent);
   --color-hero: var(--caramelo-hero);
@@ -111,6 +118,7 @@ html[data-theme="dark"] {
   html {
     color-scheme: light;
     background: var(--caramelo-canvas);
+    scrollbar-gutter: stable;
     -webkit-tap-highlight-color: rgb(201 122 69 / 18%);
   }
 
@@ -179,6 +187,60 @@ html[data-theme="dark"] {
     @apply transition-[border-color,box-shadow] hover:border-coffee/20 hover:shadow-sm;
   }
 
+  .ui-panel {
+    @apply rounded-[1.25rem] border border-coffee/10 bg-oat-2 shadow-none;
+  }
+
+  .ui-summary-grid {
+    @apply grid gap-3 sm:grid-cols-3;
+  }
+
+  .ui-summary-item {
+    @apply rounded-xl border border-coffee/10 bg-paper px-5 py-4;
+  }
+
+  .ui-summary-item-primary {
+    @apply sm:px-6 sm:py-5;
+    background-color: var(--caramelo-summary);
+    border-color: var(--caramelo-summary);
+    color: var(--caramelo-summary-text);
+  }
+
+  .ui-summary-item dt {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-muted;
+  }
+
+  .ui-summary-item dd {
+    @apply mt-2 font-mono text-2xl font-semibold tabular-nums text-coffee;
+  }
+
+  .ui-summary-item-primary dt {
+    color: color-mix(in srgb, var(--caramelo-summary-text) 70%, transparent);
+  }
+
+  .ui-summary-item-primary dd {
+    @apply text-3xl;
+    color: var(--caramelo-summary-text);
+  }
+
+  .ui-highlight-panel {
+    background-color: var(--caramelo-summary);
+    border-color: var(--caramelo-summary);
+    color: var(--caramelo-summary-text);
+  }
+
+  .ui-highlight-muted {
+    color: color-mix(in srgb, var(--caramelo-summary-text) 70%, transparent);
+  }
+
+  .ui-highlight-divider {
+    border-color: color-mix(in srgb, var(--caramelo-summary-text) 14%, transparent);
+  }
+
+  .ui-data-table {
+    @apply w-full border-collapse text-left;
+  }
+
   .ui-form-errors {
     @apply rounded-xl border border-danger-border bg-danger-surface p-4 text-danger-text;
   }
@@ -207,11 +269,15 @@ html[data-theme="dark"] {
     @apply border border-guava/30 bg-oat-2 text-guava shadow-sm hover:bg-guava/10;
   }
 
-  .grouping-option {
-    @apply inline-flex min-h-0 h-[26px] shrink-0 items-center justify-center whitespace-nowrap rounded-none border-l border-coffee/10 px-2 py-1 text-xs font-semibold transition-[background-color,color,box-shadow,transform] duration-150 first:border-l-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-inset active:scale-[0.97] active:shadow-inner;
+  .grouping-option,
+  .trade-filter-option,
+  .period-option {
+    @apply relative inline-flex min-h-0 h-[26px] shrink-0 items-center justify-center whitespace-nowrap rounded-none border-l border-coffee/10 px-2 py-1 text-xs font-semibold transition-[background-color,color,box-shadow,transform] duration-150 before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] first:border-l-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-inset active:scale-[0.97] active:shadow-inner;
   }
 
-  .grouping-option[data-grouping-slot="primary"] {
+  .grouping-option[data-grouping-slot="primary"],
+  .trade-filter-option[aria-current="page"],
+  .period-option[aria-current="page"] {
     @apply rounded-md border border-brand-700 bg-brand-700 text-on-accent shadow-inner ring-1 ring-inset ring-paper/60 hover:bg-brand-800;
   }
 
@@ -219,7 +285,9 @@ html[data-theme="dark"] {
     @apply rounded-md border border-caramel-deep bg-caramel text-on-accent shadow-inner ring-1 ring-inset ring-paper/60 hover:bg-caramel-deep;
   }
 
-  .grouping-option[data-grouping-slot=""] {
+  .grouping-option[data-grouping-slot=""],
+  .trade-filter-option:not([aria-current]),
+  .period-option:not([aria-current]) {
     @apply bg-transparent text-muted hover:bg-oat hover:text-coffee;
   }
 
@@ -228,7 +296,11 @@ html[data-theme="dark"] {
   }
 
   .currency-view-option {
-    @apply min-h-6 rounded-md px-2.5 py-1 text-xs font-semibold text-muted transition-[background-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel active:scale-[0.97];
+    @apply relative min-h-6 rounded-md px-2.5 py-1 text-xs font-semibold text-muted transition-[background-color,color,box-shadow,transform] before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel active:scale-[0.97];
+  }
+
+  .compact-control-hit-area {
+    @apply relative before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''];
   }
 
   .currency-view-option[data-active="true"] {
@@ -259,9 +331,12 @@ html[data-theme="dark"] {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
 
-  .ui-badge-open,
-  .ui-badge-buy {
+  .ui-badge-open {
     @apply bg-caramel/15 text-coffee;
+  }
+
+  .ui-badge-buy {
+    @apply bg-leaf/15 text-leaf;
   }
 
   .ui-badge-closed,

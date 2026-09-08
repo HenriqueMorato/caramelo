@@ -1,0 +1,61 @@
+<%# locals: (instrument:, position:, position_error:, valuation:, market_price:, presenters:, native_currency:, reporting_currency:, currency_view:) %>
+
+<section aria-labelledby="position-summary-heading"
+         class="ui-panel p-5 sm:p-6 <%= "border-danger-border" if position_error %>"
+         data-controller="currency-view"
+         data-action="popstate@window->currency-view#restore">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <h2 id="position-summary-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t("instruments.show.Position details") %></h2>
+      <% if position_error %>
+        <span class="ui-badge ui-badge-attention"><%= t("Needs attention") %></span>
+      <% elsif position.first_trade_date.nil? %>
+        <span class="ui-badge ui-badge-closed"><%= t("instruments.show.No trades status") %></span>
+      <% elsif position.closed? %>
+        <span class="ui-badge ui-badge-closed"><%= t("Closed") %></span>
+      <% else %>
+        <span class="ui-badge ui-badge-open"><%= t("Open") %></span>
+      <% end %>
+    </div>
+    <% if presenters&.dig(:reporting) %>
+      <div class="currency-view-options" role="group" aria-label="<%= t("instruments.show.Currency view") %>">
+        <button type="button" class="currency-view-option"
+                data-currency-view-target="button" data-currency-view-name-param="native"
+                data-action="currency-view#select" aria-pressed="<%= currency_view == :native %>">
+          <%= native_currency %>
+        </button>
+        <button type="button" class="currency-view-option"
+                data-currency-view-target="button" data-currency-view-name-param="reporting"
+                data-action="currency-view#select" aria-pressed="<%= currency_view == :reporting %>">
+          <%= reporting_currency %>
+        </button>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="mt-5">
+    <% if position_error %>
+      <div class="rounded-xl bg-danger-surface px-4 py-3 text-sm text-danger-text" role="alert">
+        <p class="font-semibold"><%= t("instruments.show.Position could not be calculated") %></p>
+        <p class="mt-1"><%= t("instruments.show.Sales exceed purchases", date: l(position_error.trade.traded_on, format: :long)) %></p>
+      </div>
+      <div class="mt-4">
+        <%= render "current_market_prices/current_market_price", market_price:, refreshing: false %>
+      </div>
+    <% elsif position.first_trade_date.nil? %>
+      <div class="flex flex-col items-start gap-3 rounded-xl bg-oat px-4 py-3 ring-1 ring-inset ring-coffee/5 sm:flex-row sm:items-center">
+        <p class="text-sm text-muted"><%= t("instruments.show.No position yet") %></p>
+        <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(instrument), class: "shrink-0 text-sm font-semibold text-caramel-deep hover:text-coffee" %>
+      </div>
+      <div class="mt-4">
+        <%= render "current_market_prices/current_market_price", market_price:, refreshing: false %>
+      </div>
+    <% else %>
+      <% presenters.each do |name, presenter| %>
+        <%= tag.div data: { currency_view_target: "panel", currency_view_name: name }, hidden: name != currency_view do %>
+          <%= render "position_facts", presenter:, position:, instrument:, valuation:, market_price:, native: name == :native %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</section>

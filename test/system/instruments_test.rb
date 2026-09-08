@@ -38,8 +38,8 @@ class InstrumentsTest < ApplicationSystemTestCase
 
     assert_text "Instrument was created."
     assert_text "AAPL"
-    assert_text "XNAS"
     assert_text "Apple Inc."
+    assert_text "Other"
     assert_text "USD"
     assert_text "Trade history"
   end
@@ -52,6 +52,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     fill_in "Name", with: "Petrobras ON"
     click_on "Update Instrument"
 
+    assert_current_path instrument_path(instrument)
     assert_text "Instrument was updated."
     assert_text "PETR3"
     assert_text "Petrobras ON"
@@ -174,23 +175,23 @@ class InstrumentsTest < ApplicationSystemTestCase
 
     visit instrument_path(instrument)
 
-    within "[aria-labelledby='instrument-performance-heading']" do
+    within "[aria-labelledby='position-summary-heading']" do
       assert_text "$400.00"
-      click_on "BRL · My currency"
+      click_on "BRL"
       assert_text "R$2.100,00"
     end
     assert_current_path instrument_path(instrument, currency_view: "reporting")
 
     refresh
 
-    within "[aria-labelledby='instrument-performance-heading']" do
+    within "[aria-labelledby='position-summary-heading']" do
       assert_text "R$2.100,00"
       assert_no_text "$400.00"
     end
 
     page.go_back
 
-    within "[aria-labelledby='instrument-performance-heading']" do
+    within "[aria-labelledby='position-summary-heading']" do
       assert_text "$400.00"
       assert_no_text "R$2.100,00"
     end

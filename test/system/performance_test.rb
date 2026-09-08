@@ -13,7 +13,7 @@ class PerformanceTest < ApplicationSystemTestCase
 
     visit performance_path
 
-    assert_text "Performance"
+    assert_text "How the pack is doing."
     assert_text "R$22,00"
     assert_selector "canvas[data-performance-chart-target='canvas']"
     assert_selector "th", text: "Net invested", visible: false
@@ -30,7 +30,7 @@ class PerformanceTest < ApplicationSystemTestCase
 
     visit performance_path
 
-    assert_text "Performance"
+    assert_text "How the pack is doing."
     assert_text "R$0,00"
     assert_no_text "Prices through"
   end

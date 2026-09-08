@@ -26,6 +26,7 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
 
     assert_equal [ position ], presenter.open_positions
     assert_equal value, presenter.market_value
+    assert_equal value, presenter.complete_market_value
     assert_predicate presenter, :market_value_available?
     assert_not_predicate presenter, :stale_market_data?
     assert_not_predicate presenter, :missing_market_data?
@@ -124,6 +125,7 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     assert_not_predicate presenter, :market_value_available?
     assert_predicate presenter, :market_value_displayable?
     assert_equal Money.from_amount(12, "BRL"), presenter.market_value
+    assert_nil presenter.complete_market_value
   end
 
   test "identifies a partially valued portfolio" do
@@ -233,6 +235,7 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     assert_predicate presenter, :no_open_positions?
     assert_not_predicate presenter, :market_value_available?
     assert_equal Money.from_amount(0, Rails.configuration.x.local_folio.reporting_currency), presenter.market_value
+    assert_equal Money.from_amount(0, Rails.configuration.x.local_folio.reporting_currency), presenter.complete_market_value
   end
 
   test "returns an empty summary without positions" do

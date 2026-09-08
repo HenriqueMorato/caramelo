@@ -10,10 +10,18 @@ en:
         date.
       Settlement exchange rate optional: Exchange rate paid or received (optional)
     index:
+      Actions: Actions
+      All trades: All trades
+      Buys only: Buys only
       Empty state: Record your first purchase or sale to start the trade history.
-      Introduction: Review executed purchases and sales across your portfolio.
+      Heading: The trail behind the pack.
+      Introduction: Every buy and sell, without chasing your tail.
+      No matching trades: No trades match this filter.
       No trades yet: No trades yet
       Page title: Transactions · %{application}
+      Sells only: Sells only
+      Trade: Trade
+      Trade filters: Trade filters
     new:
       Introduction: Record an executed purchase or sale.
       Page title: New trade · %{application}
@@ -21,4 +29,3 @@ en:
       Currency value: 'Currency: %{currency}'
       Fees value: 'Fees: %{fees}'
       Institution value: 'Institution: %{institution}'
-      Paid exchange rate value: 'Paid FX: 1 %{native_currency} = %{rate} %{settlement_currency}'
