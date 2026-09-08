@@ -73,6 +73,7 @@ class TradesTest < ApplicationSystemTestCase
     fill_in "Notes", with: "New position"
     click_on "Create Trade"
 
+    assert_current_path transactions_path, wait: 10
     assert_text "Trade was created."
     assert_text "PETR4 · BVMF"
     assert_text "New position"
@@ -124,6 +125,7 @@ class TradesTest < ApplicationSystemTestCase
     fill_in "Fees", with: "2.50"
     click_on "Create Trade"
 
+    assert_current_path transactions_path
     assert_text "Trade was created."
     assert_text "PETR4 · BVMF"
   end
@@ -144,6 +146,7 @@ class TradesTest < ApplicationSystemTestCase
     fill_in "Notes", with: "Reduced position"
     click_on "Update Trade"
 
+    assert_current_path transactions_path
     assert_text "Trade was updated."
     within "#trade_#{trade.id}" do
       assert_selector ".ui-badge-sell", text: "SELL"

@@ -141,6 +141,17 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", "R$1.250,00"
   end
 
+  test "does not present a partial portfolio valuation as the total value" do
+    create_trade(instrument: instruments(:petr4_bvmf), side: :buy, quantity: 1)
+    write_current_market_price(instrument: instruments(:voo_arcx), unit_price: "100")
+    write_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5")
+
+    get positions_url
+
+    assert_response :success
+    assert_select ".ui-summary-item-primary dd", "Not available"
+  end
+
   private
 
   def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1))

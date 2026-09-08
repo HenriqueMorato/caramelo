@@ -27,8 +27,10 @@ en:
       Introduction: Add a stock, fund, or other instrument to use with trades.
       Page title: New instrument · %{application}
     show:
+      Change as of: as of %{date}
       Closing price: Closing price
       Currency view: Position currency
+      Date: Date
       Delete blocked: Delete this instrument's trades before deleting the instrument.
       Empty history: Add a purchase or sale to begin its history.
       No position yet: Record a trade to calculate this position.
@@ -52,3 +54,4 @@ en:
       Six months: Six months
       Trade history: Trade history
       Trade history description: Purchases and sales recorded for this instrument.
+      View exact prices: View exact prices

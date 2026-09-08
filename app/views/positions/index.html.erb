@@ -20,12 +20,10 @@
     </div>
   </div>
 
-  <% available_values = @positions.filter_map { |position| position.valuation.market_value } %>
-  <% total_value = available_values.any? ? Money.from_amount(available_values.sum(&:amount), User.owner.reporting_currency) : nil %>
   <dl class="ui-summary-grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr]" aria-label="<%= t("Portfolio holdings") %>">
     <div class="ui-summary-item ui-summary-item-primary">
       <dt><%= t(".Total value") %></dt>
-      <dd><%= total_value&.format || t("Not available") %></dd>
+      <dd><%= @dashboard&.complete_market_value&.format || t("Not available") %></dd>
     </div>
     <div class="ui-summary-item">
       <dt><%= t("dashboard.index.Today") %></dt>
@@ -48,7 +46,7 @@
             <button type="button" data-grouping-target="option" data-grouping-value="<%= value %>" data-grouping-slot="<%= grouping_slot(value) %>" data-primary-label="<%= t(".Primary grouping") %>" data-secondary-label="<%= t(".Secondary grouping") %>" data-action="grouping#choose" aria-pressed="<%= [ @group_by, @subgroup_by ].include?(value).to_s %>" class="grouping-option"><%= label %></button>
           <% end %>
         </div>
-        <button type="button" data-action="grouping#clear" class="ui-button ui-button-secondary rounded-md px-2 py-1 text-xs"><%= t(".Clear") %></button>
+        <button type="button" data-action="grouping#clear" class="compact-control-hit-area ui-button ui-button-secondary rounded-md px-2 py-1 text-xs"><%= t(".Clear") %></button>
       </div>
     <% end %>
 

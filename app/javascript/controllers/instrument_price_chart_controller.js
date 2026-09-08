@@ -70,4 +70,22 @@ export default class extends Controller {
   disconnect() {
     this.chart?.destroy()
   }
+
+  refreshTheme() {
+    if (!this.chart) return
+
+    const dataset = this.chart.data.datasets[0]
+    dataset.borderColor = themeColor("--caramelo-chart-line")
+    dataset.backgroundColor = themeColor("--caramelo-chart-fill")
+    Object.assign(this.chart.options.plugins.tooltip, {
+      backgroundColor: themeColor("--caramelo-raised"),
+      borderColor: themeColor("--caramelo-chart-border"),
+      titleColor: themeColor("--caramelo-ink"),
+      bodyColor: themeColor("--caramelo-ink")
+    })
+    this.chart.options.scales.x.ticks.color = themeColor("--caramelo-muted")
+    this.chart.options.scales.y.ticks.color = themeColor("--caramelo-muted")
+    this.chart.options.scales.y.grid.color = themeColor("--caramelo-chart-grid")
+    this.chart.update("none")
+  }
 }

@@ -54,6 +54,13 @@ class Instrument::HeaderPresenter
     trend_color_class(day_change)
   end
 
+  def day_change_period_label
+    return unless market_price
+    return I18n.t("dashboard.index.Today") if market_price.quoted_at.to_date == Date.current
+
+    I18n.t("instruments.show.Change as of", date: I18n.l(market_price.quoted_at.to_date, format: :short))
+  end
+
   private
 
   attr_reader :previous_close

@@ -52,6 +52,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     fill_in "Name", with: "Petrobras ON"
     click_on "Update Instrument"
 
+    assert_current_path instrument_path(instrument)
     assert_text "Instrument was updated."
     assert_text "PETR3"
     assert_text "Petrobras ON"

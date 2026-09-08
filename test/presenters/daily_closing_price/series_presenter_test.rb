@@ -17,6 +17,7 @@ class DailyClosingPrice::SeriesPresenterTest < ActiveSupport::TestCase
     assert_equal [ 30.125, 31.5 ], data.fetch(:values)
     assert_equal [ "R$30,13", "R$31,50" ], data.fetch(:formatted_values)
     assert_equal "BRL", data.fetch(:currency)
+    assert_equal [ "R$30,13", "R$31,50" ], presenter.rows.map(&:price)
   end
 
   test "requires two observations for a useful line chart" do

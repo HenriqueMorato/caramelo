@@ -26,12 +26,6 @@
   <td class="whitespace-nowrap px-4 py-3 text-center font-mono tabular-nums text-coffee"><%= format_quantity trade.quantity %></td>
   <td class="whitespace-nowrap px-4 py-3 text-center font-mono tabular-nums text-coffee">
     <%= format_unit_price trade %>
-    <% if trade.explicit_settlement_conversion? %>
-      <span class="block text-[0.625rem] font-normal text-muted">
-        <%= t("trades.trade.Paid exchange rate value", native_currency: trade.currency,
-          rate: trade.settlement_exchange_rate.to_s("F"), settlement_currency: trade.settlement_currency) %>
-      </span>
-    <% end %>
   </td>
   <td class="whitespace-nowrap px-4 py-3 text-center font-mono tabular-nums text-muted"><%= trade.fees.format %></td>
   <td class="whitespace-nowrap px-4 py-3 text-center font-mono font-semibold tabular-nums text-coffee"><%= trade.total.format %></td>

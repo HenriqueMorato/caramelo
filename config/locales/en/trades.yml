@@ -29,4 +29,3 @@ en:
       Currency value: 'Currency: %{currency}'
       Fees value: 'Fees: %{fees}'
       Institution value: 'Institution: %{institution}'
-      Paid exchange rate value: 'Paid FX: 1 %{native_currency} = %{rate} %{settlement_currency}'

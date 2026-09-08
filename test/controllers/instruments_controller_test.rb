@@ -78,8 +78,10 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
     get instrument_url(@instrument)
 
-    assert_select "[data-controller='instrument-price-chart']"
+    assert_select "[data-controller='instrument-price-chart'][data-action*='appearance:change']"
     assert_select "canvas[data-instrument-price-chart-target='canvas']"
+    assert_select "details summary", "View exact prices"
+    assert_select "details tbody tr", count: 2
     assert_includes response.body, "R$12,00"
     assert_includes response.body, "R$11,00"
   end
