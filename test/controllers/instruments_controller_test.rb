@@ -13,6 +13,16 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Instruments"
     assert_select "h2", text: instruments(:petr4_bvmf).ticker
     assert_select "h2", text: instruments(:voo_arcx).ticker
+    assert_select "#instrument_#{instruments(:petr4_bvmf).id}" do
+      assert_select "a", "View details"
+      assert_select "a", "Edit instrument"
+      assert_select "button:not([disabled])", "Delete"
+    end
+    assert_select "#instrument_#{instruments(:voo_arcx).id}" do
+      assert_select "a", "View details"
+      assert_select "a", "Edit instrument"
+      assert_select "button[disabled]", "Delete"
+    end
   end
 
   test "shows an instrument without trades as a zero-position state" do
@@ -20,6 +30,10 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", @instrument.ticker
+    assert_select "header [aria-label='Actions for #{@instrument.ticker}']" do
+      assert_select "a", "Edit instrument"
+      assert_select "button", "Delete"
+    end
     assert_select "h2", "Position details"
     assert_select "span", "No trades"
     assert_select "p", "Record a trade to calculate this position."
@@ -40,7 +54,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(@instrument)
 
     assert_response :success
-    assert_select "h2", "Performance"
+    assert_select "h2", "Price history"
     assert_select "dd", text: "R$20,00"
     assert_select "dd", text: "R$24,00"
     assert_select "dt", text: "Total return"
@@ -196,7 +210,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(@instrument)
 
     assert_response :success
-    assert_select "#instrument-performance-heading", "Performance"
+    assert_select "#instrument-performance-heading", "Price history"
     assert_select "[role='status']", /Performance data is loading/
   end
 

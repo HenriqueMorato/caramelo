@@ -8,6 +8,8 @@ en:
     other: Other
     stock: Stock
   instruments:
+    actions:
+      Label: Actions for %{instrument}
     edit:
       Introduction: Update the instrument details before recording or reviewing trades.
       Page title: Edit %{instrument} · %{application}
@@ -41,6 +43,7 @@ en:
         for this instrument.
       Position could not be calculated: Position could not be calculated
       Position details: Position details
+      Price history: Price history
       Price history description: Historical closing prices in %{instrument}
       Price history unavailable: Historical prices will appear here after at least
         two daily closes are available.

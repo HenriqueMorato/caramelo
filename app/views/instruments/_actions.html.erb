@@ -1,0 +1,28 @@
+<%# locals: (instrument:, delete_blocked:, include_view: false) %>
+
+<div class="flex flex-wrap items-center gap-1" role="group" aria-label="<%= t("instruments.actions.Label", instrument: instrument.ticker) %>">
+  <% if include_view %>
+    <%= link_to t("actions.View details"), instrument,
+      class: "inline-flex min-h-11 items-center px-2 text-sm font-semibold text-caramel-deep hover:text-coffee" %>
+  <% end %>
+
+  <%= link_to t("actions.Edit model", model: Instrument.model_name.human.downcase), edit_instrument_path(instrument),
+    class: "inline-flex min-h-11 items-center px-2 text-sm font-semibold text-coffee hover:text-caramel-deep" %>
+
+  <% if delete_blocked %>
+    <% delete_tooltip_id = dom_id(instrument, :delete_tooltip) %>
+    <span class="group relative inline-flex min-h-11 items-center" tabindex="0" aria-describedby="<%= delete_tooltip_id %>">
+      <button type="button" disabled class="inline-flex min-h-11 cursor-not-allowed items-center px-2 text-sm font-semibold text-muted/70">
+        <%= t("actions.Delete") %>
+      </button>
+      <span id="<%= delete_tooltip_id %>" role="tooltip" class="pointer-events-none invisible absolute bottom-full left-1/2 z-10 mb-2 w-max max-w-64 -translate-x-1/2 rounded-lg bg-hero px-3 py-2 text-center text-xs font-medium text-hero-text opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
+        <%= t("instruments.show.Delete blocked") %>
+      </span>
+    </span>
+  <% else %>
+    <%= button_to t("actions.Delete"), instrument, method: :delete,
+      class: "inline-flex min-h-11 items-center px-2 text-sm font-semibold text-danger-text hover:text-guava",
+      form_class: "inline-flex",
+      data: { turbo_confirm: t("confirmations.Delete record", record: instrument.ticker) } %>
+  <% end %>
+</div>
