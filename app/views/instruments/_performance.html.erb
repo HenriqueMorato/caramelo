@@ -1,6 +1,6 @@
 <%# locals: (price_history_presenter:) %>
 
-<section aria-labelledby="instrument-performance-heading" class="ui-panel p-5 sm:p-6">
+<section aria-labelledby="instrument-performance-heading" class="ui-panel flex h-full flex-col p-5 sm:p-6">
   <div class="flex items-baseline justify-between gap-3">
     <div>
       <h2 id="instrument-performance-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t("instruments.show.Price history") %></h2>
@@ -10,11 +10,11 @@
   </div>
 
   <% if price_history_presenter.available? %>
-    <div class="mt-4 h-72" data-controller="instrument-price-chart" data-instrument-price-chart-data-value="<%= price_history_presenter.chart_data.to_json %>">
+    <div class="mt-4 min-h-72 flex-1" data-controller="instrument-price-chart" data-instrument-price-chart-data-value="<%= price_history_presenter.chart_data.to_json %>">
       <canvas data-instrument-price-chart-target="canvas" role="img" aria-label="<%= t("instruments.show.Price history description", instrument: price_history_presenter.currency) %>"></canvas>
     </div>
   <% else %>
-    <div class="mt-5 flex h-72 items-center justify-center rounded-xl border border-dashed border-coffee/15 text-center text-sm text-muted">
+    <div class="mt-5 flex min-h-72 flex-1 items-center justify-center rounded-xl border border-dashed border-coffee/15 text-center text-sm text-muted">
       <%= t("instruments.show.Price history unavailable") %>
     </div>
   <% end %>
