@@ -24,13 +24,7 @@ module MarketData
           raise ArgumentError, "unsupported BCB series"
         end
 
-        uri = BASE_URI.dup
-        uri.path = "#{uri.path}/#{series}/dados"
-        uri.query = URI.encode_www_form(dataInicial: from.strftime("%d/%m/%Y"), dataFinal: to.strftime("%d/%m/%Y"))
-        response = request(uri)
-        raise InvalidResponse, "BCB returned HTTP #{response.code}" unless (200..299).cover?(response.code.to_i)
-
-        parse(response.body, from:, to:)
+        ranges(from, to).flat_map { |range| fetch_range(series, range.begin, range.end) }.uniq(&:observed_on).sort_by(&:observed_on)
       rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
         raise InvalidResponse, error.message
       end
@@ -40,9 +34,24 @@ module MarketData
       attr_reader :http, :open_timeout, :read_timeout
 
       def validate_range!(from, to)
-        return if from.is_a?(Date) && to.is_a?(Date) && from <= to && (to - from).to_i <= MAX_RANGE_DAYS
+        return if from.is_a?(Date) && to.is_a?(Date) && from <= to
 
-        raise ArgumentError, "BCB date range must be dates within ten years"
+        raise ArgumentError, "BCB date range must use dates in chronological order"
+      end
+
+      def ranges(from, to)
+        starts = (from..to).step(MAX_RANGE_DAYS + 1).to_a
+        starts.map { |start| start..[ start + MAX_RANGE_DAYS, to ].min }
+      end
+
+      def fetch_range(series, from, to)
+        uri = BASE_URI.dup
+        uri.path = "#{uri.path}/#{series}/dados"
+        uri.query = URI.encode_www_form(dataInicial: from.strftime("%d/%m/%Y"), dataFinal: to.strftime("%d/%m/%Y"))
+        response = request(uri)
+        raise InvalidResponse, "BCB returned HTTP #{response.code}" unless (200..299).cover?(response.code.to_i)
+
+        parse(response.body, from:, to:)
       end
 
       def request(uri)

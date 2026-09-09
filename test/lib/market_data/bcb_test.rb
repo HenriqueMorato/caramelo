@@ -20,15 +20,15 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
     assert_equal [ Date.new(2026, 1, 3), Date.new(2026, 1, 7) ], observations.map(&:observed_on)
   end
 
-  test "rejects unsupported series and ranges beyond ten years" do
+  test "rejects unsupported series and splits ranges beyond ten years" do
     client = build_client("[]")
 
     assert_raises(MarketData::Bcb::InvalidResponse) do
       client.daily_rates(identifier: "SELIC", from: Date.new(2026, 1, 1), to: Date.new(2026, 1, 2))
     end
-    assert_raises(MarketData::Bcb::InvalidResponse) do
-      client.daily_rates(identifier: "CDI", from: Date.new(2010, 1, 1), to: Date.new(2026, 1, 1))
-    end
+    observations = client.daily_rates(identifier: "CDI", from: Date.new(2010, 1, 1), to: Date.new(2026, 1, 1))
+
+    assert_empty observations
   end
 
   test "rejects malformed responses and non-success statuses" do
