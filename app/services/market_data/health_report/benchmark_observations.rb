@@ -20,7 +20,7 @@ module MarketData
         observations = benchmark.observations.where(
           observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..historical_end_date)
         ).to_a
-        coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: true)
+        coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: benchmark.price?)
         present = coverage.complete?
         supported = MarketBenchmark::Importer.default.supports?(benchmark:)
         HealthReport::Entry.new(

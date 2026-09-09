@@ -246,6 +246,17 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_empty coverage.missing_ranges
   end
 
+  test "does not carry a rate observation across a missing accrual date" do
+    coverage = MarketData::HealthReport::CoverageCalculator.for(
+      required_dates: (Date.new(2026, 9, 1)..Date.new(2026, 9, 2)).to_a,
+      observations: [ DailyClosingPrice.new(trading_date: Date.new(2026, 9, 1)) ],
+      carry_forward: false
+    )
+
+    assert_predicate coverage, :partial?
+    assert_equal [ Date.new(2026, 9, 2)..Date.new(2026, 9, 2) ], coverage.missing_ranges
+  end
+
   test "does not carry observations beyond the historical window" do
     date = Date.new(2026, 9, 12)
     coverage = MarketData::HealthReport::CoverageCalculator.for(
