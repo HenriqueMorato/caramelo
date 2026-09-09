@@ -137,7 +137,8 @@ module Performance
     end
 
     def return_ratio_for(date:, record:, opening:, gain_loss_amount:)
-      return if date == from || gain_loss_amount.nil?
+      return decimal("0") if date == from && usable?(record)
+      return if gain_loss_amount.nil?
 
       capital = weighted_capital(date:, record:, opening:)
       return if capital.zero?
