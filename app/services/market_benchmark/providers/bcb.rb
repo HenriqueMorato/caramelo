@@ -10,7 +10,7 @@ class MarketBenchmark
       def identifier = IDENTIFIER
 
       def supports?(benchmark:)
-        benchmark.provider == identifier && benchmark.rate? && benchmark.provider_identifier.casecmp("CDI").zero?
+        benchmark.provider == identifier && benchmark.rate? && benchmark.provider_identifier.to_s.casecmp("CDI").zero?
       end
 
       def fetch(benchmark:, from:, to:)

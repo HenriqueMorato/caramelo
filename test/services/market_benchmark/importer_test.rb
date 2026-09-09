@@ -15,6 +15,14 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     assert_equal "yahoo_finance", importer.identifier
   end
 
+  test "selects the BCB provider for CDI benchmarks" do
+    importer = MarketBenchmark::Importer.default
+    benchmark = MarketBenchmark.new(provider: "bcb", kind: :rate, provider_identifier: "CDI")
+
+    assert importer.supports?(benchmark:)
+    assert_equal "bcb", importer.identifier_for(benchmark:)
+  end
+
   test "persists inside a current publication fence" do
     benchmark = MarketBenchmark.create!(identifier: "FENCE", name: "Fenced benchmark", kind: :price,
       currency: "USD", provider: "yahoo_finance", provider_identifier: "^FENCE")
