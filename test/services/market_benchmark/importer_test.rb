@@ -23,6 +23,35 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     assert_equal "bcb", importer.identifier_for(benchmark:)
   end
 
+  test "exposes identifiers for a selected benchmark and handles missing providers" do
+    provider = Object.new
+    provider.define_singleton_method(:identifier) { "yahoo_finance" }
+    provider.define_singleton_method(:supports?) { |benchmark:| false }
+    importer = MarketBenchmark::Importer.new(providers: [ provider ])
+    benchmark = MarketBenchmark.new(provider: "yahoo_finance")
+
+    assert_equal "yahoo_finance", importer.identifier(benchmark:)
+    assert_nil MarketBenchmark::Importer.new.identifier
+    assert_equal "yahoo_finance", importer.identifier_for(benchmark:)
+    assert importer.supports?(benchmark:)
+
+    other = Object.new
+    other.define_singleton_method(:supports?) { |benchmark:| false }
+    unmatched = MarketBenchmark::Importer.new(providers: [ provider, other ])
+    assert_nil unmatched.identifier_for(benchmark:)
+    refute unmatched.supports?(benchmark:)
+  end
+
+  test "rejects a benchmark without a matching provider" do
+    benchmark = MarketBenchmark.new(provider: "unknown")
+
+    assert_raises(ArgumentError) do
+      MarketBenchmark::Importer.new(providers: []).call(
+        benchmark:, from: Date.current, to: Date.current
+      )
+    end
+  end
+
   test "persists inside a current publication fence" do
     benchmark = MarketBenchmark.create!(identifier: "FENCE", name: "Fenced benchmark", kind: :price,
       currency: "USD", provider: "yahoo_finance", provider_identifier: "^FENCE")

@@ -29,6 +29,14 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
     assert_equal [ Date.new(2026, 1, 3), Date.new(2026, 1, 7) ], observations.map(&:observed_on)
   end
 
+  test "ignores negative and non-finite rates" do
+    body = '[{"data":"03/01/2026","valor":"-0,01"},{"data":"04/01/2026","valor":"NaN"}]'
+
+    assert_empty build_client(body).daily_rates(
+      identifier: "CDI", from: Date.new(2026, 1, 3), to: Date.new(2026, 1, 4)
+    )
+  end
+
   test "rejects unsupported series and splits ranges beyond ten years" do
     client = build_client("[]")
 
@@ -38,6 +46,18 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
     observations = client.daily_rates(identifier: "CDI", from: Date.new(2010, 1, 1), to: Date.new(2026, 1, 1))
 
     assert_empty observations
+  end
+
+  test "rejects ranges that are not chronological dates" do
+    assert_raises(MarketData::Bcb::InvalidResponse) do
+      build_client("[]").daily_rates(
+        identifier: "CDI", from: Date.new(2026, 1, 2), to: Date.new(2026, 1, 1)
+      )
+    end
+
+    assert_raises(MarketData::Bcb::InvalidResponse) do
+      build_client("[]").daily_rates(identifier: "CDI", from: "2026-01-01", to: Date.new(2026, 1, 2))
+    end
   end
 
   test "rejects malformed responses and non-success statuses" do
@@ -55,6 +75,25 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
     assert_empty build_client(body, code: "404").daily_rates(
       identifier: "CDI", from: Date.new(2026, 1, 3), to: Date.new(2026, 1, 4)
     )
+  end
+
+  test "does not treat an undecodable not-found response as an empty range" do
+    assert_raises(MarketData::Bcb::InvalidResponse) do
+      build_client("not-json", code: "404").daily_rates(
+        identifier: "CDI", from: Date.new(2026, 1, 3), to: Date.new(2026, 1, 4)
+      )
+    end
+  end
+
+  test "wraps network failures in the provider error" do
+    http = Object.new
+    http.define_singleton_method(:start) { |*| raise SocketError, "connection failed" }
+
+    assert_raises(MarketData::Bcb::Error) do
+      MarketData::Bcb::Client.new(http:).daily_rates(
+        identifier: "CDI", from: Date.new(2026, 1, 3), to: Date.new(2026, 1, 4)
+      )
+    end
   end
 
   private
