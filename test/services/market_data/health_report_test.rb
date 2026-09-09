@@ -48,7 +48,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     refute report.healthy?
   end
 
-  test "does not offer recovery for an unsupported benchmark provider" do
+  test "offers recovery for a configured CDI benchmark provider" do
     benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
       provider: "bcb", provider_identifier: "CDI")
 
@@ -56,9 +56,9 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       today: Date.new(2026, 9, 2))
     entry = report.entries.find { |candidate| candidate.subject == benchmark }
 
-    assert_equal :unsupported, entry.status
-    assert_includes entry.description, "no configured recovery provider"
-    refute_predicate entry, :actionable?
+    assert_equal :missing, entry.status
+    assert_includes entry.description, "missing observations"
+    assert_predicate entry, :actionable?
   end
 
   test "reports missing FX against the selected reporting currency" do
