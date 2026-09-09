@@ -35,7 +35,7 @@ class CaptureMarketBenchmarkObservationsJob < ApplicationJob
 
   def captured?(benchmark, from:, to:)
     from == to && MarketBenchmarkObservation.exists?(
-      market_benchmark: benchmark, observed_on: to, provider: importer.identifier
+      market_benchmark: benchmark, observed_on: to, provider: benchmark.provider
     )
   end
 
