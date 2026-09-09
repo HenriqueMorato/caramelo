@@ -72,6 +72,44 @@ class CaptureMarketBenchmarkObservationsJobTest < ActiveJob::TestCase
     assert_equal({ benchmark:, from: date, to: date }, imports.last.slice(:benchmark, :from, :to))
   end
 
+  test "uses a recent overlap for daily CDI captures" do
+    benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:identifier) { "bcb" }
+    importer.define_singleton_method(:supports?) { |benchmark:| benchmark.provider == "bcb" }
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureMarketBenchmarkObservationsJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { Object.new.tap { |object| object.define_singleton_method(:wait!) { } } }
+
+    date = Date.new(2026, 9, 8)
+    job.perform(observed_on: date)
+
+    assert_equal date - 7.days, imports.sole[:from]
+    assert_equal date, imports.sole[:to]
+  end
+
+  test "does not skip CDI when the target date was already captured" do
+    benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+    MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: Date.new(2026, 9, 8), value: 1,
+      currency: "BRL", provider: "bcb", observed_at: Time.current)
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:identifier) { "bcb" }
+    importer.define_singleton_method(:supports?) { |benchmark:| benchmark.provider == "bcb" }
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureMarketBenchmarkObservationsJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { Object.new.tap { |object| object.define_singleton_method(:wait!) { } } }
+
+    job.perform(observed_on: Date.new(2026, 9, 8))
+
+    assert_equal 1, imports.size
+  end
+
   test "audits benchmark history across the requested startup range" do
     benchmark = create_benchmark
     imports = []

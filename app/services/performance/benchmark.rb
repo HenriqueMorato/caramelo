@@ -19,7 +19,7 @@ module Performance
       values = [ BigDecimal("0") ]
       factor = BigDecimal("1")
       observations.drop(baseline ? 1 : 0).each do |observation|
-        factor *= BigDecimal("1") + observation.value
+        factor = (factor * (BigDecimal("1") + observation.value)).truncate(DailyRateReturn::ACCUMULATION_SCALE)
         values << factor - 1
       end
       baseline ? values : values.drop(1)
@@ -57,8 +57,8 @@ module Performance
 
     def calculate_return(observations)
       if benchmark.rate?
-        growth = observations.reduce(BigDecimal("1")) { |factor, observation| factor * (BigDecimal("1") + observation.value) }
-        return growth - 1
+        return DailyRateReturn.for(observations:, from: observations.first.observed_on,
+          to: observations.last.observed_on + 1.day).return_ratio
       end
 
       observations.last.value / observations.first.value - 1

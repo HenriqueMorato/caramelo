@@ -245,8 +245,9 @@ manifest intentionally retains the light palette as its static fallback.
 When `bin/dev` is running, the Solid Queue worker schedules a current-price
 check every five minutes. Only supported instruments with missing or stale
 quotes are fetched; the provider throttle and job deduplication still apply.
-Daily close, FX, and supported Yahoo benchmark observations run once per day
-for the previous business day. Starting the development app also enqueues one
+Daily close, FX, and supported benchmark observations (including CDI from
+Banco Central SGS series 12) run once per day for the previous business day.
+Starting the development app also enqueues one
 initial pass (the production entrypoint does the same). A trade queues its
 current quote when needed and coalesces the
 historical backfill required for its trade date.

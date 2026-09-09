@@ -33,6 +33,16 @@ class Performance::BenchmarkTest < ActiveSupport::TestCase
     assert_equal [ BigDecimal("0.01"), BigDecimal("0.0302") ], result.cumulative_return_values
   end
 
+  test "applies B3 truncation when calculating CDI return" do
+    benchmark = create_benchmark(identifier: "CDI", kind: "rate")
+    create_observation(benchmark, @from, "0.00055131")
+    create_observation(benchmark, @to, "0.00051660")
+
+    result = Performance::Benchmark.for(benchmark:, from: @from, to: @to)
+
+    assert_equal BigDecimal("0.00106819"), result.return_ratio
+  end
+
   test "reports missing when fewer than two observations exist" do
     benchmark = create_benchmark
     create_observation(benchmark, @from, "100")

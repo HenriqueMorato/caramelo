@@ -40,16 +40,15 @@ class Performance::SeriesTest < ActiveSupport::TestCase
 
     series = Performance::Series.for(from: @from, to: @to, user: @user)
 
-    series.observations.each do |observation|
+    first_observation, *later_observations = series.observations
+    assert_equal BigDecimal("0"), first_observation.return_ratio
+
+    later_observations.each do |observation|
       period = Performance::Period.for(from: @from, to: observation.date)
       assert_equal period.closing_valuation.market_value_amount, observation.market_value_amount
       assert_equal period.closing_valuation.net_cash_flow_amount, observation.invested_amount
       assert_equal period.gain_loss_amount, observation.gain_loss_amount
-      if period.return_ratio
-        assert_equal period.return_ratio, observation.return_ratio
-      else
-        assert_nil observation.return_ratio
-      end
+      assert_equal period.return_ratio, observation.return_ratio
     end
   end
 
@@ -60,7 +59,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
 
     assert_equal BigDecimal("40"), result.observations.first.invested_amount
     assert_equal Money.from_amount(40, "BRL"), result.observations.first.invested_value
-    assert_nil result.observations.first.return_ratio
+    assert_equal BigDecimal("0"), result.observations.first.return_ratio
   end
 
   test "matches period math for fractional sales fees closure reopening and multiple currencies" do
@@ -96,16 +95,15 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     end
     Performance::ObservationBuilder.new(user: @user).call(from:, to:)
 
-    Performance::Series.for(from:, to:, user: @user).observations.each do |observation|
+    first_observation, *later_observations = Performance::Series.for(from:, to:, user: @user).observations
+    assert_equal BigDecimal("0"), first_observation.return_ratio
+
+    later_observations.each do |observation|
       period = Performance::Period.for(from:, to: observation.date)
       assert_equal period.closing_valuation.market_value_amount, observation.market_value_amount
       assert_equal period.closing_valuation.net_cash_flow_amount, observation.invested_amount
       assert_equal period.gain_loss_amount, observation.gain_loss_amount
-      if period.return_ratio
-        assert_equal period.return_ratio, observation.return_ratio
-      else
-        assert_nil observation.return_ratio
-      end
+      assert_equal period.return_ratio, observation.return_ratio
     end
   end
 
