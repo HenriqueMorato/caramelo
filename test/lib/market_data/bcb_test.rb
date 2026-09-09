@@ -40,6 +40,14 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "treats the documented no-values response as an empty range" do
+    body = '{"erro":{"statusCode":404,"detail":"Value(s) not found"}}'
+
+    assert_empty build_client(body, code: "404").daily_rates(
+      identifier: "CDI", from: Date.new(2026, 1, 3), to: Date.new(2026, 1, 4)
+    )
+  end
+
   private
 
   def build_client(body, code: "200")

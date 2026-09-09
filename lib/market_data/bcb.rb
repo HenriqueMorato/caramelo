@@ -8,7 +8,7 @@ module MarketData
     class Client
       BASE_URI = URI("https://api.bcb.gov.br/dados/serie/bcdata.sgs")
       SERIES = { "CDI" => 12 }.freeze
-      MAX_RANGE_DAYS = 10 * 365
+      MAX_CHUNK_DAYS = 365
 
       Observation = Data.define(:observed_on, :value, :observed_at)
 
@@ -40,8 +40,8 @@ module MarketData
       end
 
       def ranges(from, to)
-        starts = (from..to).step(MAX_RANGE_DAYS + 1).to_a
-        starts.map { |start| start..[ start + MAX_RANGE_DAYS, to ].min }
+        starts = (from..to).step(MAX_CHUNK_DAYS).to_a
+        starts.map { |start| start..[ start + MAX_CHUNK_DAYS - 1, to ].min }
       end
 
       def fetch_range(series, from, to)
@@ -49,9 +49,19 @@ module MarketData
         uri.path = "#{uri.path}/#{series}/dados"
         uri.query = URI.encode_www_form(dataInicial: from.strftime("%d/%m/%Y"), dataFinal: to.strftime("%d/%m/%Y"))
         response = request(uri)
+        return [] if empty_response?(response)
         raise InvalidResponse, "BCB returned HTTP #{response.code}" unless (200..299).cover?(response.code.to_i)
 
         parse(response.body, from:, to:)
+      end
+
+      def empty_response?(response)
+        return false unless response.code.to_i == 404
+
+        body = JSON.parse(response.body)
+        body.dig("erro", "detail").to_s.include?("Value(s) not found")
+      rescue JSON::ParserError, TypeError
+        false
       end
 
       def request(uri)
