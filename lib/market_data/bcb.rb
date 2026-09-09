@@ -6,7 +6,7 @@ module MarketData
     class InvalidResponse < Error; end
 
     class Client
-      BASE_URI = URI("https://api.bcb.gov.br/dados/serie/bcdata.sgs")
+      BASE_URI = URI("https://api.bcb.gov.br/dados/serie/bcdata.sgs.12")
       SERIES = { "CDI" => 12 }.freeze
       MAX_CHUNK_DAYS = 365
 
@@ -20,11 +20,11 @@ module MarketData
 
       def daily_rates(identifier:, from:, to:)
         validate_range!(from, to)
-        series = SERIES.fetch(identifier.to_s.strip.upcase) do
+        SERIES.fetch(identifier.to_s.strip.upcase) do
           raise ArgumentError, "unsupported BCB series"
         end
 
-        ranges(from, to).flat_map { |range| fetch_range(series, range.begin, range.end) }.uniq(&:observed_on).sort_by(&:observed_on)
+        ranges(from, to).flat_map { |range| fetch_range(range.begin, range.end) }.uniq(&:observed_on).sort_by(&:observed_on)
       rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
         raise InvalidResponse, error.message
       end
@@ -44,9 +44,9 @@ module MarketData
         starts.map { |start| start..[ start + MAX_CHUNK_DAYS - 1, to ].min }
       end
 
-      def fetch_range(series, from, to)
+      def fetch_range(from, to)
         uri = BASE_URI.dup
-        uri.path = "#{uri.path}/#{series}/dados"
+        uri.path = "#{uri.path}/dados"
         uri.query = URI.encode_www_form(dataInicial: from.strftime("%d/%m/%Y"), dataFinal: to.strftime("%d/%m/%Y"))
         response = request(uri)
         return [] if empty_response?(response)

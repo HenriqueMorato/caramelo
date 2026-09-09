@@ -12,6 +12,15 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.00055131"), observations.first.value
   end
 
+  test "requests the SGS series 12 endpoint" do
+    paths = []
+    client = build_client("[]", paths:)
+
+    client.daily_rates(identifier: "CDI", from: Date.new(2026, 1, 2), to: Date.new(2026, 1, 2))
+
+    assert_equal "/dados/serie/bcdata.sgs.12/dados", URI(paths.sole).path
+  end
+
   test "sorts and filters rows to the requested interval" do
     client = build_client('[{"data":"07/01/2026","valor":"0,05"},{"data":"01/01/2026","valor":"0,04"},{"data":"03/01/2026","valor":"0,06"}]')
 
@@ -50,9 +59,12 @@ class MarketData::Bcb::ClientTest < ActiveSupport::TestCase
 
   private
 
-  def build_client(body, code: "200")
+  def build_client(body, code: "200", paths: [])
     connection = Object.new
-    connection.define_singleton_method(:get) { |_path| Response.new(code:, body:) }
+    connection.define_singleton_method(:get) do |path|
+      paths << "https://api.bcb.gov.br#{path}"
+      Response.new(code:, body:)
+    end
     http = Object.new
     http.define_singleton_method(:start) { |_host, _port, **_options, &block| block.call(connection) }
     MarketData::Bcb::Client.new(http:)
