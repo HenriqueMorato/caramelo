@@ -115,7 +115,7 @@ class InstrumentsTest < ApplicationSystemTestCase
       click_on "Add trade"
     end
 
-    fill_in "Trade date", with: "2026-08-24"
+    find("input[name='trade[traded_on]']:not([disabled])").set("2026-08-24")
     fill_in "Quantity", with: "3"
     fill_in "Unit price", with: "20"
     fill_in "Fees", with: "0"
