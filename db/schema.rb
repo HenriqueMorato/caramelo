@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_04_213000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_09_000000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -59,6 +59,48 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_213000) do
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["user_id", "name"], name: "index_institutions_on_user_id_and_name", unique: true
+  end
+
+  create_table "instrument_performance_materializations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "instrument_id", null: false
+    t.string "reporting_currency", limit: 3, null: false
+    t.date "requested_from"
+    t.date "requested_to"
+    t.integer "source_generation", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["instrument_id"], name: "index_instrument_performance_materializations_on_instrument_id"
+    t.index ["user_id", "instrument_id", "reporting_currency"], name: "index_instrument_performance_materializations_uniqueness", unique: true
+    t.index ["user_id"], name: "index_instrument_performance_materializations_on_user_id"
+    t.check_constraint "(requested_from IS NULL AND requested_to IS NULL) OR (requested_from IS NOT NULL AND requested_to IS NOT NULL AND requested_from <= requested_to)", name: "instrument_performance_materializations_requested_range"
+    t.check_constraint "source_generation >= 0", name: "instrument_performance_materializations_source_generation"
+  end
+
+  create_table "instrument_performance_observations", force: :cascade do |t|
+    t.text "cash_flow_total", default: "0/1", null: false
+    t.text "cost_basis_amount"
+    t.datetime "created_at", null: false
+    t.text "dated_cash_flow_total", default: "0/1", null: false
+    t.datetime "generated_at", null: false
+    t.integer "instrument_id", null: false
+    t.text "market_value_amount"
+    t.text "net_cash_flow_amount"
+    t.date "observed_on", null: false
+    t.text "realized_gain_amount"
+    t.string "reporting_currency", limit: 3, null: false
+    t.integer "source_generation", default: 0, null: false
+    t.datetime "stale_at"
+    t.string "status", null: false
+    t.text "unrealized_gain_amount"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["instrument_id"], name: "index_instrument_performance_observations_on_instrument_id"
+    t.index ["user_id", "instrument_id", "reporting_currency", "observed_on"], name: "index_instrument_performance_observations_uniqueness", unique: true
+    t.index ["user_id"], name: "index_instrument_performance_observations_on_user_id"
+    t.check_constraint "(status = 'missing' AND market_value_amount IS NULL AND cost_basis_amount IS NULL AND realized_gain_amount IS NULL AND unrealized_gain_amount IS NULL AND net_cash_flow_amount IS NULL) OR (status IN ('available', 'empty') AND market_value_amount IS NOT NULL AND cost_basis_amount IS NOT NULL AND realized_gain_amount IS NOT NULL AND unrealized_gain_amount IS NOT NULL AND net_cash_flow_amount IS NOT NULL)", name: "instrument_performance_observations_amounts_match_status"
+    t.check_constraint "source_generation >= 0", name: "instrument_performance_observations_source_generation"
+    t.check_constraint "status IN ('available', 'empty', 'missing')", name: "instrument_performance_observations_status"
   end
 
   create_table "instruments", force: :cascade do |t|
@@ -224,6 +266,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_213000) do
   add_foreign_key "daily_closing_prices", "instruments"
   add_foreign_key "historical_data_backfills", "instruments"
   add_foreign_key "institutions", "users"
+  add_foreign_key "instrument_performance_materializations", "instruments"
+  add_foreign_key "instrument_performance_materializations", "users"
+  add_foreign_key "instrument_performance_observations", "instruments"
+  add_foreign_key "instrument_performance_observations", "users"
   add_foreign_key "market_benchmark_observations", "market_benchmarks"
   add_foreign_key "portfolio_performance_materializations", "users"
   add_foreign_key "portfolio_performance_observations", "users"
