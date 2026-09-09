@@ -160,3 +160,9 @@ non-trading dates. If a requested range starts during a closure, a prior
 observation is used only when it falls inside the seven-day safety window; no
 synthetic database rows are created. This is evaluated independently per
 benchmark, so markets with different holidays do not share a calendar.
+
+The CDI benchmark is a daily rate series from Banco Central's SGS series 12.
+Published percentages are normalized to decimal daily returns once, then
+compounded with B3's 16-decimal intermediate truncation and eight-decimal final
+rounding. CDI history is kept in the same benchmark-observation store, but its
+missing accrual dates are not hidden by the price-series carry-forward rule.
