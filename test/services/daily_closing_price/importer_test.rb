@@ -110,7 +110,14 @@ class DailyClosingPrice::ImporterTest < ActiveSupport::TestCase
     )
 
     assert_predicate PortfolioPerformanceMaterialization.for(user: users(:owner)), :pending?
+    instrument_states = users(:owner).instrument_performance_materializations.where(instrument: @instrument)
+      .index_by(&:reporting_currency)
+    assert_equal %w[BRL USD], instrument_states.keys.sort
+    assert instrument_states.values.all?(&:pending?)
     assert_nil Performance::SeriesRefresh.read(user: users(:owner))
+    assert_nil Performance::SeriesRefresh.read(
+      user: users(:owner), instrument: @instrument, reporting_currency: "USD"
+    )
   end
 
   test "rolls back imported prices and dirty metadata together if invalidation fails" do

@@ -7,6 +7,7 @@ module MarketData
       historical_exchange_rates
       benchmark_observations
       portfolio_performance
+      instrument_performance
     ].freeze
 
     def initialize(kind:, record_id: nil, base_currency: nil, quote_currency: nil, provider: nil)

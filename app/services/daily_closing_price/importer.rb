@@ -78,6 +78,9 @@ class DailyClosingPrice
       users = User.where(id: Trade.where(instrument:).select(:user_id)).to_a
       users.each do |user|
         Performance::ObservationInvalidator.mark!(user:, from: earliest_observation_date)
+        Performance::ObservationInvalidator.mark_instrument!(
+          user:, instrument:, from: earliest_observation_date
+        )
       end
       users
     end
@@ -85,6 +88,9 @@ class DailyClosingPrice
     def enqueue_performance_observations
       performance_users.each do |user|
         Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
+        Performance::ObservationInvalidator.enqueue_instrument(
+          user:, instrument:, from: earliest_observation_date
+        )
       end
     end
 

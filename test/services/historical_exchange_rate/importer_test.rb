@@ -66,12 +66,26 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     )
     Performance::ObservationBuilder.new(user:).call(from: date, to: date)
     observation = user.portfolio_performance_observations.find_by!(observed_on: date)
+    Performance::ObservationBuilder.new(
+      user:, instrument: trade.instrument, reporting_currency: "USD"
+    ).call(from: date, to: date)
+    Performance::ObservationBuilder.new(
+      user:, instrument: trade.instrument, reporting_currency: "BRL"
+    ).call(from: date, to: date)
+    native = user.instrument_performance_observations.find_by!(
+      instrument: trade.instrument, reporting_currency: "USD", observed_on: date
+    )
+    reporting = user.instrument_performance_observations.find_by!(
+      instrument: trade.instrument, reporting_currency: "BRL", observed_on: date
+    )
     assert_equal BigDecimal("1250"), observation.market_value_amount
 
     @provider.rate = BigDecimal("0.25")
     @importer.call(base_currency: "BRL", quote_currency: "USD", from: date, to: date)
 
     assert_predicate observation.reload, :stale?
+    assert_predicate reporting.reload, :stale?
+    assert_not_predicate native.reload, :stale?
     assert_predicate PortfolioPerformanceMaterialization.for(user:), :pending?
     Performance::ObservationBuilder.new(user:).call(from: date, to: date)
     assert_equal BigDecimal("1000"), observation.reload.market_value_amount
@@ -116,6 +130,12 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     )
 
     assert_predicate PortfolioPerformanceMaterialization.for(user: users(:owner)), :pending?
+    assert_predicate InstrumentPerformanceMaterialization.for(
+      user: users(:owner), instrument: instruments(:voo_arcx), reporting_currency: "BRL"
+    ), :pending?
+    assert_not InstrumentPerformanceMaterialization.exists?(
+      user: users(:owner), instrument: instruments(:voo_arcx), reporting_currency: "USD"
+    )
     assert_nil Performance::SeriesRefresh.read(user: users(:owner))
   end
 

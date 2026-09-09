@@ -62,6 +62,11 @@ module MarketData
         ).order(:id).pluck(:id, :updated_at)
       when :portfolio_performance
         PortfolioPerformanceObservation.where(user: owner, reporting_currency: owner.reporting_currency, observed_on: from..to).order(:id).pluck(:id, :updated_at)
+      when :instrument_performance
+        InstrumentPerformanceObservation.where(
+          user: owner, instrument_id: target.record_id,
+          reporting_currency: target.quote_currency, observed_on: from..to
+        ).order(:id).pluck(:id, :updated_at)
       else
         []
       end

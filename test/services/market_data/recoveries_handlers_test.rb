@@ -152,6 +152,61 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     assert_nil RefreshStatus::State.read(target.scope)
   end
 
+  test "queues instrument performance recovery for the requested range" do
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: @instrument.id, quote_currency: "USD"
+    )
+    range = Date.new(2026, 8, 12)..Date.new(2026, 8, 14)
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      result = MarketData::Recoveries::PerformanceObservations.call(
+        target:, range:, batch_scope: "outer", batch_run_id: "run", owner: @owner
+      )
+      assert_equal RefreshCurrentMarketPriceJob::COALESCED, result
+    end
+
+    assert_equal @owner, enqueued[:user]
+    assert_equal @instrument, enqueued[:instrument]
+    assert_equal "USD", enqueued[:reporting_currency]
+    assert_equal range.begin, enqueued[:from]
+    assert_equal range.end, enqueued[:to]
+  end
+
+  test "defaults instrument performance recovery to first trade through today" do
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: @instrument.id, quote_currency: "BRL"
+    )
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      MarketData::Recoveries::PerformanceObservations.call(
+        target:, range: nil, batch_scope: "outer", batch_run_id: "run", owner: @owner
+      )
+    end
+
+    assert_equal @owner.trades.where(instrument: @instrument).minimum(:traded_on), enqueued[:from]
+    assert_equal Date.current, enqueued[:to]
+  end
+
+  test "raises when performance recovery enqueue fails" do
+    target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**) { :failed }) do
+      assert_raises(ActiveJob::EnqueueError) do
+        MarketData::Recoveries::PerformanceObservations.call(
+          target:, range: Date.current..Date.current, batch_scope: "outer", batch_run_id: "run", owner: @owner
+        )
+      end
+    end
+  end
+
   private
 
   def call_handler(service, job_class, target:, range: nil, result: :job)

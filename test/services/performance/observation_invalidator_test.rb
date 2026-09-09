@@ -1,6 +1,6 @@
 require "test_helper"
 
-class Performance::ObservationInvalidatorTest < ActiveSupport::TestCase
+class Performance::ObservationInvalidatorTest < ActiveJob::TestCase
   setup do
     Rails.cache.clear
     @user = users(:owner)
@@ -60,6 +60,30 @@ class Performance::ObservationInvalidatorTest < ActiveSupport::TestCase
     assert_equal "queue unavailable", reported.first.message
   end
 
+  test "maintains native reporting and existing instrument currency views" do
+    instrument = instruments(:voo_arcx)
+    InstrumentPerformanceMaterialization.for(user: @user, instrument:, reporting_currency: "EUR")
+
+    Performance::ObservationInvalidator.mark_instrument!(user: @user, instrument:, from: @from)
+    Performance::ObservationInvalidator.enqueue_instrument(user: @user, instrument:, from: @from)
+
+    materializations = @user.instrument_performance_materializations.where(instrument:).index_by(&:reporting_currency)
+    assert_equal %w[BRL EUR USD], materializations.keys.sort
+    assert materializations.values.all? { |item| item.source_generation == 1 && item.requested_from == @from }
+    assert_enqueued_jobs 3, only: BuildInstrumentPerformanceObservationsJob
+  end
+
+  test "can invalidate only one affected instrument currency view" do
+    instrument = instruments(:voo_arcx)
+
+    Performance::ObservationInvalidator.mark_instrument!(
+      user: @user, instrument:, from: @from, reporting_currency: "BRL"
+    )
+
+    materializations = @user.instrument_performance_materializations.where(instrument:)
+    assert_equal [ "BRL" ], materializations.pluck(:reporting_currency)
+  end
+
   private
 
   def invalidator(from: @from)
@@ -104,7 +128,7 @@ class Performance::ObservationInvalidatorTest < ActiveSupport::TestCase
       @requests = []
     end
 
-    def enqueue(user:, from:, to:, reporting_currency:)
+    def enqueue(user:, from:, to:, reporting_currency:, instrument: nil)
       raise error if error
 
       requests << [ user, from, to ]

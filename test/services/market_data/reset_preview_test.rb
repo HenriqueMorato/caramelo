@@ -66,7 +66,8 @@ class MarketData::ResetPreviewTest < ActiveSupport::TestCase
       MarketData::Target.new(kind: :daily_closing_prices, record_id: @instrument.id),
       MarketData::Target.new(kind: :historical_exchange_rates, base_currency: "USD", quote_currency: "BRL"),
       MarketData::Target.new(kind: :benchmark_observations, record_id: 1),
-      MarketData::Target.new(kind: :portfolio_performance)
+      MarketData::Target.new(kind: :portfolio_performance),
+      MarketData::Target.new(kind: :instrument_performance, record_id: @instrument.id, quote_currency: "USD")
     ]
 
     targets.each do |target|

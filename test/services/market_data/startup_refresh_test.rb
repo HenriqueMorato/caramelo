@@ -11,7 +11,9 @@ class MarketData::StartupRefreshTest < ActiveSupport::TestCase
             with_stubbed_method(CaptureMarketBenchmarkObservationsJob, :perform_later, lambda { |**arguments|
               events << [ :benchmarks, arguments ]
             }) do
-              MarketData::StartupRefresh.call
+              with_stubbed_method(InstrumentPerformance::StartupPreparation, :call, -> { events << :instrument_performance }) do
+                MarketData::StartupRefresh.call
+              end
             end
           end
         end
@@ -19,8 +21,10 @@ class MarketData::StartupRefreshTest < ActiveSupport::TestCase
     end
 
     assert_equal %i[prices closes fx], events.first(3)
-    assert_equal :benchmarks, events.last.first
-    assert_equal Trade.where(user: User.owner).minimum(:traded_on), events.last.last.fetch(:from)
+    benchmark_event = events.find { |event| event.is_a?(Array) && event.first == :benchmarks }
+    assert_equal :benchmarks, benchmark_event.first
+    assert_equal Trade.where(user: User.owner).minimum(:traded_on), benchmark_event.last.fetch(:from)
+    assert_includes events, :instrument_performance
     assert_equal 1, enqueued_scopes.count { |attributes| attributes[:scope] == "current_market_prices" }
     assert_equal Trade.where(user: User.owner).distinct.count(:instrument_id),
       enqueued_scopes.find { |attributes| attributes[:scope] == "current_market_prices" }[:total_count]

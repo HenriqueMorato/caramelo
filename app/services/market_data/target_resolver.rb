@@ -23,6 +23,8 @@ module MarketData
       case target.kind
       when :current_price, :daily_closing_prices
         ensure_traded_instrument!(target)
+      when :instrument_performance
+        ensure_instrument_performance!(target)
       when :historical_exchange_rates, :current_exchange_rate
         ensure_traded_currency!(target)
       when :benchmark_observations
@@ -53,6 +55,15 @@ module MarketData
       return if target.record_id.nil? || target.record_id == owner.id
 
       raise ActiveRecord::RecordNotFound
+    end
+
+    def ensure_instrument_performance!(target)
+      instrument = Instrument.find(target.record_id)
+      raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
+
+      currencies = owner.instrument_performance_materializations.where(instrument:).pluck(:reporting_currency)
+      currencies |= [ instrument.currency, owner.reporting_currency ]
+      raise ActiveRecord::RecordNotFound unless currencies.include?(target.quote_currency)
     end
 
     def target_with_provider(target)
