@@ -67,6 +67,21 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     end
   end
 
+  test "limits concurrent work per owner instrument and currency" do
+    job = BuildInstrumentPerformanceObservationsJob.new(
+      user_id: @user.id,
+      instrument_id: @instrument.id,
+      reporting_currency: "USD",
+      lease_token: "lease"
+    )
+
+    assert_equal :block, BuildInstrumentPerformanceObservationsJob.concurrency_on_conflict
+    assert_equal 1, BuildInstrumentPerformanceObservationsJob.concurrency_limit
+    assert_equal 30.minutes, BuildInstrumentPerformanceObservationsJob.concurrency_duration
+    assert_equal "BuildInstrumentPerformanceObservationsJob/instrument_performance:#{@user.id}:#{@instrument.id}:USD",
+      job.concurrency_key
+  end
+
   private
 
   def acquire

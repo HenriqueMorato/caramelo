@@ -142,6 +142,22 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     Performance::SeriesRefresh.define_singleton_method(:enqueue, original)
   end
 
+  test "failed instrument rebuild enqueue leaves preparation failed and retryable" do
+    original = Performance::SeriesRefresh.method(:enqueue)
+    calls = 0
+    Performance::SeriesRefresh.define_singleton_method(:enqueue) do |**|
+      calls += 1
+      calls == 1 ? :queued : :failed
+    end
+
+    error = assert_raises(ActiveJob::EnqueueError) { preparation.call }
+
+    assert_equal "instrument performance rebuild could not be enqueued", error.message
+    assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR"), :failed?
+  ensure
+    Performance::SeriesRefresh.define_singleton_method(:enqueue, original)
+  end
+
   private
 
   def preparation

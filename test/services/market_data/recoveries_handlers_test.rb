@@ -195,6 +195,24 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     assert_equal Date.current, enqueued[:to]
   end
 
+  test "defaults portfolio performance recovery to the owner's first trade through today" do
+    target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      MarketData::Recoveries::PerformanceObservations.call(
+        target:, range: nil, batch_scope: "outer", batch_run_id: "run", owner: @owner
+      )
+    end
+
+    assert_equal @owner.trades.minimum(:traded_on), enqueued[:from]
+    assert_equal Date.current, enqueued[:to]
+    assert_not enqueued.key?(:instrument)
+  end
+
   test "raises when performance recovery enqueue fails" do
     target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
 

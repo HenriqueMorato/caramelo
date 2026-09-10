@@ -123,4 +123,18 @@ class TradePerformanceInvalidationTest < ActiveJob::TestCase
     assert_equal dates.first, @state.reload.requested_from
     assert_equal dates.length, @state.source_generation
   end
+
+  test "skips instrument invalidation targets whose source records no longer exist" do
+    yielded = []
+    targets = {
+      [ -1, @trade.instrument_id ] => @trade.traded_on,
+      [ @user.id, -1 ] => @trade.traded_on
+    }
+
+    @trade.send(:each_instrument_performance_target, targets) do |user, instrument, from|
+      yielded << [ user, instrument, from ]
+    end
+
+    assert_empty yielded
+  end
 end
