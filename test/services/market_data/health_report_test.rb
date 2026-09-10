@@ -367,6 +367,97 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :partial, partial.entries.find { |entry| entry.code == :portfolio_performance }.status
   end
 
+  test "reports pending and missing instrument performance currency views" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    pending = InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+    pending.request!(from: first_date, to: first_date)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "BRL")
+
+    entries = MarketData::HealthReport::InstrumentPerformance.new(
+      owner:, today: first_date, context: nil
+    ).entries.index_by { |entry| entry.target.quote_currency }
+
+    assert_equal :updating, entries.fetch("USD").status
+    assert_empty entries.fetch("USD").actions
+    assert_equal :missing, entries.fetch("BRL").status
+    assert_equal [ :retry ], entries.fetch("BRL").actions
+  end
+
+  test "reports an active instrument refresh as updating before durable work begins" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+    token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.queued(
+      user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date, token:
+    )
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: first_date).entries.find do |candidate|
+      candidate.target.quote_currency == "USD"
+    end
+
+    assert_equal :updating, entry.status
+  ensure
+    Performance::SeriesRefresh.release(
+      user: owner, instrument:, reporting_currency: "USD", token:
+    ) if token
+  end
+
+  test "reports stale, partial, and healthy instrument performance" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    final_date = first_date + 2.days
+    materialization = InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+    create_instrument_performance_observation(
+      owner:, instrument:, materialization:, observed_on: first_date, stale_at: Time.current
+    )
+    inspector = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: final_date)
+    assert_equal :stale, inspector.entries.find { |entry| entry.target.quote_currency == "USD" }.status
+
+    owner.instrument_performance_observations.update_all(stale_at: nil)
+    assert_equal :partial, inspector.entries.find { |entry| entry.target.quote_currency == "USD" }.status
+
+    (first_date + 1.day..final_date).each do |date|
+      create_instrument_performance_observation(owner:, instrument:, materialization:, observed_on: date)
+    end
+    assert_equal :healthy, inspector.entries.find { |entry| entry.target.quote_currency == "USD" }.status
+  end
+
+  test "reports a failed instrument performance rebuild" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.failed(
+      user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date,
+      token:, error: RuntimeError.new("calculation failed")
+    )
+    Performance::SeriesRefresh.release(user: owner, instrument:, reporting_currency: "USD", token:)
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: first_date).entries.find do |candidate|
+      candidate.target.quote_currency == "USD"
+    end
+
+    assert_equal :failed, entry.status
+    assert_equal :error, entry.severity
+    assert_includes entry.description, "failed to rebuild"
+  end
+
+  test "includes an existing additional instrument performance currency view" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "EUR")
+
+    currencies = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: Date.current)
+      .entries.map { |entry| entry.target.quote_currency }
+
+    assert_includes currencies, "EUR"
+  end
+
   test "marks partially covered historical sources as partial" do
     owner = users(:owner)
     owner.update!(reporting_currency: "BRL")
@@ -522,6 +613,15 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
   end
 
   private
+
+  def create_instrument_performance_observation(owner:, instrument:, materialization:, observed_on:, stale_at: nil)
+    InstrumentPerformanceObservation.create!(
+      user: owner, instrument:, reporting_currency: materialization.reporting_currency, observed_on:,
+      status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
+      stale_at:, market_value_amount: "100", cost_basis_amount: "90", realized_gain_amount: "1",
+      unrealized_gain_amount: "9", net_cash_flow_amount: "-90", invested_amount: "90"
+    )
+  end
 
   def with_stubbed_method(object, method_name, replacement)
     original = object.method(method_name)

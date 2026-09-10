@@ -97,6 +97,31 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
     assert_empty @store.read(from: @from, to: @to)
   end
 
+  test "scopes an instrument build before replay and publishes its position result" do
+    instrument = instruments(:voo_arcx)
+    store = InstrumentPerformance::ObservationStore.new(
+      user: @user, instrument:, reporting_currency: instrument.currency
+    )
+    portfolio = RecordingInstrumentPortfolio.new(user: @user, instrument:)
+    builder = Performance::ObservationBuilder.new(
+      user: @user,
+      instrument:,
+      reporting_currency: instrument.currency,
+      store:,
+      portfolio:
+    )
+
+    result = builder.call(from: @from, to: @to)
+
+    assert_equal 3, result.built_count
+    assert portfolio.trade_sets.all? { |set| set.all? { |trade| trade.instrument == instrument } }
+    assert_equal 1, portfolio.trade_collection_ids.uniq.length
+    record = store.read(from: @from, to: @to).fetch(@to)
+    assert_equal BigDecimal("90"), record.cost_basis_amount
+    assert_equal BigDecimal("10"), record.unrealized_gain_amount
+    assert_equal BigDecimal("90"), record.invested_amount
+  end
+
   test "empty-portfolio cleanup cannot erase observations after a new trade commits" do
     @store.write(@portfolio.valuation(@from))
     Trade.where(user: @user).delete_all
@@ -153,6 +178,44 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
         cash_flows: [],
         status: :available
       )
+    end
+  end
+
+  class RecordingInstrumentPortfolio
+    attr_reader :dates, :trade_sets, :trade_collection_ids
+
+    PositionResult = Data.define(
+      :instrument, :reporting_cost_basis_amount, :market_value_amount,
+      :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount, :invested_amount
+    )
+    Valuation = Data.define(:valuation_date, :status, :position_results, :cash_flows)
+
+    def initialize(user:, instrument:)
+      @user = user
+      @instrument = instrument
+      @dates = []
+      @trade_sets = []
+      @trade_collection_ids = []
+    end
+
+    def for(valuation_date:, owner:, instrument:, trades:, reporting_currency:)
+      raise "wrong owner" unless owner == @user
+      raise "wrong instrument" unless instrument == @instrument
+      raise "wrong reporting currency" unless reporting_currency == @instrument.currency
+
+      trade_sets << trades
+      trade_collection_ids << trades.object_id
+      dates << valuation_date
+      position = PositionResult.new(
+        instrument:,
+        reporting_cost_basis_amount: BigDecimal("90"),
+        market_value_amount: BigDecimal("100"),
+        realized_gain_amount: BigDecimal("0"),
+        unrealized_gain_amount: BigDecimal("10"),
+        net_cash_flow_amount: BigDecimal("90"),
+        invested_amount: BigDecimal("90")
+      )
+      Valuation.new(valuation_date:, status: :available, position_results: [ position ], cash_flows: [])
     end
   end
 end

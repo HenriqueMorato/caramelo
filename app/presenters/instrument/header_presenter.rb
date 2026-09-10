@@ -14,7 +14,7 @@ class Instrument::HeaderPresenter
 
     DailyClosingPrice
       .where(instrument:, provider: current_market_price.provider)
-      .where(trading_date: ...current_market_price.quoted_at.to_date)
+      .where(trading_date: ...current_market_price.quoted_at.in_time_zone.to_date)
       .chronological
       .last
   end
@@ -56,9 +56,10 @@ class Instrument::HeaderPresenter
 
   def day_change_period_label
     return unless market_price
-    return I18n.t("dashboard.index.Today") if market_price.quoted_at.to_date == Date.current
+    quote_date = market_price.quoted_at.in_time_zone.to_date
+    return I18n.t("dashboard.index.Today") if quote_date == Date.current
 
-    I18n.t("instruments.show.Change as of", date: I18n.l(market_price.quoted_at.to_date, format: :short))
+    I18n.t("instruments.show.Change as of", date: I18n.l(quote_date, format: :short))
   end
 
   private

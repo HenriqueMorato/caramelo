@@ -5,7 +5,7 @@ module Performance
     # fresh, stale, source-missing, and not-yet-built observations.
     Observation = Data.define(
       :date, :market_value_amount, :market_value, :invested_amount, :invested_value,
-      :gain_loss_amount, :gain_loss, :return_ratio, :status
+      :gain_loss_amount, :gain_loss, :return_ratio, :gain_on_cost_ratio, :status
     ) do
       def available? = status == :available
       def missing? = %i[missing pending].include?(status)
@@ -34,17 +34,35 @@ module Performance
       end
     end
 
-    def self.for(from:, to:, user: User.owner, store: nil, refresher: SeriesRefresh,
+    def self.for(from:, to:, user: User.owner, instrument: nil, store: nil, refresher: SeriesRefresh,
       materialization: nil, reporting_currency: user.reporting_currency)
-      store ||= ObservationStore.new(user:, reporting_currency:)
-      materialization ||= PortfolioPerformanceMaterialization.for(user:, reporting_currency:)
-      new(from:, to:, user:, store:, refresher:, materialization:).calculate
+      materialization ||= materialization_for(user:, instrument:, reporting_currency:)
+      store ||= store_for(user:, instrument:, reporting_currency: materialization.reporting_currency)
+      new(from:, to:, user:, instrument:, store:, refresher:, materialization:).calculate
     end
 
-    def initialize(from:, to:, user:, store:, refresher:, materialization:)
+    def self.materialization_for(user:, instrument:, reporting_currency:)
+      if instrument
+        InstrumentPerformanceMaterialization.for(user:, instrument:, reporting_currency:)
+      else
+        PortfolioPerformanceMaterialization.for(user:, reporting_currency:)
+      end
+    end
+
+    def self.store_for(user:, instrument:, reporting_currency:)
+      if instrument
+        InstrumentPerformance::ObservationStore.new(user:, instrument:, reporting_currency:)
+      else
+        ObservationStore.new(user:, reporting_currency:)
+      end
+    end
+    private_class_method :materialization_for, :store_for
+
+    def initialize(from:, to:, user:, instrument:, store:, refresher:, materialization:)
       @from = from
       @to = to
       @user = user
+      @instrument = instrument
       @store = store
       @refresher = refresher
       @materialization = materialization
@@ -61,7 +79,7 @@ module Performance
 
     private
 
-    attr_reader :from, :to, :user, :store, :refresher, :materialization,
+    attr_reader :from, :to, :user, :instrument, :store, :refresher, :materialization,
       :records, :observations, :refresh_status
 
     def dates
@@ -69,10 +87,15 @@ module Performance
     end
 
     def enqueue_refresh
-      dirty_dates = dates.select { |date| records[date].nil? || stale_record?(records[date]) }
+      dirty_dates = dates.select do |date|
+        record = records[date]
+        record.nil? || stale_record?(record)
+      end
       return if dirty_dates.empty?
 
-      refresher.enqueue(user:, from: dirty_dates.first, to: dirty_dates.last, reporting_currency:)
+      attributes = { user:, from: dirty_dates.first, to: dirty_dates.last, reporting_currency: }
+      attributes[:instrument] = instrument if instrument
+      refresher.enqueue(**attributes)
     end
 
     def build_observations
@@ -87,9 +110,10 @@ module Performance
       return unavailable_observation(date, :missing) if record.missing?
 
       market_value_amount = record.market_value_amount
-      invested_amount = record.net_cash_flow_amount
+      invested_amount = display_basis_amount(record)
       gain_loss_amount = gain_loss_for(record, opening)
       return_ratio = return_ratio_for(date:, record:, opening:, gain_loss_amount:)
+      gain_on_cost_ratio = instrument_gain_on_cost_ratio(record)
       status = stale_record?(record) ? :stale : :available
 
       Observation.new(
@@ -101,6 +125,7 @@ module Performance
         gain_loss_amount:,
         gain_loss: money(gain_loss_amount),
         return_ratio:,
+        gain_on_cost_ratio:,
         status:
       )
     end
@@ -115,8 +140,15 @@ module Performance
         gain_loss_amount: nil,
         gain_loss: nil,
         return_ratio: nil,
+        gain_on_cost_ratio: nil,
         status:
       )
+    end
+
+    def display_basis_amount(record)
+      return record.cost_basis_amount if instrument
+
+      record.net_cash_flow_amount
     end
 
     def gain_loss_for(record, opening)
@@ -146,6 +178,13 @@ module Performance
       decimal(gain_loss_amount / capital)
     end
 
+    def instrument_gain_on_cost_ratio(record)
+      return unless instrument
+      return if record.invested_amount.zero?
+
+      decimal((record.realized_gain_amount + record.unrealized_gain_amount) / record.invested_amount)
+    end
+
     def weighted_capital(date:, record:, opening:)
       # Endpoint cumulative totals preserve the timing of every intervening trade;
       # an unavailable close between these endpoints does not erase its cash flows.
@@ -163,7 +202,7 @@ module Performance
       return :partial if observations.any?(&:missing?) && observations.any? { |item| !item.missing? }
       return :missing if observations.any?(&:missing?)
       return :stale if observations.any?(&:stale?)
-      return :empty if observations.all? { |observation| observation.market_value_amount == 0 }
+      return :empty if records.values.all?(&:empty?)
 
       :available
     end

@@ -31,6 +31,9 @@ export default class extends Controller {
       button.setAttribute("aria-pressed", active.toString())
       button.dataset.active = active.toString()
     })
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("currency-view:changed", { detail: { name: selected } }))
+    })
   }
 
   get requestedView() {

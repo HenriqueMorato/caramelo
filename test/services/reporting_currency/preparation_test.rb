@@ -31,6 +31,8 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_equal 2, @waits.size
     assert_enqueued_with(job: BuildPortfolioPerformanceObservationsJob,
       args: ->(args) { args.first[:reporting_currency] == "EUR" })
+    assert_enqueued_with(job: BuildInstrumentPerformanceObservationsJob,
+      args: ->(args) { args.first[:reporting_currency] == "EUR" && args.first[:instrument_id] == instruments(:voo_arcx).id })
   end
 
   test "does not refetch fresh current FX or overwrite direct and inverse history" do
@@ -80,6 +82,7 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_empty @imports
     assert_empty @refreshes
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 1, only: BuildInstrumentPerformanceObservationsJob
   end
 
   test "prepares the captured settlement currency after a reporting currency change" do
@@ -134,6 +137,22 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     Performance::SeriesRefresh.define_singleton_method(:enqueue) { |**| :failed }
 
     assert_raises(ActiveJob::EnqueueError) { preparation.call }
+    assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR"), :failed?
+  ensure
+    Performance::SeriesRefresh.define_singleton_method(:enqueue, original)
+  end
+
+  test "failed instrument rebuild enqueue leaves preparation failed and retryable" do
+    original = Performance::SeriesRefresh.method(:enqueue)
+    calls = 0
+    Performance::SeriesRefresh.define_singleton_method(:enqueue) do |**|
+      calls += 1
+      calls == 1 ? :queued : :failed
+    end
+
+    error = assert_raises(ActiveJob::EnqueueError) { preparation.call }
+
+    assert_equal "instrument performance rebuild could not be enqueued", error.message
     assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR"), :failed?
   ensure
     Performance::SeriesRefresh.define_singleton_method(:enqueue, original)

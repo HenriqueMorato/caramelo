@@ -76,8 +76,11 @@ class Trade < ApplicationRecord
 
   def mark_performance_observations_stale
     @performance_invalidation_targets = performance_invalidation_targets
-    each_performance_target(@performance_invalidation_targets) do |user, from|
+    each_portfolio_performance_target(@performance_invalidation_targets) do |user, from|
       Performance::ObservationInvalidator.mark!(user:, from:)
+    end
+    each_instrument_performance_target(@performance_invalidation_targets) do |user, instrument, from|
+      Performance::ObservationInvalidator.mark_instrument!(user:, instrument:, from:)
     end
   end
 
@@ -86,8 +89,11 @@ class Trade < ApplicationRecord
     @performance_invalidation_targets = nil
     return unless targets
 
-    each_performance_target(targets) do |user, from|
+    each_portfolio_performance_target(targets) do |user, from|
       Performance::ObservationInvalidator.enqueue(user:, from:)
+    end
+    each_instrument_performance_target(targets) do |user, instrument, from|
+      Performance::ObservationInvalidator.enqueue_instrument(user:, instrument:, from:)
     end
   end
 
@@ -111,9 +117,21 @@ class Trade < ApplicationRecord
     [ previous, current ].compact.uniq
   end
 
-  def each_performance_target(targets)
-    User.where(id: targets.keys).each do |user|
-      yield user, targets.fetch(user.id)
+  def each_portfolio_performance_target(targets)
+    dates_by_user = targets.group_by { |(user_id, _instrument_id), _date| user_id }
+      .transform_values { |entries| entries.map(&:last).min }
+    User.where(id: dates_by_user.keys).each do |user|
+      yield user, dates_by_user.fetch(user.id)
+    end
+  end
+
+  def each_instrument_performance_target(targets)
+    users = User.where(id: targets.keys.map(&:first)).index_by(&:id)
+    instruments = Instrument.where(id: targets.keys.map(&:last)).index_by(&:id)
+    targets.each do |(target_user_id, target_instrument_id), from|
+      user = users[target_user_id]
+      instrument = instruments[target_instrument_id]
+      yield user, instrument, from if user && instrument
     end
   end
 
@@ -122,13 +140,16 @@ class Trade < ApplicationRecord
   end
 
   def performance_invalidation_targets
-    return { user_id => traded_on } if destroyed?
+    return { [ user_id, instrument_id ] => traded_on } if destroyed?
 
     old_user_id, new_user_id = previous_changes.fetch("user_id", [ user_id, user_id ])
+    old_instrument_id, new_instrument_id = previous_changes.fetch(
+      "instrument_id", [ instrument_id, instrument_id ]
+    )
     old_date, new_date = previous_changes.fetch("traded_on", [ traded_on, traded_on ])
-    [ [ old_user_id, old_date ], [ new_user_id, new_date ] ]
-      .reject { |target_user_id, date| target_user_id.nil? || date.nil? }
-      .group_by(&:first)
+    [ [ old_user_id, old_instrument_id, old_date ], [ new_user_id, new_instrument_id, new_date ] ]
+      .reject { |target_user_id, target_instrument_id, date| target_user_id.nil? || target_instrument_id.nil? || date.nil? }
+      .group_by { |target_user_id, target_instrument_id, _date| [ target_user_id, target_instrument_id ] }
       .transform_values { |targets| targets.map(&:last).min }
   end
 

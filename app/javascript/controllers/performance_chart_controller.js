@@ -46,7 +46,7 @@ const themeColor = (property) => getComputedStyle(document.documentElement).getP
 
 export default class extends Controller {
   static targets = ["canvas", "tab"]
-  static values = { data: Object }
+  static values = { data: Object, defaultMode: String, returnOnly: Boolean }
 
   connect() {
     this.mode = this.requestedMode()
@@ -65,6 +65,20 @@ export default class extends Controller {
       role: "portfolio-return",
       yAxisID: "return"
     }
+    this.gainOnCostReturnDataset = this.dataValue.gain_on_cost_performance_ratios && {
+      label: this.dataValue.gain_on_cost_return_label,
+      data: this.dataValue.gain_on_cost_performance_ratios.map((value) => value === null ? null : Number(value) * 100),
+      borderColor: this.colors.comparison,
+      borderWidth: 2.25,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHitRadius: 16,
+      fill: false,
+      tension: 0.25,
+      hidden: true,
+      role: "gain-on-cost-return",
+      yAxisID: "return"
+    }
     this.benchmarkDatasets = (this.dataValue.benchmarks || []).map((benchmark, index) => ({
       label: benchmark.label,
       data: benchmark.values,
@@ -79,49 +93,57 @@ export default class extends Controller {
       benchmark,
       yAxisID: "return"
     }))
-    const returnValues = [this.portfolioReturnDataset, ...this.benchmarkDatasets]
+    const returnDatasets = [
+      this.portfolioReturnDataset,
+      this.gainOnCostReturnDataset,
+      ...this.benchmarkDatasets
+    ].filter(Boolean)
+    const returnValues = returnDatasets
       .flatMap((dataset) => dataset.data)
       .filter((value) => value !== null && value !== undefined)
     const returnMinimum = Math.min(0, ...returnValues)
     const returnMaximum = Math.max(0, ...returnValues)
     const returnPadding = Math.max((returnMaximum - returnMinimum) * 0.1, 1)
+    const valueDatasets = [
+      {
+        label: this.dataValue.portfolio_value_label,
+        data: this.dataValue.values,
+        borderColor: this.colors.portfolio,
+        backgroundColor: this.colors.portfolioFill,
+        borderWidth: 3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHitRadius: 16,
+        fill: true,
+        tension: 0.25,
+        hidden: this.mode === "performance",
+        role: "portfolio-value"
+      },
+      {
+        label: this.dataValue.invested_value_label,
+        data: this.dataValue.invested_values,
+        borderColor: this.colors.invested,
+        borderDash: [5, 4],
+        borderWidth: 2.25,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        pointHitRadius: 16,
+        fill: false,
+        tension: 0.25,
+        hidden: this.mode === "performance",
+        role: "invested-value"
+      }
+    ]
+    const datasets = this.returnOnlyValue
+      ? returnDatasets
+      : [...valueDatasets, ...returnDatasets]
+
     this.chart = new Chart(this.canvasTarget, {
       type: "line",
       plugins: [hoverGuidePlugin],
       data: {
         labels: this.dataValue.labels,
-        datasets: [
-          {
-            label: this.dataValue.portfolio_value_label,
-            data: this.dataValue.values,
-            borderColor: this.colors.portfolio,
-            backgroundColor: this.colors.portfolioFill,
-            borderWidth: 3,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            pointHitRadius: 16,
-            fill: true,
-            tension: 0.25,
-            hidden: this.mode === "performance",
-            role: "portfolio-value"
-          },
-          {
-            label: this.dataValue.invested_value_label,
-            data: this.dataValue.invested_values,
-            borderColor: this.colors.invested,
-            borderDash: [5, 4],
-            borderWidth: 2.25,
-            pointRadius: 0,
-            pointHoverRadius: 3,
-            pointHitRadius: 16,
-            fill: false,
-            tension: 0.25,
-            hidden: this.mode === "performance",
-            role: "invested-value"
-          },
-          this.portfolioReturnDataset,
-          ...this.benchmarkDatasets
-        ]
+        datasets
       },
       options: {
         responsive: true,
@@ -177,7 +199,7 @@ export default class extends Controller {
                     : `${benchmark.label}: ${value > 0 ? "+" : ""}${value.toFixed(2)}%`
                 }
 
-                if (dataset.role === "portfolio-return") {
+                if (["portfolio-return", "gain-on-cost-return"].includes(dataset.role)) {
                   const value = dataset.data[item.dataIndex]
                   return value === null || value === undefined
                     ? `${dataset.label}: Not available`
@@ -199,7 +221,9 @@ export default class extends Controller {
               labelTextColor: (item) => {
                 const dataset = item.dataset
                 if (dataset.role === "invested-value") return this.colors.invested
-                if (["benchmark", "portfolio-return"].includes(dataset.role)) return dataset.borderColor
+                if (["benchmark", "portfolio-return", "gain-on-cost-return"].includes(dataset.role)) {
+                  return dataset.borderColor
+                }
 
                 const performance = this.dataValue.performance_ratios?.[item.dataIndex]
                 if (performance === undefined || performance === null || performance === 0) return this.colors.invested
@@ -284,12 +308,19 @@ export default class extends Controller {
     this.chart.update("none")
   }
 
+  refreshVisibility() {
+    if (!this.chart || this.element.closest("[hidden]")) return
+
+    this.chart.resize()
+    this.setMode(this.requestedMode(), false)
+  }
+
   setMode(mode, updateUrl = true) {
     if (!this.chart || !["value", "performance"].includes(mode)) return
 
     this.mode = mode
     this.chart.data.datasets.forEach((dataset, index) => {
-      this.chart.setDatasetVisibility(index, this.datasetVisibleInMode(dataset))
+      this.chart.setDatasetVisibility(index, this.datasetDefaultVisibleInMode(dataset))
     })
     this.chart.options.scales.y.display = mode === "value"
     this.chart.options.scales.return.display = mode === "performance"
@@ -301,6 +332,10 @@ export default class extends Controller {
   datasetVisibleInMode(dataset) {
     const valueDataset = ["portfolio-value", "invested-value"].includes(dataset.role)
     return this.mode === "value" ? valueDataset : !valueDataset
+  }
+
+  datasetDefaultVisibleInMode(dataset) {
+    return dataset.role !== "gain-on-cost-return" && this.datasetVisibleInMode(dataset)
   }
 
   updateTabs() {
@@ -323,12 +358,15 @@ export default class extends Controller {
   }
 
   requestedMode() {
+    if (this.hasDefaultModeValue) return this.defaultModeValue
+
     return new URL(window.location.href).searchParams.get("chart") === "performance" ? "performance" : "value"
   }
 
   datasetColor(dataset, index) {
     if (dataset.role === "benchmark") return this.benchmarkColor(dataset.benchmark.identifier, index)
     if (dataset.role === "invested-value") return this.colors.invested
+    if (dataset.role === "gain-on-cost-return") return this.colors.comparison
 
     return this.colors.portfolio
   }
@@ -343,6 +381,7 @@ export default class extends Controller {
     return {
       portfolio: themeColor("--caramelo-chart-line"),
       portfolioFill: themeColor("--caramelo-chart-fill"),
+      comparison: themeColor("--caramelo-benchmark-ibov"),
       invested: themeColor("--caramelo-chart-invested"),
       text: themeColor("--caramelo-ink"),
       tooltip: themeColor("--caramelo-raised"),

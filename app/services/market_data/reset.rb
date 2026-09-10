@@ -28,6 +28,7 @@ module MarketData
       preview = ResetPreview.verify(token: preview_token, target:, owner:)
 
       return queue_current_price_reset if target.kind == :current_price
+      return queue_performance_reset(preview) if %i[portfolio_performance instrument_performance].include?(target.kind)
 
       recovery = Recovery.call(target:, range: preview.range, owner:, cache:)
       result(recovery.status)
@@ -56,6 +57,39 @@ module MarketData
     rescue StandardError
       RecoveryLease.release(target:, token: lease.token, cache:) if lease
       raise
+    end
+
+    def queue_performance_reset(preview)
+      attributes = {
+        user: owner,
+        reporting_currency: target.quote_currency || owner.reporting_currency,
+        from: preview.range.begin,
+        to: preview.range.end
+      }
+      if target.kind == :instrument_performance
+        instrument = Instrument.find(target.record_id)
+        raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
+
+        attributes[:instrument] = instrument
+        store = InstrumentPerformance::ObservationStore.new(
+          user: owner, instrument:, reporting_currency: attributes[:reporting_currency]
+        )
+        materialization = InstrumentPerformanceMaterialization.for(
+          user: owner, instrument:, reporting_currency: attributes[:reporting_currency]
+        )
+      else
+        store = Performance::ObservationStore.new(
+          user: owner, reporting_currency: attributes[:reporting_currency]
+        )
+        materialization = PortfolioPerformanceMaterialization.for(
+          user: owner, reporting_currency: attributes[:reporting_currency]
+        )
+      end
+      materialization.class.transaction do
+        store.delete_all
+        materialization.request!(from: attributes[:from], to: attributes[:to], source_changed: true)
+      end
+      result(Performance::SeriesRefresh.enqueue(**attributes))
     end
 
     attr_reader :target, :preview_token, :owner, :cache

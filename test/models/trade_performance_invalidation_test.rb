@@ -16,6 +16,7 @@ class TradePerformanceInvalidationTest < ActiveJob::TestCase
     assert_equal trade.traded_on, @state.reload.requested_from
     assert_equal 1, @state.source_generation
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 2, only: BuildInstrumentPerformanceObservationsJob
   end
 
   test "moving a date earlier or later invalidates the earliest affected date" do
@@ -38,6 +39,26 @@ class TradePerformanceInvalidationTest < ActiveJob::TestCase
       assert_equal 1, state.source_generation
     end
     assert_enqueued_jobs 2, only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 4, only: BuildInstrumentPerformanceObservationsJob
+  end
+
+  test "moving instruments invalidates old and new targets from the earliest date" do
+    original_instrument = @trade.instrument
+    new_instrument = instruments(:petr4_bvmf)
+    original_date = @trade.traded_on
+    @trade.update!(instrument: new_instrument, currency: new_instrument.currency)
+
+    [ original_instrument, new_instrument ].each do |instrument|
+      currencies = [ instrument.currency, @user.reporting_currency ].uniq
+      states = @user.instrument_performance_materializations.where(
+        instrument:, reporting_currency: currencies
+      )
+      assert_equal currencies.sort, states.pluck(:reporting_currency).sort
+      assert states.all? { |state| state.requested_from == original_date && state.source_generation == 1 }
+    end
+    assert_equal original_date, @state.reload.requested_from
+    assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 3, only: BuildInstrumentPerformanceObservationsJob
   end
 
   test "source edits invalidate previously used reporting currencies as well" do
@@ -101,5 +122,19 @@ class TradePerformanceInvalidationTest < ActiveJob::TestCase
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
     assert_equal dates.first, @state.reload.requested_from
     assert_equal dates.length, @state.source_generation
+  end
+
+  test "skips instrument invalidation targets whose source records no longer exist" do
+    yielded = []
+    targets = {
+      [ -1, @trade.instrument_id ] => @trade.traded_on,
+      [ @user.id, -1 ] => @trade.traded_on
+    }
+
+    @trade.send(:each_instrument_performance_target, targets) do |user, instrument, from|
+      yielded << [ user, instrument, from ]
+    end
+
+    assert_empty yielded
   end
 end

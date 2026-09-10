@@ -16,14 +16,19 @@ module ReportingCurrency
       return if starts.empty?
 
       pairs = starts.except(currency)
+      instruments = instrument_starts
       scope = "reporting_currency:#{user.id}:#{currency}"
-      RefreshStatus::Tracker.perform(scope:, total_count: pairs.size + 1) do |refresh|
+      RefreshStatus::Tracker.perform(scope:, total_count: pairs.size + instruments.size + 1) do |refresh|
         pairs.each do |base_currency, first_trade|
           prepare_pair(base_currency, first_trade)
           RefreshStatus::Tracker.advance(refresh)
         end
-        enqueue_rebuild(starts.values.min)
+        enqueue_portfolio_rebuild(starts.values.min)
         RefreshStatus::Tracker.advance(refresh)
+        instruments.each do |instrument, first_trade|
+          enqueue_instrument_rebuild(instrument, first_trade)
+          RefreshStatus::Tracker.advance(refresh)
+        end
       end
     end
 
@@ -41,11 +46,23 @@ module ReportingCurrency
       }
     end
 
-    def enqueue_rebuild(first_trade)
+    def enqueue_portfolio_rebuild(first_trade)
       result = Performance::SeriesRefresh.enqueue(
         user:, from: first_trade, to: Date.current, reporting_currency: currency
       )
       raise ActiveJob::EnqueueError, "performance rebuild could not be enqueued" if result == :failed
+    end
+
+    def enqueue_instrument_rebuild(instrument, first_trade)
+      result = Performance::SeriesRefresh.enqueue(
+        user:, instrument:, from: first_trade, to: Date.current, reporting_currency: currency
+      )
+      raise ActiveJob::EnqueueError, "instrument performance rebuild could not be enqueued" if result == :failed
+    end
+
+    def instrument_starts
+      starts = user.trades.where(traded_on: ..Date.current).group(:instrument_id).minimum(:traded_on)
+      Instrument.where(id: starts.keys).index_with { |instrument| starts.fetch(instrument.id) }
     end
 
     def prepare_pair(base_currency, first_trade)

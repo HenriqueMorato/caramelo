@@ -1,42 +1,57 @@
-<%# locals: (price_history_presenter:) %>
+<%# locals: (instrument:, position:, position_error:, trades:, history_mode:, selected_period:, period_selection:, history_performance_views:, price_history_presenter:, currency_view:) %>
 
-<section aria-labelledby="instrument-performance-heading" class="ui-panel flex h-full flex-col p-5 sm:p-6">
-  <div class="flex items-baseline justify-between gap-3">
-    <div>
-      <h2 id="instrument-performance-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t("instruments.show.Price history") %></h2>
-      <p class="mt-1 text-sm text-muted"><%= t("instruments.show.Price history description", instrument: price_history_presenter.currency) %></p>
+<section aria-labelledby="instrument-performance-heading" class="ui-panel flex h-full min-w-0 flex-col p-5 sm:p-6">
+  <div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 id="instrument-performance-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t("Performance") %></h2>
+          <% if position&.first_trade_date && position.closed? %>
+            <span class="ui-badge ui-badge-closed"><%= t("Closed") %></span>
+          <% end %>
+        </div>
+        <p class="mt-1 text-sm text-muted"><%= t("instruments.show.History description") %></p>
+      </div>
+
+      <nav aria-label="<%= t("instruments.show.History selection") %>" class="inline-flex rounded-md bg-paper/50 p-1">
+        <% [[ "performance", t("Performance") ], [ "price", t("instruments.show.Price history") ]].each do |history, label| %>
+          <%= link_to label,
+            instrument_path(instrument, history:, period: selected_period, currency_view:),
+            class: "period-option", aria: { current: ("page" if history_mode == history) } %>
+        <% end %>
+      </nav>
     </div>
-    <span class="text-xs text-muted"><%= t("instruments.show.Six months") %></span>
+
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-coffee/10 pt-4">
+      <nav aria-label="<%= t("performances.show.Period selection") %>" class="inline-flex rounded-md bg-paper/50 p-1">
+        <% Performance::PeriodSelection::PERIODS.each_key do |period| %>
+          <%= link_to t("performances.show.#{period.humanize}"),
+            instrument_path(instrument, history: history_mode, period:, currency_view:),
+            class: "period-option", aria: { current: ("page" if selected_period == period) } %>
+        <% end %>
+      </nav>
+
+      <span class="text-xs text-muted"><%= period_selection.date_range_label %></span>
+    </div>
   </div>
 
-  <% if price_history_presenter.available? %>
-    <div class="mt-4 min-h-72 flex-1" data-controller="instrument-price-chart" data-action="appearance:change@window->instrument-price-chart#refreshTheme" data-instrument-price-chart-data-value="<%= json_escape(price_history_presenter.chart_data.to_json) %>">
-      <canvas data-instrument-price-chart-target="canvas" role="img" aria-label="<%= t("instruments.show.Price history description", instrument: price_history_presenter.currency) %>"></canvas>
+  <% if history_mode == "price" %>
+    <%= render "price_history", price_history_presenter: %>
+  <% elsif trades.empty? %>
+    <div class="mt-5 flex min-h-72 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-coffee/15 px-6 text-center">
+      <p class="font-medium text-coffee"><%= t("instruments.show.No performance yet") %></p>
+      <p class="mt-2 max-w-md text-sm leading-6 text-muted"><%= t("instruments.show.No performance explanation") %></p>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(instrument), class: "ui-button ui-button-primary mt-4" %>
     </div>
-    <details class="mt-4 text-sm">
-      <summary class="cursor-pointer font-semibold text-coffee"><%= t("instruments.show.View exact prices") %></summary>
-      <div class="mt-3 max-h-72 overflow-auto">
-        <table class="w-full text-left">
-          <thead>
-            <tr>
-              <th scope="col" class="py-2 pr-4 font-semibold"><%= t("instruments.show.Date") %></th>
-              <th scope="col" class="py-2 text-right font-semibold"><%= t("instruments.show.Closing price") %></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% price_history_presenter.rows.each do |row| %>
-              <tr class="border-t border-coffee/10">
-                <td class="py-2 pr-4"><%= row.date %></td>
-                <td class="py-2 text-right font-mono tabular-nums"><%= row.price %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    </details>
+  <% elsif position_error %>
+    <div class="mt-5 flex min-h-72 flex-1 items-center justify-center rounded-xl border border-danger-border bg-danger-surface px-6 text-center text-sm text-danger-text" role="alert">
+      <%= t("instruments.show.History calculation unavailable") %>
+    </div>
   <% else %>
-    <div class="mt-5 flex min-h-72 flex-1 items-center justify-center rounded-xl border border-dashed border-coffee/15 text-center text-sm text-muted">
-      <%= t("instruments.show.Price history unavailable") %>
-    </div>
+    <% history_performance_views.each do |name, view| %>
+      <%= tag.div class: "flex min-h-72 flex-1 flex-col", data: { currency_view_target: "panel", currency_view_name: name }, hidden: name != currency_view do %>
+        <%= render "performance_series", name:, instrument:, history_mode:, selected_period:, **view %>
+      <% end %>
+    <% end %>
   <% end %>
 </section>

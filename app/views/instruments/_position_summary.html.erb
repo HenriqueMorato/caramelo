@@ -1,9 +1,7 @@
 <%# locals: (instrument:, position:, position_error:, valuation:, market_price:, presenters:, native_currency:, reporting_currency:, currency_view:) %>
 
 <section aria-labelledby="position-summary-heading"
-         class="ui-panel p-5 sm:p-6 <%= "border-danger-border" if position_error %>"
-         data-controller="currency-view"
-         data-action="popstate@window->currency-view#restore">
+         class="ui-panel p-5 sm:p-6 <%= "border-danger-border" if position_error %>">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-2">
       <h2 id="position-summary-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t("instruments.show.Position details") %></h2>

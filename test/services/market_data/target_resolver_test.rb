@@ -82,6 +82,53 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
     assert_equal :portfolio_performance, target.kind
   end
 
+  test "resolves a traded instrument performance currency view" do
+    target = MarketData::TargetResolver.call(
+      attributes: {
+        kind: "instrument_performance", record_id: instruments(:voo_arcx).id, quote_currency: "usd"
+      },
+      owner: users(:owner)
+    )
+
+    assert_equal :instrument_performance, target.kind
+    assert_equal instruments(:voo_arcx).id, target.record_id
+    assert_equal "USD", target.quote_currency
+  end
+
+  test "resolves an existing additional instrument performance currency view" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "EUR")
+
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "instrument_performance", record_id: instrument.id, quote_currency: "EUR" }, owner:
+    )
+
+    assert_equal "EUR", target.quote_currency
+  end
+
+  test "rejects an unmaintained instrument performance currency view" do
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::TargetResolver.call(
+        attributes: {
+          kind: "instrument_performance", record_id: instruments(:voo_arcx).id, quote_currency: "JPY"
+        },
+        owner: users(:owner)
+      )
+    end
+  end
+
+  test "rejects instrument performance for an untraded instrument" do
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::TargetResolver.call(
+        attributes: {
+          kind: "instrument_performance", record_id: instruments(:petr4_bvmf).id, quote_currency: "BRL"
+        },
+        owner: users(:owner)
+      )
+    end
+  end
+
   test "ignores an unrecognized target kind from a test double" do
     fake_target = Struct.new(:kind).new(:unknown)
     with_stubbed_method(MarketData::Target, :new, ->(**) { fake_target }) do

@@ -10,23 +10,19 @@ module Performance
     end
 
     def date_range_label
-      if series.from.year == series.to.year
-        "#{I18n.l(series.from, format: :short)} – #{I18n.l(series.to, format: :short)}"
-      else
-        format = I18n.t("date.formats.range_with_year")
-        "#{I18n.l(series.from, format:)} – #{I18n.l(series.to, format:)}"
-      end
+      Performance::PeriodSelection.date_range_label(from: series.from, to: series.to)
     end
 
-    def chart_data(benchmarks:, currency:)
+    def chart_data(benchmarks:, currency:, performance_ratios: nil)
+      performance_ratios ||= series.observations.map(&:return_ratio)
       {
         labels: series.observations.map { |item| I18n.l(item.date, format: :short) },
         values: series.observations.map { |item| item.market_value_amount&.to_f },
         invested_values: series.observations.map { |item| item.invested_amount&.to_f },
         formatted_values: series.observations.map { |item| item.market_value&.format },
         formatted_invested_values: series.observations.map { |item| item.invested_value&.format },
-        formatted_performances: series.observations.map { |item| performance_label(item.return_ratio) },
-        performance_ratios: series.observations.map(&:return_ratio),
+        formatted_performances: performance_ratios.map { |ratio| performance_label(ratio) },
+        performance_ratios:,
         benchmarks:,
         portfolio_value_label: I18n.t("performances.show.Portfolio value"),
         portfolio_return_label: I18n.t("performances.show.Portfolio return"),
@@ -35,6 +31,17 @@ module Performance
         currency:,
         locale: I18n.locale
       }
+    end
+
+    def instrument_chart_data(currency:)
+      chart_data(benchmarks: [], currency:).merge(
+        portfolio_value_label: I18n.t("instruments.show.Position value"),
+        portfolio_return_label: I18n.t("instruments.show.return_methodologies.modified_dietz.label"),
+        invested_value_label: I18n.t("instruments.show.Cost basis"),
+        return_label: I18n.t("instruments.show.Return"),
+        gain_on_cost_return_label: I18n.t("instruments.show.return_methodologies.gain_on_cost.label"),
+        gain_on_cost_performance_ratios: series.observations.map(&:gain_on_cost_ratio)
+      )
     end
 
     def stale_status_copy

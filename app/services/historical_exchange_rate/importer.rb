@@ -114,12 +114,22 @@ class HistoricalExchangeRate
       users.each do |user|
         Performance::ObservationInvalidator.mark!(user:, from: earliest_observation_date)
       end
+      affected_instrument_targets.each do |user, instrument, reporting_currency|
+        Performance::ObservationInvalidator.mark_instrument!(
+          user:, instrument:, reporting_currency:, from: earliest_observation_date
+        )
+      end
       users
     end
 
     def enqueue_performance_observations
       performance_users.each do |user|
         Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
+      end
+      affected_instrument_targets.each do |user, instrument, reporting_currency|
+        Performance::ObservationInvalidator.enqueue_instrument(
+          user:, instrument:, reporting_currency:, from: earliest_observation_date
+        )
       end
     end
 
@@ -130,6 +140,26 @@ class HistoricalExchangeRate
     def affected_users
       # Valuation can resolve either the direct rate or its inverse.
       User.where(id: Trade.where(currency: [ base_currency, quote_currency ]).select(:user_id))
+    end
+
+    def affected_instrument_targets
+      @affected_instrument_targets ||= User.where(id: Trade.select(:user_id)).flat_map do |user|
+        user.trades.includes(:instrument).map(&:instrument).uniq.flat_map do |instrument|
+          instrument_target_currencies(user:, instrument:).filter_map do |reporting_currency|
+            [ user, instrument, reporting_currency ] if affected_pair?(instrument.currency, reporting_currency)
+          end
+        end
+      end
+    end
+
+    def instrument_target_currencies(user:, instrument:)
+      materialized = user.instrument_performance_materializations.where(instrument:).pluck(:reporting_currency)
+      materialized | [ instrument.currency, user.reporting_currency ]
+    end
+
+    def affected_pair?(instrument_currency, reporting_currency)
+      instrument_currency != reporting_currency &&
+        [ instrument_currency, reporting_currency ].sort == [ base_currency, quote_currency ].sort
     end
 
     def normalize_currency(currency)

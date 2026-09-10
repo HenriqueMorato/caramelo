@@ -9,7 +9,7 @@
     </div>
 
     <nav aria-label="<%= t(".Period selection") %>" class="inline-flex rounded-md bg-paper/50 p-1">
-      <% PerformancesController::PERIODS.each_key do |period| %>
+      <% Performance::PeriodSelection::PERIODS.each_key do |period| %>
         <% selected = @selected_period == period %>
         <%= link_to t(".#{period.humanize}"), performance_path(period:), class: "period-option",
           aria: { current: ("page" if selected) } %>

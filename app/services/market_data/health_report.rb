@@ -127,7 +127,8 @@ module MarketData
     end
 
     def performance_entries
-      PortfolioPerformance.new(owner:, today:, context:).entries
+      PortfolioPerformance.new(owner:, today:, context:).entries +
+        InstrumentPerformance.new(owner:, today:, context:).entries
     end
 
     def subject_label(subject)

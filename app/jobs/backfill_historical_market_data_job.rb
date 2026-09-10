@@ -79,6 +79,11 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
     User.where(id: affected_trades.select(:user_id)).find_each do |user|
       Performance::ObservationInvalidator.enqueue(user:, from:)
     end
+    User.where(id: Trade.where(instrument: backfill.instrument).select(:user_id)).find_each do |user|
+      Performance::ObservationInvalidator.enqueue_instrument(
+        user:, instrument: backfill.instrument, from:
+      )
+    end
   end
 
   def complete(backfill, generation:)

@@ -91,8 +91,10 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_includes response.body, "ready"
-    refute_includes response.body, "missing"
+    assert_select "table[aria-label='Data health issues']" do |tables|
+      assert_includes tables.to_s, "ready"
+      refute_includes tables.to_s, "missing"
+    end
   end
 
   test "filters health entries needing attention" do
@@ -114,8 +116,10 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_includes response.body, "missing"
-    refute_includes response.body, "ready"
+    assert_select "table[aria-label='Data health issues']" do |tables|
+      assert_includes tables.to_s, "missing"
+      refute_includes tables.to_s, "ready"
+    end
   end
 
   private

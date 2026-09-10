@@ -59,9 +59,84 @@ class MarketData::ResetTest < ActiveSupport::TestCase
   end
 
   test "does not clear unsupported target kinds" do
-    target = MarketData::Target.new(kind: :portfolio_performance)
+    target = Struct.new(:kind).new(:unsupported)
 
     assert_predicate MarketData::Reset.call(target:, cache: @cache), :unsupported?
+  end
+
+  test "deletes only instrument derived rows and advances its generation before rebuilding" do
+    owner = users(:owner)
+    date = Date.new(2026, 8, 12)
+    materialization = InstrumentPerformanceMaterialization.for(
+      user: owner, instrument: @instrument, reporting_currency: "USD"
+    )
+    observation = InstrumentPerformanceObservation.create!(
+      user: owner, instrument: @instrument, reporting_currency: "USD", observed_on: date,
+      status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
+      market_value_amount: "100", cost_basis_amount: "90", realized_gain_amount: "1",
+      unrealized_gain_amount: "9", net_cash_flow_amount: "-90", invested_amount: "90"
+    )
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: @instrument.id, quote_currency: "USD"
+    )
+    preview = MarketData::ResetPreview.create(target:, owner:, range: date..date)
+    source_counts = [ owner.trades.count, DailyClosingPrice.count, HistoricalExchangeRate.count ]
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      result = MarketData::Reset.call(target:, preview_token: preview.token, owner:, cache: @cache)
+      assert_predicate result, :queued?
+    end
+
+    refute InstrumentPerformanceObservation.exists?(observation.id)
+    assert_equal source_counts, [ owner.trades.count, DailyClosingPrice.count, HistoricalExchangeRate.count ]
+    assert_equal 1, materialization.reload.source_generation
+    assert_equal date..date, materialization.requested_range
+    assert_equal @instrument, enqueued[:instrument]
+    assert_equal "USD", enqueued[:reporting_currency]
+  end
+
+  test "rejects an instrument performance reset outside the owner scope" do
+    instrument = instruments(:petr4_bvmf)
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instrument.id, quote_currency: instrument.currency
+    )
+    preview = MarketData::ResetPreview.create(target:, owner: users(:owner))
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::Reset.call(target:, preview_token: preview.token, cache: @cache)
+    end
+  end
+
+  test "deletes only portfolio derived rows and advances its generation before rebuilding" do
+    owner = users(:owner)
+    date = Date.new(2026, 8, 12)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: "BRL")
+    observation = PortfolioPerformanceObservation.create!(
+      user: owner, reporting_currency: "BRL", observed_on: date,
+      status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
+      market_value_amount: "100", net_cash_flow_amount: "90"
+    )
+    target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
+    preview = MarketData::ResetPreview.create(target:, owner:, range: date..date)
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      result = MarketData::Reset.call(target:, preview_token: preview.token, owner:, cache: @cache)
+      assert_predicate result, :queued?
+    end
+
+    refute PortfolioPerformanceObservation.exists?(observation.id)
+    assert_equal 1, materialization.reload.source_generation
+    assert_equal date..date, materialization.requested_range
+    assert_not enqueued.key?(:instrument)
+    assert_equal "BRL", enqueued[:reporting_currency]
   end
 
   test "reuses the verified preview range for historical recovery targets" do

@@ -21,6 +21,39 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_predicate refresh_state, :active?
   end
 
+  test "keeps instrument currency targets independent from portfolio and peers" do
+    instrument = instruments(:voo_arcx)
+    other = instruments(:petr4_bvmf)
+    portfolio_token = Performance::SeriesRefresh.acquire(user: @user)
+    instrument_token = Performance::SeriesRefresh.acquire(
+      user: @user, instrument:, reporting_currency: "USD"
+    )
+
+    assert portfolio_token
+    assert instrument_token
+    assert Performance::SeriesRefresh.acquire(user: @user, instrument: other, reporting_currency: "BRL")
+    assert Performance::SeriesRefresh.acquire(user: @user, instrument:, reporting_currency: "BRL")
+    assert_not Performance::SeriesRefresh.acquire(user: @user, instrument:, reporting_currency: "USD")
+  end
+
+  test "enqueues and reads target-scoped instrument state" do
+    instrument = instruments(:voo_arcx)
+
+    assert_equal :queued, Performance::SeriesRefresh.enqueue(
+      user: @user, instrument:, reporting_currency: "USD", from: @from, to: @to
+    )
+
+    job = enqueued_jobs.find { |item| item[:job] == BuildInstrumentPerformanceObservationsJob }
+    arguments = job.fetch(:args).sole.symbolize_keys
+    assert_equal @user.id, arguments.fetch(:user_id)
+    assert_equal instrument.id, arguments.fetch(:instrument_id)
+    assert_equal "USD", arguments.fetch(:reporting_currency)
+    assert_instance_of String, arguments.fetch(:lease_token)
+    state = Performance::SeriesRefresh.read(user: @user, instrument:, reporting_currency: "USD")
+    assert_equal "queued", state.status
+    assert_nil Performance::SeriesRefresh.read(user: @user)
+  end
+
   test "reports an existing running build as active" do
     token = Performance::SeriesRefresh.acquire(user: @user)
     Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
@@ -85,6 +118,26 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_equal "queue unavailable", reported.first.message
     travel 31.seconds
     assert_equal :queued, enqueue
+  end
+
+  test "reports an instrument enqueue failure with target context" do
+    instrument = instruments(:voo_arcx)
+    job_class = Class.new do
+      def self.perform_later(**)
+        raise ActiveJob::EnqueueError, "instrument queue unavailable"
+      end
+    end
+    reports = []
+
+    with_stubbed_method(Rails.error, :report, ->(error, **details) { reports << [ error, details ] }) do
+      assert_equal :failed, Performance::SeriesRefresh.enqueue(
+        user: @user, instrument:, reporting_currency: "USD", from: @from, to: @to, job_class:
+      )
+    end
+
+    error, details = reports.sole
+    assert_equal "instrument queue unavailable", error.message
+    assert_equal instrument.id, details.fetch(:context).fetch(:instrument_id)
   end
 
   test "treats an existing owner lease as active for every range" do

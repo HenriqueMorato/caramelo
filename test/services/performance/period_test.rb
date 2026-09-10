@@ -46,6 +46,22 @@ class Performance::PeriodTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.2"), period.return_ratio
   end
 
+  test "passes an instrument target to both endpoint valuations" do
+    instrument = instruments(:voo_arcx)
+    portfolio = InstrumentPortfolio.new(
+      instrument:,
+      valuations: {
+        @from => valuation(date: @from, amount: "100"),
+        @to => valuation(date: @to, amount: "110")
+      }
+    )
+
+    period = Performance::Period.for(from: @from, to: @to, portfolio:, instrument:)
+
+    assert_predicate period, :available?
+    assert_equal [ @from, @to ], portfolio.dates
+  end
+
   test "is unavailable when either endpoint is unavailable" do
     opening = valuation(date: @from, amount: nil, status: :missing)
     closing = valuation(date: @to, amount: "100")
@@ -95,6 +111,24 @@ class Performance::PeriodTest < ActiveSupport::TestCase
   ConfiguredPortfolio = Data.define(:exchange_rate_service, :daily_closing_price_provider) do
     def for(valuation_date:, owner:)
       Performance::Portfolio.for(valuation_date:, owner:, exchange_rate_service:, daily_closing_price_provider:)
+    end
+  end
+
+  class InstrumentPortfolio
+    attr_reader :dates
+
+    def initialize(instrument:, valuations:)
+      @instrument = instrument
+      @valuations = valuations
+      @dates = []
+    end
+
+    def for(valuation_date:, owner:, instrument:)
+      raise "wrong owner" unless owner == User.owner
+      raise "wrong instrument" unless instrument == @instrument
+
+      dates << valuation_date
+      @valuations.fetch(valuation_date)
     end
   end
 

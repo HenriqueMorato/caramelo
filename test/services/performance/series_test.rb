@@ -62,6 +62,35 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0"), result.observations.first.return_ratio
   end
 
+  test "uses remaining cost basis for an instrument value series" do
+    instrument = instruments(:voo_arcx)
+    @store.add(snapshot(@from, market_value: "100", net_cash_flow: "80", cost_basis: "70"))
+
+    result = Performance::Series.for(
+      from: @from,
+      to: @to,
+      user: @user,
+      instrument:,
+      store: @store,
+      refresher: @refresher
+    )
+
+    assert_equal BigDecimal("70"), result.observations.first.invested_amount
+    assert_equal Money.from_amount(70, "BRL"), result.observations.first.invested_value
+    assert_equal [ instrument ], @refresher.instruments
+  end
+
+  test "leaves gain on cost unavailable when cumulative purchases are zero" do
+    instrument = instruments(:voo_arcx)
+    @store.add(snapshot(@from, invested: "0"))
+
+    result = Performance::Series.for(
+      from: @from, to: @from, user: @user, instrument:, store: @store, refresher: @refresher
+    )
+
+    assert_nil result.observations.first.gain_on_cost_ratio
+  end
+
   test "matches period math for fractional sales fees closure reopening and multiple currencies" do
     Trade.where(user: @user).delete_all
     from = Date.new(2026, 8, 24)
@@ -282,6 +311,21 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     assert_predicate calculate, :empty?
   end
 
+  test "does not confuse an available closed position with no history" do
+    dates.each { |date| @store.add(snapshot(date, market_value: "0", net_cash_flow: "-10")) }
+
+    result = Performance::Series.for(
+      from: @from,
+      to: @to,
+      user: @user,
+      instrument: instruments(:voo_arcx),
+      store: @store,
+      refresher: @refresher
+    )
+
+    assert_predicate result, :available?
+  end
+
   test "rejects invalid or future ranges" do
     assert_raises(ArgumentError) { calculate(from: @to, to: @from) }
     assert_raises(ArgumentError) { calculate(from: @from.to_s) }
@@ -291,11 +335,13 @@ class Performance::SeriesTest < ActiveSupport::TestCase
   private
 
   Snapshot = Data.define(
-    :observed_on, :market_value_amount, :net_cash_flow_amount, :status, :stale_at, :source_generation,
-    :cash_flow_total, :dated_cash_flow_total
+    :observed_on, :market_value_amount, :cost_basis_amount, :net_cash_flow_amount,
+    :realized_gain_amount, :unrealized_gain_amount, :invested_amount,
+    :status, :stale_at, :source_generation, :cash_flow_total, :dated_cash_flow_total
   ) do
     def stale? = stale_at.present?
     def missing? = status == :missing
+    def empty? = status == :empty
   end
 
   class StubStore
@@ -314,17 +360,19 @@ class Performance::SeriesTest < ActiveSupport::TestCase
 
   class StubRefresher
     attr_accessor :result
-    attr_reader :ranges
+    attr_reader :ranges, :instruments
 
     def initialize
       @result = :queued
       @ranges = []
+      @instruments = []
     end
 
-    def enqueue(user:, from:, to:, reporting_currency:)
+    def enqueue(user:, from:, to:, reporting_currency:, instrument: nil)
       raise "missing inputs" unless user && reporting_currency
 
       ranges << [ from, to ]
+      instruments << instrument if instrument
       result
     end
   end
@@ -339,12 +387,16 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     (@from..@to).to_a
   end
 
-  def snapshot(date, market_value: "100", net_cash_flow: "80", status: :available, stale_at: nil,
-    dated_flow_total: nil)
+  def snapshot(date, market_value: "100", cost_basis: nil, net_cash_flow: "80", status: :available, stale_at: nil,
+    dated_flow_total: nil, realized_gain: "0", unrealized_gain: "20", invested: "80")
     Snapshot.new(
       observed_on: date,
       market_value_amount: market_value && BigDecimal(market_value),
+      cost_basis_amount: cost_basis && BigDecimal(cost_basis),
       net_cash_flow_amount: net_cash_flow && BigDecimal(net_cash_flow),
+      realized_gain_amount: realized_gain && BigDecimal(realized_gain),
+      unrealized_gain_amount: unrealized_gain && BigDecimal(unrealized_gain),
+      invested_amount: invested && BigDecimal(invested),
       cash_flow_total: net_cash_flow.to_r,
       dated_cash_flow_total: dated_flow_total || net_cash_flow.to_r * @from.jd,
       status:,

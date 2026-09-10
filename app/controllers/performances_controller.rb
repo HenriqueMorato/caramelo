@@ -1,19 +1,13 @@
 class PerformancesController < ApplicationController
   allow_unauthenticated_access
 
-  PERIODS = {
-    "week" => 1.week,
-    "month" => 1.month,
-    "year" => 1.year,
-    "all" => nil
-  }.freeze
-
   def show
-    @selected_period = params[:period].presence_in(PERIODS.keys) || "month"
-    @performance = Performance::Period.for(from: period_start, to: Date.current)
+    @period_selection = Performance::PeriodSelection.for(period: params[:period])
+    @selected_period = @period_selection.period
+    @performance = Performance::Period.for(from: period_start, to: period_end)
     if @performance.available?
       @period_presenter = Performance::PeriodPresenter.new(@performance)
-      @series = Performance::Series.for(from: period_start, to: Date.current)
+      @series = Performance::Series.for(from: period_start, to: period_end)
       @series_presenter = Performance::SeriesPresenter.new(@series)
       @benchmark_results = benchmark_results
       @benchmark_chart_data = Performance::BenchmarkChartData.for(series: @series, benchmark_results: @benchmark_results)
@@ -24,14 +18,16 @@ class PerformancesController < ApplicationController
   private
 
   def period_start
-    return User.owner.trades.minimum(:traded_on) || Date.current if @selected_period == "all"
+    @period_selection.from
+  end
 
-    Date.current - PERIODS.fetch(@selected_period)
+  def period_end
+    @period_selection.to
   end
 
   def benchmark_results
     MarketBenchmark.order(:identifier).map do |benchmark|
-      [ benchmark, Performance::Benchmark.for(benchmark:, from: period_start, to: Date.current) ]
+      [ benchmark, Performance::Benchmark.for(benchmark:, from: period_start, to: period_end) ]
     end
   end
 end

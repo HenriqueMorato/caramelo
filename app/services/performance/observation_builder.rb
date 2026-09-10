@@ -4,12 +4,13 @@ module Performance
     # lets completion distinguish this snapshot from a newer source edit.
     Result = Data.define(:from, :to, :built_count, :skipped_count, :source_generation)
 
-    def initialize(user:, store: nil, portfolio: Portfolio,
-      materialization: PortfolioPerformanceMaterialization.for(user:))
+    def initialize(user:, instrument: nil, reporting_currency: user.reporting_currency,
+      store: nil, portfolio: Portfolio, materialization: nil)
       @user = user
-      @store = store || ObservationStore.new(user:, reporting_currency: materialization.reporting_currency)
+      @instrument = instrument
+      @materialization = materialization || default_materialization(reporting_currency:)
+      @store = store || default_store
       @portfolio = portfolio
-      @materialization = materialization
     end
 
     def call(from:, to:)
@@ -27,8 +28,26 @@ module Performance
 
     private
 
-    attr_reader :user, :store, :portfolio, :materialization, :from, :to,
+    attr_reader :user, :instrument, :store, :portfolio, :materialization, :from, :to,
       :source_generation, :dates, :dates_to_build
+
+    def default_materialization(reporting_currency:)
+      if instrument
+        InstrumentPerformanceMaterialization.for(user:, instrument:, reporting_currency:)
+      else
+        PortfolioPerformanceMaterialization.for(user:, reporting_currency:)
+      end
+    end
+
+    def default_store
+      if instrument
+        InstrumentPerformance::ObservationStore.new(
+          user:, instrument:, reporting_currency: materialization.reporting_currency
+        )
+      else
+        ObservationStore.new(user:, reporting_currency: materialization.reporting_currency)
+      end
+    end
 
     def prepare_range(from:, to:)
       @from = from
@@ -44,15 +63,21 @@ module Performance
     end
 
     def trades
-      @trades ||= user.trades.includes(:instrument).strict_loading.order(:traded_on, :id).to_a
+      @trades ||= begin
+        scope = user.trades
+        scope = scope.where(instrument:) if instrument
+        scope.includes(:instrument).strict_loading.order(:traded_on, :id).to_a
+      end
     end
 
     def build_dates
       built_count = 0
       dates_to_build.each do |date|
-        valuation = portfolio.for(
+        attributes = {
           valuation_date: date, owner: user, trades:, reporting_currency: materialization.reporting_currency
-        )
+        }
+        attributes[:instrument] = instrument if instrument
+        valuation = portfolio.for(**attributes)
         break unless publish(valuation, source_generation:)
 
         built_count += 1
