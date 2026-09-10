@@ -8,7 +8,7 @@ class InstrumentPerformance::SeriesTest < ActiveSupport::TestCase
     Trade.where(user: @user).delete_all
   end
 
-  test "materializes native and reporting views and matches direct Modified Dietz calculation" do
+  test "materializes native and reporting views with both return methodologies" do
     instrument = create_instrument(ticker: "FXSER", currency: "USD")
     create_trade(
       instrument:, date: @from, side: :buy, quantity: "2", unit_price: "10",
@@ -61,10 +61,20 @@ class InstrumentPerformance::SeriesTest < ActiveSupport::TestCase
     assert_equal direct_position.realized_gain_amount, reporting_record.realized_gain_amount
     assert_equal direct_position.unrealized_gain_amount, reporting_record.unrealized_gain_amount
     assert_equal direct_position.net_cash_flow_amount, reporting_record.net_cash_flow_amount
+    assert_equal direct_position.invested_amount, reporting_record.invested_amount
     assert_equal direct_position.reporting_cost_basis_amount, reporting.observations.last.invested_amount
     assert_equal direct_period.gain_loss_amount, reporting.observations.last.gain_loss_amount
     assert_equal direct_period.return_ratio, reporting.observations.last.return_ratio
+    assert_in_delta direct_position.return_ratio, reporting.observations.last.gain_on_cost_ratio, BigDecimal("1e-47")
+
+    first_position = Performance::Portfolio.for(
+      valuation_date: @from,
+      owner: @user,
+      instrument:,
+      reporting_currency: "BRL"
+    ).position_results.sole
     assert_equal BigDecimal("0"), reporting.observations.first.return_ratio
+    assert_in_delta first_position.return_ratio, reporting.observations.first.gain_on_cost_ratio, BigDecimal("1e-47")
   end
 
   test "preserves realized gain through closure and reopening" do

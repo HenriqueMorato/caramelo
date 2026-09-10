@@ -1,0 +1,96 @@
+<% content_for :title, t("performance_methodologies.show.Page title", application: t("LocalFolio")) %>
+
+<article class="mx-auto max-w-4xl space-y-8 pt-5 md:pt-0">
+  <header class="max-w-3xl">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-caramel-deep"><%= t("performance_methodologies.show.Eyebrow") %></p>
+    <h1 class="mt-3 text-balance font-display text-3xl font-semibold tracking-tight text-coffee sm:text-4xl"><%= t("performance_methodologies.show.Title") %></h1>
+    <p class="mt-4 text-pretty text-base leading-7 text-muted"><%= t("performance_methodologies.show.Introduction") %></p>
+  </header>
+
+  <section aria-labelledby="methodology-comparison-heading" class="space-y-4">
+    <div>
+      <h2 id="methodology-comparison-heading" class="font-display text-2xl font-semibold text-coffee"><%= t("performance_methodologies.show.Two questions") %></h2>
+      <p class="mt-2 max-w-3xl text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Two questions explanation") %></p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <section aria-labelledby="modified-dietz-heading" class="ui-panel p-5 sm:p-6">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 id="modified-dietz-heading" class="font-display text-xl font-semibold text-coffee"><%= t("performance_methodologies.show.Modified Dietz") %></h3>
+          <span class="ui-badge"><%= t("performance_methodologies.show.Graph default") %></span>
+        </div>
+        <p class="mt-3 text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Modified Dietz explanation") %></p>
+        <div class="mt-5 rounded-xl border border-coffee/10 bg-paper/50 p-4 font-mono text-sm leading-6 tabular-nums text-coffee">
+          <p><%= t("performance_methodologies.show.Dietz gain formula") %></p>
+          <p class="mt-2"><%= t("performance_methodologies.show.Dietz return formula") %></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="gain-on-cost-heading" class="ui-panel p-5 sm:p-6">
+        <h3 id="gain-on-cost-heading" class="font-display text-xl font-semibold text-coffee"><%= t("performance_methodologies.show.Gain on cost") %></h3>
+        <p class="mt-3 text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Gain on cost explanation") %></p>
+        <div class="mt-5 rounded-xl border border-coffee/10 bg-paper/50 p-4 font-mono text-sm leading-6 tabular-nums text-coffee">
+          <p><%= t("performance_methodologies.show.Gain on cost formula") %></p>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section aria-labelledby="worked-example-heading" class="ui-panel overflow-hidden">
+    <div class="border-b border-coffee/10 p-5 sm:p-6">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-caramel-deep"><%= t("performance_methodologies.show.Worked example") %></p>
+      <h2 id="worked-example-heading" class="mt-2 font-display text-2xl font-semibold text-coffee"><%= t("performance_methodologies.show.Same position different answers") %></h2>
+      <p class="mt-2 max-w-3xl text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Example introduction") %></p>
+    </div>
+
+    <div class="grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <ol class="space-y-4 p-5 text-sm leading-6 text-coffee sm:p-6">
+        <li class="flex gap-3"><span class="font-mono font-semibold text-caramel-deep">01</span><span><%= t("performance_methodologies.show.Example step one") %></span></li>
+        <li class="flex gap-3"><span class="font-mono font-semibold text-caramel-deep">02</span><span><%= t("performance_methodologies.show.Example step two") %></span></li>
+        <li class="flex gap-3"><span class="font-mono font-semibold text-caramel-deep">03</span><span><%= t("performance_methodologies.show.Example step three") %></span></li>
+      </ol>
+
+      <div class="border-t border-coffee/10 bg-paper/40 p-5 sm:p-6 md:border-l md:border-t-0">
+        <dl class="space-y-5">
+          <div>
+            <dt class="font-semibold text-coffee"><%= t("performance_methodologies.show.Gain on cost result") %></dt>
+            <dd class="mt-1 font-mono text-sm leading-6 tabular-nums text-muted">€500 ÷ €2,000 = <strong class="text-coffee">25.00%</strong></dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-coffee"><%= t("performance_methodologies.show.Modified Dietz result") %></dt>
+            <dd class="mt-1 font-mono text-sm leading-6 tabular-nums text-muted">€500 ÷ (€1,000 + €1,000 × 1/12) = <strong class="text-coffee">46.15%</strong></dd>
+          </div>
+        </dl>
+        <p class="mt-5 border-t border-coffee/10 pt-4 text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Example conclusion") %></p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="localfolio-use-heading" class="ui-panel p-5 sm:p-6">
+    <h2 id="localfolio-use-heading" class="font-display text-2xl font-semibold text-coffee"><%= t("performance_methodologies.show.How LocalFolio uses them") %></h2>
+    <dl class="mt-5 divide-y divide-coffee/10">
+      <div class="grid gap-1 py-4 first:pt-0 sm:grid-cols-[12rem_1fr] sm:gap-5">
+        <dt class="font-semibold text-coffee"><%= t("performance_methodologies.show.Instrument graph") %></dt>
+        <dd class="text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Instrument graph explanation") %></dd>
+      </div>
+      <div class="grid gap-1 py-4 sm:grid-cols-[12rem_1fr] sm:gap-5">
+        <dt class="font-semibold text-coffee"><%= t("performance_methodologies.show.Position details") %></dt>
+        <dd class="text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Position details explanation") %></dd>
+      </div>
+      <div class="grid gap-1 py-4 last:pb-0 sm:grid-cols-[12rem_1fr] sm:gap-5">
+        <dt class="font-semibold text-coffee"><%= t("performance_methodologies.show.Portfolio performance") %></dt>
+        <dd class="text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Portfolio performance explanation") %></dd>
+      </div>
+    </dl>
+  </section>
+
+  <aside class="rounded-2xl border border-caramel/25 bg-caramel/10 p-5 sm:p-6" aria-labelledby="calculation-inputs-heading">
+    <h2 id="calculation-inputs-heading" class="font-display text-xl font-semibold text-coffee"><%= t("performance_methodologies.show.Calculation inputs") %></h2>
+    <p class="mt-2 text-sm leading-6 text-muted"><%= t("performance_methodologies.show.Calculation inputs explanation") %></p>
+  </aside>
+
+  <nav aria-label="<%= t("performance_methodologies.show.Continue exploring") %>" class="flex flex-wrap gap-3 border-t border-coffee/10 pt-6">
+    <%= link_to t("performance_methodologies.show.View portfolio performance"), performance_path, class: "ui-button ui-button-primary" %>
+    <%= link_to t("performance_methodologies.show.View positions"), positions_path, class: "ui-button ui-button-secondary" %>
+  </nav>
+</article>

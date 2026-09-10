@@ -40,7 +40,8 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", "Add trade"
     assert_select "h2", "Trade history"
     assert_select "p", "No trades for this instrument"
-    assert_includes response.body, "Historical prices will appear here after at least two daily closes are available."
+    assert_select "#instrument-performance-heading", "Performance"
+    assert_includes response.body, "Record a trade to begin this instrument’s performance history."
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
   end
 
@@ -54,10 +55,10 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(@instrument)
 
     assert_response :success
-    assert_select "h2", "Price history"
+    assert_select "h2", "Performance"
     assert_select "dd", text: "R$20,00"
     assert_select "dd", text: "R$24,00"
-    assert_select "dt", text: "Total return"
+    assert_select "dt", text: "Gain on cost"
     assert_not_includes response.body, "Realized gains"
     assert_match(/20[,.]00%/, response.body)
     assert_match(/Unrealized return.*\+R\$4,00/m, response.body)
@@ -76,7 +77,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
       )
     end
 
-    get instrument_url(@instrument)
+    get instrument_url(@instrument, history: "price")
 
     assert_select "[data-controller='instrument-price-chart'][data-action*='appearance:change']"
     assert_select "canvas[data-instrument-price-chart-target='canvas']"
@@ -84,6 +85,135 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "details tbody tr", count: 2
     assert_includes response.body, "R$12,00"
     assert_includes response.body, "R$11,00"
+  end
+
+  test "price history does not prepare unused performance observations" do
+    instrument = instruments(:voo_arcx)
+    InstrumentPerformanceMaterialization.where(user: users(:owner), instrument:).delete_all
+
+    assert_no_enqueued_jobs only: BuildInstrumentPerformanceObservationsJob do
+      get instrument_url(instrument, history: "price")
+    end
+
+    assert_response :success
+    assert_empty InstrumentPerformanceMaterialization.where(user: users(:owner), instrument:)
+  end
+
+  test "renders return-only instrument history in both prepared currency views" do
+    instrument = instruments(:voo_arcx)
+    selection = Performance::PeriodSelection.for(period: "week", owner: users(:owner), instrument:)
+    create_history_observations(instrument:, currency: "USD", range: selection.from..selection.to)
+    create_history_observations(instrument:, currency: "BRL", range: selection.from..selection.to)
+
+    get instrument_url(instrument, period: "week")
+
+    assert_response :success
+    assert_select "#instrument-performance-heading", "Performance"
+    assert_select "[data-controller='performance-chart'][data-performance-chart-default-mode-value='performance'][data-performance-chart-return-only-value='true']", count: 2
+    assert_select "[aria-label='Chart view']", count: 0
+    assert_select "[aria-label='Position currency']", count: 1
+    assert_select "[data-currency-view-name='native']:not([hidden])"
+    assert_select "[data-currency-view-name='reporting'][hidden]"
+    assert_select "details th", text: "Position value", count: 2
+    assert_select "details th", text: "Cost basis", count: 2
+    assert_select "details th", text: "Modified Dietz", count: 2
+    assert_select "details th", text: "Gain on cost", count: 2
+    assert_select "nav[aria-label='Select return methodology']", count: 0
+    assert_select "a[href=?]", performance_methodology_path, text: "How returns are calculated", count: 2
+    assert_includes response.body, "&quot;portfolio_return_label&quot;:&quot;Modified Dietz&quot;"
+    assert_includes response.body, "&quot;gain_on_cost_return_label&quot;:&quot;Gain on cost&quot;"
+    assert_not_includes response.body, "Realized gains"
+  end
+
+  test "preserves history period and currency state in navigation links" do
+    instrument = instruments(:voo_arcx)
+
+    get instrument_url(instrument, history: "price", period: "year", chart: "performance", currency_view: "reporting")
+    selected_price_path = instrument_path(
+      instrument, history: "price", period: "year", currency_view: "reporting"
+    )
+    performance_path = instrument_path(
+      instrument, history: "performance", period: "year", currency_view: "reporting"
+    )
+    month_path = instrument_path(
+      instrument, history: "price", period: "month", currency_view: "reporting"
+    )
+
+    assert_select "nav[aria-label='Select history view']" do
+      assert_select "a[aria-current='page'][href=?]", selected_price_path, "Price history"
+      assert_select "a[href=?]", performance_path, "Performance"
+    end
+    assert_select "nav[aria-label='Select reporting period']" do
+      assert_select "a[aria-current='page']", "Year"
+      assert_select "a[href=?]", month_path, "Month"
+    end
+    assert_not_includes response.body, "chart=performance"
+  end
+
+  test "ignores obsolete methodology query state" do
+    instrument = instruments(:voo_arcx)
+    selection = Performance::PeriodSelection.for(period: "week", owner: users(:owner), instrument:)
+    create_history_observations(instrument:, currency: "USD", range: selection.from..selection.to)
+    create_history_observations(instrument:, currency: "BRL", range: selection.from..selection.to)
+
+    get instrument_url(instrument, period: "week", methodology: "gain_on_cost")
+
+    assert_select "nav[aria-label='Select return methodology']", count: 0
+    assert_select "details th", text: "Modified Dietz", count: 2
+    assert_select "details th", text: "Gain on cost", count: 2
+    assert_select "a[href*='methodology=']", count: 0
+  end
+
+  test "shows partially available stale missing and failed instrument history states" do
+    instrument = instruments(:voo_arcx)
+    selection = Performance::PeriodSelection.for(period: "week", owner: users(:owner), instrument:)
+    range = selection.from..selection.to
+    create_history_observations(instrument:, currency: "USD", range: selection.from..selection.from)
+
+    get instrument_url(instrument, period: "week")
+    assert_select "[role='status']", /Instrument history is partially available/
+
+    InstrumentPerformanceObservation.where(user: users(:owner), instrument:, reporting_currency: "USD").delete_all
+    create_history_observations(instrument:, currency: "USD", range:, stale_at: Time.current)
+    get instrument_url(instrument, period: "week")
+    assert_select "[role='status']", /Instrument history may be out of date/
+
+    InstrumentPerformanceObservation.where(user: users(:owner), instrument:, reporting_currency: "USD").delete_all
+    create_history_observations(instrument:, currency: "USD", range:, status: :missing)
+    get instrument_url(instrument, period: "week")
+    assert_select "[role='status']", /Instrument history is incomplete/
+
+    InstrumentPerformanceObservation.where(user: users(:owner), instrument:, reporting_currency: "USD").delete_all
+    Rails.cache.clear
+    token = Performance::SeriesRefresh.acquire(user: users(:owner), instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.failed(
+      user: users(:owner), instrument:, reporting_currency: "USD", from: range.begin, to: range.end,
+      token:, error: RuntimeError.new("calculation failed")
+    )
+    Performance::SeriesRefresh.release(user: users(:owner), instrument:, reporting_currency: "USD", token:)
+    get instrument_url(instrument, period: "week")
+    assert_select "[role='alert']", /Instrument history could not be updated/
+    assert_select "a", "Try again"
+  end
+
+  test "does not replace missing historical values with a current quote" do
+    instrument = instruments(:voo_arcx)
+    selection = Performance::PeriodSelection.for(period: "week", owner: users(:owner), instrument:)
+    create_history_observations(
+      instrument:, currency: "USD", range: selection.from..selection.to, status: :missing
+    )
+    CurrentMarketPriceCache.new.write(
+      instrument:,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: "700", currency: "USD", provider: "yahoo_finance",
+        quoted_at: Time.current, fetched_at: Time.current
+      )
+    )
+
+    get instrument_url(instrument, period: "week")
+
+    assert_select "[role='status']", /Current quotes are never substituted/
+    assert_select "[data-controller='performance-chart']", count: 0
   end
 
   test "renders native and owner-currency gains for a foreign instrument" do
@@ -212,8 +342,8 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     get instrument_url(@instrument)
 
     assert_response :success
-    assert_select "#instrument-performance-heading", "Price history"
-    assert_select "[role='status']", /Performance data is loading/
+    assert_select "#instrument-performance-heading", "Performance"
+    assert_select "[role='status']", /Instrument history is building/
   end
 
   test "creates a global instrument" do
@@ -311,6 +441,32 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def create_history_observations(instrument:, currency:, range:, status: :available, stale_at: nil)
+    owner = users(:owner)
+    materialization = InstrumentPerformanceMaterialization.for(
+      user: owner, instrument:, reporting_currency: currency
+    )
+    range.each_with_index do |date, index|
+      amounts = if status == :missing
+        {}
+      else
+        {
+          market_value_amount: 100 + index,
+          cost_basis_amount: 90,
+          realized_gain_amount: 0,
+          unrealized_gain_amount: 10 + index,
+          net_cash_flow_amount: -90,
+          invested_amount: 90
+        }
+      end
+      InstrumentPerformanceObservation.create!(
+        user: owner, instrument:, reporting_currency: currency, observed_on: date,
+        status:, source_generation: materialization.source_generation, generated_at: Time.current,
+        stale_at:, **amounts
+      )
+    end
+  end
 
   def create_trade(instrument:, side:, quantity:, traded_on: Date.new(2026, 1, 1),
     unit_price: 10, settlement_exchange_rate: nil)

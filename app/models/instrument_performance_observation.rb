@@ -1,7 +1,7 @@
 class InstrumentPerformanceObservation < ApplicationRecord
   DECIMAL_ATTRIBUTES = %i[
     market_value_amount cost_basis_amount realized_gain_amount
-    unrealized_gain_amount net_cash_flow_amount
+    unrealized_gain_amount net_cash_flow_amount invested_amount
   ].freeze
 
   belongs_to :user
@@ -15,6 +15,7 @@ class InstrumentPerformanceObservation < ApplicationRecord
   validates :reporting_currency, presence: true, iso_currency: true
   validates :source_generation, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates(*DECIMAL_ATTRIBUTES, numericality: true, presence: true, unless: :missing?)
+  validates(*DECIMAL_ATTRIBUTES, absence: true, if: :missing?)
   validates :observed_on, uniqueness: { scope: %i[user_id instrument_id reporting_currency] }
 
   scope :chronological, -> { order(:observed_on, :id) }

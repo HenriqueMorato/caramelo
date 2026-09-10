@@ -80,6 +80,17 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     assert_equal [ instrument ], @refresher.instruments
   end
 
+  test "leaves gain on cost unavailable when cumulative purchases are zero" do
+    instrument = instruments(:voo_arcx)
+    @store.add(snapshot(@from, invested: "0"))
+
+    result = Performance::Series.for(
+      from: @from, to: @from, user: @user, instrument:, store: @store, refresher: @refresher
+    )
+
+    assert_nil result.observations.first.gain_on_cost_ratio
+  end
+
   test "matches period math for fractional sales fees closure reopening and multiple currencies" do
     Trade.where(user: @user).delete_all
     from = Date.new(2026, 8, 24)
@@ -324,8 +335,9 @@ class Performance::SeriesTest < ActiveSupport::TestCase
   private
 
   Snapshot = Data.define(
-    :observed_on, :market_value_amount, :cost_basis_amount, :net_cash_flow_amount, :status, :stale_at, :source_generation,
-    :cash_flow_total, :dated_cash_flow_total
+    :observed_on, :market_value_amount, :cost_basis_amount, :net_cash_flow_amount,
+    :realized_gain_amount, :unrealized_gain_amount, :invested_amount,
+    :status, :stale_at, :source_generation, :cash_flow_total, :dated_cash_flow_total
   ) do
     def stale? = stale_at.present?
     def missing? = status == :missing
@@ -376,12 +388,15 @@ class Performance::SeriesTest < ActiveSupport::TestCase
   end
 
   def snapshot(date, market_value: "100", cost_basis: nil, net_cash_flow: "80", status: :available, stale_at: nil,
-    dated_flow_total: nil)
+    dated_flow_total: nil, realized_gain: "0", unrealized_gain: "20", invested: "80")
     Snapshot.new(
       observed_on: date,
       market_value_amount: market_value && BigDecimal(market_value),
       cost_basis_amount: cost_basis && BigDecimal(cost_basis),
       net_cash_flow_amount: net_cash_flow && BigDecimal(net_cash_flow),
+      realized_gain_amount: realized_gain && BigDecimal(realized_gain),
+      unrealized_gain_amount: unrealized_gain && BigDecimal(unrealized_gain),
+      invested_amount: invested && BigDecimal(invested),
       cash_flow_total: net_cash_flow.to_r,
       dated_cash_flow_total: dated_flow_total || net_cash_flow.to_r * @from.jd,
       status:,

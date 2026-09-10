@@ -385,6 +385,27 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal [ :retry ], entries.fetch("BRL").actions
   end
 
+  test "reports an active instrument refresh as updating before durable work begins" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+    token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.queued(
+      user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date, token:
+    )
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: first_date).entries.find do |candidate|
+      candidate.target.quote_currency == "USD"
+    end
+
+    assert_equal :updating, entry.status
+  ensure
+    Performance::SeriesRefresh.release(
+      user: owner, instrument:, reporting_currency: "USD", token:
+    ) if token
+  end
+
   test "reports stale, partial, and healthy instrument performance" do
     owner = users(:owner)
     instrument = instruments(:voo_arcx)
@@ -598,7 +619,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       user: owner, instrument:, reporting_currency: materialization.reporting_currency, observed_on:,
       status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
       stale_at:, market_value_amount: "100", cost_basis_amount: "90", realized_gain_amount: "1",
-      unrealized_gain_amount: "9", net_cash_flow_amount: "-90"
+      unrealized_gain_amount: "9", net_cash_flow_amount: "-90", invested_amount: "90"
     )
   end
 

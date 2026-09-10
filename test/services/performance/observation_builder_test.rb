@@ -119,6 +119,7 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
     record = store.read(from: @from, to: @to).fetch(@to)
     assert_equal BigDecimal("90"), record.cost_basis_amount
     assert_equal BigDecimal("10"), record.unrealized_gain_amount
+    assert_equal BigDecimal("90"), record.invested_amount
   end
 
   test "empty-portfolio cleanup cannot erase observations after a new trade commits" do
@@ -181,17 +182,18 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
   end
 
   class RecordingInstrumentPortfolio
-    attr_reader :trade_sets, :trade_collection_ids
+    attr_reader :dates, :trade_sets, :trade_collection_ids
 
     PositionResult = Data.define(
       :instrument, :reporting_cost_basis_amount, :market_value_amount,
-      :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount
+      :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount, :invested_amount
     )
     Valuation = Data.define(:valuation_date, :status, :position_results, :cash_flows)
 
     def initialize(user:, instrument:)
       @user = user
       @instrument = instrument
+      @dates = []
       @trade_sets = []
       @trade_collection_ids = []
     end
@@ -203,13 +205,15 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
 
       trade_sets << trades
       trade_collection_ids << trades.object_id
+      dates << valuation_date
       position = PositionResult.new(
         instrument:,
         reporting_cost_basis_amount: BigDecimal("90"),
         market_value_amount: BigDecimal("100"),
         realized_gain_amount: BigDecimal("0"),
         unrealized_gain_amount: BigDecimal("10"),
-        net_cash_flow_amount: BigDecimal("90")
+        net_cash_flow_amount: BigDecimal("90"),
+        invested_amount: BigDecimal("90")
       )
       Valuation.new(valuation_date:, status: :available, position_results: [ position ], cash_flows: [])
     end

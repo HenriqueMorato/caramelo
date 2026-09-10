@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_09_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -84,6 +84,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_000000) do
     t.text "dated_cash_flow_total", default: "0/1", null: false
     t.datetime "generated_at", null: false
     t.integer "instrument_id", null: false
+    t.text "invested_amount"
     t.text "market_value_amount"
     t.text "net_cash_flow_amount"
     t.date "observed_on", null: false
@@ -98,7 +99,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_000000) do
     t.index ["instrument_id"], name: "index_instrument_performance_observations_on_instrument_id"
     t.index ["user_id", "instrument_id", "reporting_currency", "observed_on"], name: "index_instrument_performance_observations_uniqueness", unique: true
     t.index ["user_id"], name: "index_instrument_performance_observations_on_user_id"
-    t.check_constraint "(status = 'missing' AND market_value_amount IS NULL AND cost_basis_amount IS NULL AND realized_gain_amount IS NULL AND unrealized_gain_amount IS NULL AND net_cash_flow_amount IS NULL) OR (status IN ('available', 'empty') AND market_value_amount IS NOT NULL AND cost_basis_amount IS NOT NULL AND realized_gain_amount IS NOT NULL AND unrealized_gain_amount IS NOT NULL AND net_cash_flow_amount IS NOT NULL)", name: "instrument_performance_observations_amounts_match_status"
+    t.check_constraint "(status = 'missing' AND market_value_amount IS NULL AND cost_basis_amount IS NULL AND realized_gain_amount IS NULL AND unrealized_gain_amount IS NULL AND net_cash_flow_amount IS NULL AND invested_amount IS NULL) OR (status IN ('available', 'empty') AND market_value_amount IS NOT NULL AND cost_basis_amount IS NOT NULL AND realized_gain_amount IS NOT NULL AND unrealized_gain_amount IS NOT NULL AND net_cash_flow_amount IS NOT NULL AND invested_amount IS NOT NULL)", name: "instrument_performance_observations_amounts_match_status"
     t.check_constraint "source_generation >= 0", name: "instrument_performance_observations_source_generation"
     t.check_constraint "status IN ('available', 'empty', 'missing')", name: "instrument_performance_observations_status"
   end

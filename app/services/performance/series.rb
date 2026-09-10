@@ -5,7 +5,7 @@ module Performance
     # fresh, stale, source-missing, and not-yet-built observations.
     Observation = Data.define(
       :date, :market_value_amount, :market_value, :invested_amount, :invested_value,
-      :gain_loss_amount, :gain_loss, :return_ratio, :status
+      :gain_loss_amount, :gain_loss, :return_ratio, :gain_on_cost_ratio, :status
     ) do
       def available? = status == :available
       def missing? = %i[missing pending].include?(status)
@@ -87,7 +87,10 @@ module Performance
     end
 
     def enqueue_refresh
-      dirty_dates = dates.select { |date| records[date].nil? || stale_record?(records[date]) }
+      dirty_dates = dates.select do |date|
+        record = records[date]
+        record.nil? || stale_record?(record)
+      end
       return if dirty_dates.empty?
 
       attributes = { user:, from: dirty_dates.first, to: dirty_dates.last, reporting_currency: }
@@ -110,6 +113,7 @@ module Performance
       invested_amount = display_basis_amount(record)
       gain_loss_amount = gain_loss_for(record, opening)
       return_ratio = return_ratio_for(date:, record:, opening:, gain_loss_amount:)
+      gain_on_cost_ratio = instrument_gain_on_cost_ratio(record)
       status = stale_record?(record) ? :stale : :available
 
       Observation.new(
@@ -121,6 +125,7 @@ module Performance
         gain_loss_amount:,
         gain_loss: money(gain_loss_amount),
         return_ratio:,
+        gain_on_cost_ratio:,
         status:
       )
     end
@@ -135,6 +140,7 @@ module Performance
         gain_loss_amount: nil,
         gain_loss: nil,
         return_ratio: nil,
+        gain_on_cost_ratio: nil,
         status:
       )
     end
@@ -170,6 +176,13 @@ module Performance
       return if capital.zero?
 
       decimal(gain_loss_amount / capital)
+    end
+
+    def instrument_gain_on_cost_ratio(record)
+      return unless instrument
+      return if record.invested_amount.zero?
+
+      decimal((record.realized_gain_amount + record.unrealized_gain_amount) / record.invested_amount)
     end
 
     def weighted_capital(date:, record:, opening:)

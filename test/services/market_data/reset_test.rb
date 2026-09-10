@@ -74,7 +74,7 @@ class MarketData::ResetTest < ActiveSupport::TestCase
       user: owner, instrument: @instrument, reporting_currency: "USD", observed_on: date,
       status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
       market_value_amount: "100", cost_basis_amount: "90", realized_gain_amount: "1",
-      unrealized_gain_amount: "9", net_cash_flow_amount: "-90"
+      unrealized_gain_amount: "9", net_cash_flow_amount: "-90", invested_amount: "90"
     )
     target = MarketData::Target.new(
       kind: :instrument_performance, record_id: @instrument.id, quote_currency: "USD"
@@ -109,6 +109,34 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::RecordNotFound) do
       MarketData::Reset.call(target:, preview_token: preview.token, cache: @cache)
     end
+  end
+
+  test "deletes only portfolio derived rows and advances its generation before rebuilding" do
+    owner = users(:owner)
+    date = Date.new(2026, 8, 12)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: "BRL")
+    observation = PortfolioPerformanceObservation.create!(
+      user: owner, reporting_currency: "BRL", observed_on: date,
+      status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
+      market_value_amount: "100", net_cash_flow_amount: "90"
+    )
+    target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
+    preview = MarketData::ResetPreview.create(target:, owner:, range: date..date)
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      result = MarketData::Reset.call(target:, preview_token: preview.token, owner:, cache: @cache)
+      assert_predicate result, :queued?
+    end
+
+    refute PortfolioPerformanceObservation.exists?(observation.id)
+    assert_equal 1, materialization.reload.source_generation
+    assert_equal date..date, materialization.requested_range
+    assert_not enqueued.key?(:instrument)
+    assert_equal "BRL", enqueued[:reporting_currency]
   end
 
   test "reuses the verified preview range for historical recovery targets" do

@@ -49,7 +49,7 @@
       </dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-3">
-      <dt class="text-sm text-muted"><%= t("Total return") %></dt>
+      <dt class="text-sm text-muted"><%= t("instruments.show.Gain on cost") %></dt>
       <dd class="font-mono text-sm font-semibold tabular-nums <%= presenter.return_color_class %>"><%= presenter.return_label || t("Not available") %></dd>
     </div>
     <% if presenter.realized_gain? %>

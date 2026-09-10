@@ -6,7 +6,8 @@ class InstrumentPerformanceObservationTest < ActiveSupport::TestCase
     cost_basis_amount: "100.000000000000000000000000000001",
     realized_gain_amount: "7.777777777777777777777777777777",
     unrealized_gain_amount: "15.345679011234567901123456790112",
-    net_cash_flow_amount: "92.222222222222222222222222222224"
+    net_cash_flow_amount: "92.222222222222222222222222222224",
+    invested_amount: "115.555555555555555555555555555556"
   }.freeze
 
   test "stores every analytical amount and cumulative flow exactly" do
@@ -29,9 +30,14 @@ class InstrumentPerformanceObservationTest < ActiveSupport::TestCase
   test "requires every monetary amount unless source history is missing" do
     available = build_observation(cost_basis_amount: nil)
     missing = build_observation(status: :missing, **EXACT_AMOUNTS.transform_values { nil })
+    malformed_missing = build_observation(
+      status: :missing,
+      **EXACT_AMOUNTS.transform_values { nil }.merge(invested_amount: "1")
+    )
 
     assert_not_predicate available, :valid?
     assert_predicate missing, :valid?
+    assert_not_predicate malformed_missing, :valid?
   end
 
   test "prevents duplicate observations for a target and date" do
@@ -63,8 +69,17 @@ class InstrumentPerformanceObservationTest < ActiveSupport::TestCase
 
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(status: "invalid") }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(market_value_amount: nil) }
+    assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(invested_amount: nil) }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(status: "missing") }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(source_generation: -1) }
+
+    missing = build_observation(
+      observed_on: observation.observed_on + 1.day,
+      status: :missing,
+      **EXACT_AMOUNTS.transform_values { nil }
+    )
+    missing.save!
+    assert_raises(ActiveRecord::StatementInvalid) { missing.update_columns(invested_amount: "1") }
   end
 
   test "derived rows cascade with their user and instrument" do

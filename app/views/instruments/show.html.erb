@@ -30,10 +30,19 @@
     </div>
   </header>
 
-  <div class="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)]">
-    <% if @performance_presenters %>
-      <%= render "performance", price_history_presenter: @price_history_presenter %>
-    <% end %>
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)]"
+       data-controller="currency-view" data-action="popstate@window->currency-view#restore">
+    <%= render "performance",
+      instrument: @instrument,
+      position: @position,
+      position_error: @position_error,
+      trades: @trades,
+      history_mode: @history_mode,
+      selected_period: @selected_period,
+      period_selection: @period_selection,
+      history_performance_views: @history_performance_views,
+      price_history_presenter: @price_history_presenter,
+      currency_view: @currency_view %>
 
     <%= render "position_summary",
       instrument: @instrument,

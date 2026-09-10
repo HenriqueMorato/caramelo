@@ -28,11 +28,42 @@ en:
       Page title: New instrument · %{application}
     show:
       Change as of: as of %{date}
+      Closed throughout period: This position remained closed throughout the selected
+        period.
       Closing price: Closing price
+      Cost basis: Cost basis
       Currency view: Position currency
       Date: Date
       Delete blocked: Delete this instrument's trades before deleting the instrument.
       Empty history: Add a purchase or sale to begin its history.
+      Gain on cost: Gain on cost
+      History calculation unavailable: Correct the trade history before calculating
+        instrument performance.
+      History description: Daily position performance or the instrument’s closing-price
+        trail.
+      History selection: Select history view
+      How returns are calculated: How returns are calculated
+      Instrument history chart description: "%{instrument} return in %{currency} over
+        the selected period."
+      Instrument history is building: Instrument history is building
+      Instrument history is building explanation: LocalFolio is preparing exact daily
+        values in the background.
+      Instrument history is partially available: Instrument history is partially available
+      Instrument history is partially available explanation:
+        one: One daily value is unavailable. Available values remain visible.
+        other: "%{count} daily values are unavailable. Available values remain visible."
+      Instrument history may be out of date: Instrument history may be out of date
+      Instrument history may be out of date explanation: Last-known values remain
+        visible while source changes are recalculated.
+      Instrument history unavailable: Instrument history is incomplete
+      Instrument history unavailable explanation: A historical closing price or exchange
+        rate is missing. Current quotes are never substituted.
+      Instrument history update failed: Instrument history could not be updated
+      Instrument history update failed explanation: Your trades and market records
+        are safe. Try the calculation again in a moment.
+      No performance explanation: Record a trade to begin this instrument’s performance
+        history.
+      No performance yet: No performance yet
       No position yet: Record a trade to calculate this position.
       No trades: No trades for this instrument
       No trades status: No trades
@@ -45,13 +76,19 @@ en:
         for this instrument.
       Position could not be calculated: Position could not be calculated
       Position details: Position details
+      Position value: Position value
       Price history: Price history
       Price history description: Historical closing prices in %{instrument}
       Price history unavailable: Historical prices will appear here after at least
         two daily closes are available.
+      Return: Return
       Sales exceed purchases: Recorded sales exceed purchases on %{date}. Review this
         instrument's trades.
-      Six months: Six months
       Trade history: Trade history
       Trade history description: Purchases and sales recorded for this instrument.
       View exact prices: View exact prices
+      return_methodologies:
+        gain_on_cost:
+          label: Gain on cost
+        modified_dietz:
+          label: Modified Dietz

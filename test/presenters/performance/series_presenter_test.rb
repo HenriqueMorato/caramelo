@@ -20,7 +20,7 @@ class Performance::SeriesPresenterTest < ActiveSupport::TestCase
       Performance::Series::Observation.new(
         date:, market_value_amount: money&.to_d, market_value: money,
         invested_amount: money&.to_d, invested_value: money,
-        gain_loss_amount: nil, gain_loss: nil, return_ratio: ratio,
+        gain_loss_amount: nil, gain_loss: nil, return_ratio: ratio, gain_on_cost_ratio: ratio && ratio / 2,
         status: ratio ? :available : :missing
       )
     end
@@ -44,6 +44,27 @@ class Performance::SeriesPresenterTest < ActiveSupport::TestCase
     copy = presenter_for(nil).stale_status_copy
     assert_equal "Portfolio history may be out of date", copy.title
     assert_equal "These are the last calculated values. No update is currently running.", copy.explanation
+  end
+
+  test "includes and labels both instrument return methodologies" do
+    observation = Performance::Series::Observation.new(
+      date: Date.current, market_value_amount: 100, market_value: Money.from_amount(100, "USD"),
+      invested_amount: 90, invested_value: Money.from_amount(90, "USD"), gain_loss_amount: 10,
+      gain_loss: Money.from_amount(10, "USD"), return_ratio: BigDecimal("0.2"),
+      gain_on_cost_ratio: BigDecimal("0.1"), status: :available
+    )
+    presenter = Performance::SeriesPresenter.new(
+      series_with(Date.current, Date.current).with(observations: [ observation ])
+    )
+    data = presenter.instrument_chart_data(currency: "USD")
+
+    assert_equal "Position value", data[:portfolio_value_label]
+    assert_equal "Cost basis", data[:invested_value_label]
+    assert_equal "Modified Dietz", data[:portfolio_return_label]
+    assert_equal "Gain on cost", data[:gain_on_cost_return_label]
+    assert_equal [ BigDecimal("0.2") ], data[:performance_ratios]
+    assert_equal [ BigDecimal("0.1") ], data[:gain_on_cost_performance_ratios]
+    assert_empty data[:benchmarks]
   end
 
   private

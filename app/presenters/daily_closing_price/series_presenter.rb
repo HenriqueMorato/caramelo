@@ -4,10 +4,10 @@ class DailyClosingPrice::SeriesPresenter
 
   attr_reader :observations, :currency
 
-  def self.for(instrument:, from: 6.months.ago.to_date)
+  def self.for(instrument:, from: 6.months.ago.to_date, to: Date.current)
     observations = DailyClosingPrice
       .where(instrument:, provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier)
-      .where(trading_date: from..Date.current)
+      .where(trading_date: from..to)
       .chronological
       .load
 

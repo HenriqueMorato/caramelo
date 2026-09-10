@@ -120,6 +120,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     fill_in "Unit price", with: "20"
     fill_in "Fees", with: "0"
     click_on "Create Trade"
+    assert_current_path transactions_path
 
     visit instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
@@ -134,6 +135,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     end
     fill_in "Quantity", with: "4"
     click_on "Update Trade"
+    assert_current_path transactions_path
 
     visit instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
@@ -147,6 +149,7 @@ class InstrumentsTest < ApplicationSystemTestCase
         click_on "Delete"
       end
     end
+    assert_current_path transactions_path
 
     visit instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
@@ -195,5 +198,143 @@ class InstrumentsTest < ApplicationSystemTestCase
       assert_text "$400.00"
       assert_no_text "R$2.100,00"
     end
+  end
+
+  test "navigates return-only performance and price history with restorable URL state" do
+    instrument = instruments(:voo_arcx)
+    selection = Performance::PeriodSelection.for(period: "week", owner: User.owner, instrument:)
+    create_performance_history(instrument:, currency: "USD", range: selection.from..selection.to)
+    create_performance_history(instrument:, currency: "BRL", range: selection.from..selection.to)
+    [ selection.from, selection.to ].each_with_index do |date, index|
+      DailyClosingPrice.create!(
+        instrument:, trading_date: date, close_price: 620 + index,
+        currency: "USD", provider: "yahoo_finance", observed_at: Time.current
+      )
+    end
+
+    visit instrument_path(instrument, period: "week")
+
+    within "[aria-labelledby='instrument-performance-heading']" do
+      assert_text "Performance"
+      assert_no_selector "[aria-label='Chart view']"
+      assert_selector "canvas[data-performance-chart-target='canvas']"
+    end
+    assert_equal [ "portfolio-return" ], visible_chart_dataset_roles
+
+    within "[aria-labelledby='instrument-performance-heading']" do
+      click_on "Price history"
+      assert_selector "canvas[data-instrument-price-chart-target='canvas']"
+      click_on "Month"
+    end
+    assert_current_path instrument_path(
+      instrument, history: "price", period: "month", currency_view: "native"
+    ), ignore_query: false
+
+    page.go_back
+    assert_current_path instrument_path(
+      instrument, history: "price", period: "week", currency_view: "native"
+    ), ignore_query: false
+    page.go_back
+    assert_current_path instrument_path(instrument, period: "week"), ignore_query: false
+    assert_selector "canvas[data-performance-chart-target='canvas']"
+
+    within "[aria-labelledby='position-summary-heading']" do
+      click_on "BRL"
+    end
+    assert_current_path instrument_path(instrument), ignore_query: true
+    assert_equal({ "period" => "week", "currency_view" => "reporting" }, current_query_parameters)
+    assert_selector "[data-currency-view-name='reporting']:not([hidden]) canvas[data-performance-chart-target='canvas']"
+    assert_equal [ "portfolio-return" ], visible_chart_dataset_roles
+  end
+
+  test "reveals gain on cost from the chart legend and explains the calculations" do
+    instrument = instruments(:voo_arcx)
+    selection = Performance::PeriodSelection.for(period: "week", owner: User.owner, instrument:)
+    create_performance_history(instrument:, currency: "USD", range: selection.from..selection.to)
+    create_performance_history(instrument:, currency: "BRL", range: selection.from..selection.to)
+
+    visit instrument_path(instrument, period: "week")
+
+    assert_equal [ "portfolio-return", "gain-on-cost-return" ], chart_dataset_roles
+    assert_equal [ "portfolio-return" ], visible_chart_dataset_roles
+
+    select_chart_legend_item("Gain on cost")
+
+    assert_equal [ "portfolio-return", "gain-on-cost-return" ], visible_chart_dataset_roles
+    assert_current_path instrument_path(instrument, period: "week"), ignore_query: false
+    within "[aria-labelledby='instrument-performance-heading']" do
+      within "[data-currency-view-name='native']" do
+        click_on "How returns are calculated"
+      end
+    end
+
+    assert_current_path performance_methodology_path
+    assert_text "Same position, different answers"
+    page.go_back
+    assert_current_path instrument_path(instrument, period: "week"), ignore_query: false
+    assert_selector "canvas[data-performance-chart-target='canvas']"
+    assert_equal [ "portfolio-return" ], visible_chart_dataset_roles
+  end
+
+  private
+
+  def create_performance_history(instrument:, currency:, range:)
+    materialization = InstrumentPerformanceMaterialization.for(
+      user: User.owner, instrument:, reporting_currency: currency
+    )
+    range.each_with_index do |date, index|
+      InstrumentPerformanceObservation.create!(
+        user: User.owner, instrument:, reporting_currency: currency, observed_on: date,
+        status: :available, source_generation: materialization.source_generation,
+        generated_at: Time.current, market_value_amount: 1_500 + index,
+        cost_basis_amount: 1_400, realized_gain_amount: 0,
+        unrealized_gain_amount: 100 + index, net_cash_flow_amount: -1_400,
+        invested_amount: 1_400
+      )
+    end
+  end
+
+  def visible_chart_dataset_roles
+    page.evaluate_script(<<~JAVASCRIPT)
+      (() => {
+        const element = document.querySelector(
+          "[data-currency-view-name]:not([hidden]) [data-controller='performance-chart']"
+        )
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
+        return controller.chart.data.datasets
+          .filter((_, index) => controller.chart.isDatasetVisible(index))
+          .map((dataset) => dataset.role)
+      })()
+    JAVASCRIPT
+  end
+
+  def chart_dataset_roles
+    page.evaluate_script(<<~JAVASCRIPT)
+      (() => {
+        const element = document.querySelector(
+          "[data-currency-view-name]:not([hidden]) [data-controller='performance-chart']"
+        )
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
+        return controller.chart.data.datasets.map((dataset) => dataset.role)
+      })()
+    JAVASCRIPT
+  end
+
+  def select_chart_legend_item(label)
+    page.execute_script(<<~JAVASCRIPT, label)
+      (() => {
+        const label = arguments[0]
+        const element = document.querySelector(
+          "[data-currency-view-name]:not([hidden]) [data-controller='performance-chart']"
+        )
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
+        const item = controller.chart.legend.legendItems.find((legendItem) => legendItem.text === label)
+        controller.chart.options.plugins.legend.onClick(null, item, controller.chart.legend)
+      })()
+    JAVASCRIPT
+  end
+
+  def current_query_parameters
+    Rack::Utils.parse_query(URI.parse(page.current_url).query)
   end
 end

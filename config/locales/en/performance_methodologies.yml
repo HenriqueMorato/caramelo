@@ -1,0 +1,61 @@
+---
+en:
+  performance_methodologies:
+    show:
+      Calculation inputs: Inputs shared by both methods
+      Calculation inputs explanation: Both methods use authoritative trades, fees,
+        user-paid settlement exchange rates when supplied, historical trade-date exchange
+        rates otherwise, and valuation-date exchange rates for market value. Missing
+        historical prices or exchange rates remain unavailable rather than being replaced
+        by current quotes.
+      Continue exploring: Continue exploring performance
+      Dietz gain formula: Gain = closing value − opening value − net cash flow
+      Dietz return formula: Return = gain ÷ (opening value + time-weighted cash flows)
+      Example conclusion: No money disappeared between the two answers. Gain on cost
+        describes the investor’s accumulated profit, while Modified Dietz describes
+        how the invested capital performed after adjusting for timing.
+      Example introduction: The second contribution has little time to earn a return,
+        so the methodologies give it different weight.
+      Example step one: Invest €1,000 at the beginning of the year.
+      Example step three: Finish with a position worth €2,500—a €500 gain on €2,000
+        contributed.
+      Example step two: Invest another €1,000 with one month remaining.
+      Eyebrow: Return methodology
+      Gain on cost: Gain on cost
+      Gain on cost explanation: This answers “How much am I ahead compared with everything
+        I paid?” A new purchase immediately increases the denominator, so the percentage
+        can fall even when the market price does not.
+      Gain on cost formula: Return = (realized gain + unrealized gain) ÷ total purchase
+        cost
+      Gain on cost result: Gain on cost
+      Graph default: Graph default
+      How LocalFolio uses them: How LocalFolio uses them
+      Instrument graph: Instrument graph
+      Instrument graph explanation: Both return lines are available in the graph.
+        Modified Dietz is visible by default, while gain on cost can be revealed from
+        the legend. Period, currency, and history remain encoded in the URL.
+      Introduction: Return is not a single universal number. LocalFolio offers two
+        calculations because contribution timing and accumulated profit answer different,
+        equally useful questions.
+      Modified Dietz: Modified Dietz
+      Modified Dietz explanation: This answers “How did the capital perform after
+        accounting for when money entered or left?” Each cash flow is weighted by
+        how much of the selected period remained.
+      Modified Dietz result: Modified Dietz
+      Page title: Return methodology · %{application}
+      Portfolio performance: Portfolio performance
+      Portfolio performance explanation: Uses Modified Dietz so purchases and sales
+        do not masquerade as portfolio gains or losses and comparisons use a consistent
+        performance measure.
+      Position details: Position details
+      Position details explanation: Shows gain on cost because it is the most direct
+        answer to how much the position has gained relative to purchase spending.
+      Same position different answers: Same position, different answers
+      Title: How LocalFolio calculates returns
+      Two questions: Two useful questions
+      Two questions explanation: The methods differ because they treat the timing
+        of purchases and sales differently. Neither result should be interpreted without
+        its methodology label.
+      View portfolio performance: View portfolio performance
+      View positions: View positions
+      Worked example: Worked example
