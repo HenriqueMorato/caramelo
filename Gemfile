@@ -64,7 +64,7 @@ group :development, :test do
   gem "i18n-tasks", "~> 1.1.2", require: false
 
   # Detect N+1 and unused eager-loading queries while exercising request flows.
-  gem "bullet", "~> 8.1"
+  gem "bullet", "~> 8.2"
 end
 
 group :development do
