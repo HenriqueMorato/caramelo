@@ -23,6 +23,13 @@ class MarketBenchmark
       provider_for(benchmark:)&.identifier
     end
 
+    def expected_dates_for(benchmark:, from:, to:)
+      selected_provider = provider_for(benchmark:)
+      return selected_provider.expected_dates(from:, to:) if selected_provider&.respond_to?(:expected_dates)
+
+      TradingCalendar.weekdays_between(from, to)
+    end
+
     def call(benchmark:, from:, to:, fence: nil)
       raise ArgumentError, "from must be on or before to" if from > to
 
@@ -81,7 +88,7 @@ class MarketBenchmark
     end
 
     def expected_dates
-      TradingCalendar.weekdays_between(from, to)
+      expected_dates_for(benchmark:, from:, to:)
     end
   end
 end

@@ -23,6 +23,19 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     assert_equal "bcb", importer.identifier_for(benchmark:)
   end
 
+  test "does not report CDI banking holidays as missing" do
+    benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+    provider = MarketBenchmark::Providers::Bcb.new(client: Object.new)
+    provider.define_singleton_method(:fetch) { |**| [] }
+
+    result = MarketBenchmark::Importer.new(provider:).call(
+      benchmark:, from: Date.new(2026, 9, 7), to: Date.new(2026, 9, 8)
+    )
+
+    assert_equal [ Date.new(2026, 9, 8) ], result.missing_dates
+  end
+
   test "exposes identifiers for a selected benchmark and handles missing providers" do
     provider = Object.new
     provider.define_singleton_method(:identifier) { "yahoo_finance" }

@@ -16,13 +16,18 @@ module MarketData
       attr_reader :owner, :today, :context
 
       def entry_for(benchmark)
-        required_dates = TradingCalendar.weekdays_between(first_date, historical_end_date)
-        observations = benchmark.observations.where(
-          observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..historical_end_date)
-        ).to_a
+        importer = MarketBenchmark::Importer.default
+        required_dates = importer.expected_dates_for(benchmark:, from: first_date, to: historical_end_date)
+        observations = if required_dates.empty?
+          []
+        else
+          benchmark.observations.where(
+            observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..historical_end_date)
+          ).to_a
+        end
         coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: benchmark.price?)
         present = coverage.complete?
-        supported = MarketBenchmark::Importer.default.supports?(benchmark:)
+        supported = importer.supports?(benchmark:)
         HealthReport::Entry.new(
           code: present ? :benchmark_data : :missing_benchmark_data,
           target: Target.new(kind: :benchmark_observations, record_id: benchmark.id), subject: benchmark,

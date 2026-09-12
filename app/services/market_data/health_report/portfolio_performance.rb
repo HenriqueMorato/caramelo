@@ -19,7 +19,7 @@ module MarketData
         required_dates = (first_date..today).to_a
         observations = owner.portfolio_performance_observations.where(
           reporting_currency: owner.reporting_currency, observed_on: (first_date..today)
-        ).to_a
+        ).to_a.reject(&:missing?)
         coverage = CoverageCalculator.for(required_dates:, observations:)
         status = status_for(materialization, coverage)
         [ build(status:, coverage:) ]

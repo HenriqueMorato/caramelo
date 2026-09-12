@@ -23,8 +23,8 @@ class MarketDataRecoveriesRangesTest < ActiveSupport::TestCase
   end
 
   test "normalizes historical exchange rate ranges" do
-    assert_equal [ DEFAULT_DATE, DEFAULT_DATE ], normalize(MarketData::Recoveries::HistoricalExchangeRates)
-    assert_equal [ EXPLICIT_RANGE.begin, EXPLICIT_RANGE.end ], normalize(
+    assert_equal [ DEFAULT_DATE - 7.days, DEFAULT_DATE ], normalize(MarketData::Recoveries::HistoricalExchangeRates)
+    assert_equal [ EXPLICIT_RANGE.begin - 7.days, EXPLICIT_RANGE.end ], normalize(
       MarketData::Recoveries::HistoricalExchangeRates, EXPLICIT_RANGE
     )
     assert_invalid(MarketData::Recoveries::HistoricalExchangeRates)

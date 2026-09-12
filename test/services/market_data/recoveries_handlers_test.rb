@@ -60,7 +60,8 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
       target:, range: Date.new(2026, 8, 1)..Date.new(2026, 8, 3))
 
     assert_equal "USD", enqueued.fetch(:base_currency)
-    assert_equal Date.new(2026, 8, 1), enqueued.fetch(:from)
+    assert_equal Date.new(2026, 7, 25), enqueued.fetch(:from)
+    assert_equal Date.new(2026, 8, 3), enqueued.fetch(:to)
   end
 
   test "raises when historical exchange-rate enqueue fails" do
