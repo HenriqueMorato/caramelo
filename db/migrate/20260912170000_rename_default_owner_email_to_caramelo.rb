@@ -1,4 +1,9 @@
 class RenameDefaultOwnerEmailToCaramelo < ActiveRecord::Migration[8.1]
+  # Keep this historical migration independent of future User validations and callbacks.
+  class UserRecord < ActiveRecord::Base
+    self.table_name = "users"
+  end
+
   FROM_EMAIL = "admin@localfolio.com"
   TO_EMAIL = "admin@caramelo.local"
 
@@ -13,16 +18,13 @@ class RenameDefaultOwnerEmailToCaramelo < ActiveRecord::Migration[8.1]
   private
 
   def rename_owner(from:, to:)
-    return unless select_value("SELECT 1 FROM users WHERE email_address = #{connection.quote(from)} LIMIT 1")
+    owner = UserRecord.find_by(email_address: from)
+    return unless owner
 
-    if select_value("SELECT 1 FROM users WHERE email_address = #{connection.quote(to)} LIMIT 1")
+    if UserRecord.exists?(email_address: to)
       raise ActiveRecord::MigrationError, "cannot rename the default owner because #{to} already exists"
     end
 
-    execute <<~SQL.squish
-      UPDATE users
-      SET email_address = #{connection.quote(to)}, updated_at = CURRENT_TIMESTAMP
-      WHERE email_address = #{connection.quote(from)}
-    SQL
+    owner.update!(email_address: to)
   end
 end
