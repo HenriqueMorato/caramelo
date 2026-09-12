@@ -6,7 +6,7 @@ class BackupCatalogTest < ActiveSupport::TestCase
 
   setup do
     Rails.cache.clear
-    @destination = Pathname(Dir.mktmpdir("localfolio-backup-catalog"))
+    @destination = Pathname(Dir.mktmpdir("caramelo-backup-catalog"))
     @source = Pathname(ActiveRecord::Base.connection_db_config.database)
     @configuration = Backup::Configuration.new(
       source_path: @source,
@@ -103,10 +103,10 @@ class BackupCatalogTest < ActiveSupport::TestCase
   end
 
   test "ignores temporary directories and symlinks" do
-    temporary = @destination.join(".localfolio-temporary")
+    temporary = @destination.join(".caramelo-temporary")
     FileUtils.mkdir_p(temporary)
     temporary.join("manifest.json").write("not json")
-    @external = Pathname(Dir.mktmpdir("localfolio-external"))
+    @external = Pathname(Dir.mktmpdir("caramelo-external"))
     @external.join("manifest.json").write("not json")
     symlink = @destination.join("linked")
     symlink.make_symlink(@external)
@@ -129,7 +129,7 @@ class BackupCatalogTest < ActiveSupport::TestCase
     assert_locator_rejected(".temporary", configuration: @configuration)
     assert_locator_rejected("missing", configuration: @configuration)
 
-    external = Pathname(Dir.mktmpdir("localfolio-external"))
+    external = Pathname(Dir.mktmpdir("caramelo-external"))
     @external = external
     external.join("manifest.json").write("{}")
     @destination.join("linked").make_symlink(external)

@@ -1,0 +1,39 @@
+name: caramelo
+
+x-application: &application
+  image: caramelo:local
+  env_file:
+    - path: ${CARAMELO_ENV_FILE:-.env.docker}
+      required: false
+  restart: unless-stopped
+  volumes:
+    - storage:/rails/storage
+    - backups:/rails/backups
+
+services:
+  web:
+    <<: *application
+    build:
+      context: .
+    ports:
+      - "${CARAMELO_BIND_ADDRESS:-127.0.0.1}:${CARAMELO_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost/up"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  jobs:
+    <<: *application
+    command: ["./bin/jobs"]
+    depends_on:
+      web:
+        condition: service_healthy
+        restart: true
+
+volumes:
+  storage:
+    name: ${CARAMELO_STORAGE_VOLUME:-caramelo_storage}
+  backups:
+    name: ${CARAMELO_BACKUPS_VOLUME:-caramelo_backups}

@@ -42,8 +42,8 @@ RUN set -eux; \
 COPY vendor/licenses/curl-impersonate-MIT.txt /usr/share/doc/curl-impersonate/LICENSE
 
 # A named volume is mounted here by Compose; seed it with the dev user's ownership.
-RUN mkdir -p /workspaces/local_folio/vendor/bundle && \
-    chown -R vscode:vscode /workspaces/local_folio/vendor
+RUN mkdir -p /workspaces/caramelo/vendor/bundle && \
+    chown -R vscode:vscode /workspaces/caramelo/vendor
 
 USER vscode
 

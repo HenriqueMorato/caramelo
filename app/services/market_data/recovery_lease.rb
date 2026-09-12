@@ -4,7 +4,7 @@ module MarketData
   class RecoveryLease
     # Keep the lease just beyond the refresh-state interruption window.
     TTL = RefreshStatus::State::ACTIVE_TIMEOUT + 1.minute
-    PREFIX = "localfolio:market_data:recovery_lease"
+    PREFIX = "caramelo:market_data:recovery_lease"
 
     Lease = Data.define(:target, :token, :expires_at) do
       def active?

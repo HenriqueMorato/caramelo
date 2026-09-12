@@ -5,7 +5,7 @@ class BackupTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   setup do
-    @destination = Pathname(Dir.mktmpdir("localfolio-backups"))
+    @destination = Pathname(Dir.mktmpdir("caramelo-backups"))
     @source = Pathname(ActiveRecord::Base.connection_db_config.database)
     @configuration = Backup::Configuration.new(
       source_path: @source,
@@ -107,7 +107,7 @@ class BackupTest < ActiveSupport::TestCase
   test "rejects a non-positive age and a concurrent prune" do
     assert_raises(ArgumentError) { Backup::Pruner.call(configuration: @configuration, older_than: 0) }
 
-    lock_path = @destination.join(".localfolio-backup.lock")
+    lock_path = @destination.join(".caramelo-backup.lock")
     FileUtils.mkdir_p(@destination)
     File.open(lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
       lock.flock(File::LOCK_EX)
@@ -186,7 +186,7 @@ class BackupTest < ActiveSupport::TestCase
   end
 
   test "reports an already-running creator" do
-    lock_path = @destination.join(".localfolio-backup.lock")
+    lock_path = @destination.join(".caramelo-backup.lock")
     FileUtils.mkdir_p(@destination)
     File.open(lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
       lock.flock(File::LOCK_EX)
@@ -221,7 +221,7 @@ class BackupTest < ActiveSupport::TestCase
     FileUtils.cp(@source, source)
     database = SQLite3::Database.new(source.to_s)
     database.execute("PRAGMA foreign_keys = OFF")
-    database.execute("DELETE FROM users WHERE email_address = ?", [ Rails.application.config.x.local_folio.owner_email ])
+    database.execute("DELETE FROM users WHERE email_address = ?", [ User.owner.email_address ])
     database.close
     configuration = Backup::Configuration.new(
       source_path: source,
@@ -433,14 +433,14 @@ class BackupTest < ActiveSupport::TestCase
   end
 
   test "backup job delegates creation" do
-    previous = ENV["LOCALFOLIO_BACKUP_DIRECTORY"]
-    ENV["LOCALFOLIO_BACKUP_DIRECTORY"] = @destination.to_s
+    previous = ENV["CARAMELO_BACKUP_DIRECTORY"]
+    ENV["CARAMELO_BACKUP_DIRECTORY"] = @destination.to_s
 
     CreateBackupJob.perform_now
 
     assert @destination.children.any? { |path| path.directory? }
   ensure
-    ENV["LOCALFOLIO_BACKUP_DIRECTORY"] = previous
+    ENV["CARAMELO_BACKUP_DIRECTORY"] = previous
   end
 
   test "backup job records failure before re-raising creation errors" do

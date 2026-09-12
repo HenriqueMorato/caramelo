@@ -6,7 +6,7 @@ class PerformanceMethodologiesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "title", "Return methodology · caramelo"
-    assert_select "h1", "How LocalFolio calculates returns"
+    assert_select "h1", "How caramelo calculates returns"
     assert_select "#modified-dietz-heading", "Modified Dietz"
     assert_select "#gain-on-cost-heading", "Gain on cost"
     assert_includes response.body, "46.15%"

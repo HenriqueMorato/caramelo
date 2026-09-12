@@ -1,4 +1,4 @@
-name: "local_folio"
+name: "caramelo"
 
 services:
   rails-app:
@@ -13,14 +13,14 @@ services:
     ports:
     - "3000:3000"
 
-    working_dir: /workspaces/local_folio
+    working_dir: /workspaces/caramelo
 
     volumes:
-    - ..:/workspaces/local_folio:cached
+    - ..:/workspaces/caramelo:cached
     # Keep Linux-native gems separate from the host checkout's bundle.
-    - bundle:/workspaces/local_folio/vendor/bundle
+    - bundle:/workspaces/caramelo/vendor/bundle
     # Keep disposable SQLite backends off the macOS bind mount.
-    - runtime-storage:/workspaces/local_folio/storage/runtime
+    - runtime-storage:/workspaces/caramelo/storage/runtime
 
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
@@ -39,9 +39,9 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
     user: root
-    command: sh -lc "chown -R vscode:vscode /workspaces/local_folio/storage/runtime"
+    command: sh -lc "chown -R vscode:vscode /workspaces/caramelo/storage/runtime"
     volumes:
-    - runtime-storage:/workspaces/local_folio/storage/runtime
+    - runtime-storage:/workspaces/caramelo/storage/runtime
 
   selenium:
     image: selenium/standalone-chromium
@@ -49,4 +49,6 @@ services:
 
 volumes:
   bundle:
+    name: caramelo_bundle
   runtime-storage:
+    name: caramelo_runtime_storage

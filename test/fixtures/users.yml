@@ -1,7 +1,7 @@
 <% password_digest = BCrypt::Password.create("password") %>
 
 owner:
-  email_address: admin@localfolio.com
+  email_address: admin@caramelo.local
   password_digest: <%= password_digest %>
 
 one:

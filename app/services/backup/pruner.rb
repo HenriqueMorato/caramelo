@@ -44,7 +44,7 @@ module Backup
     attr_reader :older_than, :configuration, :now, :dry_run
 
     def with_lock
-      File.open(configuration.destination.join(".localfolio-backup.lock"), File::RDWR | File::CREAT, 0o600) do |lock|
+      File.open(configuration.destination.join(".caramelo-backup.lock"), File::RDWR | File::CREAT, 0o600) do |lock|
         raise Errno::EAGAIN unless lock.flock(File::LOCK_EX | File::LOCK_NB)
 
         yield

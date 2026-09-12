@@ -16,7 +16,7 @@ and currency; an already queued rebuild keeps its original currency.
 
 Period boundaries use `Date.current` in the application's configured
 `America/Sao_Paulo` timezone. Provider observations retain their own persisted
-market dates; LocalFolio does not rewrite them to manufacture a local close.
+market dates; caramelo does not rewrite them to manufacture a local close.
 
 ## Calculation
 

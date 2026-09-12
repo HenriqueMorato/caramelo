@@ -64,6 +64,6 @@ class RefreshTradedMarketPricesJob < ApplicationJob
   end
 
   def self.deduplication_key
-    "localfolio:market_price:refresh_traded"
+    "caramelo:market_price:refresh_traded"
   end
 end

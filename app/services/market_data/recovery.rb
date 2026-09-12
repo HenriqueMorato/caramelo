@@ -1,7 +1,7 @@
 module MarketData
   class Recovery
     COOLDOWN = 5.minutes
-    COOLDOWN_PREFIX = "localfolio:market_data:recovery:cooldown"
+    COOLDOWN_PREFIX = "caramelo:market_data:recovery:cooldown"
     BATCH_SCOPE_PREFIX = "market_data_recovery"
 
     Result = Data.define(:status, :target, :batch_scope, :batch_run_id) do

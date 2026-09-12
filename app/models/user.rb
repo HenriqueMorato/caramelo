@@ -16,6 +16,14 @@ class User < ApplicationRecord
   validates :reporting_currency, inclusion: { in: ReportingCurrency::SUPPORTED_CODES, message: :invalid }
 
   def self.owner
-    find_by!(email_address: Rails.application.config.x.local_folio.owner_email)
+    owner = owner_or_initialize
+    return owner if owner.persisted?
+
+    raise ActiveRecord::RecordNotFound, "configured owner does not exist"
+  end
+
+  def self.owner_or_initialize
+    configured_email = Rails.application.config.x.caramelo.owner_email
+    find_or_initialize_by(email_address: configured_email)
   end
 end

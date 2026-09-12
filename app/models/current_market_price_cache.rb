@@ -91,7 +91,7 @@ class CurrentMarketPriceCache
     instrument_id = instrument.id
     raise ArgumentError, "instrument must be persisted" unless instrument_id
 
-    "localfolio:current_market_price:v#{CACHE_VERSION}:#{provider}:instrument:#{instrument_id}"
+    "caramelo:current_market_price:v#{CACHE_VERSION}:#{provider}:instrument:#{instrument_id}"
   end
 
   def lookup_for(current_market_price)

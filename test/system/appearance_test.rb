@@ -27,7 +27,7 @@ class AppearanceTest < ApplicationSystemTestCase
 
     within("[aria-labelledby=appearance-heading]") { click_button "Dark" }
     assert_theme appearance: "dark", theme: "dark"
-    assert_equal "dark", page.evaluate_script("localStorage.getItem('local_folio.appearance')")
+    assert_equal "dark", page.evaluate_script("localStorage.getItem('caramelo.appearance')")
     assert_selector "button[data-appearance-mode=dark][aria-pressed=true]", count: 3, visible: :all
     refresh
     assert_theme appearance: "dark", theme: "dark"
@@ -77,7 +77,7 @@ class AppearanceTest < ApplicationSystemTestCase
   test "invalid stored preferences safely fall back to system" do
     emulate_color_scheme("dark")
     visit settings_path
-    page.execute_script("localStorage.setItem('local_folio.appearance', 'sepia')")
+    page.execute_script("localStorage.setItem('caramelo.appearance', 'sepia')")
     refresh
 
     assert_theme appearance: "system", theme: "dark"

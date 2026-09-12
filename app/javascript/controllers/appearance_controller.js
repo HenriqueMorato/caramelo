@@ -5,7 +5,7 @@ const THEME_COLORS = { light: "#f6efe4", dark: "#17120f" }
 
 export default class extends Controller {
   static targets = ["label", "menu", "option"]
-  static values = { storageKey: { type: String, default: "local_folio.appearance" } }
+  static values = { storageKey: { type: String, default: "caramelo.appearance" } }
 
   connect() {
     this.systemPreference = window.matchMedia("(prefers-color-scheme: dark)")

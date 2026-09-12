@@ -55,7 +55,7 @@ module Backup
     end
 
     def build_run
-      @temporary_directory = configuration.destination.join(".localfolio-#{SecureRandom.hex(8)}")
+      @temporary_directory = configuration.destination.join(".caramelo-#{SecureRandom.hex(8)}")
       FileUtils.mkdir_p(@temporary_directory, mode: 0o700)
       primary = temporary_path("primary.sqlite3")
       ledger = temporary_path("ledger.sqlite3")
@@ -91,7 +91,7 @@ module Backup
       database.execute("PRAGMA foreign_keys = OFF")
       owner_id = database.get_first_value(
         "SELECT id FROM users WHERE email_address = ?",
-        [ Rails.application.config.x.local_folio.owner_email ]
+        [ User.owner.email_address ]
       )
       raise Error, "configured owner is missing from the primary database" unless owner_id
 
@@ -207,7 +207,7 @@ module Backup
     def temporary_path(name) = @temporary_directory.join(name)
     def manifest_path = temporary_path("manifest.json")
     def checksums_path = temporary_path("SHA256SUMS")
-    def lock_path = configuration.destination.join(".localfolio-backup.lock")
+    def lock_path = configuration.destination.join(".caramelo-backup.lock")
 
     def remove_temporary_run
       FileUtils.rm_rf(@temporary_directory) if @temporary_directory

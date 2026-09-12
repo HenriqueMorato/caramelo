@@ -1,6 +1,6 @@
 module RefreshStatus
   class State
-    CACHE_PREFIX = "localfolio:refresh_status:v1"
+    CACHE_PREFIX = "caramelo:refresh_status:v1"
     ACTIVE_TIMEOUT = 10.minutes
     SCOPES_KEY = "#{CACHE_PREFIX}:scopes"
     DEFAULT_SCOPES = [

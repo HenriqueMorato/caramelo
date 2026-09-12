@@ -33,14 +33,14 @@ class ExchangeRateCacheTest < ActiveSupport::TestCase
   end
 
   test "discards a malformed cached payload" do
-    @cache.write("localfolio:exchange_rate:v1:yahoo_finance_fx:USD:BRL", "invalid")
+    @cache.write("caramelo:exchange_rate:v1:yahoo_finance_fx:USD:BRL", "invalid")
 
     assert_predicate @store.read(base_currency: "USD", quote_currency: "BRL", provider: "yahoo_finance_fx"), :missing?
   end
 
   test "discards a cached rate whose values do not match the requested pair" do
     @cache.write(
-      "localfolio:exchange_rate:v1:yahoo_finance_fx:USD:BRL",
+      "caramelo:exchange_rate:v1:yahoo_finance_fx:USD:BRL",
       build_rate(rate: "5").to_cache_payload.merge("quote_currency" => "EUR")
     )
 
@@ -50,7 +50,7 @@ class ExchangeRateCacheTest < ActiveSupport::TestCase
   test "discards a cached rate that is not positive and finite" do
     [ "0", "-1", "NaN", "Infinity" ].each do |rate|
       @cache.write(
-        "localfolio:exchange_rate:v1:yahoo_finance_fx:USD:BRL",
+        "caramelo:exchange_rate:v1:yahoo_finance_fx:USD:BRL",
         build_rate(rate:).to_cache_payload
       )
 

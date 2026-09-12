@@ -1,5 +1,5 @@
 {
-  "name": "local-folio-development-tools",
+  "name": "caramelo-development-tools",
   "private": true,
   "scripts": {
     "herb:lint": "herb-lint app/views"

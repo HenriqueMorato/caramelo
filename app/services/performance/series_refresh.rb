@@ -1,6 +1,6 @@
 module Performance
   class SeriesRefresh
-    CACHE_PREFIX = "localfolio:performance_series_refresh"
+    CACHE_PREFIX = "caramelo:performance_series_refresh"
     STATE_TTL = 1.day
     LEASE_TTL = 30.minutes
     FAILURE_COOLDOWN = 30.seconds

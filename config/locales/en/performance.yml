@@ -15,7 +15,7 @@ en:
         and exchange rates for your trades. Check back shortly.
       Historical data unavailable: Historical data unavailable
       Historical data unavailable explanation: This period needs a persisted closing
-        price and exchange rate for every held instrument. LocalFolio never substitutes
+        price and exchange rate for every held instrument. caramelo never substitutes
         a current quote.
       Introduction: The return, the rhythm, and what’s pulling its weight.
       Market benchmarks: Market benchmarks
@@ -29,7 +29,7 @@ en:
       Portfolio history chart description: Portfolio value over the selected period.
       Portfolio history explanation: Daily closing values from persisted market data.
       Portfolio history is building: Portfolio history is building
-      Portfolio history is building explanation: LocalFolio is preparing exact daily
+      Portfolio history is building explanation: caramelo is preparing exact daily
         values in the background. This page stays responsive while the range is calculated.
       Portfolio history is partially available: Portfolio history is partially available
       Portfolio history is partially available explanation:

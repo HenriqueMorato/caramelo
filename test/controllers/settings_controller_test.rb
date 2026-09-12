@@ -16,8 +16,8 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name='user[reporting_currency]'] option", count: ReportingCurrency::SUPPORTED_CODES.size
     assert_select "section[aria-labelledby=appearance-heading]"
     assert_select "button[data-appearance-mode][aria-pressed=false]", count: 9
-    assert_select "script[nonce]", text: /local_folio\.appearance/
-    assert_operator response.body.index("local_folio.appearance"), :<, response.body.index("stylesheet")
+    assert_select "script[nonce]", text: /caramelo\.appearance/
+    assert_operator response.body.index("caramelo.appearance"), :<, response.body.index("stylesheet")
   end
 
   test "saves supported currencies and enqueues preparation scoped to the owner" do

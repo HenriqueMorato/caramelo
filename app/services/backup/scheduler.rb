@@ -1,6 +1,6 @@
 module Backup
   class Scheduler
-    KEY_PREFIX = "localfolio:backup:scheduled:"
+    KEY_PREFIX = "caramelo:backup:scheduled:"
 
     def self.enqueue_if_due(wait: 10.minutes, now: Time.current, creator: Creator, job: CreateBackupJob)
       return false unless creator.due?(configuration: Configuration.default, now: now)

@@ -44,7 +44,7 @@ class PerformanceTest < ApplicationSystemTestCase
     create_daily_close(instrument:, date: Date.current, close_price: "11")
     Performance::ObservationBuilder.new(user: User.owner).call(from:, to: Date.current)
     visit root_path
-    page.execute_script("localStorage.removeItem('local_folio.appearance')")
+    page.execute_script("localStorage.removeItem('caramelo.appearance')")
     visit performance_path
     select_appearance("light")
     click_button "Performance"

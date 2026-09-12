@@ -275,7 +275,7 @@ Borsa Italiana, and SIX Swiss Exchange, remain unsupported until their listing
 and provider mappings are added deliberately.
 
 Yahoo's `ETF` metadata does not certify that a fund follows UCITS rules.
-LocalFolio therefore relies on the user-maintained instrument catalog to select
+caramelo therefore relies on the user-maintained instrument catalog to select
 a UCITS listing and validates only the provider's venue and ETF classification.
 Fund discovery and regulatory classification remain outside this integration.
 
@@ -288,13 +288,13 @@ currency and a price expressed in that currency's major unit.
 ### ISIN and listing identity
 
 [ISO 6166](https://www.iso.org/standard/78502.html) identifies the financial
-instrument, while LocalFolio must identify the particular exchange listing.
+instrument, while caramelo must identify the particular exchange listing.
 Vanguard's official
 [FTSE All-World UCITS ETF factsheet](https://fund-docs.vanguard.com/FTSE_All-World_UCITS_ETF_USD_Accumulating_9679_EU_INT_EN.pdf)
 shows why these are different: ISIN `IE00BK5BQT80` has separate `VWRA` USD and
 `VWRP` GBP London listings and a `VWCE` EUR Xetra listing. ISIN may later be
 stored as supplemental fund metadata, but it must not replace the ticker and
-MIC listing key or be unique across LocalFolio's instrument records. Each
+MIC listing key or be unique across caramelo's instrument records. Each
 listing retains its own quote currency.
 
 `Client` builds the fixed chart request, classifies HTTP responses, and parses a
@@ -303,9 +303,9 @@ executes `curl_chrome146` without a shell, accepts only the configured Yahoo
 HTTPS host, and returns a small `Response` value.
 
 Yahoo may provide real-time or delayed data depending on the listing, exchange,
-and provider policy; LocalFolio does not promise a real-time feed. The displayed
+and provider policy; caramelo does not promise a real-time feed. The displayed
 quote time is Yahoo's `regularMarketTime`. Fresh and stale cache states describe
-when LocalFolio last fetched the quote, not whether its market is open. During a
+when caramelo last fetched the quote, not whether its market is open. During a
 closed session, a successful refresh can retain the last published market price
 and quote time. No API credential is required; the optional
 `YAHOO_FINANCE_HTTP_EXECUTABLE` setting only selects the local transport binary.

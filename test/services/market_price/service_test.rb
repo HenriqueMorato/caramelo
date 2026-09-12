@@ -30,7 +30,7 @@ class MarketPrice::ServiceTest < ActiveSupport::TestCase
   test "keeps the provider identifier inside the service and cache" do
     @service.refresh(instrument: @instrument)
 
-    payload = @cache.read("localfolio:current_market_price:v1:fake:instrument:#{@instrument.id}")
+    payload = @cache.read("caramelo:current_market_price:v1:fake:instrument:#{@instrument.id}")
 
     assert_equal "fake", payload.fetch("provider")
   end

@@ -8,7 +8,16 @@ class UserTest < ActiveSupport::TestCase
 
   test "resolves the configured owner" do
     assert_equal users(:owner), User.owner
-    assert_equal "admin@localfolio.com", User.owner.email_address
+    assert_equal "admin@caramelo.local", User.owner.email_address
+  end
+
+  test "raises when a custom configured owner does not exist" do
+    configured_email = Rails.application.config.x.caramelo.owner_email
+    Rails.application.config.x.caramelo.owner_email = "missing@example.com"
+
+    assert_raises(ActiveRecord::RecordNotFound) { User.owner }
+  ensure
+    Rails.application.config.x.caramelo.owner_email = configured_email
   end
 
   test "defaults reporting currency to BRL" do

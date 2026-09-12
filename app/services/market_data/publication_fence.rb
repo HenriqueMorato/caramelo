@@ -60,7 +60,7 @@ module MarketData
     end
 
     def generation_key
-      "localfolio:market_data:generation:#{target.publication_scope}"
+      "caramelo:market_data:generation:#{target.publication_scope}"
     end
 
     def lock_key

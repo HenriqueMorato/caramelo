@@ -70,7 +70,7 @@ class MarketData::PublicationFenceTest < ActiveSupport::TestCase
   private
 
   def generation_key
-    "localfolio:market_data:generation:#{@target.scope}"
+    "caramelo:market_data:generation:#{@target.scope}"
   end
 
   def lock_key

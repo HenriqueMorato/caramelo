@@ -86,7 +86,7 @@ class ExchangeRateCache
   end
 
   def cache_key(base_currency:, quote_currency:, provider:)
-    "localfolio:exchange_rate:v#{CACHE_VERSION}:#{provider}:#{base_currency}:#{quote_currency}"
+    "caramelo:exchange_rate:v#{CACHE_VERSION}:#{provider}:#{base_currency}:#{quote_currency}"
   end
 
   def lookup_for(exchange_rate)

@@ -225,6 +225,6 @@ class CurrentMarketPriceCacheTest < ActiveSupport::TestCase
   end
 
   def cache_key(provider:)
-    "localfolio:current_market_price:v1:#{provider}:instrument:#{@instrument.id}"
+    "caramelo:current_market_price:v1:#{provider}:instrument:#{@instrument.id}"
   end
 end

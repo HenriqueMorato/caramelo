@@ -2,7 +2,7 @@ module MarketPrice
   class ManualRefresh
     REFRESH_SCOPE = RefreshStatus::MARKET_PRICE_SCOPE
     COOLDOWN = 5.minutes
-    COOLDOWN_KEY = "localfolio:manual_market_price_refresh:last_started_at"
+    COOLDOWN_KEY = "caramelo:manual_market_price_refresh:last_started_at"
 
     def self.call(**arguments)
       new(**arguments).call

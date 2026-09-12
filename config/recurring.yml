@@ -23,17 +23,17 @@ development:
   refresh_traded_market_prices:
     class: RefreshTradedMarketPricesJob
     queue: market_prices
-    schedule: <%= ENV.fetch("LOCALFOLIO_CURRENT_PRICE_REFRESH_SCHEDULE", "every 5 minutes") %>
+    schedule: <%= Caramelo::Environment.fetch("CURRENT_PRICE_REFRESH_SCHEDULE", default: "every 5 minutes") %>
 
   capture_market_benchmark_observations:
     class: CaptureMarketBenchmarkObservationsJob
     queue: market_prices
-    schedule: <%= ENV.fetch("LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE", "at 2:30am every day") %>
+    schedule: <%= Caramelo::Environment.fetch("BENCHMARK_REFRESH_SCHEDULE", default: "at 2:30am every day") %>
 
   create_backup:
     class: CreateBackupJob
     queue: maintenance
-    schedule: <%= ENV.fetch("LOCALFOLIO_BACKUP_SCHEDULE", "at 3am every day") %>
+    schedule: <%= Caramelo::Environment.fetch("BACKUP_SCHEDULE", default: "at 3am every day") %>
 
 production:
   capture_daily_closing_prices:
@@ -49,17 +49,17 @@ production:
   refresh_traded_market_prices:
     class: RefreshTradedMarketPricesJob
     queue: market_prices
-    schedule: <%= ENV.fetch("LOCALFOLIO_CURRENT_PRICE_REFRESH_SCHEDULE", "every 5 minutes") %>
+    schedule: <%= Caramelo::Environment.fetch("CURRENT_PRICE_REFRESH_SCHEDULE", default: "every 5 minutes") %>
 
   capture_market_benchmark_observations:
     class: CaptureMarketBenchmarkObservationsJob
     queue: market_prices
-    schedule: <%= ENV.fetch("LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE", "at 2:30am every day") %>
+    schedule: <%= Caramelo::Environment.fetch("BENCHMARK_REFRESH_SCHEDULE", default: "at 2:30am every day") %>
 
   create_backup:
     class: CreateBackupJob
     queue: maintenance
-    schedule: <%= ENV.fetch("LOCALFOLIO_BACKUP_SCHEDULE", "at 3am every day") %>
+    schedule: <%= Caramelo::Environment.fetch("BACKUP_SCHEDULE", default: "at 3am every day") %>
 
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
