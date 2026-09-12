@@ -8,16 +8,7 @@ class UserTest < ActiveSupport::TestCase
 
   test "resolves the configured owner" do
     assert_equal users(:owner), User.owner
-    assert_equal "admin@localfolio.com", User.owner.email_address
-  end
-
-  test "prefers the new caramelo owner over the legacy owner" do
-    owner = User.create!(
-      email_address: Caramelo::Environment::DEFAULT_OWNER_EMAIL,
-      password: "password"
-    )
-
-    assert_equal owner, User.owner
+    assert_equal "admin@caramelo.local", User.owner.email_address
   end
 
   test "raises when a custom configured owner does not exist" do

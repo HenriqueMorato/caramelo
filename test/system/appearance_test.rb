@@ -99,15 +99,6 @@ class AppearanceTest < ApplicationSystemTestCase
     end
   end
 
-  test "migrates the legacy appearance preference" do
-    page.execute_script("localStorage.setItem('local_folio.appearance', 'dark')")
-    visit settings_path
-
-    assert_theme appearance: "dark", theme: "dark"
-    assert_equal "dark", page.evaluate_script("localStorage.getItem('caramelo.appearance')")
-    assert_nil page.evaluate_script("localStorage.getItem('local_folio.appearance')")
-  end
-
   private
 
   def emulate_color_scheme(value)

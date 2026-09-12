@@ -5,19 +5,11 @@
   (() => {
     const root = document.documentElement
     const storageKey = "caramelo.appearance"
-    const legacyStorageKey = "local_folio.appearance"
     const validAppearances = ["light", "dark", "system"]
     let appearance = "system"
 
     try {
-      let savedAppearance = window.localStorage.getItem(storageKey)
-      if (!validAppearances.includes(savedAppearance)) {
-        savedAppearance = window.localStorage.getItem(legacyStorageKey)
-        if (validAppearances.includes(savedAppearance)) {
-          window.localStorage.setItem(storageKey, savedAppearance)
-          window.localStorage.removeItem(legacyStorageKey)
-        }
-      }
+      const savedAppearance = window.localStorage.getItem(storageKey)
       if (validAppearances.includes(savedAppearance)) appearance = savedAppearance
     } catch (_) {
       // Storage may be unavailable in privacy-restricted browser contexts.

@@ -24,8 +24,6 @@ class User < ApplicationRecord
 
   def self.owner_or_initialize
     configured_email = Rails.application.config.x.caramelo.owner_email
-    candidates = [ configured_email ]
-    candidates << Caramelo::Environment::LEGACY_OWNER_EMAIL if configured_email == Caramelo::Environment::DEFAULT_OWNER_EMAIL
-    in_order_of(:email_address, candidates).first || new(email_address: configured_email)
+    find_or_initialize_by(email_address: configured_email)
   end
 end
