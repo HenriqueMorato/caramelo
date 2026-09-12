@@ -13,6 +13,10 @@ class MarketBenchmark
         benchmark.provider == identifier && benchmark.rate? && benchmark.provider_identifier.to_s.casecmp("CDI").zero?
       end
 
+      def expected_dates(from:, to:)
+        MarketData::BrazilianBankingCalendar.business_days_between(from, to)
+      end
+
       def fetch(benchmark:, from:, to:)
         return [] unless supports?(benchmark:)
 

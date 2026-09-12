@@ -20,8 +20,13 @@ module MarketData
       end
 
       def self.normalized_range(range)
-        return [ TradingCalendar.previous_business_day, TradingCalendar.previous_business_day ] unless range
-        return [ range.begin, range.end ] if range.is_a?(Range) && range.begin.is_a?(Date) && range.end.is_a?(Date)
+        unless range
+          date = TradingCalendar.previous_business_day
+          return [ HistoricalObservationWindow.for(date).begin, date ]
+        end
+        if range.is_a?(Range) && range.begin.is_a?(Date) && range.end.is_a?(Date)
+          return [ HistoricalObservationWindow.for(range.begin).begin, range.end ]
+        end
 
         raise ArgumentError, "historical recovery range must use dates"
       end

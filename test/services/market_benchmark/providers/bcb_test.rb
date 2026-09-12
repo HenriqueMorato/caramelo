@@ -1,6 +1,14 @@
 require "test_helper"
 
 class MarketBenchmark::Providers::BcbTest < ActiveSupport::TestCase
+  test "uses the Brazilian banking calendar for expected CDI dates" do
+    provider = MarketBenchmark::Providers::Bcb.new(client: Object.new)
+
+    assert_equal [ Date.new(2026, 9, 8) ], provider.expected_dates(
+      from: Date.new(2026, 9, 7), to: Date.new(2026, 9, 8)
+    )
+  end
+
   test "supports CDI rate benchmarks and maps client observations" do
     benchmark = MarketBenchmark.new(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
       provider: "bcb", provider_identifier: "CDI")

@@ -5,7 +5,7 @@ module MarketData
     end
 
     def initialize(attributes:, owner:)
-      @attributes = attributes.to_h.symbolize_keys
+      @attributes = attributes.to_h.symbolize_keys.compact_blank
       @owner = owner
     end
 

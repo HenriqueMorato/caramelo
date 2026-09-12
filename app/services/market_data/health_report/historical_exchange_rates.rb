@@ -7,7 +7,7 @@ module MarketData
       end
 
       def entries
-        currencies = context ? context.currencies : owner.trades.distinct.pluck(:currency)
+        currencies = trades.flat_map { |trade| [ trade.currency, trade.instrument.currency ] }.uniq
         currencies.map { |currency| entry_for(currency) }
       end
 
@@ -52,11 +52,33 @@ module MarketData
       end
 
       def historical_rate_dates(currency)
-        dates = context ? context.trades.select { |trade| trade.currency == currency }.map(&:traded_on) :
-          owner.trades.where(currency:).distinct.order(:traded_on).pluck(:traded_on)
-        dates.uniq.map do |date|
-          TradingCalendar.weekend?(date) ? TradingCalendar.previous_business_day(date + 1.day) : date
-        end.uniq
+        settlement_dates = trades.select { |trade| trade.currency == currency }.map(&:traded_on)
+        (settlement_dates + valuation_dates(currency)).uniq
+      end
+
+      def valuation_dates(currency)
+        return [] if currency == owner.reporting_currency
+
+        instruments = trades.filter_map { |trade| trade.instrument if trade.instrument.currency == currency }.uniq
+        instruments.flat_map { |instrument| open_position_dates(instrument) }
+      end
+
+      def open_position_dates(instrument)
+        instrument_trades = trades.select { |trade| trade.instrument == instrument }
+        events = instrument_trades.group_by(&:traded_on)
+        quantity = 0.to_d
+        (instrument_trades.first.traded_on..context_today).filter_map do |date|
+          events.fetch(date, []).each { |trade| quantity += trade.buy? ? trade.quantity : -trade.quantity }
+          date if quantity.positive?
+        end
+      end
+
+      def trades
+        @trades ||= context ? context.trades : owner.trades.includes(:instrument).order(:traded_on, :id).to_a
+      end
+
+      def context_today
+        context&.today || Date.current
       end
 
       def description(currency:, coverage:)

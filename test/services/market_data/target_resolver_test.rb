@@ -74,6 +74,35 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
     assert_equal benchmark.id, target.record_id
   end
 
+  test "ignores blank optional fields from recovery forms" do
+    benchmark = MarketBenchmark.create!(
+      identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL", provider: "bcb", provider_identifier: "CDI"
+    )
+
+    target = MarketData::TargetResolver.call(
+      attributes: {
+        kind: "benchmark_observations", record_id: benchmark.id,
+        base_currency: "", quote_currency: "", provider: ""
+      },
+      owner: users(:owner)
+    )
+
+    assert_nil target.base_currency
+    assert_nil target.quote_currency
+    assert_equal "bcb", target.provider
+  end
+
+  test "continues to reject malformed nonblank currencies" do
+    assert_raises(ArgumentError) do
+      MarketData::TargetResolver.call(
+        attributes: {
+          kind: "historical_exchange_rates", base_currency: "US", quote_currency: "BRL"
+        },
+        owner: users(:owner)
+      )
+    end
+  end
+
   test "allows the owner reporting currency target" do
     target = MarketData::TargetResolver.call(
       attributes: { kind: "portfolio_performance", record_id: users(:owner).id }, owner: users(:owner)

@@ -10,10 +10,17 @@ performance observations are persisted history.
 
 The report inspects current prices, current FX, daily closes, historical FX,
 benchmarks, and portfolio performance. Required dates come from the owner’s
-trades and open positions. Trades are ordered by `traded_on, id`, so same-day
-records remain deterministic. A weekend or holiday is valued from the latest
-real observation within the seven-calendar-day historical window. Synthetic
-rows are never written. Direct or inverse FX pairs satisfy the same requirement.
+trades and open positions. Historical FX coverage includes both trade settlement
+dates and every valuation date on which a foreign-currency position is open.
+Trades are ordered by `traded_on, id`, so same-day records remain deterministic.
+A weekend or holiday is valued from the latest real observation within the
+seven-calendar-day historical window. Synthetic rows are never written. Direct
+or inverse FX pairs satisfy the same requirement.
+
+Benchmark calendars remain source-specific. Price benchmarks may carry their
+latest real close across a short market closure. CDI requires an observation on
+each Brazilian banking day and excludes its fixed and movable banking holidays.
+Persisted performance rows with `missing` status do not count as covered dates.
 
 ## Status and recovery
 
@@ -23,6 +30,11 @@ report checks stored observations again. Each recoverable entry carries a
 canonical `MarketData::Target`, its provider, and a compact missing range.
 Recovery is asynchronous and scoped to the owner; provider failures leave the
 previous value untouched.
+
+Historical-FX recovery expands the first missing date by the same seven-day
+lookback used by valuation. This lets a weekend valuation retry retrieve the
+preceding real market-day rate. A newly persisted FX observation invalidates and
+rebuilds the affected portfolio and reporting-currency instrument projections.
 
 Refresh state lives in the cache and is intentionally disposable. It records
 progress, run IDs, cooldowns, and terminal errors, so a page reload can explain

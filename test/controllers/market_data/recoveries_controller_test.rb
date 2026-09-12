@@ -24,6 +24,32 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Market data recovery started.", flash[:notice]
   end
 
+  test "queues a CDI retry with browser-shaped blank optional fields" do
+    benchmark = MarketBenchmark.create!(
+      identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL", provider: "bcb", provider_identifier: "CDI"
+    )
+    captured = nil
+
+    with_stubbed_method(MarketData::Recovery, :call, ->(**arguments) {
+      captured = arguments.fetch(:target)
+      MarketData::Recovery::Result.new(
+        status: :queued, target: captured, batch_scope: "batch", batch_run_id: "run"
+      )
+    }) do
+      post market_data_recoveries_path, params: {
+        target: {
+          kind: "benchmark_observations", record_id: benchmark.id,
+          base_currency: "", quote_currency: "", provider: ""
+        },
+        from: "2026-09-08", to: "2026-09-08"
+      }
+    end
+
+    assert_equal :benchmark_observations, captured.kind
+    assert_equal "bcb", captured.provider
+    assert_redirected_to market_data_health_path
+  end
+
   test "returns too many requests when target recovery is throttled" do
     with_stubbed_method(MarketData::Recovery, :call, ->(**arguments) {
       MarketData::Recovery::Result.new(

@@ -32,6 +32,12 @@ seven-day safety window for weekends and short holidays; older data returns an
 explicit missing result. The current-rate cache is never used as a historical
 fallback.
 
+Data health checks this lookup contract for trade settlement dates and for each
+calendar day on which a foreign-currency position is open. Recovery expands the
+first uncovered valuation date to include the seven-day lookback, ensuring that
+a weekend gap can fetch its missing Friday observation instead of requesting
+only a non-trading date.
+
 Yahoo daily candle timestamps are interpreted as UTC dates, matching the daily
 closing-price importer. This policy keeps persisted historical dates stable.
 

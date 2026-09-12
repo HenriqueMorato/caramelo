@@ -35,7 +35,7 @@ module MarketData
 
         observations = owner.instrument_performance_observations.where(
           instrument:, reporting_currency: currency, observed_on: first_date..today
-        ).to_a
+        ).to_a.reject(&:missing?)
         coverage = CoverageCalculator.for(required_dates: (first_date..today).to_a, observations:)
         refresh = Performance::SeriesRefresh.read(user: owner, instrument:, reporting_currency: currency)
         status = status_for(materialization:, observations:, coverage:, refresh:)
