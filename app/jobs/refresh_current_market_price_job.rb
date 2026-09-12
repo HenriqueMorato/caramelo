@@ -173,6 +173,6 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   end
 
   def self.deduplication_key(instrument)
-    "localfolio:market_price:refresh:#{instrument.id}"
+    "caramelo:market_price:refresh:#{instrument.id}"
   end
 end

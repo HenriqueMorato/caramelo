@@ -2,7 +2,7 @@
 
 Long performance ranges use `PortfolioPerformanceObservation` as a derived,
 durable read model. Trades, daily closing prices, and historical exchange rates
-remain authoritative. Deleting every observation is safe because LocalFolio can
+remain authoritative. Deleting every observation is safe because caramelo can
 rebuild them from those records.
 
 Each user, reporting currency, and calendar date has at most one row. The row

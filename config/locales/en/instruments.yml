@@ -46,7 +46,7 @@ en:
       Instrument history chart description: "%{instrument} return in %{currency} over
         the selected period."
       Instrument history is building: Instrument history is building
-      Instrument history is building explanation: LocalFolio is preparing exact daily
+      Instrument history is building explanation: caramelo is preparing exact daily
         values in the background.
       Instrument history is partially available: Instrument history is partially available
       Instrument history is partially available explanation:

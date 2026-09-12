@@ -17,7 +17,7 @@ Creating, editing, or deleting a trade calls
 
 The job imports from `from_date` through today in 90-calendar-day batches. It
 uses the shared Yahoo throttle before each daily-close or FX request. Yahoo
-returns only market dates, so LocalFolio never creates made-up weekend or
+returns only market dates, so caramelo never creates made-up weekend or
 holiday prices.
 
 On completion, the request is deleted. A terminal provider error is reported

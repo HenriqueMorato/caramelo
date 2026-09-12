@@ -31,6 +31,10 @@
 /tmp/storage/*
 !/tmp/storage/.keep
 
+# Ignore private local backups while retaining the runtime directory.
+/backups/*
+!/backups/.keep
+
 # Ignore assets.
 /node_modules/
 /app/assets/builds/*
@@ -50,3 +54,4 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+/compose.yaml

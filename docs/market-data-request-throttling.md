@@ -1,7 +1,7 @@
 # Market-data request throttling
 
 Market-data providers can impose rate limits across every endpoint, not just
-one instrument or job type. LocalFolio coordinates Yahoo Finance requests from
+one instrument or job type. caramelo coordinates Yahoo Finance requests from
 current quotes, daily closing prices, and historical FX through two layers.
 
 ## Job concurrency and provider requests
@@ -21,8 +21,8 @@ For provider `yahoo_finance`, the throttle uses these shared cache keys:
 
 | Key | Value | Purpose |
 | --- | --- | --- |
-| `localfolio:market_data:yahoo_finance:last_request_at` | request timestamp | Calculates the remaining minimum interval. |
-| `localfolio:market_data:yahoo_finance:last_request_at:lock` | random ownership token | Gives one worker exclusive access while it calculates, waits, and records the next timestamp. |
+| `caramelo:market_data:yahoo_finance:last_request_at` | request timestamp | Calculates the remaining minimum interval. |
+| `caramelo:market_data:yahoo_finance:last_request_at:lock` | random ownership token | Gives one worker exclusive access while it calculates, waits, and records the next timestamp. |
 
 The lock uses `Rails.cache.write(..., unless_exist: true)`, so only one worker
 can acquire it. Other workers retry every 50 milliseconds. Once the lock holder

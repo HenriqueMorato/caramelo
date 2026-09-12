@@ -11,7 +11,7 @@ class MoneyConfigurationTest < ActiveSupport::TestCase
   end
 
   test "uses the reporting currency as the default" do
-    reporting_currency = Rails.configuration.x.local_folio.reporting_currency
+    reporting_currency = Rails.configuration.x.caramelo.reporting_currency
 
     assert_equal "BRL", reporting_currency
     assert_equal reporting_currency, Money.default_currency.iso_code

@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-LocalFolio is a Rails 8.1 application. Code follows standard Rails
+caramelo is a Rails 8.1 application. Code follows standard Rails
 paths under `app/`. Put workflows or calculations in services when model
 methods no longer express them clearly. Tests mirror the application under
 `test/`, with records in `test/fixtures`. See `DEVELOPMENT.md` for environment
@@ -19,7 +19,7 @@ and Docker setup.
 - `bin/rails test:system`: iterate on Selenium/Chrome system tests.
 - `bin/herb`: lint all HTML+ERB views; pass a view path for a focused check.
 - `bin/ci`: run setup, lint, security, tests, system tests, and seeds.
-- `docker build -t local_folio .`: verify the production image.
+- `docker build -t caramelo:local .`: verify the production image.
 
 Prefer binstubs over `bundle exec`.
 

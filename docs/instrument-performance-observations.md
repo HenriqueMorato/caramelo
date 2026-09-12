@@ -76,7 +76,7 @@ This matches the percentage in Position details. It includes realized outcomes a
 
 Both return lines are included in the instrument chart. Modified Dietz is visible by default; Gain on cost is initially hidden and can be revealed from the chart legend. The exact-values table exposes both series regardless of graph visibility.
 
-The public explanation at `/performance/methodology` provides a worked example and describes where LocalFolio uses each method.
+The public explanation at `/performance/methodology` provides a worked example and describes where caramelo uses each method.
 
 ## Refresh and generation fencing
 

@@ -32,7 +32,7 @@ class MarketData::YahooFinance::CurlTransportTest < ActiveSupport::TestCase
 
     configuration = MarketData::YahooFinance::Configuration.new(
       identifier: "test_provider", timeout: 12,
-      interval_environment_variable: "LOCALFOLIO_TEST_PROVIDER_INTERVAL"
+      interval_environment_variable: "CARAMELO_TEST_PROVIDER_INTERVAL"
     )
     transport = MarketData::YahooFinance::CurlTransport.from_configuration(configuration)
 

@@ -1,192 +1,183 @@
-# LocalFolio
+<p align="center">
+  <img src="app/assets/images/caramelo-logo.svg" alt="caramelo" width="112">
+</p>
 
-LocalFolio is a local-first, single-user portfolio tracker. It lets you manage
-financial institutions, a global instrument catalog, and buy or sell trades,
-then derives your current positions from that trade history. It can also fetch
-current prices for supported Brazilian and US listings and selected European
-UCITS ETFs while keeping your portfolio data on your own machine.
+# caramelo
 
-## Run locally with Docker
+Your investments, without sending your portfolio somewhere else.
 
-You only need a Docker-compatible runtime.
+`caramelo` is a local-first portfolio tracker for one owner. Record trades,
+follow positions, compare native and reporting-currency values, and explore
+historical performance while keeping the primary ledger on your own machine.
 
-1. Create your local environment file:
+## What you can do
 
-   ```sh
-   cp .env.docker.example .env.docker
-   openssl rand -hex 64
-   ```
+- Keep a precise buy-and-sell ledger with fees, institutions, notes, and paid FX.
+- Follow open and closed positions with weighted-average cost basis.
+- Track current prices for supported Brazilian, US, and European listings.
+- Review portfolio and per-instrument performance from persisted daily history.
+- Compare portfolio returns with Ibovespa, S&P 500, and CDI benchmarks.
+- See missing or stale market data and safely retry replaceable projections.
+- Create verified local backups and export the trade ledger as CSV.
+- Switch between light, dark, and system appearance.
 
-   Paste the generated value after `SECRET_KEY_BASE=` in `.env.docker`. This is
-   a local application secret, not a Rails master key. The file is ignored by
-   Git and must not be committed.
+## Run caramelo with Docker
 
-2. Build the image and create its persistent data volume:
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/),
+[OrbStack](https://orbstack.dev/), or another Docker-compatible runtime with
+Docker Compose.
 
-   ```sh
-   docker build -t local_folio .
-   docker volume create local_folio_storage
-   ```
-
-3. Start LocalFolio:
-
-   ```sh
-   docker run --rm -p 3000:80 --env-file .env.docker \
-     --mount source=local_folio_storage,target=/rails/storage \
-     --name local_folio local_folio
-   ```
-
-Open <http://localhost:3000>. The container prepares its SQLite databases and
-seeds the owner on the first run. Stop it with `Ctrl-C`; the named volume keeps
-the data for the next run.
-
-Check a running container with:
+From the repository root, run:
 
 ```sh
-curl --fail http://localhost:3000/up
+docker compose up --build
 ```
 
-## Owner and current access model
+Then open <http://localhost:3000>.
 
-The default owner is `admin@localfolio.com`. To use another address, edit
-`LOCALFOLIO_OWNER_EMAIL` in `.env.docker` before the first run. If data already
-exists, restart with the new value and seed it explicitly:
+That one command:
+
+1. builds the production image;
+2. creates persistent volumes for application data and verified backups;
+3. generates a private application secret on the first run;
+4. prepares the SQLite databases and seeds the default owner;
+5. starts the web application and the Solid Queue worker.
+
+The first build can take a few minutes. When `web` is healthy and `jobs` is
+running, caramelo is ready. No environment file is required for the default
+local setup.
+
+Press `Ctrl-C` to stop the foreground stack. Your records remain in Docker
+volumes, so the next start is simply:
 
 ```sh
-docker exec local_folio bin/rails db:seed
+docker compose up
 ```
 
-Login is not activated for the current single-user application. The dashboard
-and Trade Ledger are available without signing in. User, session, password
-hashing, and password-reset foundations are present for future use.
+### Useful Docker commands
 
-## Use the Trade Ledger
+| Task | Command |
+| --- | --- |
+| Start in the background | `docker compose up --build --detach` |
+| Check web and worker status | `docker compose ps` |
+| Follow application and queue logs | `docker compose logs --follow web jobs` |
+| Check application health | `curl --fail http://localhost:3000/up` |
+| Stop caramelo | `docker compose down` |
+| Open a Rails console | `docker compose exec web bin/rails console` |
 
-- **Institutions** are optional banks, brokers, or custodians associated with a
-  trade. Deactivate an institution to remove it from new-trade selectors while
-  keeping it in existing history. An institution referenced by a trade cannot
-  be deleted.
-- **Instruments** are shared catalog entries identified by ticker and exchange.
-  Each instrument has one currency. Its currency and the instrument itself
-  cannot be removed while trades reference it.
-- **Transactions** lists the owner's trades. Add a trade there by choosing an
-  instrument, or use **Add trade** on an instrument page to preselect it. Trades
-  record buy or sell side, date, quantity, unit price, fees, an optional
-  institution, and notes; they can be edited or deleted from their history
-  cards.
+`docker compose down` removes containers and the private network, but keeps
+the named volumes. Do not add `--volumes` unless you intentionally want to
+delete the local application data and backups.
 
-Trade totals and cost basis remain in the instrument's currency. Current market
-values are additionally shown in the configured reporting currency (`BRL` by
-default), using a cached Yahoo Finance FX rate for foreign holdings. Missing or
-stale rates are shown explicitly; native trade and quote values are unchanged.
+### Optional configuration
 
-## Understand your positions
-
-Open **Positions** to see what remains from your recorded purchases and sales.
-Select an instrument to see the same summary beside its complete trade history.
-
-- **Quantity** is the number of units still held after purchases and sales.
-- **Average cost** is the weighted-average cost of each remaining unit. Purchase
-  fees are included.
-- **Cost basis** is the total acquisition cost still assigned to the position.
-  It decreases proportionally when part of a position is sold.
-- An **Open** position has a positive quantity. A **Closed** position has been
-  fully sold and can be included from the Positions page when needed.
-
-Positions are derived from trades and refreshed into a local projection, so
-editing or deleting a trade queues an update without changing the source
-ledger. Position amounts remain
-acquisition costs; current market value is a separate calculation. The
-**Performance** page derives realized and unrealized gains, portfolio value,
-and cash-flow-adjusted returns from persisted daily closes and historical FX.
-See [Portfolio Performance](docs/portfolio-performance.md).
-
-## Current market prices
-
-LocalFolio can refresh the current unit price of B3, NASDAQ, NYSE, and NYSE Arca
-instruments, plus UCITS ETFs listed on the London Stock Exchange, Xetra,
-Euronext Amsterdam, and Euronext Paris. Use **Refresh prices** on Positions or
-**Refresh price** on an instrument. Quotes are cached for 30 minutes; the last
-known quote stays visible and is marked stale if it cannot be refreshed. London
-prices quoted by the provider in pence are converted to pounds before display.
-
-The Docker image includes the required HTTP transport and needs no market-data
-credentials. The Yahoo integration is unofficial and intended for personal
-use. Fetched quotes remain in your local replaceable cache and are not shipped
-with LocalFolio or exposed as a public data service. You are responsible for
-complying with the provider's terms.
-
-## Your data
-
-LocalFolio stores its main application data in the container at
-`/rails/storage/production.sqlite3`. The `local_folio_storage` Docker volume
-keeps that database when the container stops or is replaced.
-
-To inspect the database with the SQLite console while LocalFolio is running:
+The built-in owner identifier is `admin@caramelo.local`. To choose another
+address for a fresh install, copy the example before the first run:
 
 ```sh
-docker exec -it local_folio sqlite3 /rails/storage/production.sqlite3
+cp .env.docker.example .env.docker
 ```
 
-LocalFolio can create a verified daily backup containing both the complete
-primary database and a portable trade ledger. The backup is kept outside the
-application database and never uploaded anywhere. From a production container:
+Edit `CARAMELO_OWNER_EMAIL` in `.env.docker`, then start the stack. Existing
+installations keep resolving the previous owner automatically, and legacy
+environment variables remain supported during the rename. The ignored
+environment file may also hold a manually managed `SECRET_KEY_BASE`, but
+caramelo normally creates and retains one inside its private storage volume.
+
+To use another host port without editing a file:
 
 ```sh
-docker exec local_folio bin/backup create
-docker cp local_folio:/rails/backups ./local_folio-backups
+CARAMELO_PORT=8080 docker compose up --build
 ```
 
-Each run contains `primary.sqlite3`, `ledger.sqlite3`, `manifest.json`, and
-`SHA256SUMS`. The primary artifact contains all durable application data. The
-ledger artifact keeps the owner, trades, and referenced instruments and
-institutions while omitting replaceable market data, sessions, and projections.
-Both artifacts contain private financial information; copy the backup directory
-to protected off-host storage as part of your own backup routine. The default
-rotation keeps seven daily, four weekly, and twelve monthly representatives.
-Override it with `LOCALFOLIO_BACKUP_KEEP_DAILY`,
-`LOCALFOLIO_BACKUP_KEEP_WEEKLY`, and `LOCALFOLIO_BACKUP_KEEP_MONTHLY`.
-
-For explicit age-based cleanup, preview first and then delete:
+The default bind address is `127.0.0.1`, so the unauthenticated application is
+reachable only from the Docker host. To allow another trusted device on your
+network to connect, opt in explicitly:
 
 ```sh
-bin/backup prune --older-than=30 --dry-run
-bin/backup prune --older-than=30
+CARAMELO_BIND_ADDRESS=0.0.0.0 docker compose up --build
 ```
 
-This deletes only verified backup directories older than the requested number
-of days. Malformed, unverified, and temporary directories remain untouched. A
-recurring maintenance job runs daily at 3am by default; set
-`LOCALFOLIO_BACKUP_SCHEDULE` to customize it. Startup and the first request of
-a new day remain fallback paths.
+Do not expose that address to an untrusted network while login remains inactive.
 
-The Data health page shows the same retained runs without exposing server
-paths. From there you can request a low-priority backup, verify a retained run,
-or download the owner's trades as a UTF-8 CSV. The CSV uses stable headers,
-ISO-8601 dates, exact decimal strings, integer fee subunits, and explicit ISO
-currency columns, so it imports cleanly into Google Sheets. Export is always
-user-triggered; it is not attached to the automatic backup job.
+## Your data stays local
 
-Verify or rehearse an isolated restore without changing the live database:
+The Compose stack uses two named volumes:
+
+- `caramelo_storage` contains the SQLite application, cache, queue, and cable
+  databases, plus the generated application secret.
+- `caramelo_backups` contains verified backup runs.
+
+The browser does not upload your ledger to a caramelo service. Refreshing
+supported prices, exchange rates, or benchmarks makes outbound requests to the
+documented market-data providers. Current quotes and historical observations
+are replaceable data; trades remain the durable source of truth.
+
+Login is intentionally inactive during the current single-user phase. Anyone
+who can reach the running web port can access the portfolio, so bind or expose
+that port only on a network you trust.
+
+### Back up and export
+
+Create and verify a backup from the running stack:
 
 ```sh
-docker exec local_folio bin/backup verify /rails/backups/2026-09-05T120000.000000Z
-docker exec local_folio bin/backup restore /rails/backups/2026-09-05T120000.000000Z \
-  --artifact=primary --to=/tmp/localfolio-restored.sqlite3
+docker compose exec web bin/backup create
+BACKUP_DIRECTORY=2026-09-10T120000.000000Z
+docker compose exec web bin/backup verify "/rails/backups/$BACKUP_DIRECTORY"
 ```
 
-Only replace a production database after stopping the application, verifying an
-isolated restore, and taking the current storage volume out of service. No
-external database, cache, queue, market-data credentials, or authentication
-service is required. Refreshing a supported current price makes an outbound
-request to Yahoo Finance.
+Replace the example directory name with the `Directory:` value printed by the
+create command.
 
-The interface is English, the application time zone is
-`America/Sao_Paulo`, and future portfolio reporting defaults to Brazilian real
-(`BRL`).
+Copy the backup directory to protected off-host storage as part of your own
+backup routine:
 
-## Development
+```sh
+docker compose cp web:/rails/backups ./caramelo-backups
+```
 
-For native Ruby setup, tests, security checks, contribution conventions, and
-the complete Trade Ledger acceptance commands, see
-[DEVELOPMENT.md](DEVELOPMENT.md).
+Backup artifacts contain private financial information. The Data health page
+also lets you create or verify a backup and download the trade ledger as CSV.
+See [development and operations](DEVELOPMENT.md#sqlite-backups) for retention,
+restore rehearsal, and safe pruning details.
+
+## How the portfolio works
+
+Trades are authoritative. Positions are derived from those trades using exact
+decimal quantities and weighted-average cost basis. Buy fees increase cost;
+sell fees reduce realized proceeds. Native-currency values remain native, while
+reporting views use the appropriate paid, trade-date, or valuation-date FX rate.
+
+Performance is materialized asynchronously from trades, daily closing prices,
+and historical FX. Missing historical data stays visibly unavailable—current
+quotes never masquerade as historical closes. Portfolio and instrument return
+series are calculated independently because their cash flows have different
+capital weights.
+
+Read more:
+
+- [Portfolio performance](docs/portfolio-performance.md)
+- [Instrument performance](docs/instrument-performance-observations.md)
+- [Current market prices](docs/current-market-prices.md)
+- [Historical exchange rates](docs/historical-exchange-rates.md)
+- [Data health and recovery](docs/market-data-health.md)
+
+## Develop caramelo
+
+For a native setup:
+
+```sh
+bin/setup --skip-server
+bin/rails db:seed
+bin/dev
+```
+
+Open <http://localhost:3000>. Run the full local verification pipeline with:
+
+```sh
+bin/ci
+```
+
+Ruby, Node, SQLite, browser-test, Dev Container, and focused-test instructions
+are in [DEVELOPMENT.md](DEVELOPMENT.md).

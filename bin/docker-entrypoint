@@ -1,5 +1,17 @@
 #!/bin/bash -e
 
+if [ -z "${SECRET_KEY_BASE:-}" ]; then
+  secret_file="/rails/storage/.secret_key_base"
+
+  if [ ! -s "$secret_file" ]; then
+    umask 077
+    ruby -rsecurerandom -e 'File.write(ARGV.fetch(0), SecureRandom.hex(64))' "$secret_file"
+  fi
+
+  SECRET_KEY_BASE="$(< "$secret_file")"
+  export SECRET_KEY_BASE
+fi
+
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare

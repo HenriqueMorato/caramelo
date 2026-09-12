@@ -1,6 +1,6 @@
 ---
 name: Task
-about: Track an actionable unit of LocalFolio work
+about: Track an actionable unit of caramelo work
 title: ""
 labels: ""
 assignees: ""

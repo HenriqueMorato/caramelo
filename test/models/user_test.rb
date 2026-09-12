@@ -11,6 +11,24 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "admin@localfolio.com", User.owner.email_address
   end
 
+  test "prefers the new caramelo owner over the legacy owner" do
+    owner = User.create!(
+      email_address: Caramelo::Environment::DEFAULT_OWNER_EMAIL,
+      password: "password"
+    )
+
+    assert_equal owner, User.owner
+  end
+
+  test "raises when a custom configured owner does not exist" do
+    configured_email = Rails.application.config.x.caramelo.owner_email
+    Rails.application.config.x.caramelo.owner_email = "missing@example.com"
+
+    assert_raises(ActiveRecord::RecordNotFound) { User.owner }
+  ensure
+    Rails.application.config.x.caramelo.owner_email = configured_email
+  end
+
   test "defaults reporting currency to BRL" do
     assert_equal "BRL", User.new.reporting_currency
     assert_equal "BRL", users(:owner).reporting_currency

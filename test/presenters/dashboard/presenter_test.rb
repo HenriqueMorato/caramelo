@@ -16,7 +16,7 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
 
   test "summarizes open positions and their market data" do
     fetched_at = Time.current
-    value = Money.from_amount(12, Rails.configuration.x.local_folio.reporting_currency)
+    value = Money.from_amount(12, Rails.configuration.x.caramelo.reporting_currency)
     position = position_result(
       invalid: false, open: true,
       valuation: ValuationState.new(value, false, false),
@@ -234,8 +234,8 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
 
     assert_predicate presenter, :no_open_positions?
     assert_not_predicate presenter, :market_value_available?
-    assert_equal Money.from_amount(0, Rails.configuration.x.local_folio.reporting_currency), presenter.market_value
-    assert_equal Money.from_amount(0, Rails.configuration.x.local_folio.reporting_currency), presenter.complete_market_value
+    assert_equal Money.from_amount(0, Rails.configuration.x.caramelo.reporting_currency), presenter.market_value
+    assert_equal Money.from_amount(0, Rails.configuration.x.caramelo.reporting_currency), presenter.complete_market_value
   end
 
   test "returns an empty summary without positions" do

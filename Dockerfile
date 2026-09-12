@@ -1,12 +1,8 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t local_folio .
-# docker run -d -p 3000:80 --env-file .env.docker \
-#   --mount source=local_folio_storage,target=/rails/storage \
-#   --mount source=local_folio_backups,target=/rails/backups \
-#   --name local_folio local_folio
+# This Dockerfile is designed for production, not development. For the complete
+# self-hosted stack, including Solid Queue, run: docker compose up --build
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
@@ -106,7 +102,7 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# Entrypoint prepares the database.
+# Entrypoint prepares the application secret and database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
 # Start server via Thruster by default, this can be overwritten at runtime

@@ -1,4 +1,4 @@
-# LocalFolio development
+# caramelo development
 
 ## Dev Container setup
 
@@ -98,17 +98,19 @@ bin/setup --reset --skip-server
 bin/rails db:seed
 ```
 
-The owner defaults to `admin@localfolio.com`. Override it in the shell before
-seeding and starting the application:
+The owner defaults to `admin@caramelo.local`. Override it in the shell before
+seeding and starting a fresh application:
 
 ```sh
-export LOCALFOLIO_OWNER_EMAIL=owner@example.com
+export CARAMELO_OWNER_EMAIL=owner@example.com
 bin/rails db:seed
 bin/dev
 ```
 
 An ignored `.envrc` with that export can be used when working with `direnv`.
-Future owner-scoped records should resolve their user through `User.owner`.
+Legacy owner records and environment variables from before the rename remain
+supported. Future owner-scoped records should resolve their user through
+`User.owner`.
 
 Login is intentionally inactive during the single-user phase. Authentication
 models, routes, password hashing, and reset behavior remain covered for future
@@ -116,7 +118,7 @@ activation, while application pages stay public.
 
 ## Current market prices
 
-LocalFolio uses the Yahoo Finance chart endpoint for current B3, NASDAQ, NYSE,
+caramelo uses the Yahoo Finance chart endpoint for current B3, NASDAQ, NYSE,
 NYSE Arca, London Stock Exchange, Xetra, Euronext Amsterdam, and Euronext Paris
 quotes. European support is initially limited to ETF responses. This is an
 unofficial, credential-free integration intended for personal use. Provider
@@ -169,7 +171,7 @@ same local day.
 bin/backup create
 bin/backup verify backups/2026-09-05T120000.000000Z
 bin/backup restore backups/2026-09-05T120000.000000Z \
-  --artifact=ledger --to=/tmp/localfolio-ledger.sqlite3
+  --artifact=ledger --to=/tmp/caramelo-ledger.sqlite3
 ```
 
 Each run is atomically published under `backups/` with a complete
@@ -179,9 +181,9 @@ ledger keeps only the configured owner, that owner's trades, and referenced
 instruments and institutions; cache-like market data, sessions, and derived
 projections are empty. Both files contain sensitive financial data and the
 owner's password digest. The default rotation keeps seven daily, four weekly,
-and twelve monthly representatives. Set `LOCALFOLIO_BACKUP_KEEP_DAILY`,
-`LOCALFOLIO_BACKUP_KEEP_WEEKLY`, and `LOCALFOLIO_BACKUP_KEEP_MONTHLY` to
-override it.
+and twelve monthly representatives. Set `CARAMELO_BACKUP_KEEP_DAILY`,
+`CARAMELO_BACKUP_KEEP_WEEKLY`, and `CARAMELO_BACKUP_KEEP_MONTHLY` to override
+it.
 
 For explicit age-based cleanup, preview and then run:
 
@@ -227,12 +229,13 @@ toast is not specific to backups.
 
 Appearance is a browser-local preference until account preferences are modeled.
 The three supported values—`light`, `dark`, and `system`—are stored under
-`local_folio.appearance`. The layout's small inline bootstrap applies the saved
-choice before loading CSS, so the first paint uses the correct palette.
+`caramelo.appearance`. The layout's small inline bootstrap migrates the legacy
+key and applies the saved choice before loading CSS, so the first paint uses the
+correct palette.
 
 `data-appearance` on `<html>` records the selected preference, while
 `data-theme` records the resolved `light` or `dark` palette. Keep application
-colors in the semantic Caramelo variables in
+colors in the semantic caramelo variables in
 `app/assets/tailwind/application.css`; do not add page-specific dark-mode
 utilities. The appearance controller synchronizes the Settings and navigation
 controls, follows operating-system changes in System mode, updates browser
@@ -252,9 +255,9 @@ initial pass (the production entrypoint does the same). A trade queues its
 current quote when needed and coalesces the
 historical backfill required for its trade date.
 
-Set `LOCALFOLIO_CURRENT_PRICE_REFRESH_SCHEDULE` to customize the recurring
+Set `CARAMELO_CURRENT_PRICE_REFRESH_SCHEDULE` to customize the recurring
 quote interval (for example, `every 10 minutes`) and
-`LOCALFOLIO_BENCHMARK_REFRESH_SCHEDULE` to customize the benchmark schedule.
+`CARAMELO_BENCHMARK_REFRESH_SCHEDULE` to customize the benchmark schedule.
 
 Weekends and market holidays do not create synthetic history rows. Charts carry
 each instrument's latest trading-day observation forward as a flat value until
@@ -270,7 +273,7 @@ work tracked in issue #124.
 The primary development database remains at `storage/development.sqlite3` so
 it is easy to back up from the checkout. Solid Cache, Solid Queue, and Solid
 Cable use `storage/runtime/`, which is backed by the Linux-native
-`local_folio_runtime-storage` Docker volume. Keeping these high-write,
+`caramelo_runtime_storage` Docker volume. Keeping these high-write,
 replaceable databases off the macOS bind mount avoids filesystem consistency
 issues when Rails and the worker write concurrently.
 Compose runs a short-lived initialization service first so the volume is
@@ -566,26 +569,27 @@ Run the complete local acceptance pass:
 bin/setup --skip-server
 bin/rails db:seed
 bin/ci
-docker build -t local_folio .
+docker compose build
 ```
 
 Follow the Docker instructions in [README.md](README.md), then verify the
-production container and configured owner:
+Compose stack and configured owner:
 
 ```sh
 curl --fail http://localhost:3000/up
-docker exec local_folio bin/rails runner \
-  'abort "owner mismatch" unless User.owner.email_address == Rails.application.config.x.local_folio.owner_email; puts "owner: ok"'
+docker compose exec web bin/rails runner \
+  'abort "owner missing" unless User.owner.persisted?; puts "owner: ok"'
 ```
 
 Create an institution, instrument, and trade through the production interface,
-open **Positions**, and record its quantity, average cost, and cost basis. Restart
-the container with the same `local_folio_storage` volume, then confirm the trade
-and derived position remain unchanged. This proves the authoritative trade data
-survives and the position can be reconstructed; positions are not separate
-durable records.
+open **Positions**, and record its quantity, average cost, and cost basis.
+Restart the stack with the same `caramelo_storage` volume,
+then confirm the trade and derived position remain unchanged. This proves the
+authoritative trade data survives and the position can be reconstructed;
+positions are not separate durable records.
 
-The production image must boot with only its local `SECRET_KEY_BASE`; it does
-not require a Rails master key, market-data credentials, or authentication
-credentials. The final acceptance requirement is a green GitHub Actions run on
-the milestone-closing pull request.
+The production image must boot without a preconfigured `SECRET_KEY_BASE`, retain
+the generated value in its storage volume, and continue accepting an explicitly
+managed value. It does not require a Rails master key, market-data credentials,
+or authentication credentials. The final acceptance requirement is a green
+GitHub Actions run on the milestone-closing pull request.

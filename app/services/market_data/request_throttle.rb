@@ -37,7 +37,7 @@ module MarketData
     attr_reader :provider, :cache, :interval, :clock, :sleeper
 
     def cache_key
-      "localfolio:market_data:#{provider}:last_request_at"
+      "caramelo:market_data:#{provider}:last_request_at"
     end
 
     def notification_name

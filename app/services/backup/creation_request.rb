@@ -1,6 +1,6 @@
 module Backup
   class CreationRequest
-    CLAIM_KEY = "localfolio:backup:manual-creation"
+    CLAIM_KEY = "caramelo:backup:manual-creation"
     CLAIM_TTL = 15.minutes
 
     def self.call(cache: Rails.cache, creator: Creator, job: CreateBackupJob, state: State)

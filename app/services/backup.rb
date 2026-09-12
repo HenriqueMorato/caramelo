@@ -15,9 +15,9 @@ module Backup
 
     def self.default
       new(
-        daily: ENV.fetch("LOCALFOLIO_BACKUP_KEEP_DAILY", DEFAULT_DAILY).to_i,
-        weekly: ENV.fetch("LOCALFOLIO_BACKUP_KEEP_WEEKLY", DEFAULT_WEEKLY).to_i,
-        monthly: ENV.fetch("LOCALFOLIO_BACKUP_KEEP_MONTHLY", DEFAULT_MONTHLY).to_i
+        daily: Caramelo::Environment.fetch("BACKUP_KEEP_DAILY", default: DEFAULT_DAILY).to_i,
+        weekly: Caramelo::Environment.fetch("BACKUP_KEEP_WEEKLY", default: DEFAULT_WEEKLY).to_i,
+        monthly: Caramelo::Environment.fetch("BACKUP_KEEP_MONTHLY", default: DEFAULT_MONTHLY).to_i
       )
     end
 
@@ -53,7 +53,7 @@ module Backup
 
       new(
         source_path: Rails.root.join(database),
-        destination: ENV.fetch("LOCALFOLIO_BACKUP_DIRECTORY", Rails.root.join("backups")),
+        destination: Caramelo::Environment.fetch("BACKUP_DIRECTORY", default: Rails.root.join("backups")),
         retention_policy: RetentionPolicy.default
       )
     end

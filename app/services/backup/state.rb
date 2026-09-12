@@ -1,6 +1,6 @@
 module Backup
   class State
-    KEY = "localfolio:backup:state"
+    KEY = "caramelo:backup:state"
     INTERRUPTED_AFTER = 30.minutes
     TTL = 2.hours
 

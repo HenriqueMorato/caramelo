@@ -29,14 +29,14 @@ en:
         cost
       Gain on cost result: Gain on cost
       Graph default: Graph default
-      How LocalFolio uses them: How LocalFolio uses them
+      How caramelo uses them: How caramelo uses them
       Instrument graph: Instrument graph
       Instrument graph explanation: Both return lines are available in the graph.
         Modified Dietz is visible by default, while gain on cost can be revealed from
         the legend. Period, currency, and history remain encoded in the URL.
-      Introduction: Return is not a single universal number. LocalFolio offers two
-        calculations because contribution timing and accumulated profit answer different,
-        equally useful questions.
+      Introduction: Return is not a single universal number. caramelo offers two calculations
+        because contribution timing and accumulated profit answer different, equally
+        useful questions.
       Modified Dietz: Modified Dietz
       Modified Dietz explanation: This answers “How did the capital perform after
         accounting for when money entered or left?” Each cash flow is weighted by
@@ -51,7 +51,7 @@ en:
       Position details explanation: Shows gain on cost because it is the most direct
         answer to how much the position has gained relative to purchase spending.
       Same position different answers: Same position, different answers
-      Title: How LocalFolio calculates returns
+      Title: How caramelo calculates returns
       Two questions: Two useful questions
       Two questions explanation: The methods differ because they treat the timing
         of purchases and sales differently. Neither result should be interpreted without

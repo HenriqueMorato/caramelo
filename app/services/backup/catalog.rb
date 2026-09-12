@@ -22,7 +22,7 @@ module Backup
         latest: entries.find(&:ready?),
         status: overall_status(entries),
         retention_policy: configuration.retention_policy,
-        schedule: ENV.fetch("LOCALFOLIO_BACKUP_SCHEDULE", SCHEDULE)
+        schedule: Caramelo::Environment.fetch("BACKUP_SCHEDULE", default: SCHEDULE)
       )
     end
 

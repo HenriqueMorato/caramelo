@@ -2,7 +2,7 @@
 # editor preferences.
 #
 # Herb provides an HTML+ERB linter, formatter, language server, and related
-# development tools. LocalFolio currently adopts only the linter.
+# development tools. caramelo currently adopts only the linter.
 #
 # Website: https://herb-tools.dev
 # Configuration: https://herb-tools.dev/configuration
@@ -15,7 +15,7 @@ version: 0.10.3
 # Framework options: ruby | actionview | hanami | sinatra (default: ruby)
 # Template engine options: erubi | erb | herb (default: erubi)
 #
-# LocalFolio uses Rails Action View with its default Erubi template engine.
+# caramelo uses Rails Action View with its default Erubi template engine.
 framework: actionview
 # template_engine: erubi
 

@@ -1,5 +1,8 @@
-User.find_or_create_by!(email_address: Rails.application.config.x.local_folio.owner_email) do |user|
+User.owner_or_initialize.tap do |user|
+  next unless user.new_record?
+
   user.password = SecureRandom.urlsafe_base64(32)
+  user.save!
 end
 
 MarketBenchmark::DEFAULTS.each do |attributes|

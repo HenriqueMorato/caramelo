@@ -14,7 +14,7 @@ Each record contains:
 - `rate`: a precise positive decimal rate;
 - `provider`: the source adapter identifier;
 - `observed_at`: when the provider observed the rate; and
-- `fetched_at`: when LocalFolio received it.
+- `fetched_at`: when caramelo received it.
 
 The unique key is base currency, quote currency, rate date, and provider.
 Imports are idempotent: a later observation for the same key updates the row,
