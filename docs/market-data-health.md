@@ -19,8 +19,9 @@ or inverse FX pairs satisfy the same requirement.
 
 Benchmark calendars remain source-specific. Price benchmarks may carry their
 latest real close across a short market closure. CDI requires an observation on
-each Brazilian banking day and excludes its fixed and movable banking holidays.
-Persisted performance rows with `missing` status do not count as covered dates.
+each published Brazilian banking day, excludes its fixed and movable banking
+holidays, and allows one banking day for BCB publication. Persisted performance
+rows with `missing` status do not count as covered dates.
 
 ## Status and recovery
 

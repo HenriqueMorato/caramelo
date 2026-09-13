@@ -79,7 +79,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     refute_includes entry.description, Date.new(2026, 9, 7).iso8601
   end
 
-  test "keeps the latest unpublished CDI business date actionable" do
+  test "allows one banking day for CDI publication before making it actionable" do
     benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
       provider: "bcb", provider_identifier: "CDI")
     from = users(:owner).trades.minimum(:traded_on)
@@ -88,13 +88,20 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
         provider: "bcb", observed_at: Time.current)
     end
 
-    entry = MarketData::HealthReport::BenchmarkObservations.new(
+    weekend_entry = MarketData::HealthReport::BenchmarkObservations.new(
       owner: users(:owner), today: Date.new(2026, 9, 12)
     ).entries.find { |candidate| candidate.subject == benchmark }
 
-    assert_equal :partial, entry.status
-    assert_equal Date.new(2026, 9, 11)..Date.new(2026, 9, 11), entry.missing_range
-    assert_predicate entry, :actionable?
+    assert_equal :healthy, weekend_entry.status
+    assert_nil weekend_entry.missing_range
+
+    monday_entry = MarketData::HealthReport::BenchmarkObservations.new(
+      owner: users(:owner), today: Date.new(2026, 9, 14)
+    ).entries.find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :partial, monday_entry.status
+    assert_equal Date.new(2026, 9, 11)..Date.new(2026, 9, 11), monday_entry.missing_range
+    assert_predicate monday_entry, :actionable?
   end
 
   test "requires no CDI observation when the entire window is a banking holiday" do
@@ -315,6 +322,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     assert_equal [ Date.new(2026, 9, 2)..Date.new(2026, 9, 3), Date.new(2026, 9, 5)..Date.new(2026, 9, 7) ],
       coverage.missing_ranges
+    assert_equal Date.new(2026, 9, 2)..Date.new(2026, 9, 7), coverage.missing_range
     assert_predicate coverage, :partial?
   end
 

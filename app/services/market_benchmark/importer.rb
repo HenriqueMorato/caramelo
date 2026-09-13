@@ -30,6 +30,11 @@ class MarketBenchmark
       TradingCalendar.weekdays_between(from, to)
     end
 
+    def available_through_for(benchmark:, on:)
+      selected_provider = provider_for(benchmark:)
+      selected_provider.available_through(on:) if selected_provider&.respond_to?(:available_through)
+    end
+
     def call(benchmark:, from:, to:, fence: nil)
       raise ArgumentError, "from must be on or before to" if from > to
 

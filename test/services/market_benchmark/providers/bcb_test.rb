@@ -9,6 +9,13 @@ class MarketBenchmark::Providers::BcbTest < ActiveSupport::TestCase
     )
   end
 
+  test "allows one Brazilian banking day for CDI publication" do
+    provider = MarketBenchmark::Providers::Bcb.new(client: Object.new)
+
+    assert_equal Date.new(2026, 9, 10), provider.available_through(on: Date.new(2026, 9, 12))
+    assert_equal Date.new(2026, 9, 11), provider.available_through(on: Date.new(2026, 9, 14))
+  end
+
   test "supports CDI rate benchmarks and maps client observations" do
     benchmark = MarketBenchmark.new(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
       provider: "bcb", provider_identifier: "CDI")

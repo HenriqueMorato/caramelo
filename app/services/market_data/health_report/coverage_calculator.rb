@@ -10,7 +10,9 @@ module MarketData
       def missing? = covered_range.nil?
 
       def missing_range
-        missing_ranges.first
+        return if missing_ranges.empty?
+
+        missing_ranges.first.begin..missing_ranges.last.end
       end
     end
 
