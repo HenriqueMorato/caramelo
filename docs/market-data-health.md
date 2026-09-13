@@ -39,7 +39,10 @@ rebuilds the affected portfolio and reporting-currency instrument projections.
 Refresh state lives in the cache and is intentionally disposable. It records
 progress, run IDs, cooldowns, and terminal errors, so a page reload can explain
 active or interrupted work. A unique batch scope coordinates related targets;
-the batch count restarts for each accepted run.
+the batch count restarts for each accepted run. Coordination and per-instrument
+bookkeeping scopes do not compete for space in the user-facing progress
+indicator, and completed dynamic scopes are pruned after the interruption
+window.
 
 ## Fencing and resets
 
@@ -49,14 +52,23 @@ share a fence. Recovery leases allow one active recovery per target and only
 the owner token can release it. Reset requests require a signed, expiring
 preview whose fingerprint is revalidated before replacement. Data is fetched
 and validated before replacement; a failed fetch never deletes the old value.
+Accepting a replacement advances the target’s publication fence before the new
+work is enqueued, so an older in-flight worker cannot publish over it. Every
+unhealthy supported source and derived performance target can expose this same
+signed replacement preview.
 
 ## Live updates
 
-Refresh status broadcasts a global toast and targeted health-row replacements.
-Rows use stable IDs derived from their canonical target scope, allowing Turbo to
-replace one row without navigating or rebuilding the whole page. The health
-report is built locally from persisted data and cache state; it never calls a
-provider while rendering.
+Outside Data health, refresh status uses the global transient notification. The
+Data health page instead keeps one stable inline activity surface: intermediate
+updates morph only its progress counter, so repeated refresh events do not
+restart the notification or its motion. It remains active while either a
+transient refresh is running or the report still contains a rebuilding derived
+source. Meaningful state transitions broadcast a coherent report to each
+URL-backed filter stream (`all`, `attention`, and `healthy`). Summary counts,
+filter membership, and table rows therefore update together. The report is
+built locally from persisted data and cache state; it never calls a provider
+while rendering.
 
 ## Local verification
 

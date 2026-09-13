@@ -29,7 +29,10 @@ module MarketData
         present = coverage.complete?
         HealthReport::Entry.new(
           code: present ? :daily_close : :missing_daily_close,
-          target: Target.new(kind: :daily_closing_prices, record_id: instrument.id), subject: instrument,
+          target: Target.new(
+            kind: :daily_closing_prices, record_id: instrument.id,
+            provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
+          ), subject: instrument,
           status: present ? :healthy : coverage.partial? ? :partial : :missing,
           severity: present ? nil : :warning, label: "#{instrument.ticker} · #{instrument.name}",
           description: description(instrument, coverage), observed_on: nil, fetched_at: nil,

@@ -156,6 +156,7 @@ class MarketData::ResetTest < ActiveSupport::TestCase
 
     assert_equal range, received[:range]
     assert_equal target, received[:target]
+    assert received[:replacement]
   end
 
   test "requires a signed preview for supported targets" do

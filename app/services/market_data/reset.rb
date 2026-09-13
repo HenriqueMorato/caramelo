@@ -30,7 +30,7 @@ module MarketData
       return queue_current_price_reset if target.kind == :current_price
       return queue_performance_reset(preview) if %i[portfolio_performance instrument_performance].include?(target.kind)
 
-      recovery = Recovery.call(target:, range: preview.range, owner:, cache:)
+      recovery = Recovery.call(target:, range: preview.range, owner:, cache:, replacement: true)
       result(recovery.status)
     end
 

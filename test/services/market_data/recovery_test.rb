@@ -22,6 +22,24 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_equal @target, @calls.first.fetch(:target)
   end
 
+  test "advances the publication fence before replacement work is enqueued" do
+    fence = MarketData::PublicationFence.new(target: @target, cache: @cache)
+    previous_generation = fence.capture
+    generation_during_enqueue = nil
+    handler = lambda do |**|
+      generation_during_enqueue = fence.capture
+      :queued
+    end
+
+    result = MarketData::Recovery.call(
+      target: @target, cache: @cache, handlers: { current_price: handler }, replacement: true
+    )
+
+    assert_predicate result, :queued?
+    refute_equal previous_generation, generation_during_enqueue
+    assert_equal generation_during_enqueue, fence.capture
+  end
+
   test "throttles a repeated target" do
     handlers = { current_price: @handler }
     MarketData::Recovery.call(target: @target, cache: @cache, handlers:)

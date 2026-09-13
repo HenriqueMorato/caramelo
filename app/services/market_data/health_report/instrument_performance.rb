@@ -43,8 +43,8 @@ module MarketData
       end
 
       def status_for(materialization:, observations:, coverage:, refresh:)
-        return :failed if refresh&.failed?
-        return :updating if materialization.pending? || refresh&.active?
+        return :failed if materialization.pending? && refresh&.failed?
+        return :updating if materialization.pending?
         return :stale if observations.any?(&:stale?)
         return :healthy if coverage.complete?
         return :partial if coverage.partial?

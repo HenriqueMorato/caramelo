@@ -207,7 +207,7 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to market_data_health_path
-    assert_equal "Quote refresh started.", flash[:notice]
+    assert_equal "Data replacement started.", flash[:notice]
   end
 
   private

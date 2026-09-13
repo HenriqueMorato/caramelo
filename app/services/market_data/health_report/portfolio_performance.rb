@@ -41,7 +41,8 @@ module MarketData
         HealthReport::Entry.new(
           code: :portfolio_performance, status:, severity: %i[missing partial].include?(status) ? :warning : nil,
           subject: "Portfolio performance", label: "Portfolio performance",
-          description: description(coverage), target: Target.new(kind: :portfolio_performance),
+          description: description(coverage),
+          target: Target.new(kind: :portfolio_performance, quote_currency: owner.reporting_currency),
           actions: status == :healthy ? [] : [ :retry ], observed_on: nil, fetched_at: nil,
           covered_range: coverage.covered_range, missing_range: coverage.missing_range
         )

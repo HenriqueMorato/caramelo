@@ -1,0 +1,5 @@
+<%# locals: (status:) %>
+
+<div id="<%= RefreshStatus::Broadcaster::ACTIVITY_TARGET %>" aria-live="polite" aria-atomic="true">
+  <%= render "refresh_status/activity_content", status: %>
+</div>

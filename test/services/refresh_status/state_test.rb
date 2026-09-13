@@ -29,11 +29,13 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
 
   test "does not expose per-instrument refresh leases as global activity" do
     RefreshStatus::State.write(scope: "current_market_price:42", status: "running")
+    RefreshStatus::State.write(scope: "market_data_recovery:1:run", status: "queued", total_count: 1)
     RefreshStatus::State.write(scope: "manual_current_market_prices", status: "queued", total_count: 3)
 
     active_scopes = RefreshStatus::State.active.map(&:scope)
     assert_includes active_scopes, "manual_current_market_prices"
     refute_includes active_scopes, "current_market_price:42"
+    refute_includes active_scopes, "market_data_recovery:1:run"
   end
 
   test "identifies running states" do
@@ -87,7 +89,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker records completion and failure" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       completed = RefreshStatus::Tracker.perform(scope: "tracked_success", total_count: 1) do |refresh|
         RefreshStatus::Tracker.advance(refresh)
       end
@@ -108,7 +110,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker preserves an existing batch while a child runs" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       RefreshStatus::Tracker.enqueue(scope: "tracked_batch", total_count: 2)
       RefreshStatus::Tracker.perform(scope: "tracked_batch", preserve_progress: true) do |refresh|
         RefreshStatus::Tracker.advance(refresh)
@@ -122,7 +124,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker preserves a batch when its run id matches" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "matching_batch", total_count: 2)
       result = RefreshStatus::Tracker.perform(scope: "matching_batch", preserve_progress: true, run_id: state.run_id) { |refresh| refresh }
 
@@ -132,7 +134,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker ignores a child from a different run" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "stale_batch", total_count: 2)
       result = RefreshStatus::Tracker.perform(scope: "stale_batch", preserve_progress: true, run_id: "old-run") { flunk "stale child ran" }
 
@@ -142,7 +144,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker starts a new state when preserving a missing batch" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       RefreshStatus::Tracker.perform(scope: "missing_batch", total_count: 1, preserve_progress: true) { }
     end
 
@@ -150,7 +152,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker marks a refresh as queued" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "queued_state", total_count: 4)
 
       assert_equal "queued", state.status
@@ -159,7 +161,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker completes an empty batch immediately" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "empty_batch", total_count: 0)
 
       assert_equal "succeeded", state.status
@@ -169,7 +171,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   end
 
   test "tracker preserves progress when recording a failure" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       state = RefreshStatus::Tracker.enqueue(scope: "failed_batch", total_count: 2)
       RefreshStatus::Tracker.advance(state)
       RefreshStatus::Tracker.record_failure(state, RuntimeError.new("provider unavailable"))
@@ -181,8 +183,21 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_equal 2, state.total_count
   end
 
+  test "tracker rebuilds health only for meaningful lifecycle transitions" do
+    broadcasts = []
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**arguments) { broadcasts << arguments }) do
+      refresh = RefreshStatus::Tracker.enqueue(scope: "progress_lifecycle", total_count: 2)
+      RefreshStatus::Tracker.advance(refresh)
+      RefreshStatus::Tracker.advance(refresh)
+    end
+
+    assert_equal [ true, false, true ], broadcasts.map { |call| call.fetch(:health) }
+    assert_equal %w[queued queued succeeded], broadcasts.map { |call| call.fetch(:state).status }
+    assert_equal [ false, true, false ], broadcasts.map { |call| call.fetch(:progress_only) }
+  end
+
   test "tracker ignores failures for unknown scopes" do
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       assert_nil RefreshStatus::Tracker.fail(scope: "unknown_failure", error: RuntimeError.new("missing"))
     end
   end
@@ -190,7 +205,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   test "tracker still broadcasts when setup fails before a state exists" do
     broadcasts = 0
     with_stubbed_method(RefreshStatus::State, :write, ->(**) { raise "cache unavailable" }) do
-      with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { broadcasts += 1 }) do
+      with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { broadcasts += 1 }) do
         assert_raises RuntimeError do
           RefreshStatus::Tracker.perform(scope: "unavailable_state") { }
         end

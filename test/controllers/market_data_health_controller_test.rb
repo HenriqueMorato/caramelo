@@ -12,7 +12,20 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Data health"
     assert_select "[role=status]"
     assert_select "turbo-cable-stream-source[signed-stream-name]"
+    assert_select "##{RefreshStatus::Broadcaster::ACTIVITY_TARGET}"
+    assert_select "##{MarketData::HealthReportBroadcaster::TARGET}"
     assert_select "form[action=?]", current_market_price_refresh_path
+  end
+
+  test "shows an explicit empty state when a filter matches no sources" do
+    report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [])
+
+    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
+      get market_data_health_url(status: "healthy")
+    end
+
+    assert_response :success
+    assert_select "td[colspan=4]", "No sources match this filter."
   end
 
   test "disables manual refresh during the throttle window" do

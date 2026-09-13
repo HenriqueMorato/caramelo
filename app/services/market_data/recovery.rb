@@ -21,8 +21,9 @@ module MarketData
       instrument_performance: MarketData::Recoveries::PerformanceObservations
     }.freeze
 
-    def self.call(target:, range: nil, owner: User.owner, cache: Rails.cache, handlers: HANDLERS)
-      new(target:, range:, owner:, cache:, handlers:).call
+    def self.call(target:, range: nil, owner: User.owner, cache: Rails.cache, handlers: HANDLERS,
+      replacement: false)
+      new(target:, range:, owner:, cache:, handlers:, replacement:).call
     end
 
     def self.available?(target:, cache: Rails.cache)
@@ -33,12 +34,13 @@ module MarketData
       "#{COOLDOWN_PREFIX}:#{target.scope}"
     end
 
-    def initialize(target:, range:, owner:, cache:, handlers:)
+    def initialize(target:, range:, owner:, cache:, handlers:, replacement: false)
       @target = target
       @range = range
       @owner = owner
       @cache = cache
       @handlers = handlers
+      @replacement = replacement
     end
 
     def call
@@ -55,9 +57,14 @@ module MarketData
       end
 
       batch = RefreshStatus::Tracker.enqueue(scope: batch_scope, total_count: 1)
-      handler_result = handler.call(
+      arguments = {
         target:, range:, batch_scope:, batch_run_id: batch.run_id, owner:, lease_token: lease.token
-      )
+      }
+      handler_result = if replacement
+        PublicationFence.new(target:, cache:).advance { handler.call(**arguments) }
+      else
+        handler.call(**arguments)
+      end
 
       if handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED
         RefreshStatus::Tracker.advance(batch)
@@ -76,7 +83,7 @@ module MarketData
 
     private
 
-    attr_reader :target, :range, :owner, :cache, :handlers
+    attr_reader :target, :range, :owner, :cache, :handlers, :replacement
 
     def batch_scope
       @batch_scope ||= "#{BATCH_SCOPE_PREFIX}:#{owner.id}:#{SecureRandom.uuid}"

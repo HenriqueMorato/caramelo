@@ -15,7 +15,7 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
       user:, instrument: target_instrument, reporting_currency:
     )
     requested_range = materialization.requested_range
-    return release_lease unless requested_range
+    return finish_obsolete_refresh unless requested_range
 
     build(from: requested_range.begin, to: requested_range.end)
   end
@@ -54,6 +54,12 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
       user:, instrument: target_instrument, reporting_currency:, token: lease_token
     )
     nil
+  end
+
+  def finish_obsolete_refresh
+    state = Performance::SeriesRefresh.read(user:, instrument: target_instrument, reporting_currency:)
+    refresh(:succeeded, from: state.from, to: state.to) if state&.active?
+    release_lease
   end
 
   def resume_pending_materialization

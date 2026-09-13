@@ -30,12 +30,12 @@ module MarketData
       result = Reset.call(target:, preview_token: params[:preview_token])
 
       if result.queued?
-        respond_with_toast("Quote refresh started.", redirect_to: market_data_health_path)
+        respond_with_toast("Data replacement started.", redirect_to: market_data_health_path)
       elsif result.busy?
-        respond_with_status_toast("A refresh for this quote is already running.",
+        respond_with_status_toast("A refresh for this data target is already running.",
           status: :conflict, redirect_to: market_data_health_path)
       else
-        respond_with_status_toast("This quote cannot be reset.",
+        respond_with_status_toast("This data target cannot be replaced.",
           status: :unprocessable_entity, redirect_to: market_data_health_path)
       end
     rescue ActionController::ParameterMissing, ActiveRecord::RecordNotFound, ArgumentError

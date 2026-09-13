@@ -30,7 +30,9 @@ module MarketData
         supported = importer.supports?(benchmark:)
         HealthReport::Entry.new(
           code: present ? :benchmark_data : :missing_benchmark_data,
-          target: Target.new(kind: :benchmark_observations, record_id: benchmark.id), subject: benchmark,
+          target: Target.new(
+            kind: :benchmark_observations, record_id: benchmark.id, provider: benchmark.provider
+          ), subject: benchmark,
           status: present ? :healthy : supported ? coverage.partial? ? :partial : :missing : :unsupported,
           severity: present ? nil : :warning, label: subject_label(benchmark),
           description: description(benchmark, coverage, supported:), observed_on: nil, fetched_at: nil,

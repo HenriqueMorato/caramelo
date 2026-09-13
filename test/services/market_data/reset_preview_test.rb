@@ -78,6 +78,18 @@ class MarketData::ResetPreviewTest < ActiveSupport::TestCase
     end
   end
 
+  test "fingerprints a current exchange rate" do
+    target = MarketData::Target.new(
+      kind: :current_exchange_rate, base_currency: "USD", quote_currency: "BRL",
+      provider: MarketData::YahooFinance::FX_CONFIGURATION.identifier
+    )
+    digest = MarketData::ResetPreview.send(
+      :fingerprint_for, target:, owner: users(:owner), from: Date.current, to: Date.current
+    )
+
+    assert_match(/\A[0-9a-f]{64}\z/, digest)
+  end
+
   test "fingerprints unknown targets as an empty collection" do
     target = Struct.new(:kind).new(:unknown)
     digest = MarketData::ResetPreview.send(

@@ -1,0 +1,18 @@
+<%# locals: (status:) %>
+
+<% if status.updating? %>
+  <div class="flex items-center justify-between gap-4 rounded-xl border border-caramel/20 bg-paper/55 px-4 py-3 text-sm text-coffee">
+    <span class="inline-flex min-w-0 items-center gap-3 font-medium">
+      <span id="health-refresh-spinner" class="flex size-5 shrink-0 animate-spin items-center justify-center rounded-full border-2 border-caramel/25 border-t-caramel motion-reduce:animate-none" aria-hidden="true"></span>
+      <span><%= t("Market data updating") %></span>
+    </span>
+    <span id="health-refresh-progress" class="shrink-0 font-mono text-xs tabular-nums text-muted"><%= render "refresh_status/progress", label: status.progress_label, parentheses: false %></span>
+  </div>
+<% elsif status.failed? %>
+  <div class="flex items-center gap-3 rounded-xl border border-guava/20 bg-guava/5 px-4 py-3 text-sm font-medium text-coffee">
+    <span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-guava/15 text-xs text-guava" aria-hidden="true">!</span>
+    <span><%= t("Market data needs attention") %></span>
+  </div>
+<% elsif status.last_successful_refresh_at %>
+  <p class="text-right text-xs tabular-nums text-muted"><%= t("Market data updated at", time: l(status.last_successful_refresh_at, format: :short)) %></p>
+<% end %>

@@ -56,6 +56,18 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     assert_no_enqueued_jobs only: BuildInstrumentPerformanceObservationsJob
   end
 
+  test "marks an obsolete queued refresh successful" do
+    @lease_token = acquire
+    Performance::SeriesRefresh.queued(
+      user: @user, instrument: @instrument, reporting_currency: "USD",
+      from: @from, to: @to, token: @lease_token
+    )
+    @materialization.complete!(source_generation: 0, from: @from, to: @to)
+
+    assert_nil perform_job
+    assert_equal "succeeded", refresh_state.status
+  end
+
   test "reraises a missing instrument without writing state" do
     assert_raises(ActiveRecord::RecordNotFound) do
       BuildInstrumentPerformanceObservationsJob.perform_now(

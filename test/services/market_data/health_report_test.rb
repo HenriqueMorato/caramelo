@@ -484,7 +484,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal [ :retry ], entries.fetch("BRL").actions
   end
 
-  test "reports an active instrument refresh as updating before durable work begins" do
+  test "ignores an active instrument marker when no durable work remains" do
     owner = users(:owner)
     instrument = instruments(:voo_arcx)
     first_date = owner.trades.where(instrument:).minimum(:traded_on)
@@ -498,7 +498,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       candidate.target.quote_currency == "USD"
     end
 
-    assert_equal :updating, entry.status
+    assert_equal :missing, entry.status
   ensure
     Performance::SeriesRefresh.release(
       user: owner, instrument:, reporting_currency: "USD", token:
@@ -548,6 +548,9 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     owner = users(:owner)
     instrument = instruments(:voo_arcx)
     first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    InstrumentPerformanceMaterialization.for(
+      user: owner, instrument:, reporting_currency: "USD"
+    ).request!(from: first_date, to: first_date)
     token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
     Performance::SeriesRefresh.failed(
       user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date,
@@ -707,7 +710,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     assert_equal :updating, entry.status
     refute_predicate entry, :actionable?
-    refute_predicate entry, :quote_reset_needed?
+    refute_predicate entry, :resettable?
   end
 
   test "does not report an expired refresh marker as updating" do
@@ -813,5 +816,75 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :portfolio_performance, result.issues.first.code
     assert_equal "Portfolio performance", result.issues.first.subject
     assert_equal "history is missing", result.issues.first.details
+  end
+
+  test "applies queued failed interrupted and completed refresh states to every target type" do
+    target = MarketData::Target.new(
+      kind: :daily_closing_prices, record_id: instruments(:voo_arcx).id, provider: "yahoo_finance"
+    )
+    entry = health_entry(target:, status: :missing)
+    inspector = MarketData::HealthReport.allocate
+
+    RefreshStatus::State.write(scope: target.scope, status: "queued", total_count: 1)
+    updating = inspector.send(:apply_refresh_state, entry)
+    assert_equal :updating, updating.status
+    assert_empty updating.actions
+
+    RefreshStatus::State.write(
+      scope: target.scope, status: "failed", finished_at: Time.current, error_message: "provider failed"
+    )
+    failed = inspector.send(:apply_refresh_state, entry)
+    assert_equal :failed, failed.status
+    assert_equal "provider failed", failed.description
+
+    travel_to 11.minutes.ago do
+      RefreshStatus::State.write(scope: target.scope, status: "running", started_at: Time.current)
+    end
+    assert_equal :interrupted, inspector.send(:apply_refresh_state, entry).status
+
+    RefreshStatus::State.write(scope: target.scope, status: "succeeded", finished_at: Time.current)
+    assert_equal entry, inspector.send(:apply_refresh_state, entry)
+  end
+
+  test "does not let an old failure make healthy source data look failed" do
+    target = MarketData::Target.new(
+      kind: :daily_closing_prices, record_id: instruments(:voo_arcx).id, provider: "yahoo_finance"
+    )
+    entry = health_entry(target:, status: :healthy)
+    RefreshStatus::State.write(
+      scope: target.scope, status: "failed", finished_at: Time.current, error_message: "old failure"
+    )
+
+    assert_equal entry, MarketData::HealthReport.allocate.send(:apply_refresh_state, entry)
+  end
+
+  test "offers replacement only for unhealthy supported targets" do
+    source = health_entry(
+      target: MarketData::Target.new(
+        kind: :daily_closing_prices, record_id: instruments(:voo_arcx).id, provider: "yahoo_finance"
+      ),
+      status: :partial
+    )
+    derived = health_entry(
+      target: MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL"), status: :failed
+    )
+
+    assert_predicate source, :resettable?
+    assert_predicate derived, :resettable?
+    refute_predicate source.with(status: :healthy), :resettable?
+    refute_predicate source.with(status: :updating), :resettable?
+    refute_predicate source.with(status: :unsupported), :resettable?
+    refute_predicate source.with(target: source.target.with(provider: nil)), :resettable?
+  end
+
+  private
+
+  def health_entry(target:, status:)
+    MarketData::HealthReport::Entry.new(
+      code: :test, target:, subject: "Source", status:,
+      severity: status == :healthy ? nil : :warning, label: "Source", description: "Source status",
+      observed_on: nil, fetched_at: nil, covered_range: nil, missing_range: nil,
+      actions: status == :healthy ? [] : [ :retry ]
+    )
   end
 end
