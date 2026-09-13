@@ -1,4 +1,4 @@
-name: "caramelo"
+name: "caramelo-dev"
 
 services:
   rails-app:
@@ -49,6 +49,6 @@ services:
 
 volumes:
   bundle:
-    name: caramelo_bundle
+    name: caramelo_dev_bundle
   runtime-storage:
-    name: caramelo_runtime_storage
+    name: caramelo_dev_runtime_storage
