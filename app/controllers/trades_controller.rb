@@ -27,7 +27,7 @@ class TradesController < ApplicationController
     @trade = owner.trades.new
     assign_trade_attributes
 
-    if @trade.save_with_slug_retry
+    if @trade.save
       enqueue_historical_data_backfill
       enqueue_current_market_price_refresh
       redirect_to transactions_path, notice: t("notices.Created", model: Trade.model_name.human)

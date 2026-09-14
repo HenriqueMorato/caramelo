@@ -64,15 +64,6 @@ class Trade < ApplicationRecord
     settlement_currency.present? && settlement_exchange_rate.present?
   end
 
-  def save_with_slug_retry
-    save
-  rescue ActiveRecord::RecordNotUnique => error
-    raise unless error.message.include?("trades.slug")
-
-    self.slug = nil
-    save
-  end
-
   private
 
   def slug_candidates

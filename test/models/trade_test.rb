@@ -33,28 +33,6 @@ class TradeTest < ActiveSupport::TestCase
     end
   end
 
-  test "retries one database slug collision with fresh candidates" do
-    first = Trade.create!(valid_attributes.merge(slug: "txn-collision123"))
-    trade = Trade.new(valid_attributes.merge(slug: first.slug, notes: "Concurrent transaction"))
-
-    assert_difference("Trade.count", 1) do
-      assert trade.save_with_slug_retry
-    end
-
-    assert_predicate trade, :persisted?
-    assert_match(/\Atxn-[a-zA-Z0-9]{12}\z/i, trade.slug)
-    refute_equal first.slug, trade.slug
-  end
-
-  test "does not retry an unrelated uniqueness failure" do
-    trade = build_trade
-    trade.define_singleton_method(:save) do
-      raise ActiveRecord::RecordNotUnique, "UNIQUE constraint failed: another_table.key"
-    end
-
-    assert_raises(ActiveRecord::RecordNotUnique) { trade.save_with_slug_retry }
-  end
-
   test "belongs to an owner and instrument with an optional institution" do
     trade = build_trade
 
