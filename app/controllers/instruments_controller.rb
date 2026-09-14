@@ -120,7 +120,7 @@ class InstrumentsController < ApplicationController
   end
 
   def set_instrument
-    @instrument = Instrument.find(params.expect(:id))
+    @instrument = Instrument.friendly.find(params.expect(:id))
   end
 
   def instrument_params

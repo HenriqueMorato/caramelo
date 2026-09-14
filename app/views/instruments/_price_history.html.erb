@@ -1,6 +1,10 @@
 <%# locals: (price_history_presenter:) %>
 
-<% if price_history_presenter.available? %>
+<% if money_values_hidden? %>
+  <div class="mt-5 flex min-h-72 flex-1 items-center justify-center rounded-xl border border-dashed border-coffee/15 px-6 text-center text-sm text-muted" role="status">
+    <%= t("privacy.Price history hidden") %>
+  </div>
+<% elsif price_history_presenter.available? %>
   <div class="mt-4 min-h-72 flex-1" data-controller="instrument-price-chart" data-action="appearance:change@window->instrument-price-chart#refreshTheme" data-instrument-price-chart-data-value="<%= json_escape(price_history_presenter.chart_data.to_json) %>">
     <canvas data-instrument-price-chart-target="canvas" role="img" aria-label="<%= t("instruments.show.Price history description", instrument: price_history_presenter.currency) %>"></canvas>
   </div>

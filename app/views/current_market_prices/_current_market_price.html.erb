@@ -1,7 +1,7 @@
 <%# locals: (market_price:, refreshing:, broadcast: false, compact: false) %>
 
 <% current_market_price = market_price.current_market_price %>
-<% if market_price.refreshable? && !broadcast %>
+<% if market_price.refreshable? && !broadcast && !money_values_hidden? %>
   <%= turbo_stream_from MarketPrice::Broadcaster::STREAM_NAME, market_price.instrument %>
 <% end %>
 

@@ -6,13 +6,13 @@
   <dl class="mt-7 divide-y divide-coffee/10">
     <div class="flex items-center justify-between gap-4 py-4 first:pt-0">
       <dt class="text-sm text-muted"><%= t("dashboard.index.Invested") %></dt>
-      <dd class="font-mono text-sm font-semibold tabular-nums"><%= dashboard.performance.net_cash_flow&.format || t("Not available") %></dd>
+      <dd class="font-mono text-sm font-semibold tabular-nums"><%= display_money(dashboard.performance.net_cash_flow) %></dd>
     </div>
     <% unrealized_return = dashboard.unrealized_return %>
     <div class="flex items-center justify-between gap-4 py-4">
       <dt class="text-sm text-muted"><%= t("dashboard.index.Unrealized return") %></dt>
       <dd class="font-mono text-sm font-semibold tabular-nums <%= dashboard.unrealized_return_color_class %>">
-        <%= dashboard.unrealized_return_label || t("Not available") %>
+        <%= display_money(dashboard.unrealized_return_label) %>
       </dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-4">

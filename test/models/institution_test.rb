@@ -29,12 +29,19 @@ class InstitutionTest < ActiveSupport::TestCase
 
   test "enforces case-insensitive uniqueness in the database" do
     now = Time.current
-    attributes = { user_id: users(:owner).id, name: "Case Broker", active: true, created_at: now, updated_at: now }
+    attributes = {
+      user_id: users(:owner).id,
+      name: "Case Broker",
+      slug: "case-broker-test",
+      active: true,
+      created_at: now,
+      updated_at: now
+    }
 
     Institution.insert_all!([ attributes ])
 
     assert_raises ActiveRecord::RecordNotUnique do
-      Institution.insert_all!([ attributes.merge(name: "case broker") ])
+      Institution.insert_all!([ attributes.merge(name: "case broker", slug: "case-broker-duplicate") ])
     end
   end
 
@@ -42,6 +49,22 @@ class InstitutionTest < ActiveSupport::TestCase
     institution = Institution.new(user: users(:one), name: "XP Investimentos")
 
     assert_predicate institution, :valid?
+  end
+
+  test "generates a readable collision-safe slug" do
+    first = Institution.create!(user: users(:owner), name: "Friendly Bank")
+    second = Institution.create!(user: users(:one), name: "Friendly Bank")
+
+    assert_equal "friendly-bank", first.slug
+    assert_equal "friendly-bank-#{users(:one).id}", second.slug
+  end
+
+  test "keeps its slug when its name changes" do
+    institution = institutions(:owner_xp)
+
+    assert_no_changes -> { institution.reload.slug } do
+      institution.update!(name: "XP")
+    end
   end
 
   test "filters active institutions alphabetically" do

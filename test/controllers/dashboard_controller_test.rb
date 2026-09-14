@@ -122,5 +122,12 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "Dashboard trade"
     assert_select "a[href=?]", positions_path
     assert_select "a[href=?]", performance_path, text: "View performance"
+
+    patch money_visibility_url, params: { hidden: "true" }
+    get root_url
+
+    assert_includes response.body, ApplicationHelper::MONEY_MASK
+    refute_includes response.body, "R$24,00"
+    refute_includes response.body, "+R$24,00"
   end
 end

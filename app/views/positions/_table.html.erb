@@ -44,8 +44,8 @@
             <% else %>
               <td class="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-semibold tabular-nums text-coffee"><%= format_quantity presenter.position.quantity %></td>
               <td class="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-semibold tabular-nums text-coffee"><%= format_currency_amount presenter.position.average_unit_cost, presenter.instrument.currency %></td>
-              <td class="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-semibold tabular-nums text-coffee"><%= presenter.position.cost_basis.format %></td>
-              <td class="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-semibold tabular-nums text-coffee"><%= presenter.valuation.available? ? presenter.valuation.market_value.format : t("Value unavailable") %></td>
+              <td class="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-semibold tabular-nums text-coffee"><%= display_money(presenter.position.cost_basis) %></td>
+              <td class="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-semibold tabular-nums text-coffee"><%= presenter.valuation.available? ? display_money(presenter.valuation.market_value) : t("Value unavailable") %></td>
               <td class="px-5 py-4 text-right sm:px-6"><%= render "current_market_prices/current_market_price", market_price: presenter.market_price, refreshing: false %></td>
             <% end %>
           </tr>

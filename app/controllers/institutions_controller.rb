@@ -50,7 +50,7 @@ class InstitutionsController < ApplicationController
   end
 
   def set_institution
-    @institution = owner.institutions.find(params.expect(:id))
+    @institution = owner.institutions.friendly.find(params.expect(:id))
   end
 
   def institution_params

@@ -1,0 +1,25 @@
+<%# locals: (mobile: false) %>
+
+<%# i18n-tasks-use t("privacy.Hide values") %>
+<%# i18n-tasks-use t("privacy.Show values") %>
+
+<% hidden = money_values_hidden? %>
+<% label = t(hidden ? "privacy.Show values" : "privacy.Hide values") %>
+<%= button_to money_visibility_path, method: :patch, params: { hidden: (!hidden).to_s },
+  class: class_names("group flex items-center justify-center rounded-lg text-muted transition-colors hover:bg-caramel/10 hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", mobile ? "size-11" : "size-8"),
+  form_class: "shrink-0",
+  form: { data: { action: "turbo:submit-end->money-visibility#changed" } },
+  title: label,
+  aria: { label:, pressed: hidden } do %>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="size-5" aria-hidden="true">
+    <% if hidden %>
+      <path d="M3 3l18 18"></path>
+      <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7"></path>
+      <path d="M9.9 4.3A10.5 10.5 0 0 1 12 4c5 0 8.7 4.2 9.7 6.6a3.5 3.5 0 0 1 0 2.8 12 12 0 0 1-2 3.1"></path>
+      <path d="M6.6 6.6A12.6 12.6 0 0 0 2.3 10.6a3.5 3.5 0 0 0 0 2.8C3.3 15.8 7 20 12 20a10 10 0 0 0 4.1-.9"></path>
+    <% else %>
+      <path d="M2.3 10.6C3.3 8.2 7 4 12 4s8.7 4.2 9.7 6.6a3.5 3.5 0 0 1 0 2.8C20.7 15.8 17 20 12 20s-8.7-4.2-9.7-6.6a3.5 3.5 0 0 1 0-2.8Z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    <% end %>
+  </svg>
+<% end %>

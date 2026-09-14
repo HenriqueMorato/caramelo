@@ -19,6 +19,7 @@ class InstitutionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", @institution.name
+    assert_equal "/institutions/xp-investimentos", institution_path(@institution)
   end
 
   test "shows the new institution form" do

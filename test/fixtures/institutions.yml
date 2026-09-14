@@ -1,17 +1,20 @@
 owner_xp:
   user: owner
   name: XP Investimentos
+  slug: xp-investimentos
   notes: Primary brokerage account.
   active: true
 
 owner_inactive:
   user: owner
   name: Banco do Brasil
+  slug: banco-do-brasil
   notes:
   active: false
 
 other_owner:
   user: one
   name: Nu Invest
+  slug: nu-invest
   notes:
   active: true

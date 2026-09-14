@@ -19,6 +19,13 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", /R\$2,00/
     assert_select "body", /20\.00%/
     assert_select "body", /R\$10,00/
+
+    patch money_visibility_url, params: { hidden: "true" }
+    get performance_url(period: "week")
+
+    assert_includes response.body, ApplicationHelper::MONEY_MASK
+    refute_includes response.body, "R$22,00"
+    refute_includes response.body, "R$2,00"
   end
 
   test "shows an explicit unavailable state when historical data is missing" do

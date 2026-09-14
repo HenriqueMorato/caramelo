@@ -1,6 +1,38 @@
 require "test_helper"
 
 class TradeTest < ActiveSupport::TestCase
+  test "generates an opaque stable URL reference" do
+    trade = Trade.create!(valid_attributes)
+
+    assert_match(/\Atxn-[a-zA-Z0-9]{12}\z/i, trade.slug)
+    assert_no_changes -> { trade.reload.slug } do
+      trade.update!(notes: "Updated without changing its URL")
+    end
+  end
+
+  test "retries a generated reference collision once" do
+    Trade.create!(valid_attributes.merge(slug: "txn-collision123"))
+    trade = Trade.new(valid_attributes.merge(notes: "Another transaction"))
+    trade.define_singleton_method(:slug_candidates) do
+      [ "txn-collision123", "txn-freshcode456" ]
+    end
+
+    trade.save!
+
+    assert_equal "txn-freshcode456", trade.slug
+  end
+
+  test "falls back to a UUID when the retry also collides" do
+    with_stubbed_method(SecureRandom, :base58, ->(*) { "Collision123" }) do
+      first = Trade.create!(valid_attributes)
+      second = Trade.create!(valid_attributes.merge(notes: "Another transaction"))
+
+      assert_equal "txn-collision123", first.slug
+      assert_match(/\Atxn-collision123-[0-9a-f-]{36}\z/, second.slug)
+      refute_equal first.slug, second.slug
+    end
+  end
+
   test "belongs to an owner and instrument with an optional institution" do
     trade = build_trade
 
@@ -259,6 +291,7 @@ class TradeTest < ActiveSupport::TestCase
       unit_price: BigDecimal("10"),
       fees_cents: 0,
       currency: "BRL",
+      slug: "txn-invalid-trade",
       created_at: Time.current,
       updated_at: Time.current
     }

@@ -1,11 +1,13 @@
 petr4_bvmf:
   ticker: PETR4
+  slug: petr4
   exchange: BVMF
   name: Petrobras PN
   currency: BRL
 
 voo_arcx:
   ticker: VOO
+  slug: voo
   exchange: ARCX
   name: Vanguard S&P 500 ETF
   currency: USD

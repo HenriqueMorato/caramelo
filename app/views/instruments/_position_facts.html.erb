@@ -23,7 +23,7 @@
           <span class="ui-badge ui-badge-stale px-1.5 py-0.5 text-[0.6rem] normal-case tracking-normal"><%= t("Stale") %></span>
         <% end %>
       </dt>
-      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= market_value&.format || t("Value unavailable") %></dd>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= display_money(market_value, fallback: t("Value unavailable")) %></dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-3">
       <dt class="text-sm text-muted"><%= t("Average cost") %></dt>
@@ -39,13 +39,13 @@
     </div>
     <div class="flex items-center justify-between gap-4 py-3">
       <dt class="text-sm text-muted"><%= t("Cost basis") %></dt>
-      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= cost_basis&.format || t("Not available") %></dd>
+      <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= display_money(cost_basis) %></dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-3">
       <dt class="text-sm text-muted"><%= t("Unrealized return") %></dt>
       <dd class="flex items-center gap-1 font-mono text-sm font-semibold tabular-nums <%= presenter.unrealized_gain_color_class %>">
         <span aria-hidden="true"><%= presenter.unrealized_gain_arrow %></span>
-        <span><%= presenter.unrealized_gain_label || t("Not available") %></span>
+        <span><%= display_money(presenter.unrealized_gain_label) %></span>
       </dd>
     </div>
     <div class="flex items-center justify-between gap-4 py-3">
@@ -55,7 +55,7 @@
     <% if presenter.realized_gain? %>
       <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
         <dt class="text-sm text-muted"><%= t("Realized gains") %></dt>
-        <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= presenter.realized_gain_label %></dd>
+        <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= display_money(presenter.realized_gain_label) %></dd>
       </div>
     <% end %>
 </dl>

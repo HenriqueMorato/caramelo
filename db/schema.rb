@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_12_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_14_000200) do
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -56,8 +56,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_12_170000) do
     t.datetime "created_at", null: false
     t.string "name", null: false, collation: "NOCASE"
     t.text "notes"
+    t.string "slug", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["slug"], name: "index_institutions_on_slug", unique: true
     t.index ["user_id", "name"], name: "index_institutions_on_user_id_and_name", unique: true
   end
 
@@ -110,10 +112,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_12_170000) do
     t.string "currency", default: "BRL", null: false
     t.string "exchange", default: "BVMF", null: false, collation: "NOCASE"
     t.string "name", null: false
+    t.string "slug", null: false
     t.string "ticker", null: false, collation: "NOCASE"
     t.datetime "updated_at", null: false
     t.index ["asset_type"], name: "index_instruments_on_asset_type"
     t.index ["exchange", "ticker"], name: "index_instruments_on_exchange_and_ticker", unique: true
+    t.index ["slug"], name: "index_instruments_on_slug", unique: true
     t.check_constraint "asset_type IN ('stock', 'etf', 'fund', 'bond', 'crypto', 'other')", name: "instruments_asset_type_check"
   end
 
@@ -236,12 +240,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_12_170000) do
     t.string "settlement_currency", limit: 3
     t.decimal "settlement_exchange_rate", precision: 28, scale: 12
     t.string "side", null: false
+    t.string "slug", null: false
     t.date "traded_on", null: false
     t.decimal "unit_price", precision: 28, scale: 8, null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["institution_id"], name: "index_trades_on_institution_id"
     t.index ["instrument_id"], name: "index_trades_on_instrument_id"
+    t.index ["slug"], name: "index_trades_on_slug", unique: true
     t.index ["user_id", "instrument_id", "traded_on"], name: "index_trades_on_user_id_and_instrument_id_and_traded_on"
     t.index ["user_id", "traded_on"], name: "index_trades_on_user_id_and_traded_on"
     t.check_constraint "(settlement_currency IS NULL) = (settlement_exchange_rate IS NULL)", name: "trades_settlement_conversion_complete"

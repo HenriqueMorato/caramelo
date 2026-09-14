@@ -5,6 +5,10 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     @trade = trades(:owner_voo_buy)
   end
 
+  test "uses the opaque trade reference in edit URLs" do
+    assert_equal "/trades/txn-owner-voo-buy/edit", edit_trade_path(@trade)
+  end
+
   test "lists only the configured owner's trades" do
     get transactions_url
 

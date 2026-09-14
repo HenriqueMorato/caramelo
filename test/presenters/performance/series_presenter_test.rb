@@ -46,6 +46,28 @@ class Performance::SeriesPresenterTest < ActiveSupport::TestCase
     assert_equal "These are the last calculated values. No update is currently running.", copy.explanation
   end
 
+  test "omits every monetary chart value while retaining returns" do
+    observation = Performance::Series::Observation.new(
+      date: Date.current, market_value_amount: 100, market_value: Money.from_amount(100, "USD"),
+      invested_amount: 90, invested_value: Money.from_amount(90, "USD"), gain_loss_amount: 10,
+      gain_loss: Money.from_amount(10, "USD"), return_ratio: BigDecimal("0.2"),
+      gain_on_cost_ratio: BigDecimal("0.1"), status: :available
+    )
+    presenter = Performance::SeriesPresenter.new(
+      series_with(Date.current, Date.current).with(observations: [ observation ])
+    )
+
+    data = presenter.chart_data(benchmarks: [], currency: "USD", include_money_values: false)
+    instrument_data = presenter.instrument_chart_data(currency: "USD", include_money_values: false)
+
+    %i[values invested_values formatted_values formatted_invested_values].each do |key|
+      assert_equal [ nil ], data.fetch(key)
+      assert_equal [ nil ], instrument_data.fetch(key)
+    end
+    assert_equal [ BigDecimal("0.2") ], data[:performance_ratios]
+    assert_equal [ BigDecimal("0.1") ], instrument_data[:gain_on_cost_performance_ratios]
+  end
+
   test "includes and labels both instrument return methodologies" do
     observation = Performance::Series::Observation.new(
       date: Date.current, market_value_amount: 100, market_value: Money.from_amount(100, "USD"),
