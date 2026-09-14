@@ -67,7 +67,7 @@ module RefreshStatus
 
     def self.active
       scopes.filter_map do |scope|
-        next if instrument_scope?(scope)
+        next if hidden_activity_scope?(scope)
 
         state = read(scope)
         state if state&.active? && state.updated_at && state.updated_at > ACTIVE_TIMEOUT.ago
@@ -124,10 +124,10 @@ module RefreshStatus
     end
 
     # Per-instrument leases support refresh bookkeeping but should not keep the global toast open.
-    def self.instrument_scope?(scope)
-      scope.match?(/\Acurrent_market_price:\d+\z/)
+    def self.hidden_activity_scope?(scope)
+      scope.match?(/\Acurrent_market_price:\d+\z/) || scope.start_with?("market_data_recovery:")
     end
 
-    private_class_method :register, :serialize_time, :parse_time, :key, :states_with_finish_time, :instrument_scope?
+    private_class_method :register, :serialize_time, :parse_time, :key, :states_with_finish_time, :hidden_activity_scope?
   end
 end

@@ -17,12 +17,13 @@ module MarketData
 
       def entry_for(benchmark)
         importer = MarketBenchmark::Importer.default
-        required_dates = importer.expected_dates_for(benchmark:, from: first_date, to: historical_end_date)
+        end_date = importer.available_through_for(benchmark:, on: today) || historical_end_date
+        required_dates = importer.expected_dates_for(benchmark:, from: first_date(end_date), to: end_date)
         observations = if required_dates.empty?
           []
         else
           benchmark.observations.where(
-            observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..historical_end_date)
+            observed_on: (HistoricalObservationWindow.for(required_dates.min).begin..end_date)
           ).to_a
         end
         coverage = CoverageCalculator.for(required_dates:, observations:, carry_forward: benchmark.price?)
@@ -30,7 +31,9 @@ module MarketData
         supported = importer.supports?(benchmark:)
         HealthReport::Entry.new(
           code: present ? :benchmark_data : :missing_benchmark_data,
-          target: Target.new(kind: :benchmark_observations, record_id: benchmark.id), subject: benchmark,
+          target: Target.new(
+            kind: :benchmark_observations, record_id: benchmark.id, provider: benchmark.provider
+          ), subject: benchmark,
           status: present ? :healthy : supported ? coverage.partial? ? :partial : :missing : :unsupported,
           severity: present ? nil : :warning, label: subject_label(benchmark),
           description: description(benchmark, coverage, supported:), observed_on: nil, fetched_at: nil,
@@ -39,8 +42,8 @@ module MarketData
         )
       end
 
-      def first_date
-        @first_date ||= context&.first_trade_date || owner.trades.minimum(:traded_on) || historical_end_date
+      def first_date(end_date)
+        context&.first_trade_date || owner.trades.minimum(:traded_on) || end_date
       end
 
       def historical_end_date

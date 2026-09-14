@@ -38,6 +38,11 @@ docker compose -f .devcontainer/compose.yaml exec rails-app bin/rails db:seed
 docker compose -f .devcontainer/compose.yaml exec rails-app bin/dev
 ```
 
+The development Compose project is named `caramelo-dev`, so its containers and
+locally built images use the `caramelo-dev-` prefix. Its existing
+`caramelo_dev_bundle` and `caramelo_dev_runtime_storage` volumes are separate
+from the production `caramelo_storage` and `caramelo_backups` volumes.
+
 The devcontainer keeps its Linux-native gems in a Docker volume, separate from
 the host checkout's `vendor/bundle`. If native-extension warnings remain after
 changing dependencies, recreate that volume so Bundler installs a clean bundle:

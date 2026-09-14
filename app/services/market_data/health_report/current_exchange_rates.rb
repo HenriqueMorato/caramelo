@@ -25,7 +25,8 @@ module MarketData
           status:, severity: present ? nil : :warning, subject: currency,
           description: current_description(currency:, status:),
           target: Target.new(kind: :current_exchange_rate,
-            base_currency: currency, quote_currency: owner.reporting_currency),
+            base_currency: currency, quote_currency: owner.reporting_currency,
+            provider: MarketData::YahooFinance::FX_CONFIGURATION.identifier),
           actions: present ? [] : [ :retry ]
         )
       end

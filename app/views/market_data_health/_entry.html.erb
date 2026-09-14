@@ -20,17 +20,19 @@
           }, **range_params }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
           form: { data: { turbo_stream: true } } %>
       <% end %>
-      <% if entry.quote_reset_needed? && (preview = health.reset_preview_for(entry)) %>
-        <details class="relative" data-controller="details">
-          <summary class="ui-button ui-button-secondary cursor-pointer list-none"><%= t("market_data_health.show.Reset quote") %></summary>
+      <% if entry.resettable? && (preview = health.reset_preview_for(entry)) %>
+        <details class="relative" data-controller="details" data-action="keydown.esc@window->details#close">
+          <summary class="ui-button ui-button-secondary cursor-pointer list-none"><%= t("market_data_health.show.Replace data") %></summary>
           <div class="absolute right-0 z-10 mt-2 max-h-[80vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-coffee/10 bg-oat p-3 text-left shadow-lg">
-            <p class="min-w-0 whitespace-normal break-words text-sm font-semibold text-coffee [overflow-wrap:anywhere]"><%= t("market_data_health.show.Reset quote preview heading") %></p>
-            <p class="mt-1 min-w-0 whitespace-normal break-words text-xs leading-5 text-muted [overflow-wrap:anywhere]"><%= t("market_data_health.show.Reset quote preview copy", from: l(preview.range.begin, format: :short), to: l(preview.range.end, format: :short)) %></p>
-            <p class="mt-2 min-w-0 whitespace-normal break-words text-xs text-muted [overflow-wrap:anywhere]"><%= t("market_data_health.show.Reset quote preview expires", time: l(preview.expires_at, format: :short)) %></p>
-            <%= button_to t("market_data_health.show.Confirm reset quote"), market_data_recovery_path(entry.target.record_id), method: :delete,
+            <p class="min-w-0 whitespace-normal break-words text-sm font-semibold text-coffee [overflow-wrap:anywhere]"><%= t("market_data_health.show.Replace data preview heading") %></p>
+            <p class="mt-1 min-w-0 whitespace-normal break-words text-xs leading-5 text-muted [overflow-wrap:anywhere]"><%= t("market_data_health.show.Replace data preview copy", from: l(preview.range.begin, format: :short), to: l(preview.range.end, format: :short)) %></p>
+            <p class="mt-2 min-w-0 whitespace-normal break-words text-xs text-muted [overflow-wrap:anywhere]"><%= t("market_data_health.show.Replace data preview expires", time: l(preview.expires_at, format: :short)) %></p>
+            <%= button_to t("market_data_health.show.Confirm replace data"), market_data_recovery_path(entry.target.record_id || "portfolio"), method: :delete,
               params: { target: {
                 kind: entry.target.kind,
                 record_id: entry.target.record_id,
+                base_currency: entry.target.base_currency,
+                quote_currency: entry.target.quote_currency,
                 provider: entry.target.provider
               }, preview_token: preview.token }, class: "ui-button ui-button-primary mt-3 w-full", form_class: "w-full",
               form: { data: { turbo_stream: true } } %>

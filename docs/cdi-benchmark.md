@@ -18,7 +18,9 @@ failures.
 CDI coverage follows the Brazilian banking calendar rather than treating every
 weekday as an accrual date. It excludes the fixed national banking holidays and
 the movable Carnival Monday and Tuesday, Good Friday, and Corpus Christi dates.
-An ordinary business date remains required while its value is unpublished.
+Data health allows one Brazilian banking day for publication: on a weekend the
+latest required observation is Thursday, and on Monday the preceding Friday
+becomes required.
 
 Daily factors compound in decimal arithmetic. Each intermediate factor is
 truncated to 16 decimal places and the final factor is rounded to 8 places,

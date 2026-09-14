@@ -32,7 +32,8 @@ module MarketData
           severity: present ? nil : :warning, subject: currency, label: currency,
           description: description(currency:, coverage:),
           target: Target.new(kind: :historical_exchange_rates,
-            base_currency: currency, quote_currency: owner.reporting_currency),
+            base_currency: currency, quote_currency: owner.reporting_currency,
+            provider: MarketData::YahooFinance::FX_CONFIGURATION.identifier),
           actions: present ? [] : [ :retry ], observed_on: nil, fetched_at: nil,
           covered_range: coverage.covered_range, missing_range: coverage.missing_range
         )

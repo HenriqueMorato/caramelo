@@ -88,7 +88,7 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     job.define_singleton_method(:importer) { importer }
     job.define_singleton_method(:request_throttle) { throttle }
 
-    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, -> { }) do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       job.perform(trading_date: Date.new(2026, 8, 28))
     end
 

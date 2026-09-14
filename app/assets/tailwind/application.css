@@ -167,6 +167,10 @@ html[data-theme="dark"] {
 }
 
 @layer components {
+  body:has(#health-refresh-activity) #notification-stack #refresh-status {
+    display: none;
+  }
+
   .notification-stack {
     overscroll-behavior: contain;
   }

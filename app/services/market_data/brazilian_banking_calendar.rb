@@ -7,7 +7,17 @@ module MarketData
     module_function
 
     def business_days_between(from, to)
-      (from..to).reject { |date| TradingCalendar.weekend?(date) || holiday?(date) }
+      (from..to).select { |date| business_day?(date) }
+    end
+
+    def business_day?(date)
+      !TradingCalendar.weekend?(date) && !holiday?(date)
+    end
+
+    def previous_business_day(date)
+      candidate = date - 1.day
+      candidate -= 1.day until business_day?(candidate)
+      candidate
     end
 
     def holiday?(date)

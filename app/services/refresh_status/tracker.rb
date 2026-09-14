@@ -21,26 +21,26 @@ module RefreshStatus
       yield refresh
       complete(refresh)
     rescue StandardError => error
-      refresh ? fail_refresh(refresh, error) : Broadcaster.refresh
+      refresh ? fail_refresh(refresh, error) : Broadcaster.refresh(health: false)
       raise
     end
 
     def self.advance(refresh)
       latest = State.read(refresh.scope) || refresh
       processed_count = latest.processed_count + 1
-      if latest.total_count && processed_count >= latest.total_count && !latest.failed?
+      latest = if latest.total_count && processed_count >= latest.total_count && !latest.failed?
         write(latest, status: "succeeded", finished_at: Time.current, processed_count:)
       else
         write(latest, processed_count:)
       end
-      broadcast
+      broadcast(latest, health: latest.finished_at.present?, progress_only: latest.finished_at.nil?)
     end
 
     def self.record_failure(refresh, error)
       latest = State.read(refresh.scope) || refresh
       write(latest, status: "failed", finished_at: Time.current, error_class: error.class.name,
         error_message: error.message.truncate(500))
-      broadcast
+      broadcast(latest)
     end
 
     def self.fail(scope:, error:)
@@ -66,22 +66,21 @@ module RefreshStatus
 
     private_class_method :new
 
-    def self.broadcast(state = nil)
-      Broadcaster.refresh
+    def self.broadcast(state = nil, health: true, progress_only: false)
+      Broadcaster.refresh(state:, health:, progress_only:)
       state
     end
 
     def self.start(scope:, total_count:, run_id:)
       State.write(
         scope:, run_id: run_id || SecureRandom.uuid, status: "running", started_at: Time.current, total_count:
-      ).tap { Broadcaster.refresh }
+      )
     end
 
     def self.preserve(existing, run_id:)
       return existing unless existing.active? && (run_id.nil? || existing.run_id == run_id)
 
       refresh = write(existing, status: "running", started_at: existing.started_at || Time.current)
-      broadcast
       yield refresh
       State.read(refresh.scope) || refresh
     end
@@ -90,13 +89,13 @@ module RefreshStatus
       refresh = State.read(refresh.scope)
       completed = refresh.total_count.nil? || refresh.processed_count >= refresh.total_count
       refresh = write(refresh, status: "succeeded", finished_at: Time.current) if completed && !refresh.failed?
-      broadcast(refresh)
+      broadcast(refresh, health: refresh.finished_at.present?)
     end
 
     def self.fail_refresh(refresh, error)
       write(refresh, status: "failed", finished_at: Time.current, error_class: error.class.name,
         error_message: error.message.truncate(500))
-      broadcast
+      broadcast(refresh)
     end
 
     private_class_method :broadcast, :start, :preserve, :complete, :fail_refresh

@@ -54,6 +54,17 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
     assert_no_enqueued_jobs only: BuildPortfolioPerformanceObservationsJob
   end
 
+  test "marks an obsolete queued refresh successful" do
+    @lease_token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.queued(
+      user: @user, from: @from, to: @to, token: @lease_token
+    )
+    @materialization.complete!(source_generation: 0, from: @from, to: @to)
+
+    assert_nil perform_job
+    assert_equal "succeeded", refresh_state.status
+  end
+
   test "reraises a missing user without writing refresh state" do
     assert_raises(ActiveRecord::RecordNotFound) do
       BuildPortfolioPerformanceObservationsJob.perform_now(

@@ -1,0 +1,33 @@
+<%# locals: (report:, health:, entries:) %>
+
+<div id="<%= MarketData::HealthReportBroadcaster::TARGET %>" class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm" role="status">
+  <div class="flex flex-wrap items-baseline justify-between gap-2">
+    <p class="font-semibold <%= report.healthy? ? "text-leaf" : "text-coffee" %>">
+      <%= health.healthy? ? t("market_data_health.show.Healthy") : t("market_data_health.show.Issues found", count: health.issue_count) %>
+    </p>
+    <p class="text-sm text-muted"><%= t("market_data_health.show.Entry count", count: entries.size) %></p>
+  </div>
+  <p class="mt-2 text-sm text-muted"><%= report.healthy? ? t("market_data_health.show.Healthy explanation") : t("market_data_health.show.Recovery explanation") %></p>
+
+  <div class="mt-5 overflow-x-auto">
+    <table class="w-full text-left" aria-label="<%= t("market_data_health.show.Issue list") %>">
+      <thead class="border-b border-coffee/10 text-xs font-semibold uppercase tracking-wide text-muted">
+        <tr>
+          <th scope="col" class="pb-3 pr-4"><%= t("market_data_health.show.Source") %></th>
+          <th scope="col" class="pb-3 pr-4"><%= t("market_data_health.show.Status") %></th>
+          <th scope="col" class="pb-3 pr-4"><%= t("market_data_health.show.Details") %></th>
+          <th scope="col" class="pb-3 text-right" aria-label="<%= t("market_data_health.show.Actions") %>"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-coffee/10">
+        <% if entries.any? %>
+          <%= render partial: "market_data_health/entry", collection: entries, as: :entry, locals: { health: } %>
+        <% else %>
+          <tr>
+            <td colspan="4" class="py-8 text-center text-sm text-muted"><%= t("market_data_health.show.No matching sources") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

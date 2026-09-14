@@ -19,7 +19,7 @@ module MarketData
     end
 
     def reset_preview_for(entry)
-      @reset_previews[entry.target.record_id]
+      @reset_previews[entry.target.scope]
     end
 
     def healthy? = report.healthy?
@@ -40,9 +40,10 @@ module MarketData
 
     def build_reset_previews(preview_factory)
       report.entries.filter_map do |entry|
-        next unless entry.quote_reset_needed? && entry.target.provider
+        next unless entry.resettable?
 
-        [ entry.target.record_id, preview_factory.create(target: entry.target) ]
+        range = entry.covered_range || entry.missing_range
+        [ entry.target.scope, preview_factory.create(target: entry.target, range:) ]
       end.to_h
     end
   end

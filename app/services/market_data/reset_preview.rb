@@ -50,6 +50,10 @@ module MarketData
       rows = case target.kind
       when :current_price
         CurrentMarketPriceCache.new.read(instrument: Instrument.find(target.record_id), provider: target.provider).current_market_price
+      when :current_exchange_rate
+        ExchangeRateCache.new.read(
+          base_currency: target.base_currency, quote_currency: target.quote_currency, provider: target.provider
+        ).exchange_rate
       when :daily_closing_prices
         DailyClosingPrice.where(instrument_id: target.record_id, provider: target.provider,
           trading_date: from..to).order(:id).pluck(:id, :updated_at)
@@ -61,7 +65,9 @@ module MarketData
           market_benchmarks: { provider: target.provider }, observed_on: from..to
         ).order(:id).pluck(:id, :updated_at)
       when :portfolio_performance
-        PortfolioPerformanceObservation.where(user: owner, reporting_currency: owner.reporting_currency, observed_on: from..to).order(:id).pluck(:id, :updated_at)
+        PortfolioPerformanceObservation.where(
+          user: owner, reporting_currency: target.quote_currency || owner.reporting_currency, observed_on: from..to
+        ).order(:id).pluck(:id, :updated_at)
       when :instrument_performance
         InstrumentPerformanceObservation.where(
           user: owner, instrument_id: target.record_id,

@@ -9,7 +9,7 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
     @lease_token = lease_token
     @materialization = PortfolioPerformanceMaterialization.for(user:, reporting_currency:)
     requested_range = materialization.requested_range
-    return release_lease unless requested_range
+    return finish_obsolete_refresh unless requested_range
 
     build(from: requested_range.begin, to: requested_range.end)
   end
@@ -36,6 +36,14 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
   def release_lease
     Performance::SeriesRefresh.release(user:, reporting_currency:, token: lease_token)
     nil
+  end
+
+  def finish_obsolete_refresh
+    state = Performance::SeriesRefresh.read(user:, reporting_currency:)
+    Performance::SeriesRefresh.succeeded(
+      user:, reporting_currency:, token: lease_token, from: state.from, to: state.to
+    ) if state&.active?
+    release_lease
   end
 
   def resume_pending_materialization

@@ -17,7 +17,14 @@ module MarketData
       def updating? = status == :updating
       def interrupted? = status == :interrupted
       def actionable? = actions.any?
-      def quote_reset_needed? = target.kind == :current_price && target.record_id && !healthy? && !updating?
+      def resettable?
+        return false if healthy? || updating? || status == :unsupported
+        return target.provider.present? if %i[
+          current_price current_exchange_rate daily_closing_prices historical_exchange_rates benchmark_observations
+        ].include?(target.kind)
+
+        %i[portfolio_performance instrument_performance].include?(target.kind)
+      end
 
       def dom_id
         "health-entry-#{target.scope.gsub(/[^a-zA-Z0-9_-]/, "-")}"
@@ -106,6 +113,7 @@ module MarketData
       historical_rates = HistoricalExchangeRates.new(owner:, context:).entries
       benchmarks = BenchmarkObservations.new(owner:, today:, context:).entries
       entries = (instrument_entries + exchange_rates + historical_rates + benchmarks + performance_entries)
+        .map { |entry| apply_refresh_state(entry) }
         .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
@@ -129,6 +137,31 @@ module MarketData
     def performance_entries
       PortfolioPerformance.new(owner:, today:, context:).entries +
         InstrumentPerformance.new(owner:, today:, context:).entries
+    end
+
+    def apply_refresh_state(entry)
+      state = RefreshStatus::State.read(entry.target.scope)
+      return entry unless state
+      if state.interrupted?
+        return entry.with(
+          status: :interrupted, severity: :error,
+          description: "#{entry.label} refresh stopped before completing.", actions: [ :retry ]
+        )
+      end
+      if state.failed? && !entry.healthy?
+        return entry.with(
+          status: :failed, severity: :error,
+          description: state.error_message.presence || "#{entry.label} refresh failed.", actions: [ :retry ]
+        )
+      end
+      if state.active?
+        return entry.with(
+          status: :updating, severity: nil,
+          description: "#{entry.label} is being refreshed.", actions: []
+        )
+      end
+
+      entry
     end
 
     def subject_label(subject)

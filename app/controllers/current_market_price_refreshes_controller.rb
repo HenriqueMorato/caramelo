@@ -17,7 +17,10 @@ class CurrentMarketPriceRefreshesController < ApplicationController
         status = RefreshStatus::Presenter.for
         render turbo_stream: [
           turbo_stream.replace("flash-messages", partial: "layouts/flash_messages"),
-          turbo_stream.replace("refresh-status", partial: "refresh_status/status", locals: { status:, broadcast: true })
+          turbo_stream.update(
+            "refresh-status", partial: "refresh_status/status_content",
+            locals: { status:, broadcast: true }, method: :morph
+          )
         ], status: :accepted
       end
       format.html do

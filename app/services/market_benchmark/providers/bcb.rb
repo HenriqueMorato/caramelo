@@ -17,6 +17,12 @@ class MarketBenchmark
         MarketData::BrazilianBankingCalendar.business_days_between(from, to)
       end
 
+      def available_through(on:)
+        calendar = MarketData::BrazilianBankingCalendar
+        publication_day = calendar.previous_business_day(on + 1.day)
+        calendar.previous_business_day(publication_day)
+      end
+
       def fetch(benchmark:, from:, to:)
         return [] unless supports?(benchmark:)
 

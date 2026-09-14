@@ -21,6 +21,11 @@ class MarketData::BrazilianBankingCalendarTest < ActiveSupport::TestCase
     refute described_class.holiday?(Date.new(2026, 9, 11))
   end
 
+  test "finds the previous Brazilian banking day" do
+    assert_equal Date.new(2026, 9, 11), described_class.previous_business_day(Date.new(2026, 9, 14))
+    assert_equal Date.new(2026, 9, 4), described_class.previous_business_day(Date.new(2026, 9, 8))
+  end
+
   private
 
   def described_class
