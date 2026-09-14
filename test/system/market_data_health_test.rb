@@ -5,6 +5,11 @@ class MarketDataHealthTest < ApplicationSystemTestCase
     Rails.cache.clear
   end
 
+  teardown do
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+    page.current_window.resize_to(1400, 1400)
+  end
+
   test "keeps health filters and live row updates available" do
     visit market_data_health_path
 
@@ -56,6 +61,8 @@ class MarketDataHealthTest < ApplicationSystemTestCase
   test "replacement preview is keyboard-dismissible and mobile-safe" do
     page.current_window.resize_to(390, 844)
     visit market_data_health_path
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
 
     first("summary", text: "Replace…").click
     assert_text "Review data replacement"
