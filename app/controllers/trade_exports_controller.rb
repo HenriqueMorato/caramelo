@@ -1,5 +1,6 @@
 class TradeExportsController < ApplicationController
   allow_unauthenticated_access
+  before_action :require_money_values_visible
 
   def show
     send_data TradeExport::Csv.call(user: User.owner),

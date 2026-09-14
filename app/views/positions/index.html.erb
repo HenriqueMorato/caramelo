@@ -23,7 +23,7 @@
   <dl class="ui-summary-grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr]" aria-label="<%= t("Portfolio holdings") %>">
     <div class="ui-summary-item ui-summary-item-primary">
       <dt><%= t(".Total value") %></dt>
-      <dd><%= @dashboard&.complete_market_value&.format || t("Not available") %></dd>
+      <dd><%= display_money(@dashboard&.complete_market_value) %></dd>
     </div>
     <div class="ui-summary-item">
       <dt><%= t("dashboard.index.Today") %></dt>

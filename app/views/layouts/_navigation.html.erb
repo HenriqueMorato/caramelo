@@ -7,7 +7,10 @@
   <% end %>
 
   <nav aria-label="<%= t("Primary navigation") %>" class="mt-8 flex-1 lg:mt-12">
-    <p class="px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
+    <div class="flex min-h-8 items-center justify-between pl-3 pr-1">
+      <p class="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
+      <%= render "layouts/money_visibility" %>
+    </div>
     <div class="mt-4 space-y-1">
       <% [[t("Dashboard"), root_path, "⌂"], [t("Positions"), positions_path, "◒"], [t("Transactions"), transactions_path, "↔"], [t("Performance"), performance_path, "↗"]].each do |label, path, icon| %>
         <% active = current_page?(path) %>
@@ -58,10 +61,20 @@
       <%= image_tag "caramelo-logo.svg", class: "size-8", alt: "", aria: { hidden: true } %>
       <span class="font-display text-2xl font-semibold text-coffee">caramelo</span>
     <% end %>
-    <details class="relative">
+    <div class="flex items-center gap-2">
+      <details class="relative">
       <summary class="ui-button ui-button-secondary min-h-11 cursor-pointer list-none px-3 [&::-webkit-details-marker]:hidden">Menu</summary>
-      <nav aria-label="<%= t("Primary navigation") %>" class="absolute right-0 top-full z-40 mt-2 w-56 rounded-2xl border border-coffee/10 bg-oat-2 p-2 shadow-lg">
-        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path], [t("Institutions"), institutions_path], [t("Instruments"), instruments_path], [t("Data health"), market_data_health_path], [t("Settings"), settings_path]].each do |label, path| %>
+      <nav aria-label="<%= t("Primary navigation") %>" class="absolute right-0 top-full z-[55] mt-2 w-56 rounded-2xl border border-coffee/10 bg-oat-2 p-2 shadow-lg">
+        <div class="mb-1 flex min-h-11 items-center justify-between pl-3">
+          <p class="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
+          <%= render "layouts/money_visibility", mobile: true %>
+        </div>
+        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path]].each do |label, path| %>
+          <% active = current_page?(path) %>
+          <%= link_to label, path, class: class_names("flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } %>
+        <% end %>
+        <p class="mb-1 mt-3 border-t border-coffee/10 px-3 pt-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Manage") %></p>
+        <% [[t("Institutions"), institutions_path], [t("Instruments"), instruments_path], [t("Data health"), market_data_health_path], [t("Settings"), settings_path]].each do |label, path| %>
           <% active = current_page?(path) %>
           <%= link_to label, path, class: class_names("flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } %>
         <% end %>
@@ -70,6 +83,7 @@
           <%= render "layouts/appearance_options", compact: true %>
         </div>
       </nav>
-    </details>
+      </details>
+    </div>
   </div>
 </header>

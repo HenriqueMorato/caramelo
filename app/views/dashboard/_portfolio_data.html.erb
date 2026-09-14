@@ -18,7 +18,7 @@
             <strong class="block truncate text-sm text-coffee" translate="no"><%= position.instrument.name %></strong>
             <span class="mt-1 block text-xs text-muted" translate="no"><%= position.instrument.ticker %> · <%= position.instrument.currency %></span>
           </span>
-          <span class="shrink-0 text-right font-mono text-sm font-semibold tabular-nums"><%= position.valuation.market_value&.format || t("Not available") %></span>
+          <span class="shrink-0 text-right font-mono text-sm font-semibold tabular-nums"><%= display_money(position.valuation.market_value) %></span>
         <% end %>
       <% end %>
     </div>
@@ -40,7 +40,7 @@
               <p class="truncate text-xs font-semibold text-coffee"><%= dashboard.trade_side_label(trade) %> · <span translate="no"><%= trade.instrument.ticker %></span></p>
               <p class="mt-1 text-[0.7rem] text-muted"><%= l trade.traded_on, format: :short %> · <%= format_quantity trade.quantity %> <%= t("units") %></p>
             </div>
-            <span class="shrink-0 font-mono text-xs font-semibold tabular-nums"><%= trade.total.format %></span>
+            <span class="shrink-0 font-mono text-xs font-semibold tabular-nums"><%= display_money(trade.total) %></span>
           </article>
         <% end %>
       </div>

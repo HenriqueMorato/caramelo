@@ -1,4 +1,8 @@
 class Trade < ApplicationRecord
+  extend FriendlyId
+
+  friendly_id :slug_candidates, use: :slugged
+
   PERFORMANCE_INPUTS = %w[
     user_id instrument_id side traded_on quantity unit_price fees_cents currency
     settlement_currency settlement_exchange_rate
@@ -60,7 +64,24 @@ class Trade < ApplicationRecord
     settlement_currency.present? && settlement_exchange_rate.present?
   end
 
+  def save_with_slug_retry
+    save
+  rescue ActiveRecord::RecordNotUnique => error
+    raise unless error.message.include?("trades.slug")
+
+    self.slug = nil
+    save
+  end
+
   private
+
+  def slug_candidates
+    [ generate_reference_code, generate_reference_code ]
+  end
+
+  def generate_reference_code
+    "txn-#{SecureRandom.base58(12).downcase}"
+  end
 
   def synchronize_settlement_currency
     if settlement_exchange_rate.present?

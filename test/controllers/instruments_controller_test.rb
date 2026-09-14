@@ -85,6 +85,14 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "details tbody tr", count: 2
     assert_includes response.body, "R$12,00"
     assert_includes response.body, "R$11,00"
+
+    patch money_visibility_url, params: { hidden: "true" }
+    get instrument_url(@instrument, history: "price")
+
+    assert_select "[data-controller='instrument-price-chart']", count: 0
+    assert_select "[role='status']", text: "Show monetary values to view price history."
+    refute_includes response.body, "R$12,00"
+    refute_includes response.body, "R$11,00"
   end
 
   test "price history does not prepare unused performance observations" do
@@ -123,6 +131,15 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "&quot;portfolio_return_label&quot;:&quot;Modified Dietz&quot;"
     assert_includes response.body, "&quot;gain_on_cost_return_label&quot;:&quot;Gain on cost&quot;"
     assert_not_includes response.body, "Realized gains"
+
+    patch money_visibility_url, params: { hidden: "true" }
+    get instrument_url(instrument, period: "week")
+
+    assert_includes response.body, ApplicationHelper::MONEY_MASK
+    refute_includes response.body, "$1,529.00"
+    refute_includes response.body, "$100.00"
+    refute_includes response.body, "R$100,00"
+    assert_includes response.body, "&quot;values&quot;:[null"
   end
 
   test "preserves history period and currency state in navigation links" do

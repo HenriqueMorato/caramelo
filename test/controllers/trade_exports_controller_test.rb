@@ -11,4 +11,14 @@ class TradeExportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "trade_id,traded_on,side"
     refute_includes response.body, "Other owner trade."
   end
+
+  test "does not send financial data while money values are hidden" do
+    patch money_visibility_url, params: { hidden: "true" }
+
+    get trade_export_url(format: :csv)
+
+    assert_redirected_to root_url
+    assert_equal "Show monetary values before editing transactions or exporting data.", flash[:alert]
+    refute_equal "text/csv", response.media_type
+  end
 end

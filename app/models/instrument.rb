@@ -1,4 +1,8 @@
 class Instrument < ApplicationRecord
+  extend FriendlyId
+
+  friendly_id :slug_candidates, use: :slugged
+
   has_many :instrument_performance_observations, dependent: :delete_all
   has_many :instrument_performance_materializations, dependent: :delete_all
   has_many :trades, dependent: :restrict_with_error
@@ -28,6 +32,10 @@ class Instrument < ApplicationRecord
   scope :alphabetical, -> { order(:ticker, :exchange) }
 
   private
+
+  def slug_candidates
+    [ :ticker, [ :ticker, :exchange ] ]
+  end
 
   def currency_unchanged_when_traded
     return unless persisted? && trades.exists?

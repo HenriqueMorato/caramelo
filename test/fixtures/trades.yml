@@ -1,4 +1,5 @@
 owner_voo_buy:
+  slug: txn-owner-voo-buy
   user: owner
   instrument: voo_arcx
   institution: owner_inactive
@@ -11,6 +12,7 @@ owner_voo_buy:
   notes: Long-term allocation.
 
 other_owner_voo_sell:
+  slug: txn-other-voo-sell
   user: one
   instrument: voo_arcx
   institution: other_owner

@@ -15,14 +15,14 @@
     </div>
 
     <div class="shrink-0 text-right">
-      <p class="font-mono text-base font-semibold text-coffee"><%= trade.total.format %></p>
+      <p class="font-mono text-base font-semibold text-coffee"><%= display_money(trade.total) %></p>
       <p class="text-xs text-muted"><%= format_quantity trade.quantity %> × <%= format_unit_price trade %></p>
     </div>
   </div>
 
   <div class="mt-2 flex flex-wrap items-center justify-between gap-1.5 border-t border-coffee/5 pt-2">
     <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
-      <span><%= t(".Fees value", fees: trade.fees.format) %></span>
+      <span><%= Trade.human_attribute_name(:fees) %>: <%= display_money(trade.fees) %></span>
       <span><%= t(".Currency value", currency: trade.currency) %></span>
       <span><%= t(".Institution value", institution: trade.institution&.name || t("None")) %></span>
     </div>

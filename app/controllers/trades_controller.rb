@@ -4,6 +4,7 @@ class TradesController < ApplicationController
   before_action :set_trade, only: %i[ edit update destroy ]
   before_action :set_context_instrument, only: %i[ new create ]
   before_action :set_form_options, only: %i[ new create edit update ]
+  before_action :require_money_values_visible, only: %i[ new create edit update ]
 
   def index
     @trades = owner.trades.includes(:instrument, :institution).strict_loading.reverse_chronological
@@ -26,7 +27,7 @@ class TradesController < ApplicationController
     @trade = owner.trades.new
     assign_trade_attributes
 
-    if @trade.save
+    if @trade.save_with_slug_retry
       enqueue_historical_data_backfill
       enqueue_current_market_price_refresh
       redirect_to transactions_path, notice: t("notices.Created", model: Trade.model_name.human)
@@ -63,11 +64,11 @@ class TradesController < ApplicationController
   end
 
   def set_trade
-    @trade = owner.trades.find(params.expect(:id))
+    @trade = owner.trades.friendly.find(params.expect(:id))
   end
 
   def set_context_instrument
-    @context_instrument = Instrument.find(params[:instrument_id]) if params[:instrument_id]
+    @context_instrument = Instrument.friendly.find(params[:instrument_id]) if params[:instrument_id]
   end
 
   def set_form_options

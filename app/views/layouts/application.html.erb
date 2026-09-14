@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html
-  data-controller="appearance"
+  data-controller="appearance money-visibility"
   data-action="click@window->appearance#closeMenus keydown.esc@window->appearance#closeMenus storage@window->appearance#storedPreferenceChanged turbo:load@window->appearance#refreshControls"
   data-appearance="system"
   data-theme="light"
@@ -8,6 +8,8 @@
   <head>
     <title><%= content_for(:title) || t("caramelo") %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%# Money visibility is session-backed; never restore a stale, visible-money Turbo snapshot. %>
+    <meta name="turbo-cache-control" content="no-cache">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="<%= t("caramelo") %>">
     <meta name="mobile-web-app-capable" content="yes">

@@ -165,6 +165,13 @@ en:
       that email address exists).
     Password was reset: Password has been reset.
     Updated: "%{model} was updated."
+  privacy:
+    Hide values: Hide monetary values
+    Price history hidden: Show monetary values to view price history.
+    Show values: Show monetary values
+    Show values before editing: Show monetary values before editing transactions or
+      exporting data.
+    Value hidden: Monetary value hidden
   statuses:
     Active: Active
     Inactive: Inactive

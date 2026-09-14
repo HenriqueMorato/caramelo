@@ -39,7 +39,9 @@
 <% end %>
 
 <% if series.displayable? %>
-  <% chart_data = presenter.instrument_chart_data(currency:) %>
+  <% chart_data = presenter.instrument_chart_data(
+    currency:, include_money_values: !money_values_hidden?
+  ) %>
   <div class="relative mt-4"
        data-controller="performance-chart"
        data-action="popstate@window->performance-chart#restoreMode appearance:change@window->performance-chart#refreshTheme currency-view:changed@window->performance-chart#refreshVisibility"
@@ -69,8 +71,8 @@
             <% series.observations.each do |observation| %>
               <tr class="border-t border-coffee/10">
                 <td class="py-2 pr-4"><%= l(observation.date, format: :short) %></td>
-                <td class="py-2 pr-4 text-right font-mono tabular-nums"><%= value_or_not_available(observation.market_value&.format) %></td>
-                <td class="py-2 pr-4 text-right font-mono tabular-nums"><%= value_or_not_available(observation.invested_value&.format) %></td>
+                <td class="py-2 pr-4 text-right font-mono tabular-nums"><%= display_money(observation.market_value) %></td>
+                <td class="py-2 pr-4 text-right font-mono tabular-nums"><%= display_money(observation.invested_value) %></td>
                 <td class="py-2 pr-4 text-right font-mono tabular-nums"><%= value_or_not_available(observation.return_ratio && number_to_percentage(observation.return_ratio * 100, precision: 2)) %></td>
                 <td class="py-2 text-right font-mono tabular-nums"><%= value_or_not_available(observation.gain_on_cost_ratio && number_to_percentage(observation.gain_on_cost_ratio * 100, precision: 2)) %></td>
               </tr>

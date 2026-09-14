@@ -42,7 +42,7 @@
         </p>
         <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold <%= @period_presenter.gain_loss_color_class %>">
           <span aria-hidden="true"><%= @period_presenter.gain_loss_arrow %></span>
-          <span><%= @period_presenter.gain_loss_label %></span>
+          <span><%= display_money(@period_presenter.gain_loss_label) %></span>
           <span class="font-normal text-muted"><%= @series_presenter.date_range_label %></span>
         </div>
       </article>
@@ -52,19 +52,19 @@
         <dl class="mt-5 grid grid-cols-2 gap-x-5 gap-y-5">
           <div>
             <dt class="ui-highlight-muted text-xs"><%= t(".Portfolio value") %></dt>
-            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= @performance.closing_valuation.market_value.format %></dd>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= display_money(@performance.closing_valuation.market_value) %></dd>
           </div>
           <div>
             <dt class="ui-highlight-muted text-xs"><%= t(".Net invested") %></dt>
-            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= @performance.net_cash_flow.format %></dd>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= display_money(@performance.net_cash_flow) %></dd>
           </div>
           <div>
             <dt class="ui-highlight-muted text-xs"><%= t(".Realized gains to date") %></dt>
-            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= @performance.closing_valuation.realized_gain.format %></dd>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums"><%= display_money(@performance.closing_valuation.realized_gain) %></dd>
           </div>
           <div>
             <dt class="ui-highlight-muted text-xs"><%= t(".Unrealized gains to date") %></dt>
-            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums <%= @period_presenter.unrealized_gain_color_class %>"><%= @performance.closing_valuation.unrealized_gain.format %></dd>
+            <dd class="mt-1 font-mono text-lg font-semibold tabular-nums <%= @period_presenter.unrealized_gain_color_class %>"><%= display_money(@performance.closing_valuation.unrealized_gain) %></dd>
           </div>
         </dl>
         <p class="ui-highlight-divider ui-highlight-muted mt-5 border-t pt-4 text-xs leading-5"><%= t(".Return methodology") %></p>
@@ -107,15 +107,18 @@
       <% if @series.displayable? %>
         <% chart_data = @series_presenter.chart_data(
           benchmarks: @benchmark_chart_data,
-          currency: @performance.closing_valuation.market_value.currency.iso_code
+          currency: @performance.closing_valuation.market_value.currency.iso_code,
+          include_money_values: !money_values_hidden?
         ) %>
         <div
           class="relative mt-5"
           data-controller="performance-chart"
           data-action="popstate@window->performance-chart#restoreMode appearance:change@window->performance-chart#refreshTheme"
+          data-performance-chart-default-mode-value="<%= money_values_hidden? ? "performance" : "value" %>"
+          data-performance-chart-return-only-value="<%= money_values_hidden? %>"
           data-performance-chart-data-value="<%= json_escape(chart_data.to_json) %>"
         >
-          <div class="mb-4 flex justify-end">
+          <% unless money_values_hidden? %><div class="mb-4 flex justify-end">
             <div class="inline-flex h-[26px] items-center rounded-md border border-coffee/15 bg-oat" role="tablist" aria-label="<%= t(".Chart view") %>">
               <% [[ "value", t(".Value") ], [ "performance", t("Performance") ]].each do |mode, label| %>
                 <button
@@ -128,7 +131,7 @@
                 ><%= label %></button>
               <% end %>
             </div>
-          </div>
+          </div><% end %>
           <div class="relative h-56 sm:h-64">
             <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t(".Portfolio history chart description") %>"></canvas>
           </div>
@@ -149,8 +152,8 @@
                 <% @series.observations.each do |observation| %>
                   <tr class="border-t border-coffee/10">
                     <td class="py-2 pr-4"><%= l(observation.date, format: :short) %></td>
-                    <td class="py-2 pr-4"><%= value_or_not_available(observation.market_value&.format) %></td>
-                    <td class="py-2 pr-4"><%= value_or_not_available(observation.invested_value&.format) %></td>
+                    <td class="py-2 pr-4"><%= display_money(observation.market_value) %></td>
+                    <td class="py-2 pr-4"><%= display_money(observation.invested_value) %></td>
                     <td class="py-2"><%= value_or_not_available(observation.return_ratio && number_to_percentage(observation.return_ratio * 100, precision: 2)) %></td>
                   </tr>
                 <% end %>

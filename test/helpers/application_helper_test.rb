@@ -1,6 +1,16 @@
 require "test_helper"
 
 class ApplicationHelperTest < ActionView::TestCase
+  test "masks money without including the formatted value" do
+    @money_values_hidden = true
+
+    rendered = display_money(Money.from_amount(1_234.56, "USD"))
+
+    assert_includes rendered, ApplicationHelper::MONEY_MASK
+    assert_includes rendered, "Monetary value hidden"
+    refute_includes rendered, "$1,234.56"
+  end
+
   test "formats quantities without unnecessary decimal places" do
     assert_equal "10", format_quantity(BigDecimal("10.00000000"))
     assert_equal "10.25", format_quantity(BigDecimal("10.25000000"))
@@ -35,5 +45,11 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal false, value_or_not_available(false)
     assert_equal true, value_or_not_available(true)
     assert_equal "Ready", value_or_not_available("Ready")
+  end
+
+  private
+
+  def money_values_hidden?
+    @money_values_hidden == true
   end
 end

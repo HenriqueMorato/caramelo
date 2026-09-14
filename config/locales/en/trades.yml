@@ -27,5 +27,4 @@ en:
       Page title: New trade · %{application}
     trade:
       Currency value: 'Currency: %{currency}'
-      Fees value: 'Fees: %{fees}'
       Institution value: 'Institution: %{institution}'

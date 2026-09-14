@@ -13,14 +13,14 @@ module Performance
       Performance::PeriodSelection.date_range_label(from: series.from, to: series.to)
     end
 
-    def chart_data(benchmarks:, currency:, performance_ratios: nil)
+    def chart_data(benchmarks:, currency:, performance_ratios: nil, include_money_values: true)
       performance_ratios ||= series.observations.map(&:return_ratio)
       {
         labels: series.observations.map { |item| I18n.l(item.date, format: :short) },
-        values: series.observations.map { |item| item.market_value_amount&.to_f },
-        invested_values: series.observations.map { |item| item.invested_amount&.to_f },
-        formatted_values: series.observations.map { |item| item.market_value&.format },
-        formatted_invested_values: series.observations.map { |item| item.invested_value&.format },
+        values: monetary_chart_values(include_money_values, &:market_value_amount),
+        invested_values: monetary_chart_values(include_money_values, &:invested_amount),
+        formatted_values: formatted_monetary_chart_values(include_money_values, &:market_value),
+        formatted_invested_values: formatted_monetary_chart_values(include_money_values, &:invested_value),
         formatted_performances: performance_ratios.map { |ratio| performance_label(ratio) },
         performance_ratios:,
         benchmarks:,
@@ -33,8 +33,8 @@ module Performance
       }
     end
 
-    def instrument_chart_data(currency:)
-      chart_data(benchmarks: [], currency:).merge(
+    def instrument_chart_data(currency:, include_money_values: true)
+      chart_data(benchmarks: [], currency:, include_money_values:).merge(
         portfolio_value_label: I18n.t("instruments.show.Position value"),
         portfolio_return_label: I18n.t("instruments.show.return_methodologies.modified_dietz.label"),
         invested_value_label: I18n.t("instruments.show.Cost basis"),
@@ -66,6 +66,18 @@ module Performance
     private
 
     attr_reader :series
+
+    def monetary_chart_values(include_money_values)
+      return Array.new(series.observations.length) unless include_money_values
+
+      series.observations.map { |item| yield(item)&.to_f }
+    end
+
+    def formatted_monetary_chart_values(include_money_values)
+      return Array.new(series.observations.length) unless include_money_values
+
+      series.observations.map { |item| yield(item)&.format }
+    end
 
     def status_copy(title, explanation)
       StatusCopy.new(title:, explanation:)

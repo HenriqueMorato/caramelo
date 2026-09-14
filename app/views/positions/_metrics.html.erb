@@ -17,7 +17,7 @@
   </div>
   <div class="min-w-0">
     <dt class="ui-eyebrow"><%= t("Cost basis") %></dt>
-    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= position.cost_basis.format %></dd>
+    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= display_money(position.cost_basis) %></dd>
   </div>
   <div class="min-w-0">
     <dt class="ui-eyebrow flex items-center justify-center gap-1">
@@ -26,6 +26,6 @@
         <span class="ui-badge ui-badge-stale px-1.5 py-0.5 text-[0.6rem] normal-case tracking-normal"><%= t("Stale") %></span>
       <% end %>
     </dt>
-    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= valuation.available? ? valuation.market_value.format : t("Value unavailable") %></dd>
+    <dd class="mt-1 font-mono text-base font-semibold tabular-nums text-coffee"><%= valuation.available? ? display_money(valuation.market_value) : t("Value unavailable") %></dd>
   </div>
 </dl>

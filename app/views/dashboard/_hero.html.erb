@@ -5,11 +5,11 @@
     <div class="flex items-start justify-between gap-5">
       <div>
         <p class="text-xs font-bold uppercase tracking-[0.16em] text-hero-text/60"><%= t("dashboard.index.Total portfolio value") %></p>
-        <p class="mt-6 font-mono text-5xl font-semibold tracking-[-0.07em] tabular-nums sm:text-6xl"><%= dashboard.market_value.format %></p>
+        <p class="mt-6 font-mono text-5xl font-semibold tracking-[-0.07em] tabular-nums sm:text-6xl"><%= display_money(dashboard.market_value) %></p>
         <% if dashboard.day_change %>
           <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold <%= dashboard.day_change_color_class %>">
             <span aria-hidden="true"><%= dashboard.day_change_arrow %></span>
-            <span><%= dashboard.day_change_amount_label %></span>
+            <span><%= display_money(dashboard.day_change_amount_label) %></span>
             <span><%= dashboard.day_change_ratio_label %></span>
             <span class="font-normal text-hero-text/60"><%= t("dashboard.index.Today") %></span>
           </p>

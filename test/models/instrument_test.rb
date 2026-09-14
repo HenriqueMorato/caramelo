@@ -58,6 +58,7 @@ class InstrumentTest < ActiveSupport::TestCase
       exchange: "BVMF",
       name: "iShares Ibovespa",
       currency: "BRL",
+      slug: "bova11-test",
       created_at: now,
       updated_at: now
     }
@@ -65,7 +66,7 @@ class InstrumentTest < ActiveSupport::TestCase
     Instrument.insert_all!([ attributes ])
 
     assert_raises ActiveRecord::RecordNotUnique do
-      Instrument.insert_all!([ attributes.merge(ticker: "bova11", exchange: "bvmf") ])
+      Instrument.insert_all!([ attributes.merge(ticker: "bova11", exchange: "bvmf", slug: "bova11-duplicate") ])
     end
   end
 
@@ -73,6 +74,24 @@ class InstrumentTest < ActiveSupport::TestCase
     instrument = Instrument.new(ticker: "PETR4", exchange: "XNAS", name: "Different listing", currency: "USD")
 
     assert_predicate instrument, :valid?
+  end
+
+  test "generates readable collision-safe slugs" do
+    primary = Instrument.create!(ticker: "AAPL", exchange: "XNAS", name: "Apple", currency: "USD")
+    secondary = Instrument.create!(ticker: "AAPL", exchange: "ARCX", name: "Apple listing", currency: "USD")
+
+    assert_equal "aapl", primary.slug
+    assert_equal "aapl-arcx", secondary.slug
+    assert_equal primary, Instrument.friendly.find("aapl")
+    assert_equal secondary, Instrument.friendly.find("aapl-arcx")
+  end
+
+  test "keeps its slug when display attributes change" do
+    instrument = Instrument.create!(ticker: "AAPL", exchange: "XNAS", name: "Apple", currency: "USD")
+
+    assert_no_changes -> { instrument.reload.slug } do
+      instrument.update!(name: "Apple Inc.")
+    end
   end
 
   test "requires a four-character market identifier code" do
