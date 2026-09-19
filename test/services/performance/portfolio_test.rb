@@ -5,6 +5,7 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     @date = Date.new(2026, 8, 28)
     @provider = "test_provider"
     @exchange_rate_service = HistoricalExchangeRate::Service.new(provider: Struct.new(:identifier).new(@provider))
+    CorporateAction.where(user: User.owner).delete_all
     Trade.where(user: User.owner).delete_all
   end
 
@@ -26,6 +27,32 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal Money.from_amount(210, "BRL"), result.market_value
     assert_equal [ brl_instrument, usd_instrument ], result.position_results.map(&:instrument)
     assert_equal @date, result.market_data_as_of
+  end
+
+  test "reconciles exact portfolio totals with independently calculated instruments including income" do
+    first = create_instrument(ticker: "RECONE", currency: "BRL")
+    second = create_instrument(ticker: "RECTWO", currency: "BRL")
+    [ first, second ].each_with_index do |instrument, index|
+      create_trade(instrument:, quantity: index + 1, unit_price: "10")
+      create_daily_close(instrument:, close_price: (12 + index).to_s)
+      create_corporate_action(
+        instrument:, gross_amount_cents: 100 * (index + 1),
+        withholding_tax_cents: 0, net_amount_cents: 100 * (index + 1)
+      )
+    end
+
+    portfolio = portfolio_for
+    instruments = [ first, second ].map do |instrument|
+      Performance::Portfolio.for(
+        valuation_date: @date, owner: User.owner, instrument:,
+        exchange_rate_service: @exchange_rate_service,
+        daily_closing_price_provider: @provider
+      ).position_results.sole
+    end
+
+    %i[market_value_amount realized_gain_amount unrealized_gain_amount investment_income_amount].each do |amount|
+      assert_equal portfolio.public_send(amount), instruments.sum { |result| result.public_send(amount) }
+    end
   end
 
   test "can calculate a single instrument without loading other portfolio positions" do
@@ -101,7 +128,100 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal BigDecimal("16"), result.net_cash_flow_amount
     assert_equal BigDecimal("120"), result.market_value_amount
     assert_equal BigDecimal("50"), position_result.reporting_cost_basis_amount
-    assert_equal [ [ trade_date, 100 ], [ @date, -84 ] ], result.cash_flows.map { |cash_flow| [ cash_flow.traded_on, cash_flow.amount ] }
+    assert_equal [ [ trade_date, 100 ], [ @date, -84 ] ], result.cash_flows.map { |cash_flow| [ cash_flow.occurred_on, cash_flow.amount ] }
+  end
+
+  test "counts confirmed net income as return without changing trade cash flow or basis" do
+    instrument = create_instrument(ticker: "INCOME", currency: "BRL")
+    create_trade(instrument:, traded_on: @date - 2, quantity: 2, unit_price: "10")
+    create_daily_close(instrument:, close_price: "10")
+    action = create_corporate_action(
+      instrument:, paid_on: @date - 1, ex_date: @date - 2, gross_amount_cents: 1_000,
+      withholding_tax_cents: 150, net_amount_cents: 850
+    )
+
+    result = portfolio_for
+    position = result.position_results.sole
+
+    assert_equal BigDecimal("20"), result.net_cash_flow_amount
+    assert_equal BigDecimal("8.5"), result.investment_income_amount
+    assert_equal Money.from_amount(8.5, "BRL"), result.investment_income
+    assert_equal BigDecimal("20"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("8.5"), position.total_gain_amount
+    assert_equal BigDecimal("0.425"), position.return_ratio
+    assert_equal [
+      [ @date - 2, BigDecimal("20"), :trade ],
+      [ action.ex_date, BigDecimal("-8.5"), :corporate_action ]
+    ], result.cash_flows.map { |flow| [ flow.occurred_on, flow.amount, flow.source ] }
+  end
+
+  test "converts income with ex-date FX rather than payment-date or valuation-date FX" do
+    instrument = create_instrument(ticker: "INCOMEFX", currency: "USD")
+    create_trade(
+      instrument:, traded_on: @date - 3, quantity: 1, unit_price: "10",
+      settlement_exchange_rate: "5"
+    )
+    create_corporate_action(
+      instrument:, paid_on: @date - 2, ex_date: @date - 3, gross_amount_cents: 200,
+      withholding_tax_cents: 0, net_amount_cents: 200, currency: "USD"
+    )
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5", rate_date: @date - 3)
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5.5", rate_date: @date - 2)
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "6", rate_date: @date)
+    create_daily_close(instrument:, close_price: "10")
+
+    result = portfolio_for
+
+    assert_equal BigDecimal("10"), result.investment_income_amount
+    assert_equal BigDecimal("60"), result.market_value_amount
+  end
+
+  test "is unavailable rather than dropping income whose historical FX is missing" do
+    instrument = create_instrument(ticker: "INCOMEGAP", currency: "USD")
+    create_trade(instrument:, traded_on: @date - 10, settlement_exchange_rate: "5")
+    create_corporate_action(
+      instrument:, paid_on: @date - 7,
+      gross_amount_cents: 200, withholding_tax_cents: 0, net_amount_cents: 200, currency: "USD"
+    )
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "6", rate_date: @date)
+    create_daily_close(instrument:, close_price: "10")
+
+    assert_predicate portfolio_for, :missing?
+  end
+
+  test "ignores unconfirmed and not-yet-effective income" do
+    instrument = create_instrument(ticker: "INCOMESTATE", currency: "BRL")
+    create_trade(instrument:, quantity: 1, unit_price: "10")
+    create_daily_close(instrument:, close_price: "10")
+    create_corporate_action(
+      instrument:, status: :pending, gross_amount_cents: 100,
+      withholding_tax_cents: 0, net_amount_cents: 100
+    )
+    create_corporate_action(
+      instrument:, paid_on: @date + 2, gross_amount_cents: 200,
+      withholding_tax_cents: 0, net_amount_cents: 200
+    )
+
+    result = portfolio_for
+
+    assert_equal BigDecimal("0"), result.investment_income_amount
+    assert_equal [ :trade ], result.cash_flows.map(&:source)
+  end
+
+  test "recognizes income on its ex-date before the later payment date" do
+    instrument = create_instrument(ticker: "INCOMEEX", currency: "BRL")
+    create_trade(instrument:, traded_on: @date - 2, quantity: 1, unit_price: "10")
+    create_daily_close(instrument:, close_price: "9")
+    action = create_corporate_action(
+      instrument:, paid_on: @date + 2, ex_date: @date - 1,
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100
+    )
+
+    result = portfolio_for
+
+    assert_equal BigDecimal("1"), result.investment_income_amount
+    assert_equal [ action.ex_date ], result.cash_flows.select { |flow| flow.source == :corporate_action }
+      .map(&:occurred_on)
   end
 
   test "uses the actual paid rate for reporting basis and daily FX for market value" do
@@ -334,6 +454,16 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     User.owner.trades.create!(
       instrument:, side:, traded_on:, quantity:, unit_price:, fees_cents:, currency: instrument.currency,
       settlement_exchange_rate:
+    )
+  end
+
+  def create_corporate_action(instrument:, paid_on: @date, ex_date: nil, status: :confirmed,
+    gross_amount_cents:, withholding_tax_cents:, net_amount_cents:,
+    currency: instrument.currency)
+    CorporateAction.create!(
+      user: User.owner, instrument:, kind: :dividend, status:,
+      paid_on:, ex_date:, gross_amount_cents:, withholding_tax_cents:, net_amount_cents:,
+      currency:, source: "manual"
     )
   end
 

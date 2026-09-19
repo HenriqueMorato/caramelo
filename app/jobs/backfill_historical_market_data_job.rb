@@ -76,10 +76,12 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
   def enqueue_performance_rebuild(backfill, from:)
     affected_trades = Trade.where(instrument: backfill.instrument)
       .or(Trade.where(currency: backfill.currency))
-    User.where(id: affected_trades.select(:user_id)).find_each do |user|
+    action_users = CorporateAction.effective.where(instrument: backfill.instrument).select(:user_id)
+    User.where(id: affected_trades.select(:user_id)).or(User.where(id: action_users)).find_each do |user|
       Performance::ObservationInvalidator.enqueue(user:, from:)
     end
-    User.where(id: Trade.where(instrument: backfill.instrument).select(:user_id)).find_each do |user|
+    instrument_trade_users = Trade.where(instrument: backfill.instrument).select(:user_id)
+    User.where(id: instrument_trade_users).or(User.where(id: action_users)).find_each do |user|
       Performance::ObservationInvalidator.enqueue_instrument(
         user:, instrument: backfill.instrument, from:
       )

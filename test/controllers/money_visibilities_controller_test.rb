@@ -51,6 +51,6 @@ class MoneyVisibilitiesControllerTest < ActionDispatch::IntegrationTest
     get edit_url, headers: { "HTTP_REFERER" => edit_url }
 
     assert_redirected_to root_url
-    assert_equal "Show monetary values before editing transactions or exporting data.", flash[:alert]
+    assert_equal "Show monetary values before editing transactions, income, or exporting data.", flash[:alert]
   end
 end

@@ -747,7 +747,8 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       user: owner, instrument:, reporting_currency: materialization.reporting_currency, observed_on:,
       status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
       stale_at:, market_value_amount: "100", cost_basis_amount: "90", realized_gain_amount: "1",
-      unrealized_gain_amount: "9", net_cash_flow_amount: "-90", invested_amount: "90"
+      unrealized_gain_amount: "9", net_cash_flow_amount: "-90",
+      investment_income_amount: "0", invested_amount: "90"
     )
   end
 

@@ -74,7 +74,8 @@ class MarketData::ResetTest < ActiveSupport::TestCase
       user: owner, instrument: @instrument, reporting_currency: "USD", observed_on: date,
       status: :available, source_generation: materialization.source_generation, generated_at: Time.current,
       market_value_amount: "100", cost_basis_amount: "90", realized_gain_amount: "1",
-      unrealized_gain_amount: "9", net_cash_flow_amount: "-90", invested_amount: "90"
+      unrealized_gain_amount: "9", net_cash_flow_amount: "-90",
+      investment_income_amount: "0", invested_amount: "90"
     )
     target = MarketData::Target.new(
       kind: :instrument_performance, record_id: @instrument.id, quote_currency: "USD"

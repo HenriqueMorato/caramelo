@@ -99,7 +99,8 @@ class InstrumentsTest < ApplicationSystemTestCase
     page.execute_script("arguments[0].focus()", tooltip_trigger)
 
     assert_selector "[aria-describedby='#{tooltip_id}']:focus"
-    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades before deleting the instrument.", visible: true
+    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades and income before deleting the instrument.",
+      visible: true
   end
 
   test "updates an instrument position after contextual trade changes" do
@@ -289,7 +290,7 @@ class InstrumentsTest < ApplicationSystemTestCase
         generated_at: Time.current, market_value_amount: 1_500 + index,
         cost_basis_amount: 1_400, realized_gain_amount: 0,
         unrealized_gain_amount: 100 + index, net_cash_flow_amount: -1_400,
-        invested_amount: 1_400
+        investment_income_amount: 0, invested_amount: 1_400
       )
     end
   end

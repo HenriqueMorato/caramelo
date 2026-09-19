@@ -34,7 +34,8 @@ en:
       Cost basis: Cost basis
       Currency view: Position currency
       Date: Date
-      Delete blocked: Delete this instrument's trades before deleting the instrument.
+      Delete blocked: Delete this instrument's trades and income before deleting the
+        instrument.
       Empty history: Add a purchase or sale to begin its history.
       Gain on cost: Gain on cost
       History calculation unavailable: Correct the trade history before calculating
@@ -43,6 +44,8 @@ en:
         trail.
       History selection: Select history view
       How returns are calculated: How returns are calculated
+      Income history: Income history
+      Income history description: Dividends and JCP recorded for this instrument.
       Instrument history chart description: "%{instrument} return in %{currency} over
         the selected period."
       Instrument history is building: Instrument history is building
@@ -61,6 +64,7 @@ en:
       Instrument history update failed: Instrument history could not be updated
       Instrument history update failed explanation: Your trades and market records
         are safe. Try the calculation again in a moment.
+      No income: No income recorded for this instrument.
       No performance explanation: Record a trade to begin this instrument’s performance
         history.
       No performance yet: No performance yet

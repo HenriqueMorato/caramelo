@@ -22,6 +22,7 @@ class InstrumentPerformance::ObservationStoreTest < ActiveSupport::TestCase
     assert_equal BigDecimal("7.1"), record.realized_gain_amount
     assert_equal BigDecimal("13.77654321098765432109876543211"), record.unrealized_gain_amount
     assert_equal BigDecimal("73.02345678901234567890123456789"), record.net_cash_flow_amount
+    assert_equal BigDecimal("4.5"), record.investment_income_amount
     assert_equal BigDecimal("90.22222222222222222222222222222"), record.invested_amount
     assert_equal Rational(7, 3), record.cash_flow_total
     assert_equal Rational(7, 3) * @date.jd, record.dated_cash_flow_total
@@ -104,14 +105,15 @@ class InstrumentPerformance::ObservationStoreTest < ActiveSupport::TestCase
 
   PositionResult = Data.define(
     :instrument, :reporting_cost_basis_amount, :market_value_amount,
-    :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount, :invested_amount, :status
+    :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount,
+    :investment_income_amount, :invested_amount, :status
   )
   Valuation = Data.define(:valuation_date, :status, :position_results, :cash_flows)
 
   def valuation(instrument: @instrument, market_value: "100", cost_basis: "80.12345678901234567890123456789",
     realized_gain: "7.1", unrealized_gain: "13.77654321098765432109876543211",
     net_cash_flow: "73.02345678901234567890123456789",
-    invested: "90.22222222222222222222222222222", position_status: :available)
+    investment_income: "4.5", invested: "90.22222222222222222222222222222", position_status: :available)
     result = PositionResult.new(
       instrument:,
       reporting_cost_basis_amount: BigDecimal(cost_basis),
@@ -119,10 +121,13 @@ class InstrumentPerformance::ObservationStoreTest < ActiveSupport::TestCase
       realized_gain_amount: BigDecimal(realized_gain),
       unrealized_gain_amount: BigDecimal(unrealized_gain),
       net_cash_flow_amount: BigDecimal(net_cash_flow),
+      investment_income_amount: BigDecimal(investment_income),
       invested_amount: BigDecimal(invested),
       status: position_status
     )
-    flow = Performance::Portfolio::CashFlow.new(traded_on: @date, amount: Rational(7, 3))
+    flow = Performance::Portfolio::CashFlow.new(
+      occurred_on: @date, amount: Rational(7, 3), source: :trade
+    )
     Valuation.new(valuation_date: @date, status: :available, position_results: [ result ], cash_flows: [ flow ])
   end
 end

@@ -42,7 +42,7 @@ module Performance
         market_value_amount: serialize_decimal(valuation.market_value_amount),
         net_cash_flow_amount: serialize_decimal(valuation.net_cash_flow_amount),
         cash_flow_total: valuation.cash_flows.sum { |flow| flow.amount.to_r }.to_r.to_s,
-        dated_cash_flow_total: valuation.cash_flows.sum { |flow| flow.amount.to_r * flow.traded_on.jd }.to_r.to_s,
+        dated_cash_flow_total: valuation.cash_flows.sum { |flow| flow.amount.to_r * flow.occurred_on.jd }.to_r.to_s,
         status: valuation.status,
         source_generation:,
         generated_at:,

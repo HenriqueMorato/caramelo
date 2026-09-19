@@ -21,6 +21,7 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
     assert_equal 0, result.skipped_count
     assert_equal [ @from, @from + 1, @to ], @store.read(from: @from, to: @to).keys
     assert_equal 1, @portfolio.trade_collection_ids.uniq.length
+    assert_equal 1, @portfolio.corporate_action_collection_ids.uniq.length
   end
 
   test "skips fresh observations and replaces stale ones" do
@@ -56,6 +57,7 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
 
     assert_equal [ @from, @to ], @portfolio.dates
     assert_equal 2, @portfolio.trade_collection_ids.uniq.length
+    assert_equal 2, @portfolio.corporate_action_collection_ids.uniq.length
     assert_operator second.source_generation, :>, first.source_generation
     assert_equal @to, second.from
     assert_equal 1, second.built_count
@@ -150,7 +152,7 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
 
   class RecordingPortfolio
     attr_accessor :during_valuation
-    attr_reader :dates, :trade_collection_ids
+    attr_reader :dates, :trade_collection_ids, :corporate_action_collection_ids
 
     Valuation = Data.define(:valuation_date, :market_value_amount, :net_cash_flow_amount, :status, :cash_flows)
 
@@ -158,14 +160,16 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
       @user = user
       @dates = []
       @trade_collection_ids = []
+      @corporate_action_collection_ids = []
     end
 
-    def for(valuation_date:, owner:, trades:, reporting_currency:)
+    def for(valuation_date:, owner:, trades:, corporate_actions:, reporting_currency:)
       raise "wrong owner" unless owner == @user
       raise "wrong reporting currency" unless reporting_currency == "BRL"
 
       dates << valuation_date
       trade_collection_ids << trades.object_id
+      corporate_action_collection_ids << corporate_actions.object_id
       during_valuation&.call
       valuation(valuation_date)
     end
@@ -186,7 +190,8 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
 
     PositionResult = Data.define(
       :instrument, :reporting_cost_basis_amount, :market_value_amount,
-      :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount, :invested_amount
+      :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount,
+      :investment_income_amount, :invested_amount
     )
     Valuation = Data.define(:valuation_date, :status, :position_results, :cash_flows)
 
@@ -198,12 +203,13 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
       @trade_collection_ids = []
     end
 
-    def for(valuation_date:, owner:, instrument:, trades:, reporting_currency:)
+    def for(valuation_date:, owner:, instrument:, trades:, corporate_actions:, reporting_currency:)
       raise "wrong owner" unless owner == @user
       raise "wrong instrument" unless instrument == @instrument
       raise "wrong reporting currency" unless reporting_currency == @instrument.currency
 
       trade_sets << trades
+      raise "wrong corporate actions" unless corporate_actions.all? { |action| action.instrument == instrument }
       trade_collection_ids << trades.object_id
       dates << valuation_date
       position = PositionResult.new(
@@ -213,6 +219,7 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
         realized_gain_amount: BigDecimal("0"),
         unrealized_gain_amount: BigDecimal("10"),
         net_cash_flow_amount: BigDecimal("90"),
+        investment_income_amount: BigDecimal("0"),
         invested_amount: BigDecimal("90")
       )
       Valuation.new(valuation_date:, status: :available, position_results: [ position ], cash_flows: [])

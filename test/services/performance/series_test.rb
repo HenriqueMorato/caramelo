@@ -336,7 +336,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
 
   Snapshot = Data.define(
     :observed_on, :market_value_amount, :cost_basis_amount, :net_cash_flow_amount,
-    :realized_gain_amount, :unrealized_gain_amount, :invested_amount,
+    :realized_gain_amount, :unrealized_gain_amount, :investment_income_amount, :invested_amount,
     :status, :stale_at, :source_generation, :cash_flow_total, :dated_cash_flow_total
   ) do
     def stale? = stale_at.present?
@@ -388,7 +388,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
   end
 
   def snapshot(date, market_value: "100", cost_basis: nil, net_cash_flow: "80", status: :available, stale_at: nil,
-    dated_flow_total: nil, realized_gain: "0", unrealized_gain: "20", invested: "80")
+    dated_flow_total: nil, realized_gain: "0", unrealized_gain: "20", investment_income: "0", invested: "80")
     Snapshot.new(
       observed_on: date,
       market_value_amount: market_value && BigDecimal(market_value),
@@ -396,6 +396,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
       net_cash_flow_amount: net_cash_flow && BigDecimal(net_cash_flow),
       realized_gain_amount: realized_gain && BigDecimal(realized_gain),
       unrealized_gain_amount: unrealized_gain && BigDecimal(unrealized_gain),
+      investment_income_amount: investment_income && BigDecimal(investment_income),
       invested_amount: invested && BigDecimal(invested),
       cash_flow_total: net_cash_flow.to_r,
       dated_cash_flow_total: dated_flow_total || net_cash_flow.to_r * @from.jd,

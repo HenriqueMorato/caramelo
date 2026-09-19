@@ -10,7 +10,9 @@ class InstrumentsController < ApplicationController
 
   def show
     @trades = User.owner.trades.where(instrument: @instrument).includes(:instrument, :institution).strict_loading.reverse_chronological.load
-    @instrument_has_trades = @instrument.trades.exists?
+    @corporate_actions = owner.corporate_actions.where(instrument: @instrument)
+      .includes(:instrument, :institution).strict_loading.reverse_chronological.load
+    @instrument_has_activity = @instrument.trades.exists? || @instrument.corporate_actions.exists?
     @reporting_currency = owner.reporting_currency
     @currency_view = requested_currency_view
     @history_mode = params[:history].presence_in(%w[performance price]) || "performance"
@@ -104,6 +106,7 @@ class InstrumentsController < ApplicationController
   def performance_presenter(currency)
     performance = Performance::Portfolio.for(
       valuation_date: Date.current, instrument: @instrument, trades: @trades,
+      corporate_actions: @corporate_actions,
       reporting_currency: currency
     )
     Performance::Presenter.for(performance:, pending: @performance_pending)

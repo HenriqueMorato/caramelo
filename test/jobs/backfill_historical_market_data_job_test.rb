@@ -2,6 +2,7 @@ require "test_helper"
 
 class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
   setup do
+    Rails.cache.clear
     @instrument = instruments(:voo_arcx)
     @backfill = HistoricalDataBackfill.create!(instrument: @instrument, currency: "USD", from_date: Date.new(2026, 1, 1))
     @daily_imports = []
@@ -74,6 +75,22 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
 
     assert_enqueued_with(job: BackfillHistoricalMarketDataJob, args: [ @backfill ])
     assert HistoricalDataBackfill.exists?(@backfill.id)
+  end
+
+  test "rebuilds performance for an income owner even without a trade" do
+    income_owner = users(:two)
+    CorporateAction.create!(
+      user: income_owner, instrument: @instrument, kind: :dividend, status: :confirmed,
+      paid_on: Date.new(2026, 1, 1),
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "USD", source: "manual"
+    )
+    clear_enqueued_jobs
+
+    travel_to(Date.new(2026, 1, 1)) { build_job.perform(@backfill) }
+
+    assert_enqueued_jobs 2, only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 4, only: BuildInstrumentPerformanceObservationsJob
   end
 
   test "reports terminal provider errors and clears the pending request" do

@@ -303,7 +303,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "article", text: /Other owner trade/, count: 0
     assert_select "a", "Add trade"
     assert_select "button[disabled]", "Delete"
-    assert_select "[role='tooltip']", "Delete this instrument's trades before deleting the instrument."
+    assert_select "[role='tooltip']", "Delete this instrument's trades and income before deleting the instrument."
     assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
     assert_select "#current_market_price_instrument_#{instrument.id}", text: /Price unavailable/
   end
@@ -474,6 +474,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
           realized_gain_amount: 0,
           unrealized_gain_amount: 10 + index,
           net_cash_flow_amount: -90,
+          investment_income_amount: 0,
           invested_amount: 90
         }
       end

@@ -19,6 +19,12 @@ class NavigationTest < ApplicationSystemTestCase
     assert_text "Long-term allocation"
 
     open_menu
+    click_on "Income"
+
+    assert_current_path income_path
+    assert_text "Income earned along the way."
+
+    open_menu
     click_on "Dashboard"
 
     assert_current_path root_path
