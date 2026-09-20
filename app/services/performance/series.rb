@@ -182,7 +182,10 @@ module Performance
       return unless instrument
       return if record.invested_amount.zero?
 
-      decimal((record.realized_gain_amount + record.unrealized_gain_amount) / record.invested_amount)
+      decimal(
+        (record.realized_gain_amount + record.unrealized_gain_amount + record.investment_income_amount) /
+          record.invested_amount
+      )
     end
 
     def weighted_capital(date:, record:, opening:)

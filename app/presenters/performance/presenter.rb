@@ -55,6 +55,18 @@ module Performance
       realized_gain.present? && !realized_gain.zero?
     end
 
+    def investment_income
+      money(result&.investment_income_amount)
+    end
+
+    def investment_income_label
+      signed_money(investment_income)
+    end
+
+    def investment_income?
+      investment_income.present? && !investment_income.zero?
+    end
+
     def unrealized_gain
       money(result&.unrealized_gain_amount)
     end

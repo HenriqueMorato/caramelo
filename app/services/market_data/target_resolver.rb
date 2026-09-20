@@ -25,7 +25,9 @@ module MarketData
         ensure_traded_instrument!(target)
       when :instrument_performance
         ensure_instrument_performance!(target)
-      when :historical_exchange_rates, :current_exchange_rate
+      when :historical_exchange_rates
+        ensure_performance_currency!(target)
+      when :current_exchange_rate
         ensure_traded_currency!(target)
       when :benchmark_observations
         ensure_benchmark!(target)
@@ -47,6 +49,14 @@ module MarketData
       raise ActiveRecord::RecordNotFound unless valid_pair
     end
 
+    def ensure_performance_currency!(target)
+      valid_pair = target.quote_currency == owner.reporting_currency && (
+        owner.trades.where(currency: target.base_currency).exists? ||
+        owner.corporate_actions.effective_on_or_before(Date.current).where(currency: target.base_currency).exists?
+      )
+      raise ActiveRecord::RecordNotFound unless valid_pair
+    end
+
     def ensure_benchmark!(target)
       MarketBenchmark.find(target.record_id)
     end
@@ -59,7 +69,9 @@ module MarketData
 
     def ensure_instrument_performance!(target)
       instrument = Instrument.find(target.record_id)
-      raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
+      has_performance_activity = owner.trades.exists?(instrument:) ||
+        owner.corporate_actions.effective_on_or_before(Date.current).exists?(instrument:)
+      raise ActiveRecord::RecordNotFound unless has_performance_activity
 
       currencies = owner.instrument_performance_materializations.where(instrument:).pluck(:reporting_currency)
       currencies |= [ instrument.currency, owner.reporting_currency ]

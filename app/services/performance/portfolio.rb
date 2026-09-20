@@ -1,8 +1,8 @@
 module Performance
   class Portfolio
-    # One trade's signed flow into the holdings in the reporting currency.
-    # Purchases are positive contributions and sales are negative withdrawals.
-    CashFlow = Data.define(:traded_on, :amount)
+    # One dated flow into the holdings in the reporting currency. Purchases are
+    # positive contributions; sales and cash distributions are withdrawals.
+    CashFlow = Data.define(:occurred_on, :amount, :source)
 
     # One instrument's replayed holdings. Amounts use the reporting currency:
     # remaining purchase basis, closing market value, realized/unrealized gain,
@@ -10,7 +10,8 @@ module Performance
     PositionResult = Data.define(
       :instrument, :quantity, :reporting_cost_basis_amount, :market_value_amount,
       :realized_gain_amount, :unrealized_gain_amount, :net_cash_flow_amount,
-      :invested_amount, :status, :daily_closing_price, :exchange_rate_lookup, :cash_flows
+      :investment_income_amount, :investment_income, :invested_amount,
+      :status, :daily_closing_price, :exchange_rate_lookup, :cash_flows
     ) do
       def available? = status != :missing
       def missing?   = status == :missing
@@ -18,9 +19,9 @@ module Performance
       def market_price_as_of = daily_closing_price&.trading_date
 
       def total_gain_amount
-        return if realized_gain_amount.nil? || unrealized_gain_amount.nil?
+        return if realized_gain_amount.nil? || unrealized_gain_amount.nil? || investment_income_amount.nil?
 
-        realized_gain_amount + unrealized_gain_amount
+        realized_gain_amount + unrealized_gain_amount + investment_income_amount
       end
 
       def return_ratio
@@ -43,6 +44,7 @@ module Performance
       :realized_gain_amount, :realized_gain,
       :unrealized_gain_amount, :unrealized_gain,
       :net_cash_flow_amount, :net_cash_flow,
+      :investment_income_amount, :investment_income,
       :status, :position_results, :cash_flows
     ) do
       def available? = status != :missing
@@ -55,20 +57,23 @@ module Performance
       def market_data_as_of = market_price_as_of
     end
 
-    def self.for(valuation_date:, owner: User.owner, instrument: nil, trades: nil, exchange_rate_service: HistoricalExchangeRate::Service.new,
+    def self.for(valuation_date:, owner: User.owner, instrument: nil, trades: nil, corporate_actions: nil,
+      exchange_rate_service: HistoricalExchangeRate::Service.new,
       daily_closing_price_provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
       reporting_currency: owner.reporting_currency)
       new(
-        valuation_date:, owner:, instrument:, trades:, exchange_rate_service:, daily_closing_price_provider:,
-        reporting_currency:
+        valuation_date:, owner:, instrument:, trades:, corporate_actions:, exchange_rate_service:,
+        daily_closing_price_provider:, reporting_currency:
       ).calculate
     end
 
-    def initialize(valuation_date:, owner:, instrument:, trades:, exchange_rate_service:, daily_closing_price_provider:, reporting_currency:)
+    def initialize(valuation_date:, owner:, instrument:, trades:, corporate_actions:, exchange_rate_service:,
+      daily_closing_price_provider:, reporting_currency:)
       @valuation_date = valuation_date
       @owner = owner
       @instrument = instrument
       @trades = trades
+      @corporate_actions = corporate_actions
       @exchange_rate_service = exchange_rate_service
       @daily_closing_price_provider = daily_closing_price_provider
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
@@ -76,9 +81,14 @@ module Performance
 
     def calculate
       validate_valuation_date!
-      position_results = trades_by_instrument.map do |instrument, trades|
+      grouped_trades = trades_by_instrument
+      grouped_actions = corporate_actions_by_instrument
+      instruments = grouped_trades.keys | grouped_actions.keys
+      position_results = instruments.map do |instrument|
         PositionCalculator.new(
-          instrument:, trades:, valuation_date:, exchange_rate_service:,
+          instrument:, trades: grouped_trades.fetch(instrument, []),
+          corporate_actions: grouped_actions.fetch(instrument, []),
+          valuation_date:, exchange_rate_service:,
           daily_closing_price_provider:, reporting_currency:
         ).calculate
       end
@@ -90,7 +100,8 @@ module Performance
 
     private
 
-    attr_reader :valuation_date, :owner, :instrument, :trades, :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
+    attr_reader :valuation_date, :owner, :instrument, :trades, :corporate_actions,
+      :exchange_rate_service, :daily_closing_price_provider, :reporting_currency
 
     def trades_by_instrument
       return supplied_trades_by_instrument if self.trades
@@ -117,8 +128,26 @@ module Performance
       instrument ? { instrument => scoped_trades } : scoped_trades.group_by(&:instrument)
     end
 
+    def corporate_actions_by_instrument
+      @corporate_actions_by_instrument ||= begin
+        actions = corporate_actions || corporate_action_scope.to_a
+        actions.select do |action|
+          action.user_id == owner.id && action.confirmed? && action.performance_on <= valuation_date &&
+            (!instrument || action.instrument == instrument)
+        end.group_by(&:instrument)
+      end
+    end
+
+    def corporate_action_scope
+      scope = owner.corporate_actions.effective_on_or_before(valuation_date).includes(:instrument)
+      instrument ? scope.where(instrument:) : scope
+    end
+
     def available_result(position_results)
-      amounts = %i[market_value_amount realized_gain_amount unrealized_gain_amount net_cash_flow_amount]
+      amounts = %i[
+        market_value_amount realized_gain_amount unrealized_gain_amount
+        net_cash_flow_amount investment_income_amount
+      ]
       totals = amounts.to_h do |amount|
         [ amount, decimal(position_results.sum { |position_result| position_result.public_send(amount) }) ]
       end
@@ -129,7 +158,9 @@ module Performance
         realized_gain: Money.from_amount(totals.fetch(:realized_gain_amount), reporting_currency),
         unrealized_gain: Money.from_amount(totals.fetch(:unrealized_gain_amount), reporting_currency),
         net_cash_flow: Money.from_amount(totals.fetch(:net_cash_flow_amount), reporting_currency),
-        status: :available, position_results:, cash_flows: position_results.flat_map(&:cash_flows).sort_by(&:traded_on)
+        investment_income: Money.from_amount(totals.fetch(:investment_income_amount), reporting_currency),
+        status: :available, position_results:,
+        cash_flows: position_results.flat_map(&:cash_flows).sort_by(&:occurred_on)
       )
     end
 
@@ -140,6 +171,7 @@ module Performance
         realized_gain_amount: zero, realized_gain: Money.new(0, reporting_currency),
         unrealized_gain_amount: zero, unrealized_gain: Money.new(0, reporting_currency),
         net_cash_flow_amount: zero, net_cash_flow: Money.new(0, reporting_currency),
+        investment_income_amount: zero, investment_income: Money.new(0, reporting_currency),
         status: :empty, position_results: [], cash_flows: []
       )
     end
@@ -150,6 +182,7 @@ module Performance
         realized_gain_amount: nil, realized_gain: nil,
         unrealized_gain_amount: nil, unrealized_gain: nil,
         net_cash_flow_amount: nil, net_cash_flow: nil,
+        investment_income_amount: nil, investment_income: nil,
         status: :missing, position_results:, cash_flows: []
       )
     end
@@ -165,9 +198,11 @@ module Performance
     end
 
     class PositionCalculator
-      def initialize(instrument:, trades:, valuation_date:, exchange_rate_service:, daily_closing_price_provider:, reporting_currency:)
+      def initialize(instrument:, trades:, corporate_actions:, valuation_date:, exchange_rate_service:,
+        daily_closing_price_provider:, reporting_currency:)
         @instrument = instrument
         @trades = trades
+        @corporate_actions = corporate_actions
         @valuation_date = valuation_date
         @exchange_rate_service = exchange_rate_service
         @daily_closing_price_provider = daily_closing_price_provider
@@ -196,12 +231,14 @@ module Performance
 
       private
 
-      attr_reader :instrument, :trades, :valuation_date, :daily_closing_price_provider,
+      attr_reader :instrument, :trades, :corporate_actions, :valuation_date, :daily_closing_price_provider,
         :reporting_currency, :exchange_rates
 
       # Replay combines the shared moving-average calculation with the
       # reporting-currency trade cash flow that is specific to performance.
-      Replay = Data.define(:calculation, :net_cash_flow, :invested_amount, :cash_flows)
+      Replay = Data.define(
+        :calculation, :net_cash_flow, :investment_income, :invested_amount, :cash_flows
+      )
 
       def replay_trades
         reporting_amounts = trades.to_h do |trade|
@@ -213,13 +250,26 @@ module Performance
           [ trade, settlement.amount ]
         end
         calculation = Position::Calculator.for(trades:, amount_for: reporting_amounts.method(:fetch))
-        cash_flows = reporting_amounts.map do |trade, amount|
+        trade_cash_flows = reporting_amounts.map do |trade, amount|
           amounts_by_side = { "buy" => amount, "sell" => -amount }
-          CashFlow.new(traded_on: trade.traded_on, amount: amounts_by_side.fetch(trade.side))
+          CashFlow.new(occurred_on: trade.traded_on, amount: amounts_by_side.fetch(trade.side), source: :trade)
+        end
+        income_amounts = corporate_actions.to_h do |action|
+          distribution = CorporateActions::CashDistributionValue.for(
+            corporate_action: action, reporting_currency:, exchange_rates:
+          )
+          return unless distribution.available?
+
+          [ action, distribution.amount ]
+        end
+        income_cash_flows = income_amounts.map do |action, amount|
+          CashFlow.new(occurred_on: action.performance_on, amount: -amount, source: :corporate_action)
         end
         Replay.new(
-          calculation:, net_cash_flow: cash_flows.sum(&:amount),
-          invested_amount: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : 0 }, cash_flows:
+          calculation:, net_cash_flow: trade_cash_flows.sum(&:amount),
+          investment_income: income_amounts.sum(&:last),
+          invested_amount: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : 0 },
+          cash_flows: trade_cash_flows + income_cash_flows
         )
       end
 
@@ -237,7 +287,10 @@ module Performance
           instrument:, quantity: decimal(state.calculation.quantity), reporting_cost_basis_amount: reporting_cost_basis,
           market_value_amount:, realized_gain_amount: decimal(state.calculation.realized_gain_amount),
           unrealized_gain_amount: decimal(market_value - state.calculation.cost_basis_amount),
-          net_cash_flow_amount: decimal(state.net_cash_flow), invested_amount: decimal(state.invested_amount), status: :available,
+          net_cash_flow_amount: decimal(state.net_cash_flow),
+          investment_income_amount: decimal(state.investment_income),
+          investment_income: Money.from_amount(decimal(state.investment_income), reporting_currency),
+          invested_amount: decimal(state.invested_amount), status: :available,
           daily_closing_price:, exchange_rate_lookup:, cash_flows: state.cash_flows
         )
       end
@@ -247,7 +300,10 @@ module Performance
         PositionResult.new(
           instrument:, quantity: zero, reporting_cost_basis_amount: zero, market_value_amount: zero,
           realized_gain_amount: decimal(state.calculation.realized_gain_amount), unrealized_gain_amount: zero,
-          net_cash_flow_amount: decimal(state.net_cash_flow), invested_amount: decimal(state.invested_amount), status: :closed,
+          net_cash_flow_amount: decimal(state.net_cash_flow),
+          investment_income_amount: decimal(state.investment_income),
+          investment_income: Money.from_amount(decimal(state.investment_income), reporting_currency),
+          invested_amount: decimal(state.invested_amount), status: :closed,
           daily_closing_price: nil, exchange_rate_lookup: nil, cash_flows: state.cash_flows
         )
       end
@@ -256,7 +312,7 @@ module Performance
         PositionResult.new(
           instrument:, quantity: nil, reporting_cost_basis_amount: nil, market_value_amount: nil,
           realized_gain_amount: nil, unrealized_gain_amount: nil, net_cash_flow_amount: nil,
-          invested_amount: nil,
+          investment_income_amount: nil, investment_income: nil, invested_amount: nil,
           status: :missing, daily_closing_price:, exchange_rate_lookup:, cash_flows: []
         )
       end

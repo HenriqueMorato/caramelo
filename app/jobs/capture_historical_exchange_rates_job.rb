@@ -6,7 +6,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
     @reporting_currency = User.owner.reporting_currency
     rate_date ||= TradingCalendar.previous_business_day
 
-    currencies = traded_currencies
+    currencies = performance_currencies
     RefreshStatus::Tracker.perform(scope: "historical_exchange_rates", total_count: currencies.length) do |refresh|
       currencies.each do |currency|
         next if HistoricalExchangeRate.exists?(
@@ -43,10 +43,11 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
 
   attr_reader :reporting_currency
 
-  def traded_currencies
-    Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
-      .where.not(currency: reporting_currency).distinct
-      .pluck(:currency)
+  def performance_currencies
+    trade_currencies = Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id)).pluck(:currency)
+    income_currencies = CorporateAction.effective_on_or_before(Date.current)
+      .where(user: User.owner).pluck(:currency)
+    (trade_currencies | income_currencies).excluding(reporting_currency)
   end
 
   def publication_fence(currency:)

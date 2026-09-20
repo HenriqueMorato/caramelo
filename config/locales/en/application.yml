@@ -15,6 +15,7 @@ en:
   Data protection: Data protection
   Institutions: Institutions
   Instruments: Instruments
+  Investment income: Investment income
   Long walks: Long walks.
   Manage: Manage
   Market data: Market data
@@ -24,6 +25,7 @@ en:
   Market value: Market value
   Needs attention: Needs attention
   None: None
+  Not applicable: Not applicable
   Not available: Not available
   Open: Open
   Performance: Performance
@@ -44,10 +46,8 @@ en:
   Skip to content: Skip to content
   Small steps: Small steps.
   Stale: Stale
-  Total: Total
   Trade settings: Trade settings
   Transactions: Transactions
-  Transactions link: "← Transactions"
   Unrealized return: Unrealized return
   Value unavailable: Value unavailable
   Your portfolio is out for a stroll: Your portfolio is out for a stroll.
@@ -106,6 +106,7 @@ en:
       ready: The backup passed its integrity checks.
   caramelo: caramelo
   confirmations:
+    Delete income: Delete this income event?
     Delete record: Delete %{record}?
     Delete trade: Delete this trade?
   date:
@@ -169,8 +170,8 @@ en:
     Hide values: Hide monetary values
     Price history hidden: Show monetary values to view price history.
     Show values: Show monetary values
-    Show values before editing: Show monetary values before editing transactions or
-      exporting data.
+    Show values before editing: Show monetary values before editing transactions,
+      income, or exporting data.
     Value hidden: Monetary value hidden
   statuses:
     Active: Active

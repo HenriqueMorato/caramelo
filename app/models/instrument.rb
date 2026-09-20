@@ -6,6 +6,7 @@ class Instrument < ApplicationRecord
   has_many :instrument_performance_observations, dependent: :delete_all
   has_many :instrument_performance_materializations, dependent: :delete_all
   has_many :trades, dependent: :restrict_with_error
+  has_many :corporate_actions, dependent: :restrict_with_error
   has_many :daily_closing_prices, dependent: :restrict_with_error
   has_many :position_materializations, dependent: :delete_all
 
@@ -27,7 +28,7 @@ class Instrument < ApplicationRecord
   validates :exchange, presence: true, format: { with: /\A[A-Z0-9]{4}\z/ }
   validates :name, presence: true
   validates :currency, presence: true, iso_currency: true
-  validate :currency_unchanged_when_traded, if: :will_save_change_to_currency?
+  validate :currency_unchanged_when_referenced, if: :will_save_change_to_currency?
 
   scope :alphabetical, -> { order(:ticker, :exchange) }
 
@@ -37,9 +38,9 @@ class Instrument < ApplicationRecord
     [ :ticker, [ :ticker, :exchange ] ]
   end
 
-  def currency_unchanged_when_traded
-    return unless persisted? && trades.exists?
+  def currency_unchanged_when_referenced
+    return unless persisted? && (trades.exists? || corporate_actions.exists?)
 
-    errors.add(:currency, :cannot_change_with_trades)
+    errors.add(:currency, :cannot_change_with_activity)
   end
 end

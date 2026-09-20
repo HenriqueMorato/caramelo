@@ -1,0 +1,16 @@
+<% content_for :title, t(".Page title", application: t("caramelo")) %>
+
+<section class="mx-auto max-w-4xl space-y-8">
+  <%= link_to t("Back"), @return_to, class: "inline-flex min-h-11 items-center text-sm font-semibold text-caramel-deep hover:text-coffee" %>
+
+  <div class="ui-page-header-copy">
+    <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>
+    <h1 class="ui-page-title"><%= t("corporate_actions.actions.Edit income") %></h1>
+  </div>
+
+  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
+    <%= render "form", corporate_action: @corporate_action, context_instrument: nil,
+      instruments: @instruments, institutions_by_instrument: @institutions_by_instrument,
+      return_to: @return_to %>
+  </div>
+</section>

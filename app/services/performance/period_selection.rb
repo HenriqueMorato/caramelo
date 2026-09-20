@@ -26,9 +26,20 @@ module Performance
     def initialize(period:, owner:, instrument:, today:)
       @period = period
       @to = today
+      unless period == "all"
+        @from = today - PERIODS.fetch(period)
+        return
+      end
+
       trades = owner.trades
       trades = trades.where(instrument:) if instrument
-      @from = period == "all" ? trades.minimum(:traded_on) || today : today - PERIODS.fetch(period)
+      actions = owner.corporate_actions.effective_on_or_before(today)
+      actions = actions.where(instrument:) if instrument
+      first_activity = [
+        trades.where(traded_on: ..today).minimum(:traded_on),
+        actions.minimum_performance_on
+      ].compact.min
+      @from = first_activity || today
     end
 
     def date_range_label

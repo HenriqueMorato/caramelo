@@ -1,0 +1,27 @@
+<%# locals: (trade_path:, income_path:, test_id:) %>
+
+<details class="group relative w-fit"
+         data-testid="<%= test_id %>"
+         data-controller="disclosure-menu"
+         data-action="click@window->disclosure-menu#closeOnOutside keydown.esc@window->disclosure-menu#closeOnEscape">
+  <summary class="ui-button ui-button-primary min-h-11 cursor-pointer list-none gap-2 [&::-webkit-details-marker]:hidden">
+    <span class="text-lg leading-none" aria-hidden="true">+</span>
+    <span><%= t("transactions.index.Add") %></span>
+  </summary>
+  <div class="absolute left-0 z-40 mt-2 w-52 rounded-xl border border-coffee/10 bg-paper p-2 shadow-lg sm:left-auto sm:right-0">
+    <%= link_to trade_path, class: "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-coffee hover:bg-caramel/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" do %>
+      <span class="flex size-8 items-center justify-center rounded-lg bg-caramel/15 text-caramel-deep" aria-hidden="true">↔</span>
+      <span><%= Trade.model_name.human %></span>
+    <% end %>
+    <%= link_to income_path, class: "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-coffee hover:bg-caramel/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel" do %>
+      <span class="flex size-8 items-center justify-center rounded-lg bg-caramel/15 text-caramel-deep" aria-hidden="true">
+        <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M3.5 6.5h17v11h-17z" />
+          <path d="M6.5 9.5a2 2 0 0 0 2-2h7a2 2 0 0 0 2 2v5a2 2 0 0 0-2 2h-7a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="2.25" />
+        </svg>
+      </span>
+      <span><%= t("transactions.index.Income") %></span>
+    <% end %>
+  </div>
+</details>

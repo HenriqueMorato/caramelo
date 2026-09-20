@@ -4,6 +4,7 @@ class User < ApplicationRecord
   has_many :portfolio_performance_observations, dependent: :delete_all
   has_many :portfolio_performance_materializations, dependent: :delete_all
   has_many :position_materializations, dependent: :delete_all
+  has_many :corporate_actions, dependent: :restrict_with_error
   has_secure_password
   has_many :institutions, dependent: :destroy
   has_many :sessions, dependent: :destroy

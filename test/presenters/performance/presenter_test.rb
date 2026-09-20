@@ -3,7 +3,8 @@ require "test_helper"
 class Performance::PresenterTest < ActiveSupport::TestCase
   Result = Struct.new(
     :reporting_cost_basis_amount, :market_value_amount, :realized_gain_amount,
-    :unrealized_gain_amount, :return_ratio, :missing, :market_price_as_of
+    :unrealized_gain_amount, :return_ratio, :missing, :market_price_as_of,
+    :investment_income_amount
   ) do
     def missing? = missing
     def market_price_as_of = self[:market_price_as_of]
@@ -25,6 +26,8 @@ class Performance::PresenterTest < ActiveSupport::TestCase
     assert_equal Money.from_amount(0, "BRL"), presenter.realized_gain
     assert_equal "R$0,00", presenter.realized_gain_label
     assert_not_predicate presenter, :realized_gain?
+    assert_nil presenter.investment_income
+    assert_not_predicate presenter, :investment_income?
     assert_equal "+R$20,00", presenter.unrealized_gain_label
     assert_equal "↑", presenter.unrealized_gain_arrow
     assert_equal "text-leaf", presenter.unrealized_gain_color_class
@@ -44,6 +47,18 @@ class Performance::PresenterTest < ActiveSupport::TestCase
 
     assert_predicate presenter, :realized_gain?
     assert_equal "+R$5,00", presenter.realized_gain_label
+  end
+
+  test "shows investment income separately from sale-derived realized gain" do
+    result = Result.new(
+      BigDecimal("100"), BigDecimal("120"), BigDecimal("5"), BigDecimal("15"),
+      BigDecimal("0.3"), false, nil, BigDecimal("10")
+    )
+    presenter = build_presenter(result)
+
+    assert_equal Money.from_amount(10, "BRL"), presenter.investment_income
+    assert_equal "+R$10,00", presenter.investment_income_label
+    assert_predicate presenter, :investment_income?
   end
 
   test "keeps available metrics visible while a backfill is pending" do
@@ -83,6 +98,7 @@ class Performance::PresenterTest < ActiveSupport::TestCase
     assert_nil unavailable.market_value
     assert_nil unavailable.realized_gain
     assert_nil unavailable.unrealized_gain
+    assert_nil unavailable.investment_income
     assert_nil unavailable.return_ratio
     assert_nil unavailable.unrealized_gain_label
     assert_nil unavailable.return_label

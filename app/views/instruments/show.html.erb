@@ -25,7 +25,7 @@
         </p>
       <% end %>
       <div class="mt-2 sm:flex sm:justify-end">
-        <%= render "actions", instrument: @instrument, delete_blocked: @instrument_has_trades %>
+        <%= render "actions", instrument: @instrument, delete_blocked: @instrument_has_activity %>
       </div>
     </div>
   </header>
@@ -37,6 +37,7 @@
       position: @position,
       position_error: @position_error,
       trades: @trades,
+      has_income: @has_performance_income,
       history_mode: @history_mode,
       selected_period: @selected_period,
       period_selection: @period_selection,
@@ -51,30 +52,34 @@
       valuation: @valuation,
       market_price: @market_price,
       presenters: @performance_presenters,
+      has_income: @has_performance_income,
       native_currency: @instrument.currency,
       reporting_currency: @reporting_currency,
       currency_view: @currency_view %>
   </div>
 
-  <section aria-labelledby="trade-history-heading" class="space-y-4">
+  <% activity_filter_params = request.query_parameters.slice("history", "period", "currency_view") %>
+  <section aria-labelledby="activity-history-heading" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 id="trade-history-heading" class="text-lg font-semibold text-coffee"><%= t(".Trade history") %></h2>
-        <p class="mt-1 text-sm text-muted"><%= t(".Trade history description") %></p>
+        <h2 id="activity-history-heading" class="text-lg font-semibold text-coffee"><%= t(".Activity history") %></h2>
+        <p class="mt-1 text-sm text-muted"><%= t(".Activity history description") %></p>
       </div>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(@instrument), class: "ui-button ui-button-primary" %>
+      <%= render "transactions/add_menu",
+        trade_path: new_instrument_trade_path(@instrument),
+        income_path: new_instrument_corporate_action_path(@instrument),
+        test_id: "add-instrument-transaction-menu" %>
     </div>
 
-    <% if @trades.any? %>
-      <div class="space-y-2">
-        <%= render @trades %>
-      </div>
-    <% else %>
-      <div class="rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center">
-        <p class="font-medium text-coffee"><%= t(".No trades") %></p>
-        <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty history") %></p>
-      </div>
-    <% end %>
+    <%= render "transactions/history",
+      transactions: @activity_transactions,
+      activity: @activity,
+      has_transactions: @has_activity_history,
+      all_filter_path: instrument_path(@instrument, activity_filter_params),
+      trades_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "trades")),
+      income_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "income")),
+      empty_title: t(".No activity"),
+      empty_body: t(".Empty activity history") %>
   </section>
 
 </section>

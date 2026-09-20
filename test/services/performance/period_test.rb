@@ -26,6 +26,17 @@ class Performance::PeriodTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.1"), period.return_ratio
   end
 
+  test "treats a cash distribution as return and weights its withdrawal timing" do
+    distribution = Performance::Portfolio::CashFlow.new(
+      occurred_on: @from + 1, amount: BigDecimal("-10"), source: :corporate_action
+    )
+    period = calculate_period(opening_amount: "100", closing_amount: "100", cash_flows: [ distribution ])
+
+    assert_equal BigDecimal("-10"), period.net_cash_flow_amount
+    assert_equal BigDecimal("10"), period.gain_loss_amount
+    assert_equal BigDecimal("0.10526315789473684210526315789474"), period.return_ratio
+  end
+
   test "uses persisted trades, daily closes, and historical exchange rates" do
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "PRDI", exchange: "XNAS", name: "Period instrument", currency: "USD")
@@ -147,12 +158,13 @@ class Performance::PeriodTest < ActiveSupport::TestCase
       realized_gain_amount: BigDecimal("0"), realized_gain: Money.new(0, "BRL"),
       unrealized_gain_amount: BigDecimal("0"), unrealized_gain: Money.new(0, "BRL"),
       net_cash_flow_amount: BigDecimal("0"), net_cash_flow: Money.new(0, "BRL"),
+      investment_income_amount: BigDecimal("0"), investment_income: Money.new(0, "BRL"),
       status:, position_results: [], cash_flows:
     )
   end
 
   def cash_flow(date:, amount:)
-    Performance::Portfolio::CashFlow.new(traded_on: date, amount: BigDecimal(amount))
+    Performance::Portfolio::CashFlow.new(occurred_on: date, amount: BigDecimal(amount), source: :trade)
   end
 
   def configured_portfolio

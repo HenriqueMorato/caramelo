@@ -1,7 +1,7 @@
 class InstrumentPerformanceObservation < ApplicationRecord
   DECIMAL_ATTRIBUTES = %i[
     market_value_amount cost_basis_amount realized_gain_amount
-    unrealized_gain_amount net_cash_flow_amount invested_amount
+    unrealized_gain_amount net_cash_flow_amount investment_income_amount invested_amount
   ].freeze
 
   belongs_to :user

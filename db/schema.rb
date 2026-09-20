@@ -10,7 +10,44 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_14_000200) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_14_231000) do
+  create_table "corporate_actions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", limit: 3
+    t.date "ex_date"
+    t.integer "gross_amount_cents"
+    t.integer "institution_id"
+    t.integer "instrument_id", null: false
+    t.string "kind", null: false
+    t.integer "net_amount_cents"
+    t.text "notes"
+    t.date "paid_on"
+    t.text "raw_payload"
+    t.string "slug", null: false
+    t.string "source", limit: 64, default: "manual", null: false
+    t.string "source_reference"
+    t.string "status", default: "confirmed", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.integer "withholding_tax_cents"
+    t.index ["institution_id"], name: "index_corporate_actions_on_institution_id"
+    t.index ["instrument_id"], name: "index_corporate_actions_on_instrument_id"
+    t.index ["slug"], name: "index_corporate_actions_on_slug", unique: true
+    t.index ["user_id", "instrument_id", "paid_on"], name: "idx_on_user_id_instrument_id_paid_on_dc2d360a75"
+    t.index ["user_id", "paid_on"], name: "index_corporate_actions_on_user_id_and_paid_on"
+    t.index ["user_id", "source", "instrument_id", "source_reference"], name: "index_corporate_actions_on_owner_provider_reference", unique: true, where: "source_reference IS NOT NULL"
+    t.index ["user_id"], name: "index_corporate_actions_on_user_id"
+    t.check_constraint "ex_date IS NULL OR ex_date <= paid_on", name: "corporate_actions_ex_date_not_after_payment"
+    t.check_constraint "gross_amount_cents > 0", name: "corporate_actions_gross_positive"
+    t.check_constraint "kind <> 'jcp' OR currency = 'BRL'", name: "corporate_actions_jcp_currency"
+    t.check_constraint "kind IN ('dividend', 'jcp')", name: "corporate_actions_kind"
+    t.check_constraint "net_amount_cents = gross_amount_cents - withholding_tax_cents", name: "corporate_actions_amounts_reconcile"
+    t.check_constraint "net_amount_cents >= 0", name: "corporate_actions_net_nonnegative"
+    t.check_constraint "paid_on IS NOT NULL AND gross_amount_cents IS NOT NULL AND withholding_tax_cents IS NOT NULL AND net_amount_cents IS NOT NULL AND currency IS NOT NULL", name: "corporate_actions_cash_fields_present"
+    t.check_constraint "status IN ('pending', 'confirmed', 'ignored', 'reversed')", name: "corporate_actions_status"
+    t.check_constraint "withholding_tax_cents >= 0", name: "corporate_actions_tax_nonnegative"
+  end
+
   create_table "daily_closing_prices", force: :cascade do |t|
     t.decimal "close_price", precision: 28, scale: 8, null: false
     t.datetime "created_at", null: false
@@ -87,6 +124,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_14_000200) do
     t.datetime "generated_at", null: false
     t.integer "instrument_id", null: false
     t.text "invested_amount"
+    t.text "investment_income_amount"
     t.text "market_value_amount"
     t.text "net_cash_flow_amount"
     t.date "observed_on", null: false
@@ -101,7 +139,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_14_000200) do
     t.index ["instrument_id"], name: "index_instrument_performance_observations_on_instrument_id"
     t.index ["user_id", "instrument_id", "reporting_currency", "observed_on"], name: "index_instrument_performance_observations_uniqueness", unique: true
     t.index ["user_id"], name: "index_instrument_performance_observations_on_user_id"
-    t.check_constraint "(status = 'missing' AND market_value_amount IS NULL AND cost_basis_amount IS NULL AND realized_gain_amount IS NULL AND unrealized_gain_amount IS NULL AND net_cash_flow_amount IS NULL AND invested_amount IS NULL) OR (status IN ('available', 'empty') AND market_value_amount IS NOT NULL AND cost_basis_amount IS NOT NULL AND realized_gain_amount IS NOT NULL AND unrealized_gain_amount IS NOT NULL AND net_cash_flow_amount IS NOT NULL AND invested_amount IS NOT NULL)", name: "instrument_performance_observations_amounts_match_status"
+    t.check_constraint "(status = 'missing' AND market_value_amount IS NULL AND cost_basis_amount IS NULL AND realized_gain_amount IS NULL AND unrealized_gain_amount IS NULL AND net_cash_flow_amount IS NULL AND investment_income_amount IS NULL AND invested_amount IS NULL) OR (status IN ('available', 'empty') AND market_value_amount IS NOT NULL AND cost_basis_amount IS NOT NULL AND realized_gain_amount IS NOT NULL AND unrealized_gain_amount IS NOT NULL AND net_cash_flow_amount IS NOT NULL AND investment_income_amount IS NOT NULL AND invested_amount IS NOT NULL)", name: "instrument_performance_observations_amounts_match_status"
     t.check_constraint "source_generation >= 0", name: "instrument_performance_observations_source_generation"
     t.check_constraint "status IN ('available', 'empty', 'missing')", name: "instrument_performance_observations_status"
   end
@@ -270,6 +308,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_14_000200) do
     t.check_constraint "reporting_currency GLOB '[A-Z][A-Z][A-Z]'", name: "users_reporting_currency_format"
   end
 
+  add_foreign_key "corporate_actions", "institutions"
+  add_foreign_key "corporate_actions", "instruments"
+  add_foreign_key "corporate_actions", "users"
   add_foreign_key "daily_closing_prices", "instruments"
   add_foreign_key "historical_data_backfills", "instruments"
   add_foreign_key "institutions", "users"

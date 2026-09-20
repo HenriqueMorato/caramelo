@@ -1,0 +1,24 @@
+---
+en:
+  transactions:
+    index:
+      Actions: Actions
+      Activity: Activity
+      Activity filters: Activity filters
+      Add: Add
+      All: All
+      Costs or tax: Fees / tax
+      Date: Date
+      Empty state: Record your first trade or income payment to start the activity
+        history.
+      Heading: The trail behind the pack.
+      Income: Income
+      Introduction: Every trade and income payment, together in one chronological
+        trail.
+      No activity yet: No activity yet
+      No matching activity: No activity matches this filter.
+      Page title: Transactions · %{application}
+      Total or net: Total / net
+      Trades: Trades
+      Type: Type
+      Unit or gross: Unit price / gross

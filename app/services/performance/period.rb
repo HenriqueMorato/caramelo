@@ -37,7 +37,9 @@ module Performance
       @closing_valuation = valuation_for(to)
       return missing_result if opening_valuation.missing? || closing_valuation.missing?
 
-      @cash_flows = closing_valuation.cash_flows.select { |cash_flow| cash_flow.traded_on > from && cash_flow.traded_on <= to }
+      @cash_flows = closing_valuation.cash_flows.select do |cash_flow|
+        cash_flow.occurred_on > from && cash_flow.occurred_on <= to
+      end
       @net_cash_flow_amount = decimal(cash_flows.sum(&:amount))
       @gain_loss_amount = decimal(closing_valuation.market_value_amount - opening_valuation.market_value_amount - net_cash_flow_amount)
       status = opening_valuation.empty? && closing_valuation.empty? ? :empty : :available
@@ -77,7 +79,7 @@ module Performance
       return if from == to
 
       weighted_capital = opening_valuation.market_value_amount.to_r + cash_flows.sum do |cash_flow|
-        cash_flow.amount.to_r * (to - cash_flow.traded_on).to_i / (to - from).to_i
+        cash_flow.amount.to_r * (to - cash_flow.occurred_on).to_i / (to - from).to_i
       end
       return if weighted_capital.zero?
 

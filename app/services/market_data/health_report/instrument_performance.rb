@@ -18,7 +18,7 @@ module MarketData
       attr_reader :owner, :today, :context
 
       def instruments
-        context&.instruments || owner.trades.includes(:instrument).map(&:instrument).uniq
+        health_context.performance_instruments
       end
 
       def currencies_for(instrument)
@@ -27,7 +27,7 @@ module MarketData
       end
 
       def entry_for(instrument:, currency:)
-        first_date = owner.trades.where(instrument:).minimum(:traded_on)
+        first_date = health_context.first_performance_date_for(instrument)
         materialization = InstrumentPerformanceMaterialization.find_by(
           user: owner, instrument:, reporting_currency: currency
         )
@@ -82,6 +82,10 @@ module MarketData
 
       def format_ranges(ranges)
         ranges.map { |range| range.begin == range.end ? range.begin.iso8601 : "#{range.begin}–#{range.end}" }.join(", ")
+      end
+
+      def health_context
+        @health_context ||= context || Context.new(owner:, today:)
       end
     end
   end

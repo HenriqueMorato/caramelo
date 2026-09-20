@@ -7,6 +7,7 @@ class InstrumentPerformanceObservationTest < ActiveSupport::TestCase
     realized_gain_amount: "7.777777777777777777777777777777",
     unrealized_gain_amount: "15.345679011234567901123456790112",
     net_cash_flow_amount: "92.222222222222222222222222222224",
+    investment_income_amount: "3.333333333333333333333333333333",
     invested_amount: "115.555555555555555555555555555556"
   }.freeze
 
@@ -69,6 +70,7 @@ class InstrumentPerformanceObservationTest < ActiveSupport::TestCase
 
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(status: "invalid") }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(market_value_amount: nil) }
+    assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(investment_income_amount: nil) }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(invested_amount: nil) }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(status: "missing") }
     assert_raises(ActiveRecord::StatementInvalid) { observation.update_columns(source_generation: -1) }
@@ -79,6 +81,7 @@ class InstrumentPerformanceObservationTest < ActiveSupport::TestCase
       **EXACT_AMOUNTS.transform_values { nil }
     )
     missing.save!
+    assert_raises(ActiveRecord::StatementInvalid) { missing.update_columns(investment_income_amount: "1") }
     assert_raises(ActiveRecord::StatementInvalid) { missing.update_columns(invested_amount: "1") }
   end
 

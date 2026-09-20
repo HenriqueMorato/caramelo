@@ -2,6 +2,20 @@
 en:
   activerecord:
     attributes:
+      corporate_action:
+        currency: Currency
+        ex_date: Ex-date
+        gross_amount: Gross amount
+        gross_amount_cents: Gross amount
+        institution: Institution
+        instrument: Instrument
+        kind: Action type
+        net_amount: Net amount
+        net_amount_cents: Net amount
+        notes: Notes
+        paid_on: Payment date
+        withholding_tax: Withholding tax
+        withholding_tax_cents: Withholding tax
       institution:
         active: Active
         name: Name
@@ -33,6 +47,16 @@ en:
         reporting_currency: Reporting currency
     errors:
       models:
+        corporate_action:
+          attributes:
+            currency:
+              instrument_mismatch: must match the instrument currency
+            institution:
+              wrong_owner: must belong to the income owner
+            kind:
+              jcp_requires_brl: JCP is only available for BRL instruments
+            net_amount_cents:
+              does_not_reconcile: must equal gross amount minus withholding tax
         historical_data_backfill:
           attributes:
             currency:
@@ -40,7 +64,8 @@ en:
         instrument:
           attributes:
             currency:
-              cannot_change_with_trades: cannot change while trades exist
+              cannot_change_with_activity: cannot change while trades or income records
+                exist
         trade:
           attributes:
             currency:
@@ -50,6 +75,9 @@ en:
             settlement_currency:
               same_as_instrument: must differ from the instrument currency
     models:
+      corporate_action:
+        one: Corporate action
+        other: Corporate actions
       institution:
         one: Institution
         other: Institutions

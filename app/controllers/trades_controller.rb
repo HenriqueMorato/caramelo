@@ -2,16 +2,10 @@ class TradesController < ApplicationController
   allow_unauthenticated_access
 
   before_action :set_trade, only: %i[ edit update destroy ]
+  before_action :set_return_to, only: %i[ edit update destroy ]
   before_action :set_context_instrument, only: %i[ new create ]
   before_action :set_form_options, only: %i[ new create edit update ]
   before_action :require_money_values_visible, only: %i[ new create edit update ]
-
-  def index
-    @trades = owner.trades.includes(:instrument, :institution).strict_loading.reverse_chronological
-    @has_trades = @trades.exists?
-    @side = params[:side].presence_in(Trade.sides.keys)
-    @trades = @trades.where(side: @side) if @side
-  end
 
   def new
     @trade = owner.trades.new(
@@ -45,7 +39,7 @@ class TradesController < ApplicationController
     if @trade.save
       enqueue_historical_data_backfill
       enqueue_current_market_price_refresh
-      redirect_to transactions_path, notice: t("notices.Updated", model: Trade.model_name.human), status: :see_other
+      redirect_to @return_to, notice: t("notices.Updated", model: Trade.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
     end
@@ -54,7 +48,7 @@ class TradesController < ApplicationController
   def destroy
     @trade.destroy!
     enqueue_historical_data_backfill
-    redirect_to transactions_path, notice: t("notices.Deleted", model: Trade.model_name.human), status: :see_other
+    redirect_to @return_to, notice: t("notices.Deleted", model: Trade.model_name.human), status: :see_other
   end
 
   private
@@ -65,6 +59,10 @@ class TradesController < ApplicationController
 
   def set_trade
     @trade = owner.trades.friendly.find(params.expect(:id))
+  end
+
+  def set_return_to
+    @return_to = url_from(params[:return_to]) || url_from(request.referer) || transactions_path
   end
 
   def set_context_instrument

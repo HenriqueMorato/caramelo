@@ -3,7 +3,7 @@ module InstrumentPerformance
     UNIQUE_INDEX = "index_instrument_performance_observations_uniqueness"
     MONETARY_ATTRIBUTES = %i[
       market_value_amount cost_basis_amount realized_gain_amount
-      unrealized_gain_amount net_cash_flow_amount invested_amount
+      unrealized_gain_amount net_cash_flow_amount investment_income_amount invested_amount
     ].freeze
 
     def initialize(user:, instrument:, reporting_currency: user.reporting_currency)
@@ -69,6 +69,7 @@ module InstrumentPerformance
         realized_gain_amount: serialize_decimal(result.realized_gain_amount),
         unrealized_gain_amount: serialize_decimal(result.unrealized_gain_amount),
         net_cash_flow_amount: serialize_decimal(result.net_cash_flow_amount),
+        investment_income_amount: serialize_decimal(result.investment_income_amount),
         invested_amount: serialize_decimal(result.invested_amount)
       }
     end
@@ -76,7 +77,7 @@ module InstrumentPerformance
     def cash_flow_attributes(cash_flows)
       {
         cash_flow_total: cash_flows.sum { |flow| flow.amount.to_r }.to_r.to_s,
-        dated_cash_flow_total: cash_flows.sum { |flow| flow.amount.to_r * flow.traded_on.jd }.to_r.to_s
+        dated_cash_flow_total: cash_flows.sum { |flow| flow.amount.to_r * flow.occurred_on.jd }.to_r.to_s
       }
     end
 

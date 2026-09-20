@@ -1,0 +1,24 @@
+---
+en:
+  corporate_actions:
+    actions:
+      Add income: Add income
+      Edit income: Edit income
+      Save income: Save income
+    edit:
+      Page title: Edit income · %{application}
+    form:
+      Discard changes: Discard your unsaved income changes?
+      Ex-date help: Optional. Using the date the instrument began trading without
+        this payment keeps daily performance accurate. If blank, payment date is used
+        instead.
+      Institution optional: Institution (optional)
+      Net amount help: Gross amount minus withholding.
+      Payment date help: The day the dividend or JCP reached your account.
+    kinds:
+      dividend: Dividend
+      jcp: JCP
+    new:
+      Introduction: Record the issuer payment once. Any reinvestment purchase remains
+        a separate trade.
+      Page title: New income · %{application}

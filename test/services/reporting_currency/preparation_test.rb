@@ -113,6 +113,22 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_equal early_native_trade.traded_on, starts.fetch("BRL")
   end
 
+  test "uses confirmed income dates when preparing currency and instrument history" do
+    action = CorporateAction.create!(
+      user: @user, instrument: instruments(:voo_arcx), kind: :dividend, status: :confirmed,
+      paid_on: Date.new(2026, 7, 3), ex_date: Date.new(2026, 6, 29),
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "USD", source: "manual"
+    )
+    clear_enqueued_jobs
+
+    travel_to(Date.new(2026, 8, 14)) do
+      assert_equal action.ex_date, preparation.send(:currency_starts).fetch("USD")
+      assert_equal action.ex_date,
+        preparation.send(:instrument_starts).fetch(action.instrument)
+    end
+  end
+
   test "an empty portfolio requires neither FX nor a rebuild" do
     @user = users(:two)
 

@@ -53,9 +53,15 @@
       <dd class="font-mono text-sm font-semibold tabular-nums <%= presenter.return_color_class %>"><%= presenter.return_label || t("Not available") %></dd>
     </div>
     <% if presenter.realized_gain? %>
-      <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
+      <div class="flex items-center justify-between gap-4 py-3">
         <dt class="text-sm text-muted"><%= t("Realized gains") %></dt>
         <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= display_money(presenter.realized_gain_label) %></dd>
+      </div>
+    <% end %>
+    <% if presenter.investment_income? %>
+      <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
+        <dt class="text-sm text-muted"><%= t("Investment income") %></dt>
+        <dd class="font-mono text-sm font-semibold tabular-nums text-coffee"><%= display_money(presenter.investment_income_label) %></dd>
       </div>
     <% end %>
 </dl>

@@ -44,7 +44,7 @@ module Performance
       return :future unless from <= Date.current
 
       materialization.request!(from:, to: Date.current, source_changed: true)
-      return clear_observations unless target_has_trades?
+      return clear_observations unless target_has_performance_sources?
 
       store.stale_from(from)
       :stale
@@ -83,8 +83,11 @@ module Performance
       end
     end
 
-    def target_has_trades?
-      instrument ? user.trades.exists?(instrument:) : user.trades.exists?
+    def target_has_performance_sources?
+      return true if instrument ? user.trades.exists?(instrument:) : user.trades.exists?
+
+      scope = user.corporate_actions.effective
+      instrument ? scope.exists?(instrument:) : scope.exists?
     end
 
     def clear_observations

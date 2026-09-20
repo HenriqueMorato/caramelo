@@ -17,8 +17,11 @@ module MarketData
     end
 
     def self.benchmark_history_start
-      oldest_trade_date = Trade.where(user: User.owner).minimum(:traded_on)
-      [ oldest_trade_date, TradingCalendar.previous_business_day ].compact.min
+      oldest_activity_date = [
+        Trade.where(user: User.owner).minimum(:traded_on),
+        CorporateAction.where(user: User.owner).effective_on_or_before(Date.current).minimum_performance_on
+      ].compact.min
+      [ oldest_activity_date, TradingCalendar.previous_business_day ].compact.min
     end
 
     private_class_method :traded_instrument_count, :benchmark_history_start

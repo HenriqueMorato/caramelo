@@ -41,8 +41,11 @@ module ReportingCurrency
       native_starts = trades.group(:currency).minimum(:traded_on)
       settlement_starts = trades.where.not(settlement_currency: nil)
         .group(:settlement_currency).minimum(:traded_on)
-      native_starts.merge(settlement_starts) { |_currency, native_date, settlement_date|
+      trade_starts = native_starts.merge(settlement_starts) { |_currency, native_date, settlement_date|
         [ native_date, settlement_date ].min
+      }
+      trade_starts.merge(corporate_action_currency_starts) { |_currency, trade_date, action_date|
+        [ trade_date, action_date ].min
       }
     end
 
@@ -62,7 +65,26 @@ module ReportingCurrency
 
     def instrument_starts
       starts = user.trades.where(traded_on: ..Date.current).group(:instrument_id).minimum(:traded_on)
+      starts.merge!(corporate_action_instrument_starts) { |_instrument_id, trade_date, action_date|
+        [ trade_date, action_date ].min
+      }
       Instrument.where(id: starts.keys).index_with { |instrument| starts.fetch(instrument.id) }
+    end
+
+    def corporate_action_currency_starts
+      effective_corporate_actions.group_by(&:currency).transform_values do |actions|
+        actions.map(&:performance_on).min
+      end
+    end
+
+    def corporate_action_instrument_starts
+      effective_corporate_actions.group_by(&:instrument_id).transform_values do |actions|
+        actions.map(&:performance_on).min
+      end
+    end
+
+    def effective_corporate_actions
+      @effective_corporate_actions ||= user.corporate_actions.effective_on_or_before(Date.current).to_a
     end
 
     def prepare_pair(base_currency, first_trade)

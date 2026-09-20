@@ -9,21 +9,11 @@ class InstrumentsController < ApplicationController
   end
 
   def show
-    @trades = User.owner.trades.where(instrument: @instrument).includes(:instrument, :institution).strict_loading.reverse_chronological.load
-    @instrument_has_trades = @instrument.trades.exists?
-    @reporting_currency = owner.reporting_currency
-    @currency_view = requested_currency_view
-    @history_mode = params[:history].presence_in(%w[performance price]) || "performance"
-    @period_selection = Performance::PeriodSelection.for(
-      period: params[:period], owner:, instrument: @instrument
-    )
-    @selected_period = @period_selection.period
-    @market_price = MarketPrice::Presenter.for(instrument: @instrument)
-    @header_presenter = Instrument::HeaderPresenter.for(instrument: @instrument, market_price: @market_price)
-    @performance_pending = HistoricalDataBackfill.pending_for?(instruments: [ @instrument ])
-    @price_history_presenter = price_history_presenter if @history_mode == "price"
+    load_activity
+    load_history_selection
+    load_market_data
     load_position
-    @history_performance_views = history_performance_views if @history_mode == "performance" && !@position_error
+    load_history
   end
 
   def new
@@ -61,10 +51,48 @@ class InstrumentsController < ApplicationController
 
   private
 
-  def price_history_presenter
-    DailyClosingPrice::SeriesPresenter.for(
-      instrument: @instrument, from: @period_selection.from, to: @period_selection.to
+  def load_activity
+    @activity = params[:activity].presence_in(ActivityHistory::FILTERS)
+    @trades = owner.trades.where(instrument: @instrument)
+      .includes(*activity_associations(except_for: "income")).strict_loading
+    @corporate_actions = owner.corporate_actions.where(instrument: @instrument)
+      .includes(*activity_associations(except_for: "trades")).strict_loading
+    @has_performance_income = owner.corporate_actions.effective_on_or_before(Date.current)
+      .exists?(instrument: @instrument)
+    activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: @activity)
+    @activity_transactions = activity_history.transactions
+    @has_activity_history = activity_history.any?
+    @instrument_has_activity = @instrument.trades.exists? || @instrument.corporate_actions.exists?
+  end
+
+  def activity_associations(except_for:)
+    [ :instrument, (:institution unless @activity == except_for) ].compact
+  end
+
+  def load_history_selection
+    @reporting_currency = owner.reporting_currency
+    @currency_view = requested_currency_view
+    @history_mode = params[:history].presence_in(%w[performance price]) || "performance"
+    @period_selection = Performance::PeriodSelection.for(
+      period: params[:period], owner:, instrument: @instrument
     )
+    @selected_period = @period_selection.period
+  end
+
+  def load_market_data
+    @market_price = MarketPrice::Presenter.for(instrument: @instrument)
+    @header_presenter = Instrument::HeaderPresenter.for(instrument: @instrument, market_price: @market_price)
+    @performance_pending = HistoricalDataBackfill.pending_for?(instruments: [ @instrument ])
+  end
+
+  def load_history
+    if @history_mode == "price"
+      @price_history_presenter = DailyClosingPrice::SeriesPresenter.for(
+        instrument: @instrument, from: @period_selection.from, to: @period_selection.to
+      )
+    elsif !@position_error
+      @history_performance_views = history_performance_views
+    end
   end
 
   def load_position
@@ -104,6 +132,7 @@ class InstrumentsController < ApplicationController
   def performance_presenter(currency)
     performance = Performance::Portfolio.for(
       valuation_date: Date.current, instrument: @instrument, trades: @trades,
+      corporate_actions: @corporate_actions,
       reporting_currency: currency
     )
     Performance::Presenter.for(performance:, pending: @performance_pending)

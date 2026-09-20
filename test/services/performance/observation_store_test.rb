@@ -25,8 +25,8 @@ class Performance::ObservationStoreTest < ActiveSupport::TestCase
     first_amount = Rational(1, 3)
     second_amount = Rational(-1, 7)
     flows = [
-      Performance::Portfolio::CashFlow.new(traded_on: date - 1, amount: first_amount),
-      Performance::Portfolio::CashFlow.new(traded_on: date, amount: second_amount)
+      Performance::Portfolio::CashFlow.new(occurred_on: date - 1, amount: first_amount, source: :trade),
+      Performance::Portfolio::CashFlow.new(occurred_on: date, amount: second_amount, source: :corporate_action)
     ]
     @store.write(valuation(date:).with(cash_flows: flows))
 
@@ -75,7 +75,9 @@ class Performance::ObservationStoreTest < ActiveSupport::TestCase
       valuation_date: date,
       market_value_amount: BigDecimal(market_value),
       net_cash_flow_amount: BigDecimal("80"),
-      cash_flows: [ Performance::Portfolio::CashFlow.new(traded_on: date, amount: Rational(80)) ],
+      cash_flows: [
+        Performance::Portfolio::CashFlow.new(occurred_on: date, amount: Rational(80), source: :trade)
+      ],
       status: :available
     )
   end

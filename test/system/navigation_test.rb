@@ -17,6 +17,9 @@ class NavigationTest < ApplicationSystemTestCase
 
     assert_current_path transactions_path
     assert_text "Long-term allocation"
+    find("summary", text: "Add").click
+    assert_link "Trade"
+    assert_link "Income"
 
     open_menu
     click_on "Dashboard"

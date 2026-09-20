@@ -9,54 +9,6 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "/trades/txn-owner-voo-buy/edit", edit_trade_path(@trade)
   end
 
-  test "lists only the configured owner's trades" do
-    get transactions_url
-
-    assert_response :success
-    assert_select "h1", "The trail behind the pack."
-    assert_select "tr", text: /Banco do Brasil.*Long-term allocation/m
-    assert_select "a[href='#{edit_trade_path(@trade)}']", "Edit"
-    assert_select "form[action='#{trade_path(@trade)}'] button", "Delete"
-    assert_select "tr", text: /Other owner trade/, count: 0
-  end
-
-  test "filters trades by side" do
-    get transactions_url(side: "buy")
-
-    assert_response :success
-    assert_select "a[aria-current='page']", "Buys only" do |links|
-      assert_equal transactions_path(side: "buy"), links.sole["href"]
-    end
-    assert_select "tr##{dom_id(@trade)}"
-  end
-
-  test "keeps the filter available when no trades match" do
-    get transactions_url(side: "sell")
-
-    assert_response :success
-    assert_select "a[aria-current='page']", "Sells only" do |links|
-      assert_equal transactions_path(side: "sell"), links.sole["href"]
-    end
-    assert_select "tbody td", "No trades match this filter."
-  end
-
-  test "ignores an unsupported side filter" do
-    get transactions_url(side: "dividend")
-
-    assert_response :success
-    assert_select "tr##{dom_id(@trade)}"
-    assert_select "a[aria-current='page'][href='#{transactions_path}']", "All trades"
-  end
-
-  test "renders an empty state" do
-    Trade.where(user: User.owner).delete_all
-
-    get transactions_url
-
-    assert_response :success
-    assert_select "p", "No trades yet"
-  end
-
   test "does not expose another owner's trade for editing" do
     get edit_trade_url(trades(:other_owner_voo_sell))
 
@@ -265,8 +217,26 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "option", text: /#{Regexp.escape(institutions(:other_owner).name)}/, count: 0
   end
 
+  test "edit preserves a safe return target and rejects an external one" do
+    return_to = instrument_url(@trade.instrument, activity: "trades")
+
+    get edit_trade_url(@trade), headers: { "HTTP_REFERER" => return_to }
+
+    assert_response :success
+    assert_select "input[type='hidden'][name='return_to'][value='#{return_to}']"
+    assert_select "a[href='#{return_to}']", text: /Back/
+
+    get edit_trade_url(@trade), headers: { "HTTP_REFERER" => "https://example.com/elsewhere" }
+
+    assert_response :success
+    assert_select "input[type='hidden'][name='return_to'][value='#{transactions_path}']"
+    assert_select "a[href='#{transactions_path}']", text: /Back/
+  end
+
   test "updates an owner trade" do
+    return_to = instrument_path(@trade.instrument, activity: "trades")
     patch trade_url(@trade), params: {
+      return_to:,
       trade: valid_trade_params.merge(
         instrument_id: instruments(:petr4_bvmf).id,
         institution_id: institutions(:owner_xp).id,
@@ -278,7 +248,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
       )
     }
 
-    assert_redirected_to transactions_url
+    assert_redirected_to return_to
     assert_equal "sell", @trade.reload.side
     assert_equal instruments(:petr4_bvmf), @trade.instrument
     assert_equal "BRL", @trade.currency
@@ -306,11 +276,12 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "deletes an owner trade" do
+    return_to = instrument_url(@trade.instrument, activity: "trades")
     assert_difference("Trade.count", -1) do
-      delete trade_url(@trade)
+      delete trade_url(@trade), headers: { "HTTP_REFERER" => return_to }
     end
 
-    assert_redirected_to transactions_url
+    assert_redirected_to return_to
     assert_backfill(instrument: instruments(:voo_arcx), currency: "USD", from_date: Date.new(2026, 8, 12))
   end
 

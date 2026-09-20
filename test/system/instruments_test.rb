@@ -41,7 +41,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     assert_text "Apple Inc."
     assert_text "Other"
     assert_text "USD"
-    assert_text "Trade history"
+    assert_text "Activity history"
   end
 
   test "edits an instrument" do
@@ -99,7 +99,8 @@ class InstrumentsTest < ApplicationSystemTestCase
     page.execute_script("arguments[0].focus()", tooltip_trigger)
 
     assert_selector "[aria-describedby='#{tooltip_id}']:focus"
-    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades before deleting the instrument.", visible: true
+    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades and income before deleting the instrument.",
+      visible: true
   end
 
   test "updates an instrument position after contextual trade changes" do
@@ -108,8 +109,10 @@ class InstrumentsTest < ApplicationSystemTestCase
     visit instrument_path(instrument)
 
     assert_text "No trades"
-    within "[aria-labelledby='trade-history-heading']" do
-      assert_link "Add trade"
+    within "[aria-labelledby='activity-history-heading']" do
+      find("summary", text: "Add").click
+      assert_link "Trade"
+      assert_link "Income"
     end
     within "[aria-labelledby='position-summary-heading']" do
       click_on "Add trade"
@@ -135,9 +138,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     end
     fill_in "Quantity", with: "4"
     click_on "Update Trade"
-    assert_current_path transactions_path
-
-    visit instrument_path(instrument)
+    assert_current_path instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
       assert_text "4"
       assert_text "R$80,00"
@@ -149,9 +150,7 @@ class InstrumentsTest < ApplicationSystemTestCase
         click_on "Delete"
       end
     end
-    assert_current_path transactions_path
-
-    visit instrument_path(instrument)
+    assert_current_path instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
       assert_text "No trades"
       assert_link "Add trade"
@@ -289,7 +288,7 @@ class InstrumentsTest < ApplicationSystemTestCase
         generated_at: Time.current, market_value_amount: 1_500 + index,
         cost_basis_amount: 1_400, realized_gain_amount: 0,
         unrealized_gain_amount: 100 + index, net_cash_flow_amount: -1_400,
-        invested_amount: 1_400
+        investment_income_amount: 0, invested_amount: 1_400
       )
     end
   end

@@ -18,7 +18,7 @@ module Performance
       prepare_range(from:, to:)
       return result if dates_to_build.empty?
 
-      if trades.empty?
+      if trades.empty? && corporate_actions.empty?
         clear_observations
         return result
       end
@@ -55,6 +55,7 @@ module Performance
       @source_generation = materialization.reload.source_generation
       @dates = (from..to).to_a
       @trades = nil
+      @corporate_actions = nil
       records = store.read(from:, to:)
       @dates_to_build = dates.select do |date|
         record = records[date]
@@ -70,11 +71,20 @@ module Performance
       end
     end
 
+    def corporate_actions
+      @corporate_actions ||= begin
+        scope = user.corporate_actions.effective
+        scope = scope.where(instrument:) if instrument
+        scope.includes(:instrument).strict_loading.order(:paid_on, :id).to_a
+      end
+    end
+
     def build_dates
       built_count = 0
       dates_to_build.each do |date|
         attributes = {
-          valuation_date: date, owner: user, trades:, reporting_currency: materialization.reporting_currency
+          valuation_date: date, owner: user, trades:, corporate_actions:,
+          reporting_currency: materialization.reporting_currency
         }
         attributes[:instrument] = instrument if instrument
         valuation = portfolio.for(**attributes)

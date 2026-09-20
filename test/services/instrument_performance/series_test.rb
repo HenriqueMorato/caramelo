@@ -5,6 +5,7 @@ class InstrumentPerformance::SeriesTest < ActiveSupport::TestCase
     @user = users(:owner)
     @from = Date.new(2026, 8, 24)
     @to = Date.new(2026, 8, 28)
+    CorporateAction.where(user: @user).delete_all
     Trade.where(user: @user).delete_all
   end
 
@@ -17,6 +18,11 @@ class InstrumentPerformance::SeriesTest < ActiveSupport::TestCase
     create_trade(
       instrument:, date: @from + 1, side: :buy, quantity: "1.5", unit_price: "12",
       fees_cents: 50
+    )
+    CorporateAction.create!(
+      user: @user, instrument:, kind: :dividend, status: :confirmed,
+      paid_on: @from + 3, gross_amount_cents: 250,
+      withholding_tax_cents: 50, net_amount_cents: 200, currency: "USD", source: "manual"
     )
     create_trade(
       instrument:, date: @from + 2, side: :sell, quantity: "1", unit_price: "16",
@@ -61,6 +67,8 @@ class InstrumentPerformance::SeriesTest < ActiveSupport::TestCase
     assert_equal direct_position.realized_gain_amount, reporting_record.realized_gain_amount
     assert_equal direct_position.unrealized_gain_amount, reporting_record.unrealized_gain_amount
     assert_equal direct_position.net_cash_flow_amount, reporting_record.net_cash_flow_amount
+    assert_equal BigDecimal("10.6"), reporting_record.investment_income_amount
+    assert_equal direct_position.investment_income_amount, reporting_record.investment_income_amount
     assert_equal direct_position.invested_amount, reporting_record.invested_amount
     assert_equal direct_position.reporting_cost_basis_amount, reporting.observations.last.invested_amount
     assert_equal direct_period.gain_loss_amount, reporting.observations.last.gain_loss_amount
@@ -75,6 +83,11 @@ class InstrumentPerformance::SeriesTest < ActiveSupport::TestCase
     ).position_results.sole
     assert_equal BigDecimal("0"), reporting.observations.first.return_ratio
     assert_in_delta first_position.return_ratio, reporting.observations.first.gain_on_cost_ratio, BigDecimal("1e-47")
+
+    native_record = InstrumentPerformanceObservation.find_by!(
+      user: @user, instrument:, reporting_currency: "USD", observed_on: @to
+    )
+    assert_equal BigDecimal("2"), native_record.investment_income_amount
   end
 
   test "preserves realized gain through closure and reopening" do

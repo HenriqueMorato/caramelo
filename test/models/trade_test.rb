@@ -277,7 +277,7 @@ class TradeTest < ActiveSupport::TestCase
     instrument.currency = "USD"
 
     assert_predicate instrument, :invalid?
-    assert_includes instrument.errors[:currency], "cannot change while trades exist"
+    assert_includes instrument.errors[:currency], "cannot change while trades or income records exist"
   end
 
   test "database constraints reject invalid financial values" do
