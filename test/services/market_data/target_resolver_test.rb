@@ -31,6 +31,53 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
     assert_equal "BRL", target.quote_currency
   end
 
+  test "resolves a current FX target for a traded currency" do
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "current_exchange_rate", base_currency: "USD", quote_currency: "BRL" },
+      owner: users(:owner)
+    )
+
+    assert_equal :current_exchange_rate, target.kind
+    assert_equal "USD", target.base_currency
+    assert_equal "BRL", target.quote_currency
+  end
+
+  test "resolves historical FX and performance targets backed only by confirmed income" do
+    owner = User.create!(email_address: "income-targets@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    create_income(owner:, instrument:)
+
+    fx_target = MarketData::TargetResolver.call(
+      attributes: { kind: "historical_exchange_rates", base_currency: "USD", quote_currency: "BRL" },
+      owner:
+    )
+    performance_target = MarketData::TargetResolver.call(
+      attributes: { kind: "instrument_performance", record_id: instrument.id, quote_currency: "USD" },
+      owner:
+    )
+
+    assert_equal :historical_exchange_rates, fx_target.kind
+    assert_equal :instrument_performance, performance_target.kind
+  end
+
+  test "does not use income-only instruments for current market targets" do
+    owner = User.create!(email_address: "income-current-targets@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    create_income(owner:, instrument:)
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::TargetResolver.call(
+        attributes: { kind: "current_price", record_id: instrument.id }, owner:
+      )
+    end
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::TargetResolver.call(
+        attributes: { kind: "current_exchange_rate", base_currency: "USD", quote_currency: "BRL" },
+        owner:
+      )
+    end
+  end
+
   test "rejects an untrusted reporting-currency owner id" do
     assert_raises(ActiveRecord::RecordNotFound) do
       MarketData::TargetResolver.call(
@@ -168,6 +215,14 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
   end
 
   private
+
+  def create_income(owner:, instrument:)
+    owner.corporate_actions.create!(
+      instrument:, kind: :dividend, paid_on: Date.current - 1.day,
+      gross_amount_cents: 1_000, withholding_tax_cents: 0, net_amount_cents: 1_000,
+      currency: instrument.currency, source: "manual"
+    )
+  end
 
   def with_stubbed_method(object, method_name, replacement)
     original = object.method(method_name)

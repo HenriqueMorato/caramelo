@@ -139,12 +139,18 @@ class HistoricalExchangeRate
 
     def affected_users
       # Valuation can resolve either the direct rate or its inverse.
-      User.where(id: Trade.where(currency: [ base_currency, quote_currency ]).select(:user_id))
+      trade_user_ids = Trade.where(currency: [ base_currency, quote_currency ]).pluck(:user_id)
+      income_user_ids = CorporateAction.effective_on_or_before(Date.current)
+        .where(currency: [ base_currency, quote_currency ]).pluck(:user_id)
+      User.where(id: trade_user_ids | income_user_ids)
     end
 
     def affected_instrument_targets
-      @affected_instrument_targets ||= User.where(id: Trade.select(:user_id)).flat_map do |user|
-        user.trades.includes(:instrument).map(&:instrument).uniq.flat_map do |instrument|
+      @affected_instrument_targets ||= affected_users.flat_map do |user|
+        trade_instruments = user.trades.includes(:instrument).map(&:instrument)
+        income_instruments = user.corporate_actions.effective_on_or_before(Date.current)
+          .includes(:instrument).map(&:instrument)
+        (trade_instruments + income_instruments).uniq.flat_map do |instrument|
           instrument_target_currencies(user:, instrument:).filter_map do |reporting_currency|
             [ user, instrument, reporting_currency ] if affected_pair?(instrument.currency, reporting_currency)
           end

@@ -48,6 +48,14 @@ en:
         trail.
       History selection: Select history view
       How returns are calculated: How returns are calculated
+      Income conversion unavailable explanation: A historical exchange rate is missing
+        for this income payment.
+      Income only performance: Income recorded, return unavailable
+      Income only performance explanation: This income is included in portfolio performance.
+        Add a trade to establish invested capital before calculating an instrument
+        return.
+      Income without position: Income is recorded for this instrument, but there is
+        no trade history or position.
       Instrument history chart description: "%{instrument} return in %{currency} over
         the selected period."
       Instrument history is building: Instrument history is building

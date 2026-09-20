@@ -109,6 +109,24 @@ class CorporateActionTest < ActiveSupport::TestCase
     assert_includes action.errors[:ex_date], "must be less than or equal to #{paid_on}"
   end
 
+  test "finds the earliest effective performance date through a scoped relation" do
+    later = build_action(paid_on: Date.new(2026, 1, 20), source_reference: "later")
+    earlier = build_action(
+      paid_on: Date.new(2026, 1, 18), ex_date: Date.new(2026, 1, 10), source_reference: "earlier"
+    )
+    ignored = build_action(
+      status: :ignored, paid_on: Date.new(2026, 1, 5), source_reference: "ignored"
+    )
+    future = build_action(paid_on: Date.new(2026, 2, 1), source_reference: "future")
+    [ later, earlier, ignored, future ].each(&:save!)
+
+    scope = CorporateAction.where(instrument: instruments(:petr4_bvmf))
+      .effective_on_or_before(Date.new(2026, 1, 31))
+
+    assert_equal Date.new(2026, 1, 10), scope.minimum_performance_on
+    assert_equal [ earlier, later ], scope.order(:paid_on).to_a
+  end
+
   test "generates an opaque stable reference and scopes provider references by instrument" do
     action = CorporateAction.create!(valid_attributes.merge(source: "provider", source_reference: "same-event"))
     other = CorporateAction.create!(

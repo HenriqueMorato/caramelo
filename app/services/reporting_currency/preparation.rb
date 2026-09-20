@@ -84,8 +84,7 @@ module ReportingCurrency
     end
 
     def effective_corporate_actions
-      @effective_corporate_actions ||= user.corporate_actions.effective
-        .where("COALESCE(ex_date, paid_on) <= ?", Date.current).to_a
+      @effective_corporate_actions ||= user.corporate_actions.effective_on_or_before(Date.current).to_a
     end
 
     def prepare_pair(base_currency, first_trade)

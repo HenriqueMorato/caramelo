@@ -20,8 +20,13 @@ module MarketData
         return [ range.begin, range.end ] if range
 
         trades = owner.trades
-        trades = trades.where(instrument_id: target.record_id) if target.kind == :instrument_performance
-        [ trades.minimum(:traded_on) || Date.current, Date.current ]
+        actions = owner.corporate_actions.effective_on_or_before(Date.current)
+        if target.kind == :instrument_performance
+          trades = trades.where(instrument_id: target.record_id)
+          actions = actions.where(instrument_id: target.record_id)
+        end
+        first_activity = [ trades.minimum(:traded_on), actions.minimum_performance_on ].compact.min
+        [ first_activity || Date.current, Date.current ]
       end
       private_class_method :normalized_range
     end

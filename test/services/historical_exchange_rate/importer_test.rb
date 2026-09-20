@@ -92,6 +92,44 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     assert_not_predicate observation, :stale?
   end
 
+  test "an FX correction invalidates income-only portfolio and instrument performance" do
+    user = User.create!(email_address: "income-fx-importer@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    date = Date.new(2026, 8, 24)
+    user.corporate_actions.create!(
+      instrument:, kind: :dividend, paid_on: date,
+      gross_amount_cents: 1_000, withholding_tax_cents: 0, net_amount_cents: 1_000,
+      currency: "USD", source: "manual"
+    )
+    @provider.define_singleton_method(:identifier) { MarketData::YahooFinance::FX_CONFIGURATION.identifier }
+    @importer.call(base_currency: "USD", quote_currency: "BRL", from: date, to: date)
+    Performance::ObservationBuilder.new(user:).call(from: date, to: date)
+    Performance::ObservationBuilder.new(
+      user:, instrument:, reporting_currency: "USD"
+    ).call(from: date, to: date)
+    Performance::ObservationBuilder.new(
+      user:, instrument:, reporting_currency: "BRL"
+    ).call(from: date, to: date)
+    portfolio = user.portfolio_performance_observations.find_by!(observed_on: date)
+    native = user.instrument_performance_observations.find_by!(
+      instrument:, reporting_currency: "USD", observed_on: date
+    )
+    reporting = user.instrument_performance_observations.find_by!(
+      instrument:, reporting_currency: "BRL", observed_on: date
+    )
+
+    @provider.rate = BigDecimal("6")
+    @importer.call(base_currency: "USD", quote_currency: "BRL", from: date, to: date)
+
+    assert_predicate portfolio.reload, :stale?
+    assert_predicate reporting.reload, :stale?
+    assert_not_predicate native.reload, :stale?
+    assert_predicate PortfolioPerformanceMaterialization.for(user:), :pending?
+    assert_predicate InstrumentPerformanceMaterialization.for(
+      user:, instrument:, reporting_currency: "BRL"
+    ), :pending?
+  end
+
   test "returns missing weekdays without invalidating performance when the provider has no observations" do
     date = Date.new(2026, 8, 25)
 

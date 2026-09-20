@@ -128,6 +128,46 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_includes issue.details, "USD/EUR"
   end
 
+  test "reports historical FX and performance for income-only instruments" do
+    owner = User.create!(email_address: "income-health@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    performance_on = Date.new(2026, 9, 10)
+    owner.corporate_actions.create!(
+      instrument:, kind: :dividend, paid_on: performance_on + 2.days, ex_date: performance_on,
+      gross_amount_cents: 1_000, withholding_tax_cents: 0, net_amount_cents: 1_000,
+      currency: "USD", source: "manual"
+    )
+    owner.corporate_actions.create!(
+      instrument: instruments(:petr4_bvmf), kind: :dividend, paid_on: performance_on,
+      gross_amount_cents: 500, withholding_tax_cents: 0, net_amount_cents: 500,
+      currency: "BRL", source: "manual"
+    )
+    PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: "BRL")
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "BRL")
+
+    report = MarketData::HealthReport.for(
+      owner:, current_market_price_service: CurrentPriceService.new,
+      current_exchange_rate_service: CurrentExchangeRateService.new,
+      today: Date.new(2026, 9, 12)
+    )
+
+    fx_entry = report.entries.find { |entry| entry.code == :missing_exchange_rate && entry.subject == "USD" }
+    portfolio_entry = report.entries.find { |entry| entry.code == :portfolio_performance }
+    performance_entries = report.entries.select do |entry|
+      entry.code == :instrument_performance && entry.subject == instrument
+    end
+    assert_equal performance_on..performance_on, fx_entry.missing_range
+    assert_equal performance_on..Date.new(2026, 9, 12), portfolio_entry.missing_range
+    assert_equal %w[BRL USD], performance_entries.map { |entry| entry.target.quote_currency }.sort
+    expected_performance_range = performance_on..Date.new(2026, 9, 12)
+    assert performance_entries.all? { |entry| entry.missing_range == expected_performance_range }
+    current_market_entries = report.entries.select do |entry|
+      %i[missing_current_price missing_daily_close missing_current_exchange_rate].include?(entry.code)
+    end
+    assert_empty current_market_entries
+  end
+
   test "requires historical FX for open-position valuation dates" do
     owner = users(:owner)
     HistoricalExchangeRate.delete_all

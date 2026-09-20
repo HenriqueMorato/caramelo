@@ -49,6 +49,26 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
   end
 
+  test "shows income without inventing an instrument return or market-data requirement" do
+    CorporateAction.create!(
+      user: users(:owner), instrument: @instrument, kind: :dividend, status: :confirmed,
+      paid_on: Date.current - 1.day, gross_amount_cents: 1_000,
+      withholding_tax_cents: 150, net_amount_cents: 850, currency: "BRL", source: "manual"
+    )
+
+    get instrument_url(@instrument)
+
+    assert_response :success
+    assert_select "p", "Income recorded, return unavailable"
+    assert_includes response.body,
+      "This income is included in portfolio performance. Add a trade to establish invested capital"
+    assert_select "p", "Income is recorded for this instrument, but there is no trade history or position."
+    assert_select "dt", "Investment income"
+    assert_select "dd", text: /R\$8,50/
+    assert_select "[data-controller='performance-chart']", count: 0
+    assert_select "#current_market_price_instrument_#{@instrument.id}", count: 0
+  end
+
   test "shows per-instrument performance from the latest closing price" do
     create_trade(instrument: @instrument, side: :buy, quantity: 2)
     DailyClosingPrice.create!(

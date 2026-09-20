@@ -139,8 +139,7 @@ module Performance
     end
 
     def corporate_action_scope
-      scope = owner.corporate_actions.effective.includes(:instrument)
-        .where("COALESCE(ex_date, paid_on) <= ?", valuation_date)
+      scope = owner.corporate_actions.effective_on_or_before(valuation_date).includes(:instrument)
       instrument ? scope.where(instrument:) : scope
     end
 

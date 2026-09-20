@@ -24,8 +24,7 @@ module InstrumentPerformance
 
     def instruments_with_activity
       starts = user.trades.where(traded_on: ..Date.current).group(:instrument_id).minimum(:traded_on)
-      action_starts = user.corporate_actions.effective
-        .where("COALESCE(ex_date, paid_on) <= ?", Date.current)
+      action_starts = user.corporate_actions.effective_on_or_before(Date.current)
         .group_by(&:instrument_id)
         .transform_values { |actions| actions.map(&:performance_on).min }
       starts.merge!(action_starts) do |_instrument_id, trade_date, action_date|

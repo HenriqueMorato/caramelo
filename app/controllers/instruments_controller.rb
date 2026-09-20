@@ -18,6 +18,8 @@ class InstrumentsController < ApplicationController
       .includes(*trade_includes).strict_loading
     @corporate_actions = owner.corporate_actions.where(instrument: @instrument)
       .includes(*income_includes).strict_loading
+    @has_performance_income = owner.corporate_actions.effective_on_or_before(Date.current)
+      .exists?(instrument: @instrument)
     activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: params[:activity])
     @activity_transactions = activity_history.transactions
     @has_activity_history = activity_history.any?

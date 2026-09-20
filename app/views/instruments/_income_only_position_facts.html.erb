@@ -1,0 +1,22 @@
+<%# locals: (presenter:) %>
+
+<% if presenter.loading? %>
+  <div class="rounded-xl bg-oat px-4 py-3 text-sm text-muted" role="status" aria-live="polite">
+    <p class="font-medium text-coffee"><%= t("instruments.show.Performance loading") %></p>
+    <p class="mt-1"><%= t("instruments.show.Performance loading explanation") %></p>
+  </div>
+<% elsif presenter.unavailable? %>
+  <div class="rounded-xl bg-oat px-4 py-3 text-sm text-muted" role="status">
+    <p class="font-medium text-coffee"><%= t("instruments.show.Performance unavailable") %></p>
+    <p class="mt-1"><%= t("instruments.show.Income conversion unavailable explanation") %></p>
+  </div>
+<% end %>
+
+<dl class="<%= "mt-4" if presenter.loading? || presenter.unavailable? %> divide-y divide-coffee/10">
+  <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+    <dt class="text-sm text-muted"><%= t("Investment income") %></dt>
+    <dd class="font-mono text-sm font-semibold tabular-nums text-coffee">
+      <%= display_money(presenter.investment_income_label, fallback: t("Not available")) %>
+    </dd>
+  </div>
+</dl>

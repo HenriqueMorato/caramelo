@@ -1,4 +1,4 @@
-<%# locals: (instrument:, position:, position_error:, valuation:, market_price:, presenters:, native_currency:, reporting_currency:, currency_view:) %>
+<%# locals: (instrument:, position:, position_error:, valuation:, market_price:, presenters:, has_income:, native_currency:, reporting_currency:, currency_view:) %>
 
 <section aria-labelledby="position-summary-heading"
          class="ui-panel p-5 sm:p-6 <%= "border-danger-border" if position_error %>">
@@ -42,12 +42,26 @@
       </div>
     <% elsif position.first_trade_date.nil? %>
       <div class="flex flex-col items-start gap-3 rounded-xl bg-oat px-4 py-3 ring-1 ring-inset ring-coffee/5 sm:flex-row sm:items-center">
-        <p class="text-sm text-muted"><%= t("instruments.show.No position yet") %></p>
+        <p class="text-sm text-muted">
+          <% if has_income %>
+            <%= t("instruments.show.Income without position") %>
+          <% else %>
+            <%= t("instruments.show.No position yet") %>
+          <% end %>
+        </p>
         <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(instrument), class: "shrink-0 text-sm font-semibold text-caramel-deep hover:text-coffee" %>
       </div>
-      <div class="mt-4">
-        <%= render "current_market_prices/current_market_price", market_price:, refreshing: false %>
-      </div>
+      <% if has_income %>
+        <% presenters.each do |name, presenter| %>
+          <%= tag.div class: "mt-4", data: { currency_view_target: "panel", currency_view_name: name }, hidden: name != currency_view do %>
+            <%= render "income_only_position_facts", presenter: %>
+          <% end %>
+        <% end %>
+      <% else %>
+        <div class="mt-4">
+          <%= render "current_market_prices/current_market_price", market_price:, refreshing: false %>
+        </div>
+      <% end %>
     <% else %>
       <% presenters.each do |name, presenter| %>
         <%= tag.div data: { currency_view_target: "panel", currency_view_name: name }, hidden: name != currency_view do %>

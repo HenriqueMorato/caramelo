@@ -23,8 +23,8 @@ class CreateCorporateActions < ActiveRecord::Migration[8.1]
     add_index :corporate_actions, :slug, unique: true
     add_index :corporate_actions, %i[user_id paid_on]
     add_index :corporate_actions, %i[user_id instrument_id paid_on]
-    add_index :corporate_actions, %i[source instrument_id source_reference], unique: true,
-      where: "source_reference IS NOT NULL"
+    add_index :corporate_actions, %i[user_id source instrument_id source_reference], unique: true,
+      where: "source_reference IS NOT NULL", name: "index_corporate_actions_on_owner_provider_reference"
 
     add_check_constraint :corporate_actions, "kind IN ('dividend', 'jcp')",
       name: "corporate_actions_kind"

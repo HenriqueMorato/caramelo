@@ -1,4 +1,4 @@
-<%# locals: (instrument:, position:, position_error:, trades:, history_mode:, selected_period:, period_selection:, history_performance_views:, price_history_presenter:, currency_view:) %>
+<%# locals: (instrument:, position:, position_error:, trades:, has_income:, history_mode:, selected_period:, period_selection:, history_performance_views:, price_history_presenter:, currency_view:) %>
 
 <section aria-labelledby="instrument-performance-heading" class="ui-panel flex h-full min-w-0 flex-col p-5 sm:p-6">
   <div class="flex flex-col gap-4">
@@ -37,6 +37,12 @@
 
   <% if history_mode == "price" %>
     <%= render "price_history", price_history_presenter: %>
+  <% elsif trades.empty? && has_income %>
+    <div class="mt-5 flex min-h-72 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-coffee/15 px-6 text-center">
+      <p class="font-medium text-coffee"><%= t("instruments.show.Income only performance") %></p>
+      <p class="mt-2 max-w-md text-sm leading-6 text-muted"><%= t("instruments.show.Income only performance explanation") %></p>
+      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(instrument), class: "ui-button ui-button-primary mt-4" %>
+    </div>
   <% elsif trades.empty? %>
     <div class="mt-5 flex min-h-72 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-coffee/15 px-6 text-center">
       <p class="font-medium text-coffee"><%= t("instruments.show.No performance yet") %></p>

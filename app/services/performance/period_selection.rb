@@ -33,13 +33,11 @@ module Performance
 
       trades = owner.trades
       trades = trades.where(instrument:) if instrument
-      actions = owner.corporate_actions.effective.where("COALESCE(ex_date, paid_on) <= ?", today)
+      actions = owner.corporate_actions.effective_on_or_before(today)
       actions = actions.where(instrument:) if instrument
-      first_action = actions.minimum(Arel.sql("COALESCE(ex_date, paid_on)"))
-      first_action = Date.iso8601(first_action) if first_action.is_a?(String)
       first_activity = [
         trades.where(traded_on: ..today).minimum(:traded_on),
-        first_action
+        actions.minimum_performance_on
       ].compact.min
       @from = first_activity || today
     end

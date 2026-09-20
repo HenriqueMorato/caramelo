@@ -26,6 +26,7 @@ class CorporateAction < ApplicationRecord
     user_id instrument_id kind status paid_on ex_date gross_amount_cents
     withholding_tax_cents net_amount_cents currency
   ].freeze
+  PERFORMANCE_DATE_SQL = "COALESCE(ex_date, paid_on)".freeze
 
   validates :paid_on, presence: true
   validates :ex_date, comparison: { less_than_or_equal_to: :paid_on }, allow_nil: true
@@ -47,6 +48,11 @@ class CorporateAction < ApplicationRecord
 
   scope :reverse_chronological, -> { order(paid_on: :desc, id: :desc) }
   scope :effective, -> { confirmed }
+  scope :effective_on_or_before, ->(date) { effective.where("#{PERFORMANCE_DATE_SQL} <= ?", date) }
+
+  def self.minimum_performance_on
+    type_for_attribute("paid_on").cast(minimum(Arel.sql(PERFORMANCE_DATE_SQL)))
+  end
 
   def performance_on
     ex_date || paid_on

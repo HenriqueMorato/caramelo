@@ -196,6 +196,33 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     assert_equal Date.current, enqueued[:to]
   end
 
+  test "defaults income-only performance recovery to the first income date" do
+    owner = User.create!(email_address: "income-recovery@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    performance_on = Date.current - 5.days
+    owner.corporate_actions.create!(
+      instrument:, kind: :dividend, paid_on: performance_on + 1.day, ex_date: performance_on,
+      gross_amount_cents: 1_000, withholding_tax_cents: 0, net_amount_cents: 1_000,
+      currency: "USD", source: "manual"
+    )
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instrument.id, quote_currency: "USD"
+    )
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      MarketData::Recoveries::PerformanceObservations.call(
+        target:, range: nil, batch_scope: "outer", batch_run_id: "run", owner:
+      )
+    end
+
+    assert_equal performance_on, enqueued[:from]
+    assert_equal Date.current, enqueued[:to]
+  end
+
   test "defaults portfolio performance recovery to the owner's first trade through today" do
     target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
     enqueued = nil

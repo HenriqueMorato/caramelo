@@ -72,9 +72,11 @@ class CorporateActionsController < ApplicationController
   def set_form_options
     @instruments = Instrument.alphabetical
     active_institution_ids = owner.institutions.active.select(:id)
-    trades = owner.trades.where(institution_id: active_institution_ids).includes(:institution)
-    @institutions_by_instrument = trades.group_by(&:instrument_id).transform_values do |instrument_trades|
-      instrument_trades.map(&:institution).uniq.sort_by(&:name)
+    pairs = owner.trades.where(institution_id: active_institution_ids)
+      .distinct.pluck(:instrument_id, :institution_id)
+    institutions = owner.institutions.where(id: pairs.map(&:last)).index_by(&:id)
+    @institutions_by_instrument = pairs.group_by(&:first).transform_values do |instrument_pairs|
+      instrument_pairs.filter_map { |_instrument_id, institution_id| institutions[institution_id] }.sort_by(&:name)
     end
     return unless @corporate_action&.institution
 

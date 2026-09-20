@@ -13,7 +13,7 @@ module MarketData
         )
         return [] unless materialization
 
-        first_date = context&.first_trade_date || owner.trades.minimum(:traded_on)
+        first_date = context&.first_performance_date || Context.new(owner:, today:).first_performance_date
         return [] unless first_date
 
         required_dates = (first_date..today).to_a
