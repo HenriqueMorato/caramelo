@@ -11,10 +11,14 @@ module PositionMaterializations
     def call
       generation = mark_refreshing
       source_trades = trades
-      position = Position.for(instrument: materialization.instrument, trades: source_trades)
+      source_actions = corporate_actions
+      position = Position.for(
+        instrument: materialization.instrument, trades: source_trades,
+        corporate_actions: source_actions
+      )
       publish(position, source_trades, generation)
       materialization
-    rescue Position::InvalidLongOnlyData => error
+    rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData => error
       mark_failed(error, generation)
       materialization
     end
@@ -32,6 +36,11 @@ module PositionMaterializations
 
     def trades
       materialization.user.trades.where(instrument: materialization.instrument).order(:traded_on, :id).to_a
+    end
+
+    def corporate_actions
+      materialization.user.corporate_actions.effective.where(instrument: materialization.instrument)
+        .where(effective_on: ..Date.current).order(:effective_on, :id).to_a
     end
 
     def publish(position, source_trades, generation)

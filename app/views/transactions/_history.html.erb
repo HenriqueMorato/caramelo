@@ -1,4 +1,4 @@
-<%# locals: (transactions:, activity:, has_transactions:, all_filter_path:, trades_filter_path:, income_filter_path:, empty_title:, empty_body:) %>
+<%# locals: (transactions:, activity:, has_transactions:, all_filter_path:, trades_filter_path:, income_filter_path:, actions_filter_path:, empty_title:, empty_body:) %>
 
 <% if has_transactions %>
   <div>
@@ -7,7 +7,8 @@
         <% [
           [ t("transactions.index.All"), nil, all_filter_path ],
           [ t("transactions.index.Trades"), "trades", trades_filter_path ],
-          [ t("transactions.index.Income"), "income", income_filter_path ]
+          [ t("transactions.index.Income"), "income", income_filter_path ],
+          [ t("transactions.index.Quantity actions"), "actions", actions_filter_path ]
         ].each do |label, filter, path| %>
           <%= link_to label,
                       path,

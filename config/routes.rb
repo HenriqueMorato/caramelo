@@ -23,9 +23,15 @@ Rails.application.routes.draw do
   resources :instruments do
     resources :trades, only: %i[ new create ]
     resources :corporate_actions, only: %i[ new create ]
+    get "quantity-actions/new", to: "corporate_actions#new_quantity", as: :new_quantity_action
+    post "quantity-actions", to: "corporate_actions#create_quantity", as: :quantity_actions
   end
   resources :trades, except: %i[ index show ]
   resources :corporate_actions, except: %i[index show]
+  get "quantity-actions/new", to: "corporate_actions#new_quantity", as: :new_quantity_action
+  post "quantity-actions", to: "corporate_actions#create_quantity", as: :quantity_actions
+  get "quantity-actions/:id/edit", to: "corporate_actions#edit_quantity", as: :edit_quantity_action
+  patch "quantity-actions/:id", to: "corporate_actions#update_quantity", as: :quantity_action
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

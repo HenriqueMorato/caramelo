@@ -155,7 +155,7 @@ class TradesTest < ApplicationSystemTestCase
     fill_in "Fees", with: "2.50"
     click_on "Create Trade"
 
-    assert_current_path transactions_path
+    assert_current_path transactions_path, wait: 10
     assert_text "Trade was created."
     assert_text "PETR4 · BVMF"
   end

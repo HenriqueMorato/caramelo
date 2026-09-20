@@ -58,7 +58,7 @@ class InstrumentsController < ApplicationController
     @corporate_actions = owner.corporate_actions.where(instrument: @instrument)
       .includes(*activity_associations(except_for: "trades")).strict_loading
     @has_performance_income = owner.corporate_actions.effective_on_or_before(Date.current)
-      .exists?(instrument: @instrument)
+      .cash_actions.exists?(instrument: @instrument)
     activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: @activity)
     @activity_transactions = activity_history.transactions
     @has_activity_history = activity_history.any?
@@ -96,10 +96,12 @@ class InstrumentsController < ApplicationController
   end
 
   def load_position
-    @position = Position.for(instrument: @instrument, trades: @trades)
+    @position = Position.for(
+      instrument: @instrument, trades: @trades, corporate_actions: @corporate_actions
+    )
     @valuation = Valuation::Current.for(position: @position, market_price: @market_price)
     @performance_presenters = performance_presenters
-  rescue Position::InvalidLongOnlyData => error
+  rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData => error
     @position_error = error
   end
 

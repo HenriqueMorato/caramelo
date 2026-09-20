@@ -249,12 +249,24 @@ module Performance
 
           [ trade, settlement.amount ]
         end
-        calculation = Position::Calculator.for(trades:, amount_for: reporting_amounts.method(:fetch))
+        quantity_actions = corporate_actions.select(&:quantity_action?)
+        cash_in_lieu_amounts = quantity_actions.select(&:cash_in_lieu?).to_h do |action|
+          proceeds = CorporateActions::CashInLieuValue.for(
+            corporate_action: action, reporting_currency:, exchange_rates:
+          )
+          return unless proceeds.available?
+
+          [ action, proceeds.amount ]
+        end
+        calculation = Position::Calculator.for(
+          trades:, amount_for: reporting_amounts.method(:fetch), corporate_actions: quantity_actions,
+          cash_in_lieu_amount_for: cash_in_lieu_amounts.method(:fetch)
+        )
         trade_cash_flows = reporting_amounts.map do |trade, amount|
           amounts_by_side = { "buy" => amount, "sell" => -amount }
           CashFlow.new(occurred_on: trade.traded_on, amount: amounts_by_side.fetch(trade.side), source: :trade)
         end
-        income_amounts = corporate_actions.to_h do |action|
+        income_amounts = corporate_actions.select(&:cash_action?).to_h do |action|
           distribution = CorporateActions::CashDistributionValue.for(
             corporate_action: action, reporting_currency:, exchange_rates:
           )
@@ -265,11 +277,14 @@ module Performance
         income_cash_flows = income_amounts.map do |action, amount|
           CashFlow.new(occurred_on: action.performance_on, amount: -amount, source: :corporate_action)
         end
+        cash_in_lieu_flows = cash_in_lieu_amounts.map do |action, amount|
+          CashFlow.new(occurred_on: action.effective_on, amount: -amount, source: :cash_in_lieu)
+        end
         Replay.new(
-          calculation:, net_cash_flow: trade_cash_flows.sum(&:amount),
+          calculation:, net_cash_flow: trade_cash_flows.sum(&:amount) - cash_in_lieu_amounts.sum(&:last),
           investment_income: income_amounts.sum(&:last),
           invested_amount: reporting_amounts.sum { |trade, amount| trade.buy? ? amount : 0 },
-          cash_flows: trade_cash_flows + income_cash_flows
+          cash_flows: trade_cash_flows + income_cash_flows + cash_in_lieu_flows
         )
       end
 

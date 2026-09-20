@@ -68,6 +68,7 @@
       <%= render "transactions/add_menu",
         trade_path: new_instrument_trade_path(@instrument),
         income_path: new_instrument_corporate_action_path(@instrument),
+        quantity_action_path: instrument_new_quantity_action_path(@instrument),
         test_id: "add-instrument-transaction-menu" %>
     </div>
 
@@ -78,6 +79,7 @@
       all_filter_path: instrument_path(@instrument, activity_filter_params),
       trades_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "trades")),
       income_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "income")),
+      actions_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "actions")),
       empty_title: t(".No activity"),
       empty_body: t(".Empty activity history") %>
   </section>

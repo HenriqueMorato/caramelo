@@ -13,7 +13,7 @@ module CorporateActions
 
       HistoricalDataBackfill.enqueue_for(
         instrument: corporate_action.instrument,
-        currency: corporate_action.currency,
+        currency: corporate_action.instrument.currency,
         from_date: corporate_action.performance_on
       )
     rescue StandardError => error

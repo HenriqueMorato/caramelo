@@ -9,7 +9,7 @@ module MarketData
       def entries
         currencies = (
           trades.flat_map { |trade| [ trade.currency, trade.instrument.currency ] } +
-          corporate_actions.map(&:currency)
+          corporate_actions.map { |action| action.currency || action.instrument.currency }
         ).uniq
         currencies.map { |currency| entry_for(currency) }
       end
@@ -58,7 +58,7 @@ module MarketData
       def historical_rate_dates(currency)
         settlement_dates = trades.select { |trade| trade.currency == currency }.map(&:traded_on)
         income_dates = corporate_actions.filter_map do |action|
-          action.performance_on if action.currency == currency
+          action.performance_on if (action.currency || action.instrument.currency) == currency
         end
         (settlement_dates + income_dates + valuation_dates(currency)).uniq
       end
@@ -72,6 +72,27 @@ module MarketData
 
       def open_position_dates(instrument)
         instrument_trades = trades.select { |trade| trade.instrument == instrument }
+        return [] if instrument_trades.empty?
+
+        instrument_actions = corporate_actions.select do |action|
+          action.instrument == instrument && action.quantity_action?
+        end
+        quantities = Position::Calculator.quantity_timeline(
+          trades: instrument_trades,
+          corporate_actions: instrument_actions,
+          amount_for: ->(trade) { trade.total_amount },
+          cash_in_lieu_amount_for: ->(action) { action.cash_in_lieu_amount&.to_d }
+        )
+        quantity = 0.to_r
+        (instrument_trades.first.traded_on..context_today).filter_map do |date|
+          quantity = quantities.fetch(date, quantity)
+          date if quantity.positive?
+        end
+      rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData
+        open_trade_position_dates(instrument_trades)
+      end
+
+      def open_trade_position_dates(instrument_trades)
         events = instrument_trades.group_by(&:traded_on)
         quantity = 0.to_d
         (instrument_trades.first.traded_on..context_today).filter_map do |date|
@@ -88,7 +109,7 @@ module MarketData
         @corporate_actions ||= if context
           context.corporate_actions
         else
-          owner.corporate_actions.effective_on_or_before(context_today).to_a
+          owner.corporate_actions.effective_on_or_before(context_today).includes(:instrument).to_a
         end
       end
 

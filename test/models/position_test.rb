@@ -30,7 +30,7 @@ class PositionTest < ActiveSupport::TestCase
   test "loads overview trades and instruments in a bounded number of queries" do
     create_trade(instrument: create_instrument(ticker: "MORE"))
 
-    assert_queries_count(4) { Position.overview }
+    assert_queries_count(5) { Position.overview }
   end
 
   test "reads a completed materialization for the current position" do
@@ -231,6 +231,207 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("10.5"), position.analytical_cost_basis_amount
     assert_equal BigDecimal("2.5"), position.analytical_realized_gain_amount
     assert_equal Money.from_amount(BigDecimal("2.5"), "BRL"), position.realized_gain
+  end
+
+  test "a stock split multiplies quantity without changing total basis or realized gain" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 3, unit_price: "10")
+    action = create_quantity_action(
+      instrument:, kind: :stock_split, effective_on: Date.new(2026, 1, 2),
+      ratio_numerator: 2, ratio_denominator: 1
+    )
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("6"), position.quantity
+    assert_equal BigDecimal("30"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("5"), position.average_unit_cost
+    assert_equal BigDecimal("0"), position.analytical_realized_gain_amount
+    assert_equal [ action ], position.corporate_actions
+  end
+
+  test "a reverse split reduces quantity and proportionally increases unit basis" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 10, unit_price: "4")
+    create_quantity_action(
+      instrument:, kind: :reverse_split, effective_on: Date.new(2026, 1, 2),
+      ratio_numerator: 1, ratio_denominator: 5
+    )
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("2"), position.quantity
+    assert_equal BigDecimal("40"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("20"), position.average_unit_cost
+  end
+
+  test "a share bonus spreads existing basis over the increased quantity" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 10, unit_price: "11")
+    create_quantity_action(
+      instrument:, kind: :share_bonus, effective_on: Date.new(2026, 1, 2),
+      ratio_numerator: 11, ratio_denominator: 10
+    )
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("11"), position.quantity
+    assert_equal BigDecimal("110"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("10"), position.average_unit_cost
+  end
+
+  test "cash in lieu disposes of fractional units with proportional basis and realized gain" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 5, unit_price: "12")
+    create_quantity_action(
+      instrument:, kind: :reverse_split, effective_on: Date.new(2026, 1, 2),
+      ratio_numerator: 1, ratio_denominator: 2,
+      cash_in_lieu_quantity: BigDecimal("0.5"), cash_in_lieu_amount_cents: 900,
+      currency: instrument.currency
+    )
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("2"), position.quantity
+    assert_equal BigDecimal("48"), position.analytical_cost_basis_amount
+    assert_equal BigDecimal("24"), position.average_unit_cost
+    assert_equal BigDecimal("-3"), position.analytical_realized_gain_amount
+  end
+
+  test "quantity actions are effective only after their date and only while confirmed" do
+    instrument = create_instrument
+    trade = create_trade(instrument:, quantity: 2, unit_price: "10")
+    action = create_quantity_action(
+      instrument:, effective_on: Date.new(2026, 1, 10), ratio_numerator: 2,
+      ratio_denominator: 1
+    )
+    ignored = create_quantity_action(
+      instrument:, effective_on: Date.new(2026, 1, 11), ratio_numerator: 3,
+      ratio_denominator: 1, status: :ignored, source_reference: "ignored"
+    )
+
+    before = Position.for(
+      instrument:, as_of: Date.new(2026, 1, 9), trades: [ trade ],
+      corporate_actions: [ action, ignored ]
+    )
+    after = Position.for(
+      instrument:, as_of: Date.new(2026, 1, 11), trades: [ trade ],
+      corporate_actions: [ action, ignored ]
+    )
+
+    assert_equal BigDecimal("2"), before.quantity
+    assert_equal BigDecimal("4"), after.quantity
+  end
+
+  test "current positions do not apply future quantity actions" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 2, unit_price: "10", traded_on: Date.current)
+    action = create_quantity_action(
+      instrument:, effective_on: Date.current + 1.day, ratio_numerator: 2,
+      ratio_denominator: 1, status: :pending
+    )
+    action.update_column(:status, "confirmed")
+
+    assert_equal BigDecimal("2"), Position.for(instrument:).quantity
+    assert_equal BigDecimal("2"), Position.overview.find { |result| result.instrument == instrument }.position.quantity
+  end
+
+  test "a quantity action applies before trades recorded on its effective date" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 2, unit_price: "10", traded_on: Date.new(2026, 1, 1))
+    create_quantity_action(
+      instrument:, effective_on: Date.new(2026, 1, 2), ratio_numerator: 2,
+      ratio_denominator: 1
+    )
+    create_trade(instrument:, quantity: 1, unit_price: "8", traded_on: Date.new(2026, 1, 2))
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("5"), position.quantity
+    assert_equal BigDecimal("28"), position.analytical_cost_basis_amount
+  end
+
+  test "multiple quantity actions on one date replay in durable order" do
+    instrument = create_instrument
+    create_trade(instrument:, quantity: 1, unit_price: "10")
+    create_quantity_action(
+      instrument:, effective_on: Date.new(2026, 1, 2), ratio_numerator: 2,
+      ratio_denominator: 1, source_reference: "split"
+    )
+    create_quantity_action(
+      instrument:, kind: :share_bonus, effective_on: Date.new(2026, 1, 2),
+      ratio_numerator: 3, ratio_denominator: 2, source_reference: "bonus"
+    )
+
+    position = Position.for(instrument:)
+
+    assert_equal BigDecimal("3"), position.quantity
+    assert_equal BigDecimal("10"), position.analytical_cost_basis_amount
+  end
+
+  test "raises when a quantity action has no open position or disposes too many units" do
+    empty_instrument = create_instrument(ticker: "EMPT")
+    empty_action = create_quantity_action(
+      instrument: empty_instrument, effective_on: Date.new(2026, 1, 1),
+      ratio_numerator: 2, ratio_denominator: 1
+    )
+
+    empty_error = assert_raises(Position::InvalidQuantityActionData) do
+      Position.for(instrument: empty_instrument)
+    end
+    assert_equal empty_action, empty_error.action
+
+    instrument = create_instrument(ticker: "OVER")
+    create_trade(instrument:, quantity: 1)
+    action = create_quantity_action(
+      instrument:, effective_on: Date.new(2026, 1, 2),
+      ratio_numerator: 2, ratio_denominator: 1,
+      cash_in_lieu_quantity: 3, cash_in_lieu_amount_cents: 100,
+      currency: instrument.currency
+    )
+
+    error = assert_raises(Position::InvalidQuantityActionData) { Position.for(instrument:) }
+    assert_equal action, error.action
+  end
+
+  test "raises when a cash-in-lieu calculation has no proceeds" do
+    instrument = create_instrument
+    trade = create_trade(instrument:, quantity: 1)
+    action = create_quantity_action(
+      instrument:, effective_on: Date.new(2026, 1, 2), ratio_numerator: 2,
+      ratio_denominator: 1, cash_in_lieu_quantity: 1,
+      cash_in_lieu_amount_cents: 100, currency: instrument.currency
+    )
+
+    error = assert_raises(Position::InvalidQuantityActionData) do
+      Position::Calculator.for(
+        trades: [ trade ], corporate_actions: [ action ], amount_for: ->(event) { event.total_amount },
+        cash_in_lieu_amount_for: ->(_event) { }
+      )
+    end
+
+    assert_includes error.message, "missing cash-in-lieu proceeds"
+
+    action.cash_in_lieu_amount_cents = nil
+    assert_raises(Position::InvalidQuantityActionData) do
+      Position::Calculator.for(
+        trades: [ trade ], corporate_actions: [ action ], amount_for: ->(event) { event.total_amount }
+      )
+    end
+  end
+
+  test "quantity timeline preserves invalid long-only error context" do
+    instrument = create_instrument
+    sell = create_trade(instrument:, side: :sell, quantity: 1)
+
+    error = assert_raises(Position::InvalidLongOnlyData) do
+      Position::Calculator.quantity_timeline(
+        trades: [ sell ], corporate_actions: [], amount_for: ->(trade) { trade.total_amount }
+      )
+    end
+
+    assert_equal sell, error.trade
+    assert_equal [ sell ], error.trades
   end
 
   test "builds a position from trades on or before an as-of date" do
@@ -438,6 +639,17 @@ class PositionTest < ActiveSupport::TestCase
       unit_price:,
       fees_cents:,
       currency: instrument.currency
+    )
+  end
+
+  def create_quantity_action(instrument:, user: users(:owner), kind: :stock_split,
+    effective_on:, ratio_numerator:, ratio_denominator:, status: :confirmed,
+    cash_in_lieu_quantity: nil, cash_in_lieu_amount_cents: nil, currency: nil,
+    source_reference: nil)
+    user.corporate_actions.create!(
+      instrument:, kind:, status:, effective_on:, ratio_numerator:, ratio_denominator:,
+      cash_in_lieu_quantity:, cash_in_lieu_amount_cents:, currency:,
+      source: "manual", source_reference:
     )
   end
 

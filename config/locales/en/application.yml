@@ -106,6 +106,7 @@ en:
       ready: The backup passed its integrity checks.
   caramelo: caramelo
   confirmations:
+    Delete corporate action: Delete this quantity action?
     Delete income: Delete this income event?
     Delete record: Delete %{record}?
     Delete trade: Delete this trade?
