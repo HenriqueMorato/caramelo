@@ -27,6 +27,9 @@ en:
       Introduction: Add a stock, fund, or other instrument to use with trades.
       Page title: New instrument · %{application}
     show:
+      Activity history: Activity history
+      Activity history description: Trades and income recorded for this instrument,
+        ordered by date.
       Change as of: as of %{date}
       Closed throughout period: This position remained closed throughout the selected
         period.
@@ -36,7 +39,8 @@ en:
       Date: Date
       Delete blocked: Delete this instrument's trades and income before deleting the
         instrument.
-      Empty history: Add a purchase or sale to begin its history.
+      Empty activity history: Add a trade or income payment to begin this instrument's
+        activity history.
       Gain on cost: Gain on cost
       History calculation unavailable: Correct the trade history before calculating
         instrument performance.
@@ -44,8 +48,6 @@ en:
         trail.
       History selection: Select history view
       How returns are calculated: How returns are calculated
-      Income history: Income history
-      Income history description: Dividends and JCP recorded for this instrument.
       Instrument history chart description: "%{instrument} return in %{currency} over
         the selected period."
       Instrument history is building: Instrument history is building
@@ -64,12 +66,11 @@ en:
       Instrument history update failed: Instrument history could not be updated
       Instrument history update failed explanation: Your trades and market records
         are safe. Try the calculation again in a moment.
-      No income: No income recorded for this instrument.
+      No activity: No activity for this instrument
       No performance explanation: Record a trade to begin this instrument’s performance
         history.
       No performance yet: No performance yet
       No position yet: Record a trade to calculate this position.
-      No trades: No trades for this instrument
       No trades status: No trades
       Page title: "%{instrument} · %{application}"
       Performance loading: Performance data is loading
@@ -88,8 +89,6 @@ en:
       Return: Return
       Sales exceed purchases: Recorded sales exceed purchases on %{date}. Review this
         instrument's trades.
-      Trade history: Trade history
-      Trade history description: Purchases and sales recorded for this instrument.
       View exact prices: View exact prices
       return_methodologies:
         gain_on_cost:

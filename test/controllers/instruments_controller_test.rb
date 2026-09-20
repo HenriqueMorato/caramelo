@@ -38,8 +38,12 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "span", "No trades"
     assert_select "p", "Record a trade to calculate this position."
     assert_select "a", "Add trade"
-    assert_select "h2", "Trade history"
-    assert_select "p", "No trades for this instrument"
+    assert_select "h2", "Activity history"
+    assert_select "p", "No activity for this instrument"
+    assert_select "details[data-testid='add-instrument-transaction-menu']" do
+      assert_select "a[href=?]", new_instrument_trade_path(@instrument), text: /Trade/
+      assert_select "a[href=?]", new_instrument_corporate_action_path(@instrument), text: /Income/
+    end
     assert_select "#instrument-performance-heading", "Performance"
     assert_includes response.body, "Record a trade to begin this instrument’s performance history."
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
@@ -165,6 +169,37 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
       assert_select "a[href=?]", month_path, "Month"
     end
     assert_not_includes response.body, "chart=performance"
+  end
+
+  test "filters instrument trades and income while preserving history state" do
+    instrument = instruments(:voo_arcx)
+    income = CorporateAction.create!(
+      user: users(:owner), instrument:, kind: :dividend, status: :confirmed,
+      paid_on: Date.new(2026, 8, 25), gross_amount_cents: 1_234,
+      withholding_tax_cents: 185, net_amount_cents: 1_049, currency: "USD", source: "manual"
+    )
+
+    get instrument_url(
+      instrument, history: "price", period: "year", currency_view: "reporting", activity: "income"
+    )
+
+    preserved = { history: "price", period: "year", currency_view: "reporting" }
+    assert_response :success
+    assert_select "a[aria-current='page']", "Income"
+    assert_select "tr##{dom_id(income)}" do
+      assert_select "a[href=?]", edit_corporate_action_path(income), "Edit"
+      assert_select "form[action=?] button", corporate_action_path(income), "Delete"
+    end
+    assert_select "tr##{dom_id(trades(:owner_voo_buy))}", count: 0
+    assert_select "a[href=?]", instrument_path(instrument, preserved), "All"
+    assert_select "a[href=?]", instrument_path(instrument, preserved.merge(activity: "trades")), "Trades"
+
+    get instrument_url(instrument, preserved.merge(activity: "trades"))
+
+    assert_response :success
+    assert_select "a[aria-current='page']", "Trades"
+    assert_select "tr##{dom_id(trades(:owner_voo_buy))}"
+    assert_select "tr##{dom_id(income)}", count: 0
   end
 
   test "ignores obsolete methodology query state" do
@@ -299,9 +334,9 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "2.5"
     assert_select "dd", text: "$611.60"
     assert_select "dd", text: "$1,529.00"
-    assert_select "article", text: /Long-term allocation/
-    assert_select "article", text: /Other owner trade/, count: 0
-    assert_select "a", "Add trade"
+    assert_select "tr##{dom_id(trades(:owner_voo_buy))}", text: /Long-term allocation/
+    assert_select "tr", text: /Other owner trade/, count: 0
+    assert_select "details[data-testid='add-instrument-transaction-menu']"
     assert_select "button[disabled]", "Delete"
     assert_select "[role='tooltip']", "Delete this instrument's trades and income before deleting the instrument."
     assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
@@ -329,7 +364,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "span", "Needs attention"
     assert_select "[role='alert']", /Recorded sales exceed purchases on January 01, 2026/
     assert_select "#current_market_price_instrument_#{@instrument.id}", text: /Price unavailable/
-    assert_select "h2", "Trade history"
+    assert_select "h2", "Activity history"
   end
 
   test "shows a retained B3 price as stale" do

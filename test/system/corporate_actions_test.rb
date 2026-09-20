@@ -18,8 +18,11 @@ class CorporateActionsTest < ApplicationSystemTestCase
     trade.save!
     visit instrument_path(instrument)
 
-    within("[aria-labelledby='income-history-heading']") do
-      click_on "Add income"
+    within("[aria-labelledby='activity-history-heading']") do
+      find("summary", text: "Add").click
+      within("details[data-testid='add-instrument-transaction-menu']") do
+        click_on "Income"
+      end
     end
 
     select "JCP", from: "Action type"
@@ -33,19 +36,41 @@ class CorporateActionsTest < ApplicationSystemTestCase
 
     click_button "Save income"
 
-    assert_current_path income_path
+    assert_current_path transactions_path
     assert_text "JCP"
     assert_text "R$10,49"
-    click_on "Petrobras PN"
-    assert_text "Quarterly payout"
+    within "#corporate_action_#{CorporateAction.last.id}" do
+      click_on "Petrobras PN"
+    end
+    assert_current_path instrument_path(instrument)
+    within "#corporate_action_#{CorporateAction.last.id}" do
+      assert_text "Quarterly payout"
+      assert_link "Edit"
+      assert_button "Delete"
+      click_on "Edit"
+    end
     assert_equal institutions(:owner_xp), CorporateAction.last.institution
     assert_equal Date.new(2026, 8, 20), CorporateAction.last.ex_date
     assert_equal 0, CorporateAction.last.instrument.trades.where(traded_on: Date.new(2026, 8, 25)).count
+
+    fill_in "Notes", with: "Updated payout"
+    click_button "Save income"
+
+    assert_current_path instrument_path(instrument)
+    corporate_action_id = CorporateAction.last.id
+    within "#corporate_action_#{corporate_action_id}" do
+      assert_text "Updated payout"
+      accept_confirm "Delete this income event?" do
+        click_on "Delete"
+      end
+    end
+    assert_current_path instrument_path(instrument)
+    assert_no_selector "#corporate_action_#{corporate_action_id}"
   end
 
   test "keeps income private across navigation" do
     create_action
-    visit income_path
+    visit transactions_path(activity: "income")
 
     assert_text "R$10,49"
     click_button "Hide monetary values"
@@ -68,7 +93,7 @@ class CorporateActionsTest < ApplicationSystemTestCase
     accept_confirm "Discard your unsaved income changes?" do
       click_on "Cancel"
     end
-    assert_current_path income_path
+    assert_current_path transactions_path
   end
 
   private

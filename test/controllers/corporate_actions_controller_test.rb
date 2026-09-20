@@ -8,38 +8,9 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
 
   test "uses an opaque corporate-action reference in durable URLs" do
     assert_match %r{\A/corporate_actions/evt-[a-zA-Z0-9]{12}\z}, corporate_action_path(@corporate_action)
-  end
-
-  test "lists only the configured owner's income and supports URL filters" do
-    create_action(user: users(:one), institution: institutions(:other_owner), source_reference: "other")
-
-    get income_url(kind: "dividend")
-
-    assert_response :success
-    assert_select "h1", "Income earned along the way."
-    assert_select "tr##{dom_id(@corporate_action)}"
-    assert_select "a[aria-current='page']", "Dividends only"
-    assert_select "tbody tr", count: 1
-  end
-
-  test "keeps filters visible when nothing matches and ignores unknown filters" do
-    get income_url(kind: "jcp")
-    assert_response :success
-    assert_select "tbody td", "No income events match this filter."
-
-    get income_url(kind: "interest")
-    assert_response :success
-    assert_select "tr##{dom_id(@corporate_action)}"
-    assert_select "a[aria-current='page'][href='#{income_path}']", "All income"
-  end
-
-  test "renders an empty state" do
-    CorporateAction.delete_all
-
-    get income_url
-
-    assert_response :success
-    assert_select "p", "No income yet"
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(corporate_action_path(@corporate_action), method: :get)
+    end
   end
 
   test "new income offers instruments and keeps derived fields out of the form" do
@@ -81,7 +52,7 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     action = CorporateAction.order(:id).last
-    assert_redirected_to income_url
+    assert_redirected_to transactions_url
     assert_equal User.owner, action.user
     assert_equal "BRL", action.currency
     assert_equal 1_234, action.gross_amount_cents
@@ -130,11 +101,7 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=alert]", /Gross amount is not a number/
   end
 
-  test "shows and updates owner income while rejecting another owner's record" do
-    get corporate_action_url(@corporate_action)
-    assert_response :success
-    assert_select "h1", /PETR4/
-
+  test "updates owner income while rejecting another owner's record" do
     trade = trades(:owner_voo_buy).dup
     trade.instrument = @corporate_action.instrument
     trade.institution = @corporate_action.institution
@@ -142,10 +109,12 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     trade.slug = nil
     trade.save!
 
+    return_to = instrument_path(@corporate_action.instrument, activity: "income")
     patch corporate_action_url(@corporate_action), params: {
+      return_to:,
       corporate_action: valid_params.merge(kind: "jcp", gross_amount: "20", withholding_tax: "3")
     }
-    assert_redirected_to income_url
+    assert_redirected_to return_to
     assert_equal "jcp", @corporate_action.reload.kind
     assert_equal 1_700, @corporate_action.net_amount_cents
 
@@ -165,17 +134,34 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "deletes owner income" do
+    return_to = instrument_url(@corporate_action.instrument, activity: "income")
     assert_difference("CorporateAction.count", -1) do
-      delete corporate_action_url(@corporate_action)
+      delete corporate_action_url(@corporate_action), headers: { "HTTP_REFERER" => return_to }
     end
 
-    assert_redirected_to income_url
+    assert_redirected_to return_to
+  end
+
+  test "edit preserves a safe return target and rejects an external one" do
+    return_to = instrument_url(@corporate_action.instrument, activity: "income")
+
+    get edit_corporate_action_url(@corporate_action), headers: { "HTTP_REFERER" => return_to }
+
+    assert_response :success
+    assert_select "input[type='hidden'][name='return_to'][value='#{return_to}']"
+    assert_select "a[href='#{return_to}']", text: /Back/
+
+    get edit_corporate_action_url(@corporate_action), headers: { "HTTP_REFERER" => "https://example.com/elsewhere" }
+
+    assert_response :success
+    assert_select "input[type='hidden'][name='return_to'][value='#{transactions_path}']"
+    assert_select "a[href='#{transactions_path}']", text: /Back/
   end
 
   test "privacy mode masks read pages and blocks money-editing routes" do
-    patch money_visibility_url, params: { hidden: "true", return_to: income_path }
+    patch money_visibility_url, params: { hidden: "true", return_to: transactions_path }
 
-    get income_url
+    get transactions_url(activity: "income")
     assert_response :success
     assert_select "body", text: /#{Regexp.escape(ApplicationHelper::MONEY_MASK)}/
     assert_select "body", text: /R\$10,49/, count: 0

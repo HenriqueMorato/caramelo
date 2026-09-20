@@ -41,7 +41,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     assert_text "Apple Inc."
     assert_text "Other"
     assert_text "USD"
-    assert_text "Trade history"
+    assert_text "Activity history"
   end
 
   test "edits an instrument" do
@@ -109,8 +109,10 @@ class InstrumentsTest < ApplicationSystemTestCase
     visit instrument_path(instrument)
 
     assert_text "No trades"
-    within "[aria-labelledby='trade-history-heading']" do
-      assert_link "Add trade"
+    within "[aria-labelledby='activity-history-heading']" do
+      find("summary", text: "Add").click
+      assert_link "Trade"
+      assert_link "Income"
     end
     within "[aria-labelledby='position-summary-heading']" do
       click_on "Add trade"
@@ -136,9 +138,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     end
     fill_in "Quantity", with: "4"
     click_on "Update Trade"
-    assert_current_path transactions_path
-
-    visit instrument_path(instrument)
+    assert_current_path instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
       assert_text "4"
       assert_text "R$80,00"
@@ -150,9 +150,7 @@ class InstrumentsTest < ApplicationSystemTestCase
         click_on "Delete"
       end
     end
-    assert_current_path transactions_path
-
-    visit instrument_path(instrument)
+    assert_current_path instrument_path(instrument)
     within "[aria-labelledby='position-summary-heading']" do
       assert_text "No trades"
       assert_link "Add trade"

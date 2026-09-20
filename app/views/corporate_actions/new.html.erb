@@ -1,7 +1,7 @@
 <% content_for :title, t(".Page title", application: t("caramelo")) %>
 
 <section class="mx-auto max-w-4xl space-y-8">
-  <%= link_to t("Back"), @context_instrument || income_path, class: "inline-flex min-h-11 items-center text-sm font-semibold text-caramel-deep hover:text-coffee" %>
+  <%= link_to t("Back"), @context_instrument || transactions_path, class: "inline-flex min-h-11 items-center text-sm font-semibold text-caramel-deep hover:text-coffee" %>
 
   <div class="ui-page-header-copy">
     <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>

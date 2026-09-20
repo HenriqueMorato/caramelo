@@ -14,27 +14,49 @@ class TradesTest < ApplicationSystemTestCase
     assert_no_text "Other owner trade"
   end
 
-  test "filters trades immediately when the side changes" do
+  test "filters activity immediately by transaction type" do
+    income = CorporateAction.create!(
+      user: User.owner, instrument: instruments(:petr4_bvmf), kind: :dividend,
+      status: :confirmed, paid_on: Date.new(2026, 8, 25), gross_amount_cents: 1_234,
+      withholding_tax_cents: 185, net_amount_cents: 1_049, currency: "BRL", source: "manual"
+    )
     visit transactions_path
 
-    click_on "Sells only"
+    click_on "Income"
 
-    assert_current_path transactions_path(side: "sell")
-    assert_text "No trades match this filter."
+    assert_current_path transactions_path(activity: "income")
+    assert_selector "#corporate_action_#{income.id}"
+    assert_no_text "Long-term allocation"
 
-    click_on "All trades"
+    click_on "All"
 
     assert_current_path transactions_path
     assert_text "Long-term allocation"
+    assert_selector "#corporate_action_#{income.id}"
   end
 
-  test "shows an empty state without owner trades" do
+  test "shows an empty state without owner activity" do
     Trade.where(user: User.owner).delete_all
+    CorporateAction.where(user: User.owner).delete_all
 
     visit transactions_path
 
-    assert_text "No trades yet"
-    assert_link "Add trade"
+    assert_text "No activity yet"
+    find("summary", text: "Add").click
+    assert_link "Trade"
+    assert_link "Income"
+  end
+
+  test "closes the add menu after an outside click" do
+    visit transactions_path
+
+    menu = find("details[data-testid='add-transaction-menu']")
+    menu.find("summary").click
+    assert_selector "details[data-testid='add-transaction-menu'][open]"
+
+    find("h1").click
+
+    assert_no_selector "details[data-testid='add-transaction-menu'][open]"
   end
 
   test "shows populated and empty transaction states on desktop" do
@@ -51,10 +73,13 @@ class TradesTest < ApplicationSystemTestCase
     end
 
     Trade.where(user: User.owner).delete_all
+    CorporateAction.where(user: User.owner).delete_all
     visit transactions_path
 
-    assert_text "No trades yet"
-    assert_link "Add trade"
+    assert_text "No activity yet"
+    find("summary", text: "Add").click
+    assert_link "Trade"
+    assert_link "Income"
   end
 
   test "creates a trade from the global flow" do
@@ -111,7 +136,12 @@ class TradesTest < ApplicationSystemTestCase
     remembered_trade.save!
 
     visit instrument_path(instrument)
-    click_on "Add trade"
+    within("[aria-labelledby='activity-history-heading']") do
+      find("summary", text: "Add").click
+      within("details[data-testid='add-instrument-transaction-menu']") do
+        click_on "Trade"
+      end
+    end
 
     assert_text "PETR4 · BVMF"
     assert_no_select "Instrument"

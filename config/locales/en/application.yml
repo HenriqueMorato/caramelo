@@ -13,7 +13,6 @@ en:
   Dashboard: Dashboard
   Data health: Data health
   Data protection: Data protection
-  Income: Income
   Institutions: Institutions
   Instruments: Instruments
   Investment income: Investment income
@@ -26,6 +25,7 @@ en:
   Market value: Market value
   Needs attention: Needs attention
   None: None
+  Not applicable: Not applicable
   Not available: Not available
   Open: Open
   Performance: Performance
@@ -46,10 +46,8 @@ en:
   Skip to content: Skip to content
   Small steps: Small steps.
   Stale: Stale
-  Total: Total
   Trade settings: Trade settings
   Transactions: Transactions
-  Transactions link: "← Transactions"
   Unrealized return: Unrealized return
   Value unavailable: Value unavailable
   Your portfolio is out for a stroll: Your portfolio is out for a stroll.

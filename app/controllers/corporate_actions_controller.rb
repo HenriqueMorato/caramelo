@@ -1,20 +1,11 @@
 class CorporateActionsController < ApplicationController
   allow_unauthenticated_access
 
-  before_action :set_corporate_action, only: %i[ show edit update destroy ]
+  before_action :set_corporate_action, only: %i[ edit update destroy ]
+  before_action :set_return_to, only: %i[ edit update destroy ]
   before_action :set_context_instrument, only: %i[ new create ]
   before_action :set_form_options, only: %i[ new create edit update ]
   before_action :require_money_values_visible, only: %i[ new create edit update ]
-
-  def index
-    scope = owner.corporate_actions.includes(:instrument, :institution).strict_loading.reverse_chronological
-    @has_corporate_actions = scope.exists?
-    @kind = params[:kind].presence_in(CorporateAction.kinds.keys)
-    @corporate_actions = @kind ? scope.where(kind: @kind) : scope
-  end
-
-  def show
-  end
 
   def new
     @corporate_action = owner.corporate_actions.new(
@@ -33,7 +24,7 @@ class CorporateActionsController < ApplicationController
 
     if @corporate_action.save
       enqueue_historical_data_backfill
-      redirect_to income_path, notice: t("notices.Created", model: CorporateAction.model_name.human)
+      redirect_to transactions_path, notice: t("notices.Created", model: CorporateAction.model_name.human)
     else
       render :new, status: :unprocessable_content
     end
@@ -47,7 +38,7 @@ class CorporateActionsController < ApplicationController
 
     if @corporate_action.save
       enqueue_historical_data_backfill
-      redirect_to income_path,
+      redirect_to @return_to,
         notice: t("notices.Updated", model: CorporateAction.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
@@ -56,7 +47,7 @@ class CorporateActionsController < ApplicationController
 
   def destroy
     @corporate_action.destroy!
-    redirect_to income_path,
+    redirect_to @return_to,
       notice: t("notices.Deleted", model: CorporateAction.model_name.human), status: :see_other
   end
 
@@ -68,6 +59,10 @@ class CorporateActionsController < ApplicationController
 
   def set_corporate_action
     @corporate_action = owner.corporate_actions.friendly.find(params.expect(:id))
+  end
+
+  def set_return_to
+    @return_to = url_from(params[:return_to]) || url_from(request.referer) || transactions_path
   end
 
   def set_context_instrument

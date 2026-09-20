@@ -1,4 +1,4 @@
-<%# locals: (trade:, context_instrument:, instruments:, institutions:, last_institution_id_by_instrument:) %>
+<%# locals: (trade:, context_instrument:, instruments:, institutions:, last_institution_id_by_instrument:, return_to: nil) %>
 
 <%= form_with model: trade,
               url: trade.persisted? ? trade_path(trade) : (context_instrument ? instrument_trades_path(context_instrument) : trades_path),
@@ -7,6 +7,8 @@
                 controller: "trade-form",
                 trade_form_reporting_currency_value: trade.user.reporting_currency
               } do |form| %>
+  <%= hidden_field_tag :return_to, return_to if return_to.present? %>
+
   <% if trade.errors.any? %>
     <div class="ui-form-errors" role="alert">
       <p class="font-semibold"><%= t("forms.Could not save", count: trade.errors.count, model: Trade.model_name.human.downcase) %></p>
@@ -110,6 +112,6 @@
 
   <div class="flex flex-wrap items-center gap-3">
     <%= form.submit class: "ui-button ui-button-primary cursor-pointer" %>
-    <%= link_to t("actions.Cancel"), context_instrument || transactions_path, class: "ui-button ui-button-secondary" %>
+    <%= link_to t("actions.Cancel"), return_to || context_instrument || transactions_path, class: "ui-button ui-button-secondary" %>
   </div>
 <% end %>

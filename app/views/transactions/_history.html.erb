@@ -1,0 +1,66 @@
+<%# locals: (transactions:, activity:, has_transactions:, all_filter_path:, trades_filter_path:, income_filter_path:, empty_title:, empty_body:) %>
+
+<% if has_transactions %>
+  <div>
+    <nav class="flex rounded-t-xl border border-coffee/10 bg-paper px-4 py-3" aria-label="<%= t("transactions.index.Activity filters") %>">
+      <div class="inline-flex rounded-md bg-paper/50 p-1">
+        <% [
+          [ t("transactions.index.All"), nil, all_filter_path ],
+          [ t("transactions.index.Trades"), "trades", trades_filter_path ],
+          [ t("transactions.index.Income"), "income", income_filter_path ]
+        ].each do |label, filter, path| %>
+          <%= link_to label,
+                      path,
+                      class: "trade-filter-option",
+                      aria: { current: ("page" if activity == filter) } %>
+        <% end %>
+      </div>
+    </nav>
+
+    <div class="overflow-x-auto rounded-b-xl border border-t-0 border-coffee/10 bg-oat-2">
+      <table class="ui-data-table min-w-[64rem] table-fixed text-sm">
+        <colgroup>
+          <col class="w-[23%]">
+          <col class="w-[14%]">
+          <col class="w-[10%]">
+          <col class="w-[9%]">
+          <col class="w-[13%]">
+          <col class="w-[10%]">
+          <col class="w-[11%]">
+          <col class="w-[10%]">
+        </colgroup>
+        <thead>
+          <tr class="text-xs uppercase tracking-[0.08em] text-muted">
+            <th scope="col" class="px-4 py-3 font-semibold"><%= t("transactions.index.Activity") %></th>
+            <th scope="col" class="px-4 py-3 font-semibold"><%= t("transactions.index.Date") %></th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold"><%= t("transactions.index.Type") %></th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold"><%= Trade.human_attribute_name(:quantity) %></th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold"><%= t("transactions.index.Unit or gross") %></th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold"><%= t("transactions.index.Costs or tax") %></th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold"><%= t("transactions.index.Total or net") %></th>
+            <th scope="col" class="px-4 py-3"><span class="sr-only"><%= t("transactions.index.Actions") %></span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-coffee/10">
+          <% transactions.each do |transaction| %>
+            <% if transaction.is_a?(Trade) %>
+              <%= render "trades/table_row", trade: transaction %>
+            <% else %>
+              <%= render "corporate_actions/table_row", corporate_action: transaction %>
+            <% end %>
+          <% end %>
+          <% if transactions.empty? %>
+            <tr>
+              <td colspan="8" class="px-4 py-8 text-center text-sm text-muted"><%= t("transactions.index.No matching activity") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% else %>
+  <div class="ui-empty-state">
+    <p class="font-medium text-coffee"><%= empty_title %></p>
+    <p class="mt-2 text-sm leading-6 text-muted"><%= empty_body %></p>
+  </div>
+<% end %>

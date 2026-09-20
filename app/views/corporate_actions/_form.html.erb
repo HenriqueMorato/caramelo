@@ -1,4 +1,4 @@
-<%# locals: (corporate_action:, context_instrument:, instruments:, institutions_by_instrument:) %>
+<%# locals: (corporate_action:, context_instrument:, instruments:, institutions_by_instrument:, return_to: nil) %>
 
 <% currency = corporate_action.currency || context_instrument&.currency %>
 <% subunit = currency ? Money::Currency.find(currency).subunit_to_unit : 100 %>
@@ -22,6 +22,8 @@
                 income_form_dirty_value: corporate_action.errors.any?,
                 action: "input->income-form#markDirty change->income-form#markDirty turbo:submit-start->income-form#submit turbo:submit-end->income-form#submitted turbo:before-visit@window->income-form#confirmNavigation beforeunload@window->income-form#beforeUnload"
               } do |form| %>
+  <%= hidden_field_tag :return_to, return_to if return_to.present? %>
+
   <% if corporate_action.errors.any? %>
     <div class="ui-form-errors" role="alert">
       <p class="font-semibold"><%= t("forms.Could not save", count: corporate_action.errors.count, model: CorporateAction.model_name.human.downcase) %></p>
@@ -116,6 +118,6 @@
       <span class="hidden size-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none group-disabled:inline-block" aria-hidden="true"></span>
       <%= t("corporate_actions.actions.Save income") %>
     <% end %>
-    <%= link_to t("actions.Cancel"), context_instrument || income_path, class: "ui-button ui-button-secondary" %>
+    <%= link_to t("actions.Cancel"), return_to || context_instrument || transactions_path, class: "ui-button ui-button-secondary" %>
   </div>
 <% end %>

@@ -12,8 +12,8 @@
       <%= render "layouts/money_visibility" %>
     </div>
     <div class="mt-4 space-y-1">
-      <% [[t("Dashboard"), root_path, "⌂"], [t("Positions"), positions_path, "◒"], [t("Transactions"), transactions_path, "↔"], [t("Income"), income_path, "+"], [t("Performance"), performance_path, "↗"]].each do |label, path, icon| %>
-        <% active = current_page?(path) || (path == income_path && controller_name == "corporate_actions") %>
+      <% [[t("Dashboard"), root_path, "⌂"], [t("Positions"), positions_path, "◒"], [t("Transactions"), transactions_path, "↔"], [t("Performance"), performance_path, "↗"]].each do |label, path, icon| %>
+        <% active = current_page?(path) || (path == transactions_path && %w[transactions trades corporate_actions].include?(controller_name)) %>
         <%= link_to path, class: class_names("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } do %>
           <span class="flex size-8 items-center justify-center text-lg <%= active ? "text-caramel-deep" : "text-coffee/70" %>" aria-hidden="true"><%= icon %></span>
           <span translate="no"><%= label %></span>
@@ -69,8 +69,8 @@
           <p class="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
           <%= render "layouts/money_visibility", mobile: true %>
         </div>
-        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Income"), income_path], [t("Performance"), performance_path]].each do |label, path| %>
-          <% active = current_page?(path) || (path == income_path && controller_name == "corporate_actions") %>
+        <% [[t("Dashboard"), root_path], [t("Positions"), positions_path], [t("Transactions"), transactions_path], [t("Performance"), performance_path]].each do |label, path| %>
+          <% active = current_page?(path) || (path == transactions_path && %w[transactions trades corporate_actions].include?(controller_name)) %>
           <%= link_to label, path, class: class_names("flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } %>
         <% end %>
         <p class="mb-1 mt-3 border-t border-coffee/10 px-3 pt-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Manage") %></p>

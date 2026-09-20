@@ -56,62 +56,28 @@
       currency_view: @currency_view %>
   </div>
 
-  <section aria-labelledby="income-history-heading" class="space-y-4">
+  <% activity_filter_params = request.query_parameters.slice("history", "period", "currency_view") %>
+  <section aria-labelledby="activity-history-heading" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 id="income-history-heading" class="text-lg font-semibold text-coffee"><%= t(".Income history") %></h2>
-        <p class="mt-1 text-sm text-muted"><%= t(".Income history description") %></p>
+        <h2 id="activity-history-heading" class="text-lg font-semibold text-coffee"><%= t(".Activity history") %></h2>
+        <p class="mt-1 text-sm text-muted"><%= t(".Activity history description") %></p>
       </div>
-      <%= link_to t("corporate_actions.actions.Add income"), new_instrument_corporate_action_path(@instrument), class: "ui-button ui-button-secondary" %>
+      <%= render "transactions/add_menu",
+        trade_path: new_instrument_trade_path(@instrument),
+        income_path: new_instrument_corporate_action_path(@instrument),
+        test_id: "add-instrument-transaction-menu" %>
     </div>
 
-    <% if @corporate_actions.any? %>
-      <div class="overflow-x-auto rounded-xl border border-coffee/10 bg-oat-2">
-        <table class="ui-data-table min-w-[34rem] text-sm">
-          <thead>
-            <tr class="text-xs uppercase tracking-[0.08em] text-muted">
-              <th scope="col" class="px-4 py-3 font-semibold"><%= CorporateAction.human_attribute_name(:kind) %></th>
-              <th scope="col" class="px-4 py-3 font-semibold"><%= CorporateAction.human_attribute_name(:paid_on) %></th>
-              <th scope="col" class="px-4 py-3 text-right font-semibold"><%= CorporateAction.human_attribute_name(:net_amount) %></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-coffee/10">
-            <% @corporate_actions.each do |corporate_action| %>
-              <tr>
-                <td class="px-4 py-3 font-semibold text-coffee"><%= link_to t("corporate_actions.kinds.#{corporate_action.kind}"), corporate_action, class: "hover:text-caramel-deep" %></td>
-                <td class="whitespace-nowrap px-4 py-3 text-muted"><%= l corporate_action.paid_on, format: :long %></td>
-                <td class="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold tabular-nums text-coffee"><%= display_money(corporate_action.net_amount) %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% else %>
-      <div class="rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-6 text-center">
-        <p class="text-sm font-medium text-coffee"><%= t(".No income") %></p>
-      </div>
-    <% end %>
-  </section>
-
-  <section aria-labelledby="trade-history-heading" class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h2 id="trade-history-heading" class="text-lg font-semibold text-coffee"><%= t(".Trade history") %></h2>
-        <p class="mt-1 text-sm text-muted"><%= t(".Trade history description") %></p>
-      </div>
-      <%= link_to t("actions.Add", model: Trade.model_name.human.downcase), new_instrument_trade_path(@instrument), class: "ui-button ui-button-primary" %>
-    </div>
-
-    <% if @trades.any? %>
-      <div class="space-y-2">
-        <%= render @trades %>
-      </div>
-    <% else %>
-      <div class="rounded-2xl border border-dashed border-coffee/20 bg-oat-2 p-8 text-center">
-        <p class="font-medium text-coffee"><%= t(".No trades") %></p>
-        <p class="mt-2 text-sm leading-6 text-muted"><%= t(".Empty history") %></p>
-      </div>
-    <% end %>
+    <%= render "transactions/history",
+      transactions: @activity_transactions,
+      activity: @activity,
+      has_transactions: @has_activity_history,
+      all_filter_path: instrument_path(@instrument, activity_filter_params),
+      trades_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "trades")),
+      income_filter_path: instrument_path(@instrument, activity_filter_params.merge(activity: "income")),
+      empty_title: t(".No activity"),
+      empty_body: t(".Empty activity history") %>
   </section>
 
 </section>

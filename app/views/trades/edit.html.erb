@@ -2,7 +2,7 @@
 
 <section class="mx-auto max-w-3xl space-y-8">
   <div>
-    <%= link_to t("Transactions link"), transactions_path, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
+    <%= link_to t("Back"), @return_to, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
   </div>
 
   <div class="ui-page-header-copy">
@@ -16,6 +16,7 @@
                context_instrument: @context_instrument,
                instruments: @instruments,
                institutions: @institutions,
-               last_institution_id_by_instrument: @last_institution_id_by_instrument %>
+               last_institution_id_by_instrument: @last_institution_id_by_instrument,
+               return_to: @return_to %>
   </div>
 </section>

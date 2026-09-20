@@ -9,9 +9,18 @@ class InstrumentsController < ApplicationController
   end
 
   def show
-    @trades = User.owner.trades.where(instrument: @instrument).includes(:instrument, :institution).strict_loading.reverse_chronological.load
+    @activity = params[:activity].presence_in(ActivityHistory::FILTERS)
+    trade_includes = [ :instrument ]
+    trade_includes << :institution unless @activity == "income"
+    income_includes = [ :instrument ]
+    income_includes << :institution unless @activity == "trades"
+    @trades = User.owner.trades.where(instrument: @instrument)
+      .includes(*trade_includes).strict_loading.reverse_chronological.load
     @corporate_actions = owner.corporate_actions.where(instrument: @instrument)
-      .includes(:instrument, :institution).strict_loading.reverse_chronological.load
+      .includes(*income_includes).strict_loading.reverse_chronological.load
+    activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: params[:activity])
+    @activity_transactions = activity_history.transactions
+    @has_activity_history = activity_history.any?
     @instrument_has_activity = @instrument.trades.exists? || @instrument.corporate_actions.exists?
     @reporting_currency = owner.reporting_currency
     @currency_view = requested_currency_view

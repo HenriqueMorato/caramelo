@@ -1,7 +1,6 @@
 ---
 en:
   corporate_actions:
-    Income link: "← Income"
     actions:
       Add income: Add income
       Edit income: Edit income
@@ -16,19 +15,6 @@ en:
       Institution optional: Institution (optional)
       Net amount help: Gross amount minus withholding.
       Payment date help: The day the dividend or JCP reached your account.
-    index:
-      Actions: Actions
-      All income: All income
-      Dividends only: Dividends only
-      Empty state: Record a dividend or JCP payment to include it in total return.
-      Heading: Income earned along the way.
-      Income event: Income event
-      Income filters: Income filters
-      Introduction: Dividends and JCP, with withholding kept visible and auditable.
-      JCP only: JCP only
-      No income yet: No income yet
-      No matching income: No income events match this filter.
-      Page title: Income · %{application}
     kinds:
       dividend: Dividend
       jcp: JCP
@@ -36,6 +22,3 @@ en:
       Introduction: Record the issuer payment once. Any reinvestment purchase remains
         a separate trade.
       Page title: New income · %{application}
-    show:
-      Introduction: Paid %{date}
-      Page title: "%{instrument} income · %{application}"

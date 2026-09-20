@@ -18,15 +18,14 @@ Rails.application.routes.draw do
   end
   resources :positions, only: :index
   resource :current_market_price_refresh, only: :create
-  get "transactions", to: "trades#index"
-  get "income", to: "corporate_actions#index", as: :income
+  resources :transactions, only: :index
   resources :institutions
   resources :instruments do
     resources :trades, only: %i[ new create ]
     resources :corporate_actions, only: %i[ new create ]
   end
   resources :trades, except: %i[ index show ]
-  resources :corporate_actions, except: :index
+  resources :corporate_actions, except: %i[index show]
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
