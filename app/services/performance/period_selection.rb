@@ -26,9 +26,22 @@ module Performance
     def initialize(period:, owner:, instrument:, today:)
       @period = period
       @to = today
+      unless period == "all"
+        @from = today - PERIODS.fetch(period)
+        return
+      end
+
       trades = owner.trades
       trades = trades.where(instrument:) if instrument
-      @from = period == "all" ? trades.minimum(:traded_on) || today : today - PERIODS.fetch(period)
+      actions = owner.corporate_actions.effective.where("COALESCE(ex_date, paid_on) <= ?", today)
+      actions = actions.where(instrument:) if instrument
+      first_action = actions.minimum(Arel.sql("COALESCE(ex_date, paid_on)"))
+      first_action = Date.iso8601(first_action) if first_action.is_a?(String)
+      first_activity = [
+        trades.where(traded_on: ..today).minimum(:traded_on),
+        first_action
+      ].compact.min
+      @from = first_activity || today
     end
 
     def date_range_label

@@ -155,6 +155,35 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     ], result.cash_flows.map { |flow| [ flow.occurred_on, flow.amount, flow.source ] }
   end
 
+  test "counts confirmed income for an instrument without trades" do
+    instrument = create_instrument(ticker: "INCOMEONLY", currency: "BRL")
+    action = create_corporate_action(
+      instrument:, paid_on: @date - 1, gross_amount_cents: 1_000,
+      withholding_tax_cents: 0, net_amount_cents: 1_000
+    )
+
+    results = [
+      portfolio_for,
+      Performance::Portfolio.for(
+        valuation_date: @date, owner: User.owner, instrument:,
+        exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+      ),
+      Performance::Portfolio.for(
+        valuation_date: @date, owner: User.owner, instrument:, trades: [], corporate_actions: [ action ],
+        exchange_rate_service: @exchange_rate_service, daily_closing_price_provider: @provider
+      )
+    ]
+
+    results.each do |result|
+      assert_predicate result, :available?
+      assert_equal BigDecimal("0"), result.market_value_amount
+      assert_equal BigDecimal("10"), result.investment_income_amount
+      assert_equal BigDecimal("10"), result.position_results.sole.total_gain_amount
+      assert_equal [ [ action.paid_on, BigDecimal("-10"), :corporate_action ] ],
+        result.cash_flows.map { |flow| [ flow.occurred_on, flow.amount, flow.source ] }
+    end
+  end
+
   test "converts income with ex-date FX rather than payment-date or valuation-date FX" do
     instrument = create_instrument(ticker: "INCOMEFX", currency: "USD")
     create_trade(

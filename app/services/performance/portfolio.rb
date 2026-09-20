@@ -81,9 +81,13 @@ module Performance
 
     def calculate
       validate_valuation_date!
-      position_results = trades_by_instrument.map do |instrument, trades|
+      grouped_trades = trades_by_instrument
+      grouped_actions = corporate_actions_by_instrument
+      instruments = grouped_trades.keys | grouped_actions.keys
+      position_results = instruments.map do |instrument|
         PositionCalculator.new(
-          instrument:, trades:, corporate_actions: corporate_actions_by_instrument.fetch(instrument, []),
+          instrument:, trades: grouped_trades.fetch(instrument, []),
+          corporate_actions: grouped_actions.fetch(instrument, []),
           valuation_date:, exchange_rate_service:,
           daily_closing_price_provider:, reporting_currency:
         ).calculate
