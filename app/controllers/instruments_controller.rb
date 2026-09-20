@@ -15,9 +15,9 @@ class InstrumentsController < ApplicationController
     income_includes = [ :instrument ]
     income_includes << :institution unless @activity == "trades"
     @trades = User.owner.trades.where(instrument: @instrument)
-      .includes(*trade_includes).strict_loading.reverse_chronological.load
+      .includes(*trade_includes).strict_loading
     @corporate_actions = owner.corporate_actions.where(instrument: @instrument)
-      .includes(*income_includes).strict_loading.reverse_chronological.load
+      .includes(*income_includes).strict_loading
     activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: params[:activity])
     @activity_transactions = activity_history.transactions
     @has_activity_history = activity_history.any?
