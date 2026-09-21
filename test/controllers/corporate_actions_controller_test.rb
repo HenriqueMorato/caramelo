@@ -217,6 +217,43 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button[formnovalidate]", text: /Save quantity action/
     assert_select "[data-controller~='form-state']"
     assert_select "[data-controller~='institution-picker']"
+    assert_select "[data-controller~='quantity-action-form']"
+  end
+
+  test "creates and edits a share bonus using percentage rather than ratio inputs" do
+    assert_difference("CorporateAction.quantity_actions.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(
+          kind: "share_bonus", bonus_percentage: "2.5",
+          ratio_numerator: "99", ratio_denominator: "1"
+        )
+      }
+    end
+
+    action = CorporateAction.quantity_actions.order(:id).last
+    assert_equal [ 41, 40 ], [ action.ratio_numerator, action.ratio_denominator ]
+
+    get edit_quantity_action_url(action)
+    assert_select "input[name='corporate_action[bonus_percentage]'][value='2.5']"
+    assert_select "input[name='corporate_action[ratio_numerator]'][disabled]"
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(kind: "share_bonus", bonus_percentage: "10")
+    }
+    assert_redirected_to transactions_url
+    assert_equal [ 11, 10 ], [ action.reload.ratio_numerator, action.ratio_denominator ]
+  end
+
+  test "shows invalid share bonus percentage beside the submitted value" do
+    assert_no_difference("CorporateAction.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(kind: "share_bonus", bonus_percentage: "NaN")
+      }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Bonus percentage must be a positive, finite number/
+    assert_select "input[name='corporate_action[bonus_percentage]'][value='NaN']"
   end
 
   test "creates a contextual quantity action with optional cash in lieu" do

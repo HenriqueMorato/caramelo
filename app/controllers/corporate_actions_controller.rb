@@ -147,7 +147,13 @@ class CorporateActionsController < ApplicationController
   def assign_quantity_action_attributes
     attributes = quantity_action_params
     cash_in_lieu_amount = attributes.delete(:cash_in_lieu_amount)
+    bonus_percentage = attributes.delete(:bonus_percentage)
+    if attributes[:kind] == "share_bonus"
+      attributes.delete(:ratio_numerator)
+      attributes.delete(:ratio_denominator)
+    end
     @corporate_action.assign_attributes(attributes)
+    @corporate_action.bonus_percentage = bonus_percentage if @corporate_action.share_bonus?
     @corporate_action.instrument = @context_instrument if @context_instrument
     @corporate_action.source = "manual"
     assign_cash_in_lieu_amount(cash_in_lieu_amount)
@@ -205,7 +211,7 @@ class CorporateActionsController < ApplicationController
   def quantity_action_params
     params.expect(corporate_action: %i[
       instrument_id institution_id kind effective_on ratio_numerator ratio_denominator
-      cash_in_lieu_quantity cash_in_lieu_amount notes
+      bonus_percentage cash_in_lieu_quantity cash_in_lieu_amount notes
     ])
   end
 

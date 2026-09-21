@@ -3,6 +3,7 @@ en:
   activerecord:
     attributes:
       corporate_action:
+        bonus_percentage: Bonus percentage
         cash_in_lieu_amount: Cash received
         cash_in_lieu_amount_cents: Cash received
         cash_in_lieu_quantity: Fractional quantity sold
@@ -55,6 +56,8 @@ en:
       models:
         corporate_action:
           attributes:
+            bonus_percentage:
+              invalid_percentage: must be a positive, finite number
             cash_in_lieu_quantity:
               must_include_amount: and cash received must be provided together
             currency:

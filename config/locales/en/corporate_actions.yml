@@ -35,6 +35,9 @@ en:
         or total cost basis.
       Page title: New quantity action · %{application}
     quantity_form:
+      Bonus percentage: Bonus percentage
+      Bonus percentage help: Enter the extra shares as a percentage of the shares
+        you held. For example, 10% turns 10 shares into 11.
       Cash in lieu help: If the action produced an unusable fraction, enter both the
         fraction disposed of and the cash received for it.
       Cash in lieu optional: Cash in lieu (optional)

@@ -67,6 +67,8 @@ There is no required one-to-one link between income and a trade because reinvest
 
 A quantity action has one effective date and an exact “new shares for old shares” ratio. For example, a 2-for-1 split multiplies the open quantity by `2 / 1`, while a 1-for-10 reverse split multiplies it by `1 / 10`.
 
+The form accepts a percentage for share bonuses. A 10% bonus becomes the exact ratio `11 / 10`; a 2.5% bonus becomes `41 / 40`. Splits and reverse splits continue to use new/old share counts. The stored ratio remains the authoritative quantity multiplier.
+
 Confirmed quantity actions cannot be dated in the future. Multiple events on one date replay in their durable record order, before that date’s trades.
 
 Quantity events replay before trades recorded on the same date. This reflects the normal entitlement boundary: a purchase made on the effective date does not receive an adjustment that belonged to the previously held units.

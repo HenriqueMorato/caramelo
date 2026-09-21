@@ -20,6 +20,7 @@ class CorporateAction < ApplicationRecord
   monetize :net_amount_cents, with_model_currency: :currency, allow_nil: true
   monetize :cash_in_lieu_amount_cents, with_model_currency: :currency, allow_nil: true
   attr_accessor :cash_in_lieu_amount_input
+  attr_writer :bonus_percentage
 
   normalizes :currency, with: ->(currency) { currency.strip.upcase }
   normalizes :source, with: ->(source) { source.strip.downcase }
@@ -38,6 +39,7 @@ class CorporateAction < ApplicationRecord
   PERFORMANCE_DATE_SQL = "COALESCE(effective_on, ex_date, paid_on)".freeze
 
   before_validation :default_withholding_tax_for_cash_action
+  before_validation :apply_bonus_percentage
 
   validates :paid_on, presence: true, if: :cash_action?
   validates :paid_on, :ex_date, absence: true, if: :quantity_action?
@@ -113,7 +115,29 @@ class CorporateAction < ApplicationRecord
     ratio_numerator.to_r / ratio_denominator.to_r
   end
 
+  def bonus_percentage
+    return @bonus_percentage unless @bonus_percentage.nil?
+    return unless share_bonus? && quantity_multiplier
+
+    ((quantity_multiplier - 1) * 100).to_d(16).to_s("F")
+  end
+
   private
+
+  def apply_bonus_percentage
+    return unless share_bonus? && !@bonus_percentage.nil?
+
+    percentage = BigDecimal(@bonus_percentage.to_s)
+    raise ArgumentError unless percentage.finite? && percentage.positive?
+
+    multiplier = 1 + percentage.to_r / 100
+    self.ratio_numerator = multiplier.numerator
+    self.ratio_denominator = multiplier.denominator
+  rescue ArgumentError, TypeError
+    self.ratio_numerator = nil
+    self.ratio_denominator = nil
+    errors.add(:bonus_percentage, :invalid_percentage)
+  end
 
   def slug_candidates
     [ generate_reference_code, generate_reference_code ]

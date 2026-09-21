@@ -1,6 +1,25 @@
 require "test_helper"
 
 class CorporateActionTest < ActiveSupport::TestCase
+  test "converts a decimal share bonus percentage to an exact ratio" do
+    action = build_quantity_action(kind: :share_bonus, ratio_numerator: nil, ratio_denominator: nil)
+    action.bonus_percentage = "2.5"
+
+    assert action.valid?, action.errors.full_messages.inspect
+    assert_equal 41, action.ratio_numerator
+    assert_equal 40, action.ratio_denominator
+    assert_equal "2.5", action.bonus_percentage
+  end
+
+  test "rejects invalid share bonus percentages" do
+    [ "", "0", "-1", "NaN", "Infinity", "abc" ].each do |percentage|
+      action = build_quantity_action(kind: :share_bonus, ratio_numerator: nil, ratio_denominator: nil)
+      action.bonus_percentage = percentage
+
+      assert_not action.valid?
+      assert_includes action.errors[:bonus_percentage], "must be a positive, finite number"
+    end
+  end
   test "belongs to its owner and instrument with optional context" do
     action = build_action
 
