@@ -213,6 +213,8 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "option[value='share_bonus']"
     assert_select "input[name='corporate_action[ratio_numerator]'][value='2']"
     assert_select "input[name='corporate_action[ratio_denominator]'][value='1']"
+    assert_select "input[name='corporate_action[cash_in_lieu_quantity]'][step='0.1']"
+    assert_select "button[formnovalidate]", text: /Save quantity action/
     assert_select "[data-controller~='form-state']"
     assert_select "[data-controller~='institution-picker']"
   end
