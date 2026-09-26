@@ -241,17 +241,18 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     buy_date = Date.new(2026, 9, 1)
     owner.trades.create!(instrument:, side: :buy, traded_on: buy_date, quantity: 1, unit_price: 10, currency: "USD")
     owner.trades.create!(
-      instrument:, side: :sell, traded_on: buy_date + 1.day, quantity: 1, unit_price: 11, currency: "USD"
+      instrument:, side: :sell, traded_on: buy_date + 2.days, quantity: 1, unit_price: 11, currency: "USD"
     )
     owner.corporate_actions.create!(
-      instrument:, kind: :stock_split, effective_on: buy_date + 2.days,
-      ratio_numerator: 2, ratio_denominator: 1, source: "manual"
+      instrument:, kind: :stock_split, effective_on: buy_date + 1.day,
+      ratio_numerator: 2, ratio_denominator: 1, cash_in_lieu_quantity: 3,
+      cash_in_lieu_amount_cents: 1_000, currency: "USD", source: "manual"
     )
     inspector = MarketData::HealthReport::HistoricalExchangeRates.new(
       owner:, context: MarketData::HealthReport::Context.new(owner:, today: buy_date + 3.days)
     )
 
-    assert_equal [ buy_date ], inspector.send(:open_position_dates, instrument)
+    assert_equal [ buy_date, buy_date + 1.day ], inspector.send(:open_position_dates, instrument)
   end
 
   test "handles instruments without trades and missing cash-in-lieu proceeds" do

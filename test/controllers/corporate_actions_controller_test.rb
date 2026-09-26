@@ -244,6 +244,43 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ 11, 10 ], [ action.reload.ratio_numerator, action.ratio_denominator ]
   end
 
+  test "editing a share bonus without changing its displayed percentage preserves its exact ratio" do
+    action = create_quantity_action(
+      kind: :share_bonus, ratio_numerator: 4, ratio_denominator: 3,
+      source: "provider", source_reference: "bonus-4-for-3", raw_payload: '{"ratio":"4:3"}'
+    )
+
+    get edit_quantity_action_url(action)
+    displayed_percentage = css_select("input[name='corporate_action[bonus_percentage]']").first["value"]
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(
+        kind: "share_bonus", bonus_percentage: displayed_percentage, notes: "Reviewed"
+      )
+    }
+
+    assert_redirected_to transactions_url
+    assert_equal [ 4, 3 ], [ action.reload.ratio_numerator, action.ratio_denominator ]
+    assert_equal "provider", action.source
+    assert_equal "bonus-4-for-3", action.source_reference
+    assert_equal '{"ratio":"4:3"}', action.raw_payload
+  end
+
+  test "editing a provider quantity action preserves import idempotency" do
+    action = create_quantity_action(source: "provider", source_reference: "split-2026")
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(notes: "Confirmed against statement")
+    }
+
+    assert_redirected_to transactions_url
+    assert_equal "provider", action.reload.source
+    duplicate = action.dup
+    duplicate.slug = nil
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:source_reference], "has already been taken"
+  end
+
   test "shows invalid share bonus percentage beside the submitted value" do
     assert_no_difference("CorporateAction.count") do
       post quantity_actions_url, params: {
@@ -254,6 +291,14 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_content
     assert_select "[role=alert]", /Bonus percentage must be a positive, finite number/
     assert_select "input[name='corporate_action[bonus_percentage]'][value='NaN']"
+
+    action = create_quantity_action(kind: :share_bonus, ratio_numerator: 11, ratio_denominator: 10)
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(kind: "share_bonus", bonus_percentage: "not a number")
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Bonus percentage must be a positive, finite number/
   end
 
   test "creates a contextual quantity action with optional cash in lieu" do

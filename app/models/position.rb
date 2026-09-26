@@ -127,9 +127,7 @@ class Position
     end
 
     def apply_quantity_action(state, action)
-      if state.quantity.zero?
-        raise InvalidQuantityActionData.new(action, trades:, reason: "has no open quantity to adjust")
-      end
+      return if state.quantity.zero?
 
       adjusted_quantity = state.quantity * action.quantity_multiplier
       disposed_quantity = action.cash_in_lieu_quantity&.to_r || 0.to_r

@@ -369,18 +369,30 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("10"), position.analytical_cost_basis_amount
   end
 
-  test "raises when a quantity action has no open position or disposes too many units" do
+  test "quantity actions while flat do not affect a later reopened position" do
     empty_instrument = create_instrument(ticker: "EMPT")
-    empty_action = create_quantity_action(
+    create_trade(instrument: empty_instrument, quantity: 10, unit_price: "2", traded_on: Date.new(2026, 1, 1))
+    create_trade(
+      instrument: empty_instrument, side: :sell, quantity: 10, unit_price: "3",
+      traded_on: Date.new(2026, 1, 2)
+    )
+    create_quantity_action(
       instrument: empty_instrument, effective_on: Date.new(2026, 1, 1),
       ratio_numerator: 2, ratio_denominator: 1
     )
+    create_quantity_action(
+      instrument: empty_instrument, effective_on: Date.new(2026, 1, 3),
+      ratio_numerator: 2, ratio_denominator: 1
+    )
+    create_trade(instrument: empty_instrument, quantity: 5, unit_price: "4", traded_on: Date.new(2026, 1, 4))
 
-    empty_error = assert_raises(Position::InvalidQuantityActionData) do
-      Position.for(instrument: empty_instrument)
-    end
-    assert_equal empty_action, empty_error.action
+    position = Position.for(instrument: empty_instrument)
 
+    assert_equal BigDecimal("5"), position.quantity
+    assert_equal BigDecimal("20"), position.analytical_cost_basis_amount
+  end
+
+  test "raises when a quantity action disposes too many units" do
     instrument = create_instrument(ticker: "OVER")
     create_trade(instrument:, quantity: 1)
     action = create_quantity_action(

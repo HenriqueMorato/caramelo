@@ -174,6 +174,26 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     assert_equal [ :trade ], result.cash_flows.map(&:source)
   end
 
+  test "ignores a quantity action while flat before a later reopening" do
+    instrument = create_instrument(ticker: "REOPEN", currency: "BRL")
+    create_trade(instrument:, traded_on: @date - 4, quantity: 10, unit_price: "2")
+    create_trade(instrument:, traded_on: @date - 3, side: :sell, quantity: 10, unit_price: "3")
+    create_quantity_action(
+      instrument:, effective_on: @date - 2, kind: :stock_split,
+      ratio_numerator: 2, ratio_denominator: 1
+    )
+    create_trade(instrument:, traded_on: @date - 1, quantity: 5, unit_price: "4")
+    create_daily_close(instrument:, close_price: "5")
+
+    result = portfolio_for
+    position = result.position_results.sole
+
+    assert_predicate result, :available?
+    assert_equal BigDecimal("5"), position.quantity
+    assert_equal BigDecimal("20"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("25"), position.market_value_amount
+  end
+
   test "cash in lieu removes proportional basis and is a performance withdrawal" do
     instrument = create_instrument(ticker: "CIL", currency: "BRL")
     create_trade(instrument:, traded_on: @date - 2, quantity: 5, unit_price: "12")

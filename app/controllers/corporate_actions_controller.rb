@@ -140,7 +140,7 @@ class CorporateActionsController < ApplicationController
     @corporate_action.assign_attributes(attributes)
     @corporate_action.instrument = @context_instrument if @context_instrument
     @corporate_action.currency = @corporate_action.instrument&.currency
-    @corporate_action.source = "manual"
+    @corporate_action.source = "manual" if @corporate_action.new_record?
     assign_cash_amounts(gross_amount:, withholding_tax: withholding_tax.presence || "0")
   end
 
@@ -148,15 +148,26 @@ class CorporateActionsController < ApplicationController
     attributes = quantity_action_params
     cash_in_lieu_amount = attributes.delete(:cash_in_lieu_amount)
     bonus_percentage = attributes.delete(:bonus_percentage)
+    previous_bonus_percentage = @corporate_action.bonus_percentage if @corporate_action.share_bonus?
     if attributes[:kind] == "share_bonus"
       attributes.delete(:ratio_numerator)
       attributes.delete(:ratio_denominator)
     end
     @corporate_action.assign_attributes(attributes)
-    @corporate_action.bonus_percentage = bonus_percentage if @corporate_action.share_bonus?
+    if @corporate_action.share_bonus? && bonus_percentage_changed?(bonus_percentage, previous_bonus_percentage)
+      @corporate_action.bonus_percentage = bonus_percentage
+    end
     @corporate_action.instrument = @context_instrument if @context_instrument
-    @corporate_action.source = "manual"
+    @corporate_action.source = "manual" if @corporate_action.new_record?
     assign_cash_in_lieu_amount(cash_in_lieu_amount)
+  end
+
+  def bonus_percentage_changed?(submitted, previous)
+    return true if previous.nil?
+
+    BigDecimal(submitted) != BigDecimal(previous)
+  rescue ArgumentError, TypeError
+    true
   end
 
   def assign_cash_in_lieu_amount(amount)

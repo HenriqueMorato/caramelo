@@ -81,7 +81,7 @@ adjusted total basis = prior total basis
 adjusted unit basis = prior total basis / adjusted quantity
 ```
 
-A quantity action against a position with no open units is invalid. caramelo fails the derived position rebuild and retains the durable action so the source records can be corrected instead of silently skipping it.
+A quantity action encountered while the position has no open units is a no-op. This includes events during a closed period and events on the date of the first purchase, because quantity actions replay before same-day trades. A later reopened position therefore starts from its own purchases without inheriting an action from a period when the owner held no units.
 
 ## Fractional entitlements and cash in lieu
 

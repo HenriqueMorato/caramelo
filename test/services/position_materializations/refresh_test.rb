@@ -65,11 +65,11 @@ class PositionMaterializations::RefreshTest < ActiveSupport::TestCase
     assert_equal expected.analytical_cost_basis_amount, @materialization.cost_basis_amount
   end
 
-  test "records an invalid quantity action without raising" do
+  test "ignores a quantity action with no holdings" do
     instrument = Instrument.create!(
       ticker: "NOHOLD", exchange: "XNAS", name: "No holdings", currency: "USD"
     )
-    action = @user.corporate_actions.create!(
+    @user.corporate_actions.create!(
       instrument:, kind: :stock_split, effective_on: Date.current,
       ratio_numerator: 2, ratio_denominator: 1, source: "manual"
     )
@@ -77,9 +77,9 @@ class PositionMaterializations::RefreshTest < ActiveSupport::TestCase
 
     PositionMaterializations::Refresh.call(materialization:)
 
-    assert_predicate materialization.reload, :failed?
-    assert_equal Position::InvalidQuantityActionData.name, materialization.error_class
-    assert_includes materialization.error_message, action.id.to_s
+    assert_predicate materialization.reload, :complete?
+    assert_equal BigDecimal("0"), materialization.quantity
+    assert_nil materialization.error_class
   end
 
   test "does not publish a result after the source generation advances" do
