@@ -25,6 +25,7 @@ en:
       jcp: JCP
       reverse_split: Reverse split
       share_bonus: Share bonus
+      split: Stock split
       stock_split: Stock split
     new:
       Introduction: Record the issuer payment once. Any reinvestment purchase remains

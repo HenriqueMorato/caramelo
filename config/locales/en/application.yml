@@ -54,9 +54,11 @@ en:
   actions:
     Add: Add %{model}
     Cancel: Cancel
+    Confirm: Confirm
     Delete: Delete
     Edit: Edit
     Edit model: Edit %{model}
+    Ignore: Ignore
     View details: View details
   alerts:
     Invalid credentials: Try another email address or password.

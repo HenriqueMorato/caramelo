@@ -11,6 +11,7 @@
     <%= render "add_menu", trade_path: new_trade_path, income_path: new_corporate_action_path,
       quantity_action_path: new_quantity_action_path,
       test_id: "add-transaction-menu" %>
+    <%= link_to t("transactions.index.Review imports"), corporate_action_imports_path, class: "ui-button ui-button-secondary" %>
   </div>
 
   <%= render "history",

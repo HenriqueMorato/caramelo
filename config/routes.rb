@@ -19,6 +19,16 @@ Rails.application.routes.draw do
   resources :positions, only: :index
   resource :current_market_price_refresh, only: :create
   resources :transactions, only: :index
+  resources :corporate_action_imports, path: "corporate-action-imports", only: %i[ index create edit update ] do
+    member do
+      post :confirm
+      post :ignore
+    end
+    collection do
+      post :bulk_confirm
+      post :bulk_ignore
+    end
+  end
   resources :institutions
   resources :instruments do
     resources :trades, only: %i[ new create ]

@@ -6,6 +6,7 @@ class Institution < ApplicationRecord
   belongs_to :user
   has_many :trades, dependent: :restrict_with_error
   has_many :corporate_actions, dependent: :restrict_with_error
+  has_many :corporate_action_imports, dependent: :delete_all
 
   normalizes :name, with: ->(name) { name.strip.squish }
 

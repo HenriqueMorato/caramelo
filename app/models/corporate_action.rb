@@ -8,6 +8,7 @@ class CorporateAction < ApplicationRecord
   belongs_to :user
   belongs_to :instrument
   belongs_to :institution, optional: true
+  has_one :corporate_action_import, dependent: :nullify
 
   enum :kind, {
     dividend: "dividend", jcp: "jcp", stock_split: "split",

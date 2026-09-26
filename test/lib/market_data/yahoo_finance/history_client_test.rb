@@ -18,6 +18,38 @@ class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
     assert_equal Time.zone.local(2026, 8, 27).to_i.to_s, query.fetch("period2")
   end
 
+  test "parses dividends and splits while preserving the bounded event payload" do
+    result = default_result.merge(
+      events: {
+        dividends: {
+          "1787851200" => { "amount" => BigDecimal("0.25"), "date" => 1787851200, "type" => "DIVIDEND" }
+        },
+        splits: {
+          "1787937600" => { "splitRatio" => "1:10", "date" => 1787937600, "type" => "SPLIT" }
+        }
+      }
+    )
+    transport = FakeTransport.new(response: response(result:))
+    events = MarketData::YahooFinance::HistoryClient.new(transport:).corporate_action_events(
+      identifier:, from: Date.new(2026, 8, 1), to: Date.new(2026, 9, 30)
+    )
+
+    assert_equal [ :dividend, :reverse_split ], events.map(&:kind)
+    assert_equal BigDecimal("0.25"), events.first.amount
+    assert_equal [ 1, 10 ], [ events.last.ratio_numerator, events.last.ratio_denominator ]
+    assert_equal "DIVIDEND", events.first.raw_payload.fetch("type")
+    query = URI.decode_www_form(transport.uri.query).to_h
+    assert_equal "div,splits", query.fetch("events")
+  end
+
+  test "treats a response without event data as an empty event set" do
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response))
+
+    assert_empty client.corporate_action_events(
+      identifier:, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31)
+    )
+  end
+
   test "URL-encodes a benchmark identifier as a path segment" do
     benchmark_identifier = MarketBenchmark::Providers::YahooFinance::YahooBenchmarkIdentifier.new("^BVSP")
     result = default_result.merge(
