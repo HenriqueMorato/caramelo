@@ -12,13 +12,20 @@ class CorporateActionTest < ActiveSupport::TestCase
   end
 
   test "rejects invalid share bonus percentages" do
-    [ "", "0", "-1", "NaN", "Infinity", "abc" ].each do |percentage|
+    [ "", "0", "-1", "NaN", "Infinity", "abc", "1e1000000", "0.0000000000000000001" ].each do |percentage|
       action = build_quantity_action(kind: :share_bonus, ratio_numerator: nil, ratio_denominator: nil)
       action.bonus_percentage = percentage
 
       assert_not action.valid?
       assert_includes action.errors[:bonus_percentage], "must be a positive, finite number"
     end
+  end
+
+  test "rejects ratios larger than SQLite can persist" do
+    action = build_quantity_action(ratio_numerator: CorporateAction::RATIO_INTEGER_MAX + 1)
+
+    assert_not action.valid?
+    assert_includes action.errors[:ratio_numerator], "must be less than or equal to 9223372036854775807"
   end
   test "belongs to its owner and instrument with optional context" do
     action = build_action

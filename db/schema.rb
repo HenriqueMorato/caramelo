@@ -54,8 +54,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_000000) do
     t.check_constraint "kind NOT IN ('split', 'share_bonus') OR ratio_numerator > ratio_denominator", name: "corporate_actions_increasing_ratio"
     t.check_constraint "net_amount_cents = gross_amount_cents - withholding_tax_cents", name: "corporate_actions_amounts_reconcile"
     t.check_constraint "net_amount_cents >= 0", name: "corporate_actions_net_nonnegative"
-    t.check_constraint "ratio_denominator IS NULL OR ratio_denominator > 0", name: "corporate_actions_ratio_denominator_positive"
-    t.check_constraint "ratio_numerator IS NULL OR ratio_numerator > 0", name: "corporate_actions_ratio_numerator_positive"
+    t.check_constraint "ratio_denominator IS NULL OR ratio_denominator BETWEEN 1 AND 9223372036854775807", name: "corporate_actions_ratio_denominator_bounded"
+    t.check_constraint "ratio_numerator IS NULL OR ratio_numerator BETWEEN 1 AND 9223372036854775807", name: "corporate_actions_ratio_numerator_bounded"
     t.check_constraint "status IN ('pending', 'confirmed', 'ignored', 'reversed')", name: "corporate_actions_status"
     t.check_constraint "withholding_tax_cents >= 0", name: "corporate_actions_tax_nonnegative"
   end

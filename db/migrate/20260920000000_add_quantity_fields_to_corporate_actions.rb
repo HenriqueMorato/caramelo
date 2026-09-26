@@ -1,6 +1,7 @@
 class AddQuantityFieldsToCorporateActions < ActiveRecord::Migration[8.1]
   CASH_KINDS = "('dividend', 'jcp')"
   QUANTITY_KINDS = "('split', 'reverse_split', 'share_bonus')"
+  RATIO_INTEGER_MAX = (2**63) - 1
 
   def up
     add_column :corporate_actions, :effective_on, :date
@@ -21,11 +22,11 @@ class AddQuantityFieldsToCorporateActions < ActiveRecord::Migration[8.1]
     add_check_constraint :corporate_actions, subtype_shape_check,
       name: "corporate_actions_subtype_shape"
     add_check_constraint :corporate_actions,
-      "ratio_numerator IS NULL OR ratio_numerator > 0",
-      name: "corporate_actions_ratio_numerator_positive"
+      "ratio_numerator IS NULL OR ratio_numerator BETWEEN 1 AND #{RATIO_INTEGER_MAX}",
+      name: "corporate_actions_ratio_numerator_bounded"
     add_check_constraint :corporate_actions,
-      "ratio_denominator IS NULL OR ratio_denominator > 0",
-      name: "corporate_actions_ratio_denominator_positive"
+      "ratio_denominator IS NULL OR ratio_denominator BETWEEN 1 AND #{RATIO_INTEGER_MAX}",
+      name: "corporate_actions_ratio_denominator_bounded"
     add_check_constraint :corporate_actions,
       "kind NOT IN ('split', 'share_bonus') OR ratio_numerator > ratio_denominator",
       name: "corporate_actions_increasing_ratio"
@@ -51,8 +52,8 @@ class AddQuantityFieldsToCorporateActions < ActiveRecord::Migration[8.1]
     remove_check_constraint :corporate_actions, name: "corporate_actions_cash_in_lieu_quantity_positive"
     remove_check_constraint :corporate_actions, name: "corporate_actions_decreasing_ratio"
     remove_check_constraint :corporate_actions, name: "corporate_actions_increasing_ratio"
-    remove_check_constraint :corporate_actions, name: "corporate_actions_ratio_denominator_positive"
-    remove_check_constraint :corporate_actions, name: "corporate_actions_ratio_numerator_positive"
+    remove_check_constraint :corporate_actions, name: "corporate_actions_ratio_denominator_bounded"
+    remove_check_constraint :corporate_actions, name: "corporate_actions_ratio_numerator_bounded"
     remove_check_constraint :corporate_actions, name: "corporate_actions_subtype_shape"
     remove_check_constraint :corporate_actions, name: "corporate_actions_kind"
 

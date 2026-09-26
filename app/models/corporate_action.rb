@@ -1,6 +1,8 @@
 class CorporateAction < ApplicationRecord
   extend FriendlyId
 
+  RATIO_INTEGER_MAX = (2**63) - 1
+
   friendly_id :slug_candidates, use: :slugged
 
   belongs_to :user
@@ -58,7 +60,8 @@ class CorporateAction < ApplicationRecord
   validates :effective_on, :ratio_numerator, :ratio_denominator, :cash_in_lieu_quantity,
     :cash_in_lieu_amount_cents, absence: true, if: :cash_action?
   validates :ratio_numerator, :ratio_denominator,
-    numericality: { only_integer: true, greater_than: 0 }, if: :quantity_action?
+    numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: RATIO_INTEGER_MAX },
+    if: :quantity_action?
   validates :cash_in_lieu_quantity, numericality: { greater_than: 0 }, allow_nil: true
   validates :cash_in_lieu_amount_cents,
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
@@ -128,9 +131,11 @@ class CorporateAction < ApplicationRecord
     return unless share_bonus? && !@bonus_percentage.nil?
 
     percentage = BigDecimal(@bonus_percentage.to_s)
-    raise ArgumentError unless percentage.finite? && percentage.positive?
+    raise ArgumentError unless percentage.finite? && percentage.positive? && percentage.exponent.abs <= 18
 
     multiplier = 1 + percentage.to_r / 100
+    raise ArgumentError if [ multiplier.numerator, multiplier.denominator ].any? { |value| value > RATIO_INTEGER_MAX }
+
     self.ratio_numerator = multiplier.numerator
     self.ratio_denominator = multiplier.denominator
   rescue ArgumentError, TypeError
