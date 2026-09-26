@@ -9,6 +9,7 @@
     </div>
 
     <%= render "add_menu", trade_path: new_trade_path, income_path: new_corporate_action_path,
+      quantity_action_path: new_quantity_action_path,
       test_id: "add-transaction-menu" %>
   </div>
 
@@ -19,6 +20,7 @@
     all_filter_path: transactions_path,
     trades_filter_path: transactions_path(activity: "trades"),
     income_filter_path: transactions_path(activity: "income"),
+    actions_filter_path: transactions_path(activity: "actions"),
     empty_title: t(".No activity yet"),
     empty_body: t(".Empty state") %>
 </section>

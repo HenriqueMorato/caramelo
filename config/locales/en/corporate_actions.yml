@@ -3,10 +3,15 @@ en:
   corporate_actions:
     actions:
       Add income: Add income
+      Add quantity action: Add quantity action
       Edit income: Edit income
+      Edit quantity action: Edit quantity action
       Save income: Save income
+      Save quantity action: Save quantity action
     edit:
       Page title: Edit income · %{application}
+    edit_quantity:
+      Page title: Edit quantity action · %{application}
     form:
       Discard changes: Discard your unsaved income changes?
       Ex-date help: Optional. Using the date the instrument began trading without
@@ -18,7 +23,26 @@ en:
     kinds:
       dividend: Dividend
       jcp: JCP
+      reverse_split: Reverse split
+      share_bonus: Share bonus
+      stock_split: Stock split
     new:
       Introduction: Record the issuer payment once. Any reinvestment purchase remains
         a separate trade.
       Page title: New income · %{application}
+    new_quantity:
+      Introduction: Adjust the units already held without changing the original trades
+        or total cost basis.
+      Page title: New quantity action · %{application}
+    quantity_form:
+      Bonus percentage: Bonus percentage
+      Bonus percentage help: Enter the extra shares as a percentage of the shares
+        you held. For example, 10% turns 10 shares into 11.
+      Cash in lieu help: If the action produced an unusable fraction, enter both the
+        fraction disposed of and the cash received for it.
+      Cash in lieu optional: Cash in lieu (optional)
+      Discard changes: Discard your unsaved quantity-action changes?
+      Ratio: Share ratio
+      Ratio help: Enter how many new shares replace the old shares, such as 2 for
+        1 for a split or 1 for 10 for a reverse split.
+      for: for

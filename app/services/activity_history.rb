@@ -1,5 +1,5 @@
 class ActivityHistory
-  FILTERS = %w[trades income].freeze
+  FILTERS = %w[trades income actions].freeze
   REFERENCE_COLUMNS = %i[record_type record_id].freeze
 
   attr_reader :activity
@@ -13,7 +13,7 @@ class ActivityHistory
   def any?
     return transactions.any? unless activity
 
-    transactions.any? || unselected_transactions.exists?
+    transactions.any? || unselected_transactions_exist?
   end
 
   def transactions
@@ -41,7 +41,8 @@ class ActivityHistory
   def cte_expression
     [
       reference_relation(trades, model: Trade, date_column: :traded_on),
-      reference_relation(income, model: CorporateAction, date_column: :paid_on)
+      reference_relation(cash_income, model: CorporateAction, date_column: :paid_on),
+      reference_relation(quantity_actions, model: CorporateAction, date_column: :effective_on)
     ]
   end
 
@@ -67,15 +68,27 @@ class ActivityHistory
     scope.where(id: ids).each { |record| records[[ model.name, record.id ]] = record } if ids.any?
   end
 
-  def unselected_transactions
-    activity == "trades" ? income : trades
+  def cash_income
+    @cash_income ||= income.cash_actions
+  end
+
+  def quantity_actions
+    @quantity_actions ||= income.quantity_actions
+  end
+
+  def unselected_transactions_exist?
+    case activity
+    when "trades" then cash_income.exists? || quantity_actions.exists?
+    when "income" then trades.exists? || quantity_actions.exists?
+    when "actions" then trades.exists? || cash_income.exists?
+    end
   end
 
   def selected_scope
-    activity == "trades" ? trades : income
+    { "trades" => trades, "income" => cash_income, "actions" => quantity_actions }.fetch(activity)
   end
 
   def selected_date_column
-    activity == "trades" ? :traded_on : :paid_on
+    { "trades" => :traded_on, "income" => :paid_on, "actions" => :effective_on }.fetch(activity)
   end
 end

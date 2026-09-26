@@ -1,5 +1,8 @@
 <%# locals: (corporate_action:) %>
 
+<% if corporate_action.quantity_action? %>
+  <%= render "corporate_actions/quantity_table_row", corporate_action: %>
+<% else %>
 <tr id="<%= dom_id(corporate_action) %>" class="align-middle">
   <td class="max-w-64 px-4 py-3">
     <div class="flex min-w-0 items-center gap-3">
@@ -34,3 +37,4 @@
     </div>
   </td>
 </tr>
+<% end %>

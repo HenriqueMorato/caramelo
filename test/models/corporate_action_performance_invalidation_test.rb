@@ -105,6 +105,41 @@ class CorporateActionPerformanceInvalidationTest < ActiveJob::TestCase
     assert_no_enqueued_jobs only: BuildPortfolioPerformanceObservationsJob
   end
 
+  test "quantity actions invalidate performance and refresh current positions" do
+    materialization = PositionMaterialization.create!(user: @user, instrument: @instrument)
+    action = build_quantity_action
+
+    assert_enqueued_with(
+      job: RefreshPositionMaterializationJob,
+      args: [ { user_id: @user.id, instrument_id: @instrument.id } ]
+    ) { action.save! }
+
+    assert_equal @date, @state.reload.requested_from
+    assert_equal 1, @state.source_generation
+    assert_equal 1, materialization.reload.source_generation
+    assert_predicate materialization, :pending?
+  end
+
+  test "reversing and moving a quantity action refreshes every affected position" do
+    old_materialization = PositionMaterialization.create!(user: @user, instrument: @instrument)
+    action = build_quantity_action.tap(&:save!)
+    new_instrument = instruments(:voo_arcx)
+    new_materialization = PositionMaterialization.create!(user: @user, instrument: new_instrument)
+    clear_enqueued_jobs
+
+    action.update!(instrument: new_instrument)
+
+    assert_equal 2, old_materialization.reload.source_generation
+    assert_equal 1, new_materialization.reload.source_generation
+    assert_enqueued_jobs 2, only: RefreshPositionMaterializationJob
+
+    clear_enqueued_jobs
+    action.update!(status: :reversed)
+
+    assert_equal 2, new_materialization.reload.source_generation
+    assert_enqueued_jobs 1, only: RefreshPositionMaterializationJob
+  end
+
   test "source and invalidation roll back together when marking fails" do
     action = create_action
     original_amount = action.net_amount_cents
@@ -138,6 +173,14 @@ class CorporateActionPerformanceInvalidationTest < ActiveJob::TestCase
 
   def create_action
     build_action.tap(&:save!)
+  end
+
+  def build_quantity_action
+    CorporateAction.new(
+      user: @user, instrument: @instrument, institution: institutions(:owner_xp),
+      kind: :stock_split, status: :confirmed, effective_on: @date,
+      ratio_numerator: 2, ratio_denominator: 1, source: "manual"
+    )
   end
 
   def reset_invalidation_state

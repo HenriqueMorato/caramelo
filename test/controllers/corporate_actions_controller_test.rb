@@ -170,6 +170,258 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_url
   end
 
+  test "privacy mode permits cash-free quantity actions but blocks cash in lieu" do
+    cash_action = create_quantity_action(
+      effective_on: Date.new(2026, 8, 19),
+      cash_in_lieu_quantity: "0.5", cash_in_lieu_amount_cents: 1_000,
+      currency: instruments(:petr4_bvmf).currency
+    )
+    patch money_visibility_url, params: { hidden: "true", return_to: transactions_path }
+
+    get new_quantity_action_url
+    assert_response :success
+
+    assert_difference("CorporateAction.quantity_actions.count") do
+      post quantity_actions_url, params: { corporate_action: quantity_params }
+    end
+    assert_redirected_to transactions_url
+
+    assert_no_difference("CorporateAction.quantity_actions.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(
+          cash_in_lieu_quantity: "0.5", cash_in_lieu_amount: "10"
+        )
+      }
+    end
+    assert_redirected_to root_url
+
+    get edit_quantity_action_url(cash_action)
+    assert_redirected_to root_url
+
+    patch quantity_action_url(cash_action), params: {
+      corporate_action: quantity_params.merge(cash_in_lieu_amount: "")
+    }
+    assert_redirected_to root_url
+  end
+
+  test "new quantity action explains the exact ratio and offers supported kinds" do
+    get new_quantity_action_url
+
+    assert_response :success
+    assert_select "option[value='stock_split'][selected]"
+    assert_select "option[value='reverse_split']"
+    assert_select "option[value='share_bonus']"
+    assert_select "input[name='corporate_action[ratio_numerator]'][value='2']"
+    assert_select "input[name='corporate_action[ratio_denominator]'][value='1']"
+    assert_select "input[name='corporate_action[cash_in_lieu_quantity]'][step='0.1']"
+    assert_select "button[formnovalidate]", text: /Save quantity action/
+    assert_select "[data-controller~='form-state']"
+    assert_select "[data-controller~='institution-picker']"
+    assert_select "[data-controller~='quantity-action-form']"
+  end
+
+  test "creates and edits a share bonus using percentage rather than ratio inputs" do
+    assert_difference("CorporateAction.quantity_actions.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(
+          kind: "share_bonus", bonus_percentage: "2.5",
+          ratio_numerator: "99", ratio_denominator: "1"
+        )
+      }
+    end
+
+    action = CorporateAction.quantity_actions.order(:id).last
+    assert_equal [ 41, 40 ], [ action.ratio_numerator, action.ratio_denominator ]
+
+    get edit_quantity_action_url(action)
+    assert_select "input[name='corporate_action[bonus_percentage]'][value='2.5']"
+    assert_select "input[name='corporate_action[ratio_numerator]'][disabled]"
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(kind: "share_bonus", bonus_percentage: "10")
+    }
+    assert_redirected_to transactions_url
+    assert_equal [ 11, 10 ], [ action.reload.ratio_numerator, action.ratio_denominator ]
+  end
+
+  test "editing a share bonus without changing its displayed percentage preserves its exact ratio" do
+    action = create_quantity_action(
+      kind: :share_bonus, ratio_numerator: 4, ratio_denominator: 3,
+      source: "provider", source_reference: "bonus-4-for-3", raw_payload: '{"ratio":"4:3"}'
+    )
+
+    get edit_quantity_action_url(action)
+    displayed_percentage = css_select("input[name='corporate_action[bonus_percentage]']").first["value"]
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(
+        kind: "share_bonus", bonus_percentage: displayed_percentage, notes: "Reviewed"
+      )
+    }
+
+    assert_redirected_to transactions_url
+    assert_equal [ 4, 3 ], [ action.reload.ratio_numerator, action.ratio_denominator ]
+    assert_equal "provider", action.source
+    assert_equal "bonus-4-for-3", action.source_reference
+    assert_equal '{"ratio":"4:3"}', action.raw_payload
+  end
+
+  test "editing a provider quantity action preserves import idempotency" do
+    action = create_quantity_action(source: "provider", source_reference: "split-2026")
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(notes: "Confirmed against statement")
+    }
+
+    assert_redirected_to transactions_url
+    assert_equal "provider", action.reload.source
+    duplicate = action.dup
+    duplicate.slug = nil
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:source_reference], "has already been taken"
+  end
+
+  test "shows invalid share bonus percentage beside the submitted value" do
+    assert_no_difference("CorporateAction.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(kind: "share_bonus", bonus_percentage: "NaN")
+      }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Bonus percentage must be a positive, finite number/
+    assert_select "input[name='corporate_action[bonus_percentage]'][value='NaN']"
+
+    action = create_quantity_action(kind: :share_bonus, ratio_numerator: 11, ratio_denominator: 10)
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(kind: "share_bonus", bonus_percentage: "not a number")
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Bonus percentage must be a positive, finite number/
+  end
+
+  test "creates a contextual quantity action with optional cash in lieu" do
+    instrument = instruments(:petr4_bvmf)
+
+    assert_difference("User.owner.corporate_actions.quantity_actions.count") do
+      post instrument_quantity_actions_url(instrument), params: {
+        corporate_action: quantity_params.merge(
+          instrument_id: instruments(:voo_arcx).id,
+          cash_in_lieu_quantity: "0.5",
+          cash_in_lieu_amount: "12.34"
+        )
+      }
+    end
+
+    action = CorporateAction.order(:id).last
+    assert_redirected_to transactions_url
+    assert_equal instrument, action.instrument
+    assert_equal "reverse_split", action.kind
+    assert_equal Date.new(2026, 8, 20), action.effective_on
+    assert_equal BigDecimal("0.5"), action.cash_in_lieu_quantity
+    assert_equal Money.from_amount(BigDecimal("12.34"), "BRL"), action.cash_in_lieu_amount
+    assert_equal instrument.currency, action.currency
+  end
+
+  test "creates a cash-free quantity action without inventing a currency" do
+    assert_difference("CorporateAction.quantity_actions.count") do
+      post quantity_actions_url, params: { corporate_action: quantity_params }
+    end
+
+    action = CorporateAction.order(:id).last
+    assert_nil action.currency
+    assert_nil action.cash_in_lieu_amount_cents
+  end
+
+  test "renders quantity validation errors and preserves the entered ratio" do
+    assert_no_difference("CorporateAction.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(ratio_numerator: "10", ratio_denominator: "1")
+      }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /must be less than old shares/
+    assert_select "input[name='corporate_action[ratio_numerator]'][value='10']"
+  end
+
+  test "renders malformed cash-in-lieu input as a validation error" do
+    [ "not a number", "NaN", "Infinity", "-Infinity" ].each do |amount|
+      assert_no_difference("CorporateAction.count") do
+        post quantity_actions_url, params: {
+          corporate_action: quantity_params.merge(
+            cash_in_lieu_quantity: "0.5", cash_in_lieu_amount: amount
+          )
+        }
+      end
+
+      assert_response :unprocessable_content
+      assert_select "[role=alert]", /Cash received is not a number/
+      assert_select "input[name='corporate_action[cash_in_lieu_amount]'][value='#{amount}']"
+    end
+  end
+
+  test "updates a quantity action and keeps income edit routes type safe" do
+    action = create_quantity_action
+    return_to = instrument_path(action.instrument, activity: "actions")
+
+    get edit_quantity_action_url(action), headers: { "HTTP_REFERER" => return_to }
+    assert_response :success
+
+    patch quantity_action_url(action), params: {
+      return_to:,
+      corporate_action: quantity_params.merge(ratio_denominator: "5")
+    }
+
+    assert_redirected_to return_to
+    assert_equal 5, action.reload.ratio_denominator
+
+    get edit_corporate_action_url(action)
+    assert_response :not_found
+    get edit_quantity_action_url(@corporate_action)
+    assert_response :not_found
+
+    patch corporate_action_url(action), params: { corporate_action: valid_params }
+    assert_response :not_found
+    patch quantity_action_url(@corporate_action), params: { corporate_action: quantity_params }
+    assert_response :not_found
+  end
+
+  test "renders quantity update errors" do
+    action = create_quantity_action
+
+    patch quantity_action_url(action), params: {
+      corporate_action: quantity_params.merge(ratio_numerator: "0")
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /New shares must be greater than 0/
+  end
+
+  test "renders a missing-instrument cash-in-lieu error without deriving a currency" do
+    assert_no_difference("CorporateAction.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(
+          instrument_id: "", cash_in_lieu_quantity: "0.5", cash_in_lieu_amount: "1"
+        )
+      }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Instrument must exist/
+
+    assert_no_difference("CorporateAction.count") do
+      post quantity_actions_url, params: {
+        corporate_action: quantity_params.merge(
+          instrument_id: "", cash_in_lieu_quantity: "0.5", cash_in_lieu_amount: "NaN"
+        )
+      }
+    end
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /Cash received is not a number/
+  end
+
   private
 
   def valid_params
@@ -185,6 +437,20 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     }
   end
 
+  def quantity_params
+    {
+      instrument_id: instruments(:petr4_bvmf).id,
+      institution_id: institutions(:owner_xp).id,
+      kind: "reverse_split",
+      effective_on: "2026-08-20",
+      ratio_numerator: "1",
+      ratio_denominator: "10",
+      cash_in_lieu_quantity: "",
+      cash_in_lieu_amount: "",
+      notes: "One new share for ten old shares"
+    }
+  end
+
   def create_action(user: users(:owner), institution: institutions(:owner_xp), source_reference: nil)
     CorporateAction.create!(
       user:, instrument: instruments(:petr4_bvmf), institution:, kind: :dividend,
@@ -192,5 +458,13 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
       withholding_tax_cents: 185, net_amount_cents: 1_049, currency: "BRL",
       source: "manual", source_reference:
     )
+  end
+
+  def create_quantity_action(**attributes)
+    CorporateAction.create!({
+      user: users(:owner), instrument: instruments(:petr4_bvmf),
+      kind: :reverse_split, status: :confirmed, effective_on: Date.new(2026, 8, 20),
+      ratio_numerator: 1, ratio_denominator: 10, source: "manual"
+    }.merge(attributes))
   end
 end

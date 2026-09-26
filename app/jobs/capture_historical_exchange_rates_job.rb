@@ -46,7 +46,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
   def performance_currencies
     trade_currencies = Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id)).pluck(:currency)
     income_currencies = CorporateAction.effective_on_or_before(Date.current)
-      .where(user: User.owner).pluck(:currency)
+      .where(user: User.owner).includes(:instrument).map { |action| action.currency || action.instrument.currency }
     (trade_currencies | income_currencies).excluding(reporting_currency)
   end
 

@@ -3,7 +3,12 @@ en:
   activerecord:
     attributes:
       corporate_action:
+        bonus_percentage: Bonus percentage
+        cash_in_lieu_amount: Cash received
+        cash_in_lieu_amount_cents: Cash received
+        cash_in_lieu_quantity: Fractional quantity sold
         currency: Currency
+        effective_on: Effective date
         ex_date: Ex-date
         gross_amount: Gross amount
         gross_amount_cents: Gross amount
@@ -14,6 +19,8 @@ en:
         net_amount_cents: Net amount
         notes: Notes
         paid_on: Payment date
+        ratio_denominator: Old shares
+        ratio_numerator: New shares
         withholding_tax: Withholding tax
         withholding_tax_cents: Withholding tax
       institution:
@@ -49,6 +56,10 @@ en:
       models:
         corporate_action:
           attributes:
+            bonus_percentage:
+              invalid_percentage: must be a positive, finite number
+            cash_in_lieu_quantity:
+              must_include_amount: and cash received must be provided together
             currency:
               instrument_mismatch: must match the instrument currency
             institution:
@@ -57,6 +68,9 @@ en:
               jcp_requires_brl: JCP is only available for BRL instruments
             net_amount_cents:
               does_not_reconcile: must equal gross amount minus withholding tax
+            ratio_numerator:
+              must_increase_quantity: must be greater than old shares
+              must_reduce_quantity: must be less than old shares
         historical_data_backfill:
           attributes:
             currency:

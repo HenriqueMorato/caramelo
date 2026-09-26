@@ -33,6 +33,55 @@ class PositionMaterializations::RefreshTest < ActiveSupport::TestCase
     assert_includes materialization.error_message, sell.id.to_s
   end
 
+  test "replays confirmed quantity actions into the projection" do
+    action = @user.corporate_actions.create!(
+      instrument: @instrument, kind: :stock_split, effective_on: Date.current,
+      ratio_numerator: 2, ratio_denominator: 1, source: "manual"
+    )
+
+    PositionMaterializations::Refresh.call(materialization: @materialization)
+
+    expected = Position.for(
+      instrument: @instrument, trades: @trades, corporate_actions: [ action ]
+    )
+    assert_predicate @materialization.reload, :complete?
+    assert_equal expected.quantity, @materialization.quantity
+    assert_equal expected.cost_basis, Money.from_amount(
+      @materialization.cost_basis_amount, @instrument.currency
+    )
+  end
+
+  test "does not project future quantity actions into the current position" do
+    action = @user.corporate_actions.create!(
+      instrument: @instrument, kind: :stock_split, effective_on: Date.current + 1.day,
+      ratio_numerator: 2, ratio_denominator: 1, source: "manual", status: :pending
+    )
+    action.update_column(:status, "confirmed")
+
+    PositionMaterializations::Refresh.call(materialization: @materialization)
+
+    expected = Position.for(instrument: @instrument, trades: @trades, corporate_actions: [])
+    assert_equal expected.quantity, @materialization.reload.quantity
+    assert_equal expected.analytical_cost_basis_amount, @materialization.cost_basis_amount
+  end
+
+  test "ignores a quantity action with no holdings" do
+    instrument = Instrument.create!(
+      ticker: "NOHOLD", exchange: "XNAS", name: "No holdings", currency: "USD"
+    )
+    @user.corporate_actions.create!(
+      instrument:, kind: :stock_split, effective_on: Date.current,
+      ratio_numerator: 2, ratio_denominator: 1, source: "manual"
+    )
+    materialization = PositionMaterialization.create!(user: @user, instrument:)
+
+    PositionMaterializations::Refresh.call(materialization:)
+
+    assert_predicate materialization.reload, :complete?
+    assert_equal BigDecimal("0"), materialization.quantity
+    assert_nil materialization.error_class
+  end
+
   test "does not publish a result after the source generation advances" do
     position = Position.for(instrument: @instrument, trades: @trades)
     materialization = @materialization

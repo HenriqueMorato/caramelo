@@ -72,7 +72,7 @@ module ReportingCurrency
     end
 
     def corporate_action_currency_starts
-      effective_corporate_actions.group_by(&:currency).transform_values do |actions|
+      effective_corporate_actions.group_by { |action| action.currency || action.instrument.currency }.transform_values do |actions|
         actions.map(&:performance_on).min
       end
     end
@@ -84,7 +84,8 @@ module ReportingCurrency
     end
 
     def effective_corporate_actions
-      @effective_corporate_actions ||= user.corporate_actions.effective_on_or_before(Date.current).to_a
+      @effective_corporate_actions ||= user.corporate_actions.effective_on_or_before(Date.current)
+        .includes(:instrument).to_a
     end
 
     def prepare_pair(base_currency, first_trade)

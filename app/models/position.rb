@@ -26,27 +26,48 @@ class Position
     end
   end
 
+  class InvalidQuantityActionData < StandardError
+    attr_reader :action, :trades
+
+    def initialize(action, trades:, reason:)
+      @action = action
+      @trades = trades
+      super("Corporate action #{action.id || action.slug} #{reason}")
+    end
+  end
+
   class Calculator
-    def self.for(trades:, amount_for:)
-      new(trades:, amount_for:).calculate
+    def self.for(trades:, amount_for:, corporate_actions: [], cash_in_lieu_amount_for: nil)
+      new(trades:, amount_for:, corporate_actions:, cash_in_lieu_amount_for:).calculate
     end
 
-    def initialize(trades:, amount_for:)
+    def self.quantity_timeline(trades:, amount_for:, corporate_actions: [], cash_in_lieu_amount_for: nil)
+      new(trades:, amount_for:, corporate_actions:, cash_in_lieu_amount_for:).quantity_timeline
+    end
+
+    def initialize(trades:, amount_for:, corporate_actions:, cash_in_lieu_amount_for:)
       @trades = trades
       @amount_for = amount_for
+      @corporate_actions = corporate_actions
+      @cash_in_lieu_amount_for = cash_in_lieu_amount_for ||
+        ->(action) { action.cash_in_lieu_amount&.to_d }
     end
 
     def calculate
-      state = State.new(0.to_r, 0.to_r, 0.to_r)
-
-      trades.each do |trade|
-        trade.buy? ? apply_buy(state, trade) : apply_sell(state, trade)
-      end
+      state = replay
 
       Calculation.new(
         quantity: state.quantity, cost_basis_amount: state.cost_basis_amount,
         realized_gain_amount: state.realized_gain_amount
       )
+    rescue InvalidLongOnlyData => error
+      raise InvalidLongOnlyData.new(error.trade, trades:)
+    end
+
+    def quantity_timeline
+      timeline = {}
+      replay { |date, state| timeline[date] = state.quantity }
+      timeline
     rescue InvalidLongOnlyData => error
       raise InvalidLongOnlyData.new(error.trade, trades:)
     end
@@ -57,7 +78,38 @@ class Position
     # partial-sale allocation before the public analytical decimal boundary.
     State = Struct.new(:quantity, :cost_basis_amount, :realized_gain_amount)
 
-    attr_reader :trades, :amount_for
+    attr_reader :trades, :amount_for, :corporate_actions, :cash_in_lieu_amount_for
+
+    def replay
+      state = State.new(0.to_r, 0.to_r, 0.to_r)
+      ledger_events.group_by { |event| event_date(event) }.each do |date, events|
+        events.each { |event| apply_event(state, event) }
+        yield date, state if block_given?
+      end
+      state
+    end
+
+    def apply_event(state, event)
+      if event.is_a?(Trade)
+        event.buy? ? apply_buy(state, event) : apply_sell(state, event)
+      else
+        apply_quantity_action(state, event)
+      end
+    end
+
+    def event_date(event)
+      event.is_a?(Trade) ? event.traded_on : event.effective_on
+    end
+
+    def ledger_events
+      (corporate_actions + trades).each_with_index.sort_by do |event, original_index|
+        if event.is_a?(Trade)
+          [ event.traded_on, 1, event.id || original_index ]
+        else
+          [ event.effective_on, 0, event.id || original_index ]
+        end
+      end.map(&:first)
+    end
 
     def apply_buy(state, trade)
       state.quantity += trade.quantity.to_r
@@ -74,6 +126,29 @@ class Position
       state.quantity = remaining_quantity
     end
 
+    def apply_quantity_action(state, action)
+      return if state.quantity.zero?
+
+      adjusted_quantity = state.quantity * action.quantity_multiplier
+      disposed_quantity = action.cash_in_lieu_quantity&.to_r || 0.to_r
+      if disposed_quantity > adjusted_quantity
+        raise InvalidQuantityActionData.new(action, trades:, reason: "disposes of more than the adjusted quantity")
+      end
+
+      if disposed_quantity.positive?
+        allocated_cost_basis = state.cost_basis_amount * disposed_quantity / adjusted_quantity
+        proceeds = cash_in_lieu_amount_for.call(action)
+        if proceeds.nil?
+          raise InvalidQuantityActionData.new(action, trades:, reason: "is missing cash-in-lieu proceeds")
+        end
+
+        state.realized_gain_amount += proceeds.to_r - allocated_cost_basis
+        state.cost_basis_amount -= allocated_cost_basis
+      end
+
+      state.quantity = adjusted_quantity - disposed_quantity
+    end
+
     def remaining_cost_basis(cost_basis_amount, remaining_quantity, quantity)
       return 0.to_r if remaining_quantity.zero?
 
@@ -81,12 +156,12 @@ class Position
     end
   end
 
-  attr_reader :instrument, :trades, :quantity, :analytical_cost_basis_amount, :cost_basis,
+  attr_reader :instrument, :trades, :corporate_actions, :quantity, :analytical_cost_basis_amount, :cost_basis,
     :average_unit_cost, :analytical_realized_gain_amount, :realized_gain,
     :first_trade_date, :last_trade_date
 
-  def self.for(instrument:, as_of: nil, trades: nil)
-    if trades.nil? && as_of.nil?
+  def self.for(instrument:, as_of: nil, trades: nil, corporate_actions: nil)
+    if trades.nil? && corporate_actions.nil? && as_of.nil?
       materialization = PositionMaterialization.where.not(calculated_at: nil)
         .find_by(user: User.owner, instrument:)
       return from_materialization(materialization) if materialization
@@ -102,11 +177,14 @@ class Position
       trades = trades.order(:traded_on, :id).to_a
     end
 
-    new(instrument:, trades:)
+    corporate_actions = quantity_actions_for(
+      instrument:, as_of:, supplied_actions: corporate_actions
+    )
+    new(instrument:, trades:, corporate_actions:)
   end
 
   def self.from_materialization(materialization)
-    new(instrument: materialization.instrument, trades: [], calculation: Calculation.new(
+    new(instrument: materialization.instrument, trades: [], corporate_actions: [], calculation: Calculation.new(
       quantity: materialization.quantity,
       cost_basis_amount: materialization.cost_basis_amount,
       realized_gain_amount: materialization.realized_gain_amount
@@ -119,34 +197,51 @@ class Position
 
     trades_by_instrument = owner.trades.includes(%i[instrument institution]).strict_loading
       .order(:traded_on, :id).group_by(&:instrument)
+    actions_by_instrument = quantity_actions_by_instrument(owner)
 
-    trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
-      position = materialized_position(instrument, owner:) || new(instrument:, trades:)
+    instruments = (trades_by_instrument.keys | actions_by_instrument.keys)
+      .sort_by { |instrument| [ instrument.ticker, instrument.exchange ] }
+    instruments.map do |instrument|
+      trades = trades_by_instrument.fetch(instrument, [])
+      position = materialized_position(instrument, owner:) || new(
+        instrument:, trades:, corporate_actions: actions_by_instrument.fetch(instrument, [])
+      )
       CalculationResult.new(instrument:, position:, error: nil)
-    rescue InvalidLongOnlyData => error
+    rescue InvalidLongOnlyData, InvalidQuantityActionData => error
       CalculationResult.new(instrument:, position: nil, error:)
     end
   end
 
   def self.replay_overview(owner:)
     trades_by_instrument = owner.trades.includes(:instrument).strict_loading.order(:traded_on, :id).group_by(&:instrument)
+    actions_by_instrument = quantity_actions_by_instrument(owner)
 
-    trades_by_instrument.sort_by { |instrument,| [ instrument.ticker, instrument.exchange ] }.map do |instrument, trades|
-      CalculationResult.new(instrument:, position: new(instrument:, trades:), error: nil)
-    rescue InvalidLongOnlyData => error
+    instruments = (trades_by_instrument.keys | actions_by_instrument.keys)
+      .sort_by { |instrument| [ instrument.ticker, instrument.exchange ] }
+    instruments.map do |instrument|
+      position = new(
+        instrument:, trades: trades_by_instrument.fetch(instrument, []),
+        corporate_actions: actions_by_instrument.fetch(instrument, [])
+      )
+      CalculationResult.new(instrument:, position:, error: nil)
+    rescue InvalidLongOnlyData, InvalidQuantityActionData => error
       CalculationResult.new(instrument:, position: nil, error:)
     end
   end
 
   def self.materialized_overview(owner:)
     materializations = owner.position_materializations.index_by(&:instrument_id)
-    Instrument.where(id: owner.trades.select(:instrument_id)).alphabetical.map do |instrument|
+    instrument_ids = owner.trades.distinct.pluck(:instrument_id) |
+      owner.corporate_actions.effective.where(effective_on: ..Date.current).distinct.pluck(:instrument_id)
+    actions_by_instrument = quantity_actions_by_instrument(owner)
+    Instrument.where(id: instrument_ids).alphabetical.map do |instrument|
       materialization = materializations[instrument.id]
       position = materialization&.calculated_at ? from_materialization(materialization) : new(
-        instrument:, trades: owner.trades.where(instrument:).order(:traded_on, :id).to_a
+        instrument:, trades: owner.trades.where(instrument:).order(:traded_on, :id).to_a,
+        corporate_actions: actions_by_instrument.fetch(instrument, [])
       )
       CalculationResult.new(instrument:, position:, error: nil)
-    rescue InvalidLongOnlyData => error
+    rescue InvalidLongOnlyData, InvalidQuantityActionData => error
       CalculationResult.new(instrument:, position: nil, error:)
     end
   end
@@ -160,6 +255,27 @@ class Position
     from_materialization(materialization)
   end
 
+  def self.quantity_actions_for(instrument:, as_of:, supplied_actions:)
+    actions = if supplied_actions
+      supplied_actions.select do |action|
+        action.user_id == User.owner.id && action.instrument == instrument &&
+          action.confirmed? && action.quantity_action?
+      end
+    else
+      User.owner.corporate_actions.effective.where(instrument:).where.not(effective_on: nil).to_a
+    end
+    effective_through = as_of || Date.current
+    actions = actions.select { |action| action.effective_on <= effective_through }
+    actions.sort_by { |action| [ action.effective_on, action.id || 0 ] }
+  end
+
+  def self.quantity_actions_by_instrument(owner)
+    owner.corporate_actions.effective.where(effective_on: ..Date.current)
+      .includes(:instrument).order(:effective_on, :id).group_by(&:instrument)
+  end
+
+  private_class_method :quantity_actions_for, :quantity_actions_by_instrument
+
   def open?
     quantity.positive?
   end
@@ -170,19 +286,22 @@ class Position
 
   private_class_method :new
 
-  def initialize(instrument:, trades:, calculation: nil)
+  def initialize(instrument:, trades:, corporate_actions:, calculation: nil)
     @instrument = instrument
     @trades = trades.freeze
+    @corporate_actions = corporate_actions.freeze
     @quantity = BigDecimal("0")
     @first_trade_date = trades.first&.traded_on
     @last_trade_date = trades.last&.traded_on
 
-    calculation ? apply_calculation(calculation) : calculate(trades)
+    calculation ? apply_calculation(calculation) : calculate(trades, corporate_actions)
     freeze
   end
 
-  def calculate(trades)
-    calculation = Calculator.for(trades:, amount_for: ->(trade) { trade.total_amount })
+  def calculate(trades, corporate_actions)
+    calculation = Calculator.for(
+      trades:, corporate_actions:, amount_for: ->(trade) { trade.total_amount }
+    )
     @quantity = analytical_decimal(calculation.quantity)
     @analytical_cost_basis_amount = analytical_decimal(calculation.cost_basis_amount)
     @cost_basis = Money.from_amount(analytical_cost_basis_amount, instrument.currency)

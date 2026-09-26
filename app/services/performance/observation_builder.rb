@@ -75,7 +75,8 @@ module Performance
       @corporate_actions ||= begin
         scope = user.corporate_actions.effective
         scope = scope.where(instrument:) if instrument
-        scope.includes(:instrument).strict_loading.order(:paid_on, :id).to_a
+        scope.includes(:instrument).strict_loading
+          .order(Arel.sql("#{CorporateAction::PERFORMANCE_DATE_SQL} ASC"), :id).to_a
       end
     end
 

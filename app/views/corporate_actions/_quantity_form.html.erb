@@ -1,0 +1,139 @@
+<%# locals: (corporate_action:, context_instrument:, instruments:, institutions_by_instrument:, return_to: nil) %>
+
+<% selected_instrument_id = context_instrument&.id || corporate_action.instrument_id %>
+<% available_institutions = institutions_by_instrument.fetch(selected_instrument_id, []) %>
+<% single_institution = available_institutions.one? ? available_institutions.first : nil %>
+<% institution_options = institutions_by_instrument.transform_keys(&:to_s).transform_values { |items| items.map { |institution| { id: institution.id, name: institution.name } } } %>
+<% currency = corporate_action.instrument&.currency || context_instrument&.currency %>
+<% money_step = currency ? 1.0 / Money::Currency.find(currency).subunit_to_unit : 0.01 %>
+
+<%= form_with model: corporate_action,
+              url: corporate_action.persisted? ? quantity_action_path(corporate_action) : (context_instrument ? instrument_quantity_actions_path(context_instrument) : quantity_actions_path),
+              class: "space-y-6",
+              data: {
+                controller: "form-state institution-picker quantity-action-form",
+                institution_picker_institutions_value: institution_options.to_json,
+                institution_picker_institution_value: corporate_action.institution_id,
+                institution_picker_no_institution_value: t("forms.No institution"),
+                form_state_discard_value: t(".Discard changes"),
+                form_state_dirty_value: corporate_action.errors.any?,
+                action: "input->form-state#markDirty change->form-state#markDirty turbo:submit-start->form-state#submit turbo:submit-end->form-state#submitted turbo:before-visit@window->form-state#confirmNavigation beforeunload@window->form-state#beforeUnload"
+              } do |form| %>
+  <%= hidden_field_tag :return_to, return_to if return_to.present? %>
+
+  <% if corporate_action.errors.any? %>
+    <div class="ui-form-errors" role="alert">
+      <p class="font-semibold"><%= t("forms.Could not save", count: corporate_action.errors.count, model: CorporateAction.model_name.human.downcase) %></p>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% corporate_action.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <p class="text-sm text-muted"><span class="font-semibold text-guava">*</span> <%= t("forms.Required fields") %></p>
+
+  <% if context_instrument %>
+    <%= form.hidden_field :instrument_id, value: context_instrument.id,
+      data: { institution_picker_target: "instrument" } %>
+    <div class="rounded-xl border border-coffee/10 bg-oat p-4">
+      <p class="text-sm font-semibold text-coffee"><%= t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:instrument)) %></p>
+      <p class="mt-1 font-mono text-lg font-bold"><%= context_instrument.ticker %> · <%= context_instrument.exchange %></p>
+      <p class="mt-1 text-sm text-muted"><%= context_instrument.name %></p>
+    </div>
+  <% else %>
+    <div>
+      <%= form.label :instrument_id, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:instrument)), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.collection_select :instrument_id, instruments, :id, ->(instrument) { "#{instrument.ticker} · #{instrument.exchange} — #{instrument.name}" },
+        { include_blank: t("forms.Select an instrument") }, required: true, autofocus: true, class: "ui-field",
+        data: { institution_picker_target: "instrument", action: "change->institution-picker#sync" } %>
+    </div>
+  <% end %>
+
+  <div class="grid gap-6 sm:grid-cols-2">
+    <div>
+      <%= form.label :kind, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:kind)), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.select :kind, %i[stock_split reverse_split share_bonus].map { |kind| [ t("corporate_actions.kinds.#{kind}"), kind ] }, {}, required: true, class: "ui-field",
+        data: { quantity_action_form_target: "kind", action: "change->quantity-action-form#sync" } %>
+    </div>
+    <div>
+      <%= form.label :effective_on, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:effective_on)), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.date_field :effective_on, required: true, max: Date.current, class: "ui-field" %>
+    </div>
+  </div>
+
+  <fieldset class="rounded-xl border border-coffee/10 bg-oat p-4 sm:p-5 <%= "hidden" if corporate_action.share_bonus? %>"
+    data-quantity-action-form-target="ratio">
+    <legend class="px-1 text-sm font-semibold text-coffee"><%= t(".Ratio") %></legend>
+    <p class="mb-4 text-sm leading-6 text-muted"><%= t(".Ratio help") %></p>
+    <div class="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
+      <div>
+        <%= form.label :ratio_numerator, class: "block text-sm font-semibold text-coffee" %>
+        <%= form.number_field :ratio_numerator, required: !corporate_action.share_bonus?, disabled: corporate_action.share_bonus?, min: 1, step: 1, inputmode: "numeric", class: "ui-field font-mono tabular-nums" %>
+      </div>
+      <span class="hidden pb-3 text-sm font-semibold text-muted sm:block" aria-hidden="true"><%= t(".for") %></span>
+      <div>
+        <%= form.label :ratio_denominator, class: "block text-sm font-semibold text-coffee" %>
+        <%= form.number_field :ratio_denominator, required: !corporate_action.share_bonus?, disabled: corporate_action.share_bonus?, min: 1, step: 1, inputmode: "numeric", class: "ui-field font-mono tabular-nums" %>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="rounded-xl border border-coffee/10 bg-oat p-4 sm:p-5 <%= "hidden" unless corporate_action.share_bonus? %>"
+    data-quantity-action-form-target="bonus">
+    <legend class="px-1 text-sm font-semibold text-coffee"><%= t(".Bonus percentage") %></legend>
+    <p class="mb-4 text-sm leading-6 text-muted"><%= t(".Bonus percentage help") %></p>
+    <div class="max-w-sm">
+      <%= form.label :bonus_percentage, class: "block text-sm font-semibold text-coffee" %>
+      <%= form.number_field :bonus_percentage, value: corporate_action.bonus_percentage, required: corporate_action.share_bonus?,
+        disabled: !corporate_action.share_bonus?, min: 0, step: "any", inputmode: "decimal",
+        class: "ui-field font-mono tabular-nums", aria: { invalid: corporate_action.errors[:bonus_percentage].any?,
+          describedby: ("bonus-percentage-error" if corporate_action.errors[:bonus_percentage].any?) } %>
+      <% if corporate_action.errors[:bonus_percentage].any? %>
+        <p id="bonus-percentage-error" class="mt-2 text-sm text-guava"><%= corporate_action.errors[:bonus_percentage].to_sentence %></p>
+      <% end %>
+    </div>
+  </fieldset>
+
+  <fieldset class="rounded-xl border border-coffee/10 bg-paper p-4 sm:p-5">
+    <legend class="px-1 text-sm font-semibold text-coffee"><%= t(".Cash in lieu optional") %></legend>
+    <p class="mb-4 text-sm leading-6 text-muted"><%= t(".Cash in lieu help") %></p>
+    <div class="grid gap-6 sm:grid-cols-2">
+      <div>
+        <%= form.label :cash_in_lieu_quantity, class: "block text-sm font-semibold text-coffee" %>
+        <%= form.number_field :cash_in_lieu_quantity, min: 0, step: 0.1, inputmode: "decimal", class: "ui-field font-mono tabular-nums" %>
+      </div>
+      <div>
+        <%= form.label :cash_in_lieu_amount, class: "block text-sm font-semibold text-coffee" %>
+        <%= form.text_field :cash_in_lieu_amount,
+          value: corporate_action.cash_in_lieu_amount_input.presence || corporate_action.cash_in_lieu_amount&.to_d,
+          inputmode: "decimal", autocomplete: "off", class: "ui-field font-mono tabular-nums",
+          data: { money_step: money_step } %>
+      </div>
+    </div>
+  </fieldset>
+
+  <%= form.hidden_field :institution_id, value: single_institution&.id, disabled: single_institution.nil?, id: nil,
+    data: { institution_picker_target: "hidden" } %>
+  <%= tag.div hidden: !available_institutions.many?, data: { institution_picker_target: "field" } do %>
+      <%= form.label :institution_id, t("corporate_actions.form.Institution optional"), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.collection_select :institution_id, available_institutions, :id, :name,
+        { include_blank: t("forms.No institution") }, disabled: !available_institutions.many?, class: "ui-field",
+        data: { institution_picker_target: "select", action: "change->institution-picker#remember" } %>
+  <% end %>
+
+  <div>
+    <%= form.label :notes, class: "block text-sm font-semibold text-coffee" %>
+    <%= form.text_area :notes, rows: 4, class: "ui-field" %>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <%= form.button class: "ui-button ui-button-primary group cursor-pointer", type: :submit,
+      formnovalidate: true do %>
+      <span class="hidden size-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none group-disabled:inline-block" aria-hidden="true"></span>
+      <%= t("corporate_actions.actions.Save quantity action") %>
+    <% end %>
+    <%= link_to t("actions.Cancel"), return_to || context_instrument || transactions_path, class: "ui-button ui-button-secondary" %>
+  </div>
+<% end %>

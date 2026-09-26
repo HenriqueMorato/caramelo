@@ -199,6 +199,83 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal [ buy_date ], inspector.send(:open_position_dates, instrument)
   end
 
+  test "stops requiring valuation FX after a reverse split and adjusted sale close the position" do
+    owner = User.create!(email_address: "reverse-split-fx-health@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    buy_date = Date.new(2026, 9, 1)
+    owner.trades.create!(instrument:, side: :buy, traded_on: buy_date, quantity: 2, unit_price: 10, currency: "USD")
+    owner.corporate_actions.create!(
+      instrument:, kind: :reverse_split, effective_on: buy_date + 1.day,
+      ratio_numerator: 1, ratio_denominator: 2, source: "manual"
+    )
+    owner.trades.create!(
+      instrument:, side: :sell, traded_on: buy_date + 2.days, quantity: 1, unit_price: 21, currency: "USD"
+    )
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(
+      owner:, context: MarketData::HealthReport::Context.new(owner:, today: buy_date + 3.days)
+    )
+
+    assert_equal [ buy_date, buy_date + 1.day ], inspector.send(:open_position_dates, instrument)
+  end
+
+  test "stops requiring valuation FX after cash in lieu closes the position" do
+    owner = User.create!(email_address: "cash-in-lieu-fx-health@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    buy_date = Date.new(2026, 9, 1)
+    owner.trades.create!(instrument:, side: :buy, traded_on: buy_date, quantity: 1, unit_price: 10, currency: "USD")
+    owner.corporate_actions.create!(
+      instrument:, kind: :stock_split, effective_on: buy_date + 1.day,
+      ratio_numerator: 2, ratio_denominator: 1, cash_in_lieu_quantity: 2,
+      cash_in_lieu_amount_cents: 2_000, currency: "USD", source: "manual"
+    )
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(
+      owner:, context: MarketData::HealthReport::Context.new(owner:, today: buy_date + 2.days)
+    )
+
+    assert_equal [ buy_date ], inspector.send(:open_position_dates, instrument)
+  end
+
+  test "retains safe trade dates when an invalid quantity action cannot replay" do
+    owner = User.create!(email_address: "invalid-action-fx-health@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    buy_date = Date.new(2026, 9, 1)
+    owner.trades.create!(instrument:, side: :buy, traded_on: buy_date, quantity: 1, unit_price: 10, currency: "USD")
+    owner.trades.create!(
+      instrument:, side: :sell, traded_on: buy_date + 2.days, quantity: 1, unit_price: 11, currency: "USD"
+    )
+    owner.corporate_actions.create!(
+      instrument:, kind: :stock_split, effective_on: buy_date + 1.day,
+      ratio_numerator: 2, ratio_denominator: 1, cash_in_lieu_quantity: 3,
+      cash_in_lieu_amount_cents: 1_000, currency: "USD", source: "manual"
+    )
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(
+      owner:, context: MarketData::HealthReport::Context.new(owner:, today: buy_date + 3.days)
+    )
+
+    assert_equal [ buy_date, buy_date + 1.day ], inspector.send(:open_position_dates, instrument)
+  end
+
+  test "handles instruments without trades and missing cash-in-lieu proceeds" do
+    owner = User.create!(email_address: "invalid-cash-fx-health@example.com", password: "password")
+    empty_instrument = Instrument.create!(
+      ticker: "NOFX", exchange: "XNAS", name: "No FX trades", currency: "USD"
+    )
+    instrument = instruments(:voo_arcx)
+    buy_date = Date.new(2026, 9, 1)
+    owner.trades.create!(instrument:, side: :buy, traded_on: buy_date, quantity: 1, unit_price: 10, currency: "USD")
+    action = owner.corporate_actions.create!(
+      instrument:, kind: :stock_split, effective_on: buy_date + 1.day,
+      ratio_numerator: 2, ratio_denominator: 1, cash_in_lieu_quantity: 1,
+      cash_in_lieu_amount_cents: 1_000, currency: "USD", source: "manual"
+    )
+    context = MarketData::HealthReport::Context.new(owner:, today: buy_date + 2.days)
+    context.corporate_actions.find { |candidate| candidate.id == action.id }.cash_in_lieu_amount_cents = nil
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:)
+
+    assert_empty inspector.send(:open_position_dates, empty_instrument)
+    assert_equal (buy_date..buy_date + 2.days).to_a, inspector.send(:open_position_dates, instrument)
+  end
+
   test "reports stale current FX for an open foreign position" do
     report = MarketData::HealthReport.for(
       current_market_price_service: CurrentPriceService.new,

@@ -155,6 +155,97 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
     ], result.cash_flows.map { |flow| [ flow.occurred_on, flow.amount, flow.source ] }
   end
 
+  test "replays a split without adding a cash flow or changing total basis" do
+    instrument = create_instrument(ticker: "SPLIT", currency: "BRL")
+    create_trade(instrument:, traded_on: @date - 2, quantity: 2, unit_price: "10")
+    create_quantity_action(
+      instrument:, effective_on: @date - 1, kind: :stock_split,
+      ratio_numerator: 2, ratio_denominator: 1
+    )
+    create_daily_close(instrument:, close_price: "6")
+
+    result = portfolio_for
+    position = result.position_results.sole
+
+    assert_equal BigDecimal("4"), position.quantity
+    assert_equal BigDecimal("20"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("24"), position.market_value_amount
+    assert_equal BigDecimal("4"), position.unrealized_gain_amount
+    assert_equal [ :trade ], result.cash_flows.map(&:source)
+  end
+
+  test "ignores a quantity action while flat before a later reopening" do
+    instrument = create_instrument(ticker: "REOPEN", currency: "BRL")
+    create_trade(instrument:, traded_on: @date - 4, quantity: 10, unit_price: "2")
+    create_trade(instrument:, traded_on: @date - 3, side: :sell, quantity: 10, unit_price: "3")
+    create_quantity_action(
+      instrument:, effective_on: @date - 2, kind: :stock_split,
+      ratio_numerator: 2, ratio_denominator: 1
+    )
+    create_trade(instrument:, traded_on: @date - 1, quantity: 5, unit_price: "4")
+    create_daily_close(instrument:, close_price: "5")
+
+    result = portfolio_for
+    position = result.position_results.sole
+
+    assert_predicate result, :available?
+    assert_equal BigDecimal("5"), position.quantity
+    assert_equal BigDecimal("20"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("25"), position.market_value_amount
+  end
+
+  test "cash in lieu removes proportional basis and is a performance withdrawal" do
+    instrument = create_instrument(ticker: "CIL", currency: "BRL")
+    create_trade(instrument:, traded_on: @date - 2, quantity: 5, unit_price: "12")
+    action = create_quantity_action(
+      instrument:, effective_on: @date - 1, kind: :reverse_split,
+      ratio_numerator: 1, ratio_denominator: 2,
+      cash_in_lieu_quantity: BigDecimal("0.5"), cash_in_lieu_amount_cents: 900,
+      currency: "BRL"
+    )
+    create_daily_close(instrument:, close_price: "30")
+
+    result = portfolio_for
+    position = result.position_results.sole
+
+    assert_equal BigDecimal("2"), position.quantity
+    assert_equal BigDecimal("48"), position.reporting_cost_basis_amount
+    assert_equal BigDecimal("-3"), position.realized_gain_amount
+    assert_equal BigDecimal("12"), position.unrealized_gain_amount
+    assert_equal BigDecimal("51"), position.net_cash_flow_amount
+    assert_equal [
+      [ @date - 2, BigDecimal("60"), :trade ],
+      [ action.effective_on, BigDecimal("-9"), :cash_in_lieu ]
+    ], result.cash_flows.map { |flow| [ flow.occurred_on, flow.amount, flow.source ] }
+  end
+
+  test "converts cash in lieu with effective-date FX and requires that historical rate" do
+    instrument = create_instrument(ticker: "CILFX", currency: "USD")
+    create_trade(
+      instrument:, traded_on: @date - 2, quantity: 5, unit_price: "12",
+      settlement_exchange_rate: "5"
+    )
+    create_quantity_action(
+      instrument:, effective_on: @date - 1, kind: :reverse_split,
+      ratio_numerator: 1, ratio_denominator: 2,
+      cash_in_lieu_quantity: BigDecimal("0.5"), cash_in_lieu_amount_cents: 900,
+      currency: "USD"
+    )
+    create_daily_close(instrument:, close_price: "12")
+    create_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "6", rate_date: @date)
+
+    assert_predicate portfolio_for, :missing?
+
+    create_exchange_rate(
+      base_currency: "USD", quote_currency: "BRL", rate: "5", rate_date: @date - 1
+    )
+    result = portfolio_for
+
+    assert_equal BigDecimal("-15"), result.realized_gain_amount
+    assert_equal BigDecimal("255"), result.net_cash_flow_amount
+    assert_equal BigDecimal("-96"), result.unrealized_gain_amount
+  end
+
   test "counts confirmed income for an instrument without trades" do
     instrument = create_instrument(ticker: "INCOMEONLY", currency: "BRL")
     action = create_corporate_action(
@@ -493,6 +584,15 @@ class Performance::PortfolioTest < ActiveSupport::TestCase
       user: User.owner, instrument:, kind: :dividend, status:,
       paid_on:, ex_date:, gross_amount_cents:, withholding_tax_cents:, net_amount_cents:,
       currency:, source: "manual"
+    )
+  end
+
+  def create_quantity_action(instrument:, effective_on:, kind:, ratio_numerator:, ratio_denominator:,
+    cash_in_lieu_quantity: nil, cash_in_lieu_amount_cents: nil, currency: nil)
+    CorporateAction.create!(
+      user: User.owner, instrument:, kind:, status: :confirmed, effective_on:,
+      ratio_numerator:, ratio_denominator:, cash_in_lieu_quantity:,
+      cash_in_lieu_amount_cents:, currency:, source: "manual"
     )
   end
 

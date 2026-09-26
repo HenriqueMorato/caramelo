@@ -36,7 +36,7 @@ class CorporateActionsTest < ApplicationSystemTestCase
 
     click_button "Save income"
 
-    assert_current_path transactions_path
+    assert_current_path transactions_path, wait: 10
     assert_text "JCP"
     assert_text "R$10,49"
     within "#corporate_action_#{CorporateAction.last.id}" do
@@ -93,7 +93,67 @@ class CorporateActionsTest < ApplicationSystemTestCase
     accept_confirm "Discard your unsaved income changes?" do
       click_on "Cancel"
     end
-    assert_current_path transactions_path
+    assert_current_path transactions_path, wait: 10
+  end
+
+  test "records edits filters and deletes a quantity action from instrument activity" do
+    instrument = instruments(:petr4_bvmf)
+    visit instrument_path(instrument)
+
+    within("[aria-labelledby='activity-history-heading']") do
+      find("summary", text: "Add").click
+      click_on "Quantity action"
+    end
+
+    select "Reverse split", from: "Action type"
+    set_date("corporate_action_effective_on", "2026-08-20")
+    fill_in "New shares", with: "1"
+    fill_in "Old shares", with: "10"
+    fill_in "Fractional quantity sold", with: "0.5"
+    fill_in "Cash received", with: "12.34"
+    fill_in "Notes", with: "Fraction settled in cash"
+    click_button "Save quantity action"
+
+    assert_current_path transactions_path, wait: 10
+    action = CorporateAction.quantity_actions.order(:id).last
+    within "#corporate_action_#{action.id}" do
+      assert_text "REVERSE SPLIT"
+      assert_text "1:10"
+      assert_text "0.5"
+      assert_text "R$12,34"
+      click_on "Edit"
+    end
+
+    fill_in "Old shares", with: "5"
+    click_button "Save quantity action"
+
+    assert_current_path transactions_path, wait: 10
+    click_on "Quantity actions"
+    assert_current_path transactions_path(activity: "actions")
+    within "#corporate_action_#{action.id}" do
+      assert_text "1:5"
+      accept_confirm "Delete this quantity action?" do
+        click_on "Delete"
+      end
+    end
+    assert_no_selector "#corporate_action_#{action.id}"
+  end
+
+  test "switches share bonus to a percentage field and saves exact units" do
+    visit new_quantity_action_path
+    select "Share bonus", from: "Action type"
+
+    assert_selector "input[name='corporate_action[bonus_percentage]']:not([disabled])"
+    assert_no_selector "input[name='corporate_action[ratio_numerator]']:not([disabled])"
+
+    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    set_date("corporate_action_effective_on", "2026-08-20")
+    fill_in "Bonus percentage", with: "2.5"
+    click_button "Save quantity action"
+
+    assert_current_path transactions_path, wait: 10
+    action = CorporateAction.quantity_actions.order(:id).last
+    assert_equal [ 41, 40 ], [ action.ratio_numerator, action.ratio_denominator ]
   end
 
   private

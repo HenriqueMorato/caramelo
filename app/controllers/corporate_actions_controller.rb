@@ -1,11 +1,15 @@
 class CorporateActionsController < ApplicationController
   allow_unauthenticated_access
 
-  before_action :set_corporate_action, only: %i[ edit update destroy ]
-  before_action :set_return_to, only: %i[ edit update destroy ]
-  before_action :set_context_instrument, only: %i[ new create ]
-  before_action :set_form_options, only: %i[ new create edit update ]
-  before_action :require_money_values_visible, only: %i[ new create edit update ]
+  before_action :set_corporate_action, only: %i[ edit update edit_quantity update_quantity destroy ]
+  before_action :set_return_to, only: %i[ edit update edit_quantity update_quantity destroy ]
+  before_action :set_context_instrument, only: %i[ new create new_quantity create_quantity ]
+  before_action :set_form_options,
+    only: %i[ new create edit update new_quantity create_quantity edit_quantity update_quantity ]
+  before_action :require_money_values_visible,
+    only: %i[ new create edit update ]
+  before_action :require_quantity_action_money_visible,
+    only: %i[ create_quantity edit_quantity update_quantity ]
 
   def new
     @corporate_action = owner.corporate_actions.new(
@@ -30,10 +34,41 @@ class CorporateActionsController < ApplicationController
     end
   end
 
+  def new_quantity
+    @corporate_action = owner.corporate_actions.new(
+      instrument: @context_instrument,
+      kind: :stock_split,
+      status: :confirmed,
+      effective_on: Date.current,
+      ratio_numerator: 2,
+      ratio_denominator: 1,
+      source: "manual"
+    )
+  end
+
+  def create_quantity
+    @corporate_action = owner.corporate_actions.new
+    assign_quantity_action_attributes
+
+    if @corporate_action.save
+      enqueue_historical_data_backfill
+      redirect_to transactions_path, notice: t("notices.Created", model: CorporateAction.model_name.human)
+    else
+      render :new_quantity, status: :unprocessable_content
+    end
+  end
+
   def edit
+    raise ActiveRecord::RecordNotFound unless @corporate_action.cash_action?
+  end
+
+  def edit_quantity
+    raise ActiveRecord::RecordNotFound unless @corporate_action.quantity_action?
   end
 
   def update
+    raise ActiveRecord::RecordNotFound unless @corporate_action.cash_action?
+
     assign_corporate_action_attributes
 
     if @corporate_action.save
@@ -42,6 +77,19 @@ class CorporateActionsController < ApplicationController
         notice: t("notices.Updated", model: CorporateAction.model_name.human), status: :see_other
     else
       render :edit, status: :unprocessable_content
+    end
+  end
+
+  def update_quantity
+    raise ActiveRecord::RecordNotFound unless @corporate_action.quantity_action?
+
+    assign_quantity_action_attributes
+    if @corporate_action.save
+      enqueue_historical_data_backfill
+      redirect_to @return_to,
+        notice: t("notices.Updated", model: CorporateAction.model_name.human), status: :see_other
+    else
+      render :edit_quantity, status: :unprocessable_content
     end
   end
 
@@ -92,8 +140,64 @@ class CorporateActionsController < ApplicationController
     @corporate_action.assign_attributes(attributes)
     @corporate_action.instrument = @context_instrument if @context_instrument
     @corporate_action.currency = @corporate_action.instrument&.currency
-    @corporate_action.source = "manual"
+    @corporate_action.source = "manual" if @corporate_action.new_record?
     assign_cash_amounts(gross_amount:, withholding_tax: withholding_tax.presence || "0")
+  end
+
+  def assign_quantity_action_attributes
+    attributes = quantity_action_params
+    cash_in_lieu_amount = attributes.delete(:cash_in_lieu_amount)
+    bonus_percentage = attributes.delete(:bonus_percentage)
+    previous_bonus_percentage = @corporate_action.bonus_percentage if @corporate_action.share_bonus?
+    if attributes[:kind] == "share_bonus"
+      attributes.delete(:ratio_numerator)
+      attributes.delete(:ratio_denominator)
+    end
+    @corporate_action.assign_attributes(attributes)
+    if @corporate_action.share_bonus? && bonus_percentage_changed?(bonus_percentage, previous_bonus_percentage)
+      @corporate_action.bonus_percentage = bonus_percentage
+    end
+    @corporate_action.instrument = @context_instrument if @context_instrument
+    @corporate_action.source = "manual" if @corporate_action.new_record?
+    assign_cash_in_lieu_amount(cash_in_lieu_amount)
+  end
+
+  def bonus_percentage_changed?(submitted, previous)
+    return true if previous.nil?
+
+    BigDecimal(submitted) != BigDecimal(previous)
+  rescue ArgumentError, TypeError
+    true
+  end
+
+  def assign_cash_in_lieu_amount(amount)
+    @corporate_action.cash_in_lieu_amount_input = amount
+    if amount.present?
+      decimal = BigDecimal(amount)
+      raise ArgumentError unless decimal.finite?
+
+      @corporate_action.currency = @corporate_action.instrument&.currency
+      @corporate_action.cash_in_lieu_amount = Money.from_amount(
+        decimal, @corporate_action.currency
+      )
+    else
+      @corporate_action.cash_in_lieu_amount_cents = nil
+      @corporate_action.currency = nil
+    end
+  rescue ArgumentError, TypeError
+    @corporate_action.cash_in_lieu_amount_cents = nil
+    @corporate_action.currency = @corporate_action.instrument&.currency
+  end
+
+  def require_quantity_action_money_visible
+    return unless money_values_hidden?
+    return unless @corporate_action&.cash_in_lieu? || submitted_cash_in_lieu_amount?
+
+    redirect_to root_path, alert: t("privacy.Show values before editing"), status: :see_other
+  end
+
+  def submitted_cash_in_lieu_amount?
+    params.dig(:corporate_action, :cash_in_lieu_amount).present?
   end
 
   def assign_cash_amounts(gross_amount:, withholding_tax:)
@@ -112,6 +216,13 @@ class CorporateActionsController < ApplicationController
   def corporate_action_params
     params.expect(corporate_action: %i[
       instrument_id institution_id kind paid_on ex_date gross_amount withholding_tax notes
+    ])
+  end
+
+  def quantity_action_params
+    params.expect(corporate_action: %i[
+      instrument_id institution_id kind effective_on ratio_numerator ratio_denominator
+      bonus_percentage cash_in_lieu_quantity cash_in_lieu_amount notes
     ])
   end
 

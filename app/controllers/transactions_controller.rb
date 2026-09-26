@@ -17,7 +17,7 @@ class TransactionsController < ApplicationController
   def trades
     @trades ||= begin
       scope = owner.trades
-      scope = scope.includes(:instrument, :institution).strict_loading unless @activity == "income"
+      scope = scope.includes(:instrument, :institution).strict_loading unless %w[income actions].include?(@activity)
       scope
     end
   end
