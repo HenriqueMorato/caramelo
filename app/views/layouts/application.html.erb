@@ -44,13 +44,29 @@
     <div class="min-h-screen font-sans md:flex">
       <%= render "layouts/navigation" %>
 
-      <div class="min-w-0 flex-1">
+      <div class="min-w-0 flex-1 flex flex-col">
         <main
           id="main-content"
-          class="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 xl:px-12 lg:py-10"
+          class="mx-auto w-full max-w-[1480px] flex-1 px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 xl:px-12 lg:py-10"
         >
           <%= yield %>
         </main>
+
+        <footer
+          class="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-0 text-xs text-muted sm:px-6 md:justify-end md:px-8 lg:px-10 xl:px-12"
+          aria-label="<%= t("Project support") %>"
+        >
+          <span><%= t("Made with care") %></span>
+          <span aria-hidden="true">·</span>
+          <%= link_to "https://ko-fi.com/henriquemorato",
+            target: "_blank",
+            rel: "noopener noreferrer",
+            class: "inline-flex min-h-11 items-center rounded-md font-semibold text-caramel-deep underline decoration-caramel/30 underline-offset-4 transition-colors hover:text-coffee hover:decoration-caramel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2 md:min-h-0" do %>
+            <%= t("Support caramelo") %>
+            <span aria-hidden="true" class="ml-1">↗</span>
+            <span class="sr-only">(<%= t("Opens in a new tab") %>)</span>
+          <% end %>
+        </footer>
       </div>
     </div>
   </body>

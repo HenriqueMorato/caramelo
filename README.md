@@ -17,6 +17,7 @@ historical performance while keeping the primary ledger on your own machine.
 - Track current prices for supported Brazilian, US, and European listings.
 - Review portfolio and per-instrument performance from persisted daily history.
 - Compare portfolio returns with Ibovespa, S&P 500, and CDI benchmarks.
+- Review provider-sourced dividends and corporate actions before confirmation.
 - See missing or stale market data and safely retry replaceable projections.
 - Create verified local backups and export the trade ledger as CSV.
 - Switch between light, dark, and system appearance.
@@ -161,7 +162,13 @@ Read more:
 - [Instrument performance](docs/instrument-performance-observations.md)
 - [Current market prices](docs/current-market-prices.md)
 - [Historical exchange rates](docs/historical-exchange-rates.md)
+- [Corporate-action ingestion](docs/corporate-action-ingestion.md)
 - [Data health and recovery](docs/market-data-health.md)
+
+## Support caramelo
+
+caramelo is independent and local-first. If it helps you keep your portfolio in
+order, you can [support its development on Ko-fi](https://ko-fi.com/henriquemorato).
 
 ## Develop caramelo
 
