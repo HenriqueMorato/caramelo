@@ -249,3 +249,11 @@ bin/ci
 
 Ruby, Node, SQLite, browser-test, Dev Container, and focused-test instructions
 are in [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## License
+
+caramelo is free software under the GNU Affero General Public License v3.0.
+You can use, modify, and redistribute it, including commercially, as long as
+you preserve the license and provide the corresponding source for modified
+versions. Modified hosted versions must also offer that source to users over
+the network. See the [license](LICENSE) for the full terms.
