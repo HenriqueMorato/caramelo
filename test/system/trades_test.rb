@@ -52,6 +52,24 @@ class TradesTest < ApplicationSystemTestCase
     assert_current_path corporate_action_imports_path
   end
 
+  test "prefills imported dividend review details for verification" do
+    CorporateActionImport.create!(
+      user: User.owner, instrument: instruments(:voo_arcx), source: "yahoo_finance",
+      source_reference: "system-dividend-review", status: :pending, kind: :dividend,
+      event_on: Date.new(2026, 8, 20), ex_date: Date.new(2026, 8, 20),
+      amount_per_share: "0.25", currency: "USD", normalized_data: {}, raw_payload: {}, warnings: []
+    )
+
+    visit transactions_path
+    click_on "Review imports"
+    click_on "Edit"
+
+    assert_field "Payment date", with: "2026-08-20"
+    assert_field "Gross amount", with: "0.63"
+    assert_text "not a reliable payment date"
+    assert_text "quantity held on the event date"
+  end
+
   test "shows an empty state without owner activity" do
     Trade.where(user: User.owner).delete_all
     CorporateAction.where(user: User.owner).delete_all

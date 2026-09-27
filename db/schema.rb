@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_26_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_26_000200) do
   create_table "corporate_action_imports", force: :cascade do |t|
     t.text "amount_per_share"
     t.integer "corporate_action_id"
@@ -32,6 +32,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_26_000100) do
     t.integer "ratio_numerator"
     t.text "raw_payload", default: "{}", null: false
     t.datetime "reviewed_at"
+    t.string "slug", null: false
     t.string "source", limit: 64, null: false
     t.string "source_reference", null: false
     t.string "status", default: "pending", null: false
@@ -42,6 +43,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_26_000100) do
     t.index ["corporate_action_id"], name: "index_corporate_action_imports_on_corporate_action_id"
     t.index ["institution_id"], name: "index_corporate_action_imports_on_institution_id"
     t.index ["instrument_id"], name: "index_corporate_action_imports_on_instrument_id"
+    t.index ["slug"], name: "index_corporate_action_imports_on_slug", unique: true
     t.index ["user_id", "instrument_id", "status"], name: "index_corporate_action_imports_on_owner_instrument_status"
     t.index ["user_id", "source", "source_reference"], name: "index_corporate_action_imports_on_owner_source_reference", unique: true
     t.index ["user_id", "status", "event_on"], name: "index_corporate_action_imports_on_owner_status_event"

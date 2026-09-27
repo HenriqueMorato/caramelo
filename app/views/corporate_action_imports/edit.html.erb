@@ -13,7 +13,13 @@
   <div class="rounded-2xl border border-coffee/10 bg-paper p-5 shadow-sm sm:p-6">
     <p class="text-sm text-muted"><%= @import.source %> · <%= @import.source_reference %></p>
     <%
-      currency_subunit = @import.currency ? Money::Currency.find(@import.currency).subunit_to_unit : 100
+      review_currency = @import.review_currency
+      currency_subunit = review_currency ? Money::Currency.find(review_currency).subunit_to_unit : 100
+      suggested_payment_date = @import.suggested_payment_date
+      payment_date_suggested = @import.paid_on.blank? && suggested_payment_date.present?
+      estimated_gross_amount_cents = @import.estimated_gross_amount_cents
+      gross_amount_cents = @import.gross_amount_cents || estimated_gross_amount_cents
+      gross_amount_value = gross_amount_cents && (gross_amount_cents.to_d / currency_subunit).to_s("F")
       kind_options = if @import.cash_action?
         %w[dividend jcp]
       elsif @import.quantity_action?
@@ -40,12 +46,20 @@
       <% end %>
       <% if @import.cash_action? %>
         <div class="grid gap-6 sm:grid-cols-2">
-          <div><%= form.label :paid_on, t("corporate_action_imports.edit.Payment date"), class: "block text-sm font-semibold text-coffee" %><%= form.date_field :paid_on, class: "ui-field", required: true %></div>
+          <div>
+            <%= form.label :paid_on, t("corporate_action_imports.edit.Payment date"), class: "block text-sm font-semibold text-coffee" %>
+            <%= form.date_field :paid_on, value: suggested_payment_date, class: "ui-field", required: true, aria: { describedby: ("corporate-action-import-payment-date-help" if payment_date_suggested) } %>
+            <% if payment_date_suggested %><p id="corporate-action-import-payment-date-help" class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Payment date help") %></p><% end %>
+          </div>
           <div><%= form.label :ex_date, t("corporate_action_imports.edit.Ex-date"), class: "block text-sm font-semibold text-coffee" %><%= form.date_field :ex_date, class: "ui-field" %></div>
-          <div><%= form.label :gross_amount, t("corporate_action_imports.edit.Gross amount"), class: "block text-sm font-semibold text-coffee" %><%= form.text_field :gross_amount, value: @import.gross_amount_cents && (@import.gross_amount_cents.to_d / currency_subunit), inputmode: "decimal", class: "ui-field", required: true %></div>
+          <div>
+            <%= form.label :gross_amount, t("corporate_action_imports.edit.Gross amount"), class: "block text-sm font-semibold text-coffee" %>
+            <%= form.text_field :gross_amount, value: gross_amount_value, inputmode: "decimal", class: "ui-field", required: true, aria: { describedby: ("corporate-action-import-gross-amount-help" if estimated_gross_amount_cents) } %>
+            <% if estimated_gross_amount_cents %><p id="corporate-action-import-gross-amount-help" class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Gross amount estimate help") %></p><% end %>
+          </div>
           <div><%= form.label :withholding_tax, t("corporate_action_imports.edit.Withholding tax"), class: "block text-sm font-semibold text-coffee" %><%= form.text_field :withholding_tax, value: @import.withholding_tax_cents && (@import.withholding_tax_cents.to_d / currency_subunit), inputmode: "decimal", class: "ui-field" %></div>
         </div>
-        <p class="text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Amount help", currency: @import.currency) %></p>
+        <p class="text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Amount help", currency: review_currency || t("Not available")) %></p>
       <% else %>
         <div class="grid gap-6 sm:grid-cols-3">
           <div><%= form.label :effective_on, t("corporate_action_imports.edit.Effective date"), class: "block text-sm font-semibold text-coffee" %><%= form.date_field :effective_on, value: @import.event_on, class: "ui-field", required: true %></div>

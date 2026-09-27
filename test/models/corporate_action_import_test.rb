@@ -51,6 +51,53 @@ class CorporateActionImportTest < ActiveSupport::TestCase
     assert_predicate instruments(:voo_arcx), :currency_usd?
   end
 
+  test "uses a friendly slug and derives review defaults" do
+    import = build_import(
+      instrument: instruments(:voo_arcx), currency: "USD", kind: "dividend",
+      event_on: Date.new(2026, 8, 20), ex_date: Date.new(2026, 8, 20),
+      ratio_numerator: nil, ratio_denominator: nil, amount_per_share: "0.25"
+    )
+    import.save!
+
+    assert_match(/\Aimp-[a-z0-9-]+\z/, import.slug)
+    assert_equal import, CorporateActionImport.friendly.find(import.slug)
+    assert_equal Date.new(2026, 8, 20), import.suggested_payment_date
+    assert_equal 63, import.estimated_gross_amount_cents
+  end
+
+  test "keeps provisional review defaults safe when source values are incomplete" do
+    dividend = build_import(
+      instrument: instruments(:voo_arcx), currency: nil, kind: "dividend",
+      event_on: Date.new(2026, 8, 20), ex_date: Date.new(2026, 8, 19),
+      paid_on: Date.new(2026, 8, 21), ratio_numerator: nil, ratio_denominator: nil,
+      amount_per_share: "0.25"
+    )
+    assert_equal Date.new(2026, 8, 21), dividend.suggested_payment_date
+    assert_equal "USD", dividend.review_currency
+    assert_equal 63, dividend.estimated_gross_amount_cents
+    assert_nil build_import(instrument: nil, currency: nil).review_currency
+    assert_nil build_import(instrument: nil, currency: nil).estimated_gross_amount_cents
+
+    assert_nil build_import(gross_amount_cents: 10).estimated_gross_amount_cents
+    assert_nil build_import(kind: "split").estimated_gross_amount_cents
+    assert_nil build_import(amount_per_share: nil).estimated_gross_amount_cents
+    assert_nil build_import(
+      instrument: instruments(:voo_arcx), currency: "USD", kind: "dividend",
+      event_on: Date.new(2020, 1, 1), amount_per_share: "0.25",
+      ratio_numerator: nil, ratio_denominator: nil
+    ).estimated_gross_amount_cents
+    assert_nil build_import(
+      instrument: instruments(:voo_arcx), currency: "USD", kind: "dividend",
+      event_on: Date.new(2026, 8, 20), amount_per_share: "not-a-number",
+      ratio_numerator: nil, ratio_denominator: nil
+    ).estimated_gross_amount_cents
+    assert_nil build_import(
+      instrument: instruments(:voo_arcx), currency: "USD", kind: "dividend",
+      event_on: Date.new(2026, 8, 20), amount_per_share: "NaN",
+      ratio_numerator: nil, ratio_denominator: nil
+    ).estimated_gross_amount_cents
+  end
+
   test "exposes the supported kind list and quantity predicates" do
     assert_equal %w[dividend jcp split reverse_split share_bonus], CorporateActionImport.kinds_for_select
 

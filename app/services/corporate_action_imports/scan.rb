@@ -26,7 +26,10 @@ module CorporateActionImports
       created_count = 0
       instruments.each do |current_instrument|
         begin
-          @provider.fetch(instrument: current_instrument, from:, to:).each do |candidate|
+          fetch_from = [ from, trades_for(current_instrument).first.traded_on ].max
+          @provider.fetch(instrument: current_instrument, from: fetch_from, to:).each do |candidate|
+            next unless candidate_has_position?(current_instrument, candidate)
+
             import, created = persist_candidate(current_instrument, candidate)
             imports << import
             created_count += 1 if created
@@ -48,7 +51,7 @@ module CorporateActionImports
 
     def instruments
       if instrument
-        unless user.trades.where(instrument_id: instrument.id).exists?
+        unless user.trades.where(instrument_id: instrument.id, traded_on: ..to).exists?
           raise ArgumentError, "instrument is not traded by this owner"
         end
 
@@ -57,6 +60,47 @@ module CorporateActionImports
 
       instrument_ids = user.trades.where(traded_on: ..to).distinct.pluck(:instrument_id)
       Instrument.where(id: instrument_ids).alphabetical.to_a
+    end
+
+    def trades_for(current_instrument)
+      @trades_by_instrument ||= {}
+      @trades_by_instrument.fetch(current_instrument.id) do
+        @trades_by_instrument[current_instrument.id] = user.trades
+          .where(instrument: current_instrument, traded_on: ..to)
+          .order(:traded_on, :id).to_a
+      end
+    end
+
+    def candidate_has_position?(current_instrument, candidate)
+      return true unless candidate.event_on
+
+      quantity = 0.to_r
+      quantity_timeline_for(current_instrument).each do |event_date, event_quantity|
+        break if event_date > candidate.event_on
+
+        quantity = event_quantity
+      end
+      quantity.positive?
+    rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData
+      # Preserve the review item when existing ledger data cannot be replayed safely.
+      true
+    end
+
+    def quantity_timeline_for(current_instrument)
+      @quantity_timelines ||= {}
+      @quantity_timelines.fetch(current_instrument.id) do
+        @quantity_timelines[current_instrument.id] = Position::Calculator.quantity_timeline(
+          trades: trades_for(current_instrument),
+          corporate_actions: corporate_actions_for(current_instrument),
+          amount_for: ->(trade) { trade.total_amount }
+        )
+      end
+    end
+
+    def corporate_actions_for(current_instrument)
+      user.corporate_actions.effective.quantity_actions
+        .where(instrument: current_instrument, effective_on: ..to)
+        .order(:effective_on, :id).to_a
     end
 
     def persist_candidate(current_instrument, candidate)

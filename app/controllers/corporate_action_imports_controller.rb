@@ -64,7 +64,7 @@ class CorporateActionImportsController < ApplicationController
   end
 
   def set_import
-    @import = owner.corporate_action_imports.find(params.expect(:id))
+    @import = owner.corporate_action_imports.friendly.find(params.expect(:id))
   end
 
   def set_form_options

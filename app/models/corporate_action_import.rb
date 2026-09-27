@@ -1,4 +1,8 @@
 class CorporateActionImport < ApplicationRecord
+  extend FriendlyId
+
+  friendly_id :slug_candidates, use: :slugged
+
   belongs_to :user
   belongs_to :instrument, optional: true
   belongs_to :institution, optional: true
@@ -70,6 +74,30 @@ class CorporateActionImport < ApplicationRecord
       event_on.present? && ratio_numerator.present? && ratio_denominator.present?
   end
 
+  def suggested_payment_date
+    paid_on || ex_date || event_on
+  end
+
+  def review_currency
+    currency.presence || instrument&.currency
+  end
+
+  def estimated_gross_amount_cents
+    return if gross_amount_cents.present? || !cash_action? || instrument.blank? || event_on.blank?
+    return if amount_per_share.blank?
+
+    quantity = Position.for(instrument:, as_of: event_on).quantity
+    return unless quantity.positive?
+
+    amount = BigDecimal(amount_per_share.to_s)
+    return unless amount.finite? && review_currency.present?
+
+    subunit = Money::Currency.find(review_currency).subunit_to_unit
+    (amount * quantity * subunit).round(0).to_i
+  rescue ArgumentError, TypeError, Position::InvalidLongOnlyData, Position::InvalidQuantityActionData
+    nil
+  end
+
   def normalized_candidate
     parse_json(normalized_data, fallback: {})
   end
@@ -111,6 +139,14 @@ class CorporateActionImport < ApplicationRecord
   end
 
   private
+
+  def slug_candidates
+    [ generate_reference_code, generate_reference_code ]
+  end
+
+  def generate_reference_code
+    "imp-#{SecureRandom.base58(12).downcase}"
+  end
 
   def parse_json(value, fallback:)
     parsed = JSON.parse(value.presence || (fallback.is_a?(Array) ? "[]" : "{}"))

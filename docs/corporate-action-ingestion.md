@@ -47,14 +47,23 @@ again.
 
 The Yahoo adapter uses the existing exchange-aware ticker and MIC mapping. It
 never creates an instrument from provider data. Scans only request events for
-instruments already traded by the owner; an institution is auto-selected only
-when exactly one institution is associated with that instrument. Multiple
+instruments already traded by the owner. For each instrument, the provider
+range starts no earlier than its first trade, and candidates dated while the
+owner held zero units are ignored. Existing review records are left intact so
+this cleanup never discards an item the owner has already reviewed. An
+institution is auto-selected only when exactly one institution is associated
+with that instrument. Multiple
 institutions mark an import ambiguous and block confirmation until the owner
 selects the institution in the review form.
 
 Yahoo chart events provide dividend/ex-date and split data, but not a reliable
 payment date, withholding tax, JCP classification, institution, or credited
 total. Those accounting fields remain in review until the owner supplies them.
+For convenience, the review form pre-fills a missing payment date with the
+provider event/ex-date and estimates a missing gross total from the quantity
+held on that event date multiplied by Yahoo's per-share amount. Both values are
+explicitly provisional and remain editable; confirmation uses only what the
+owner submits.
 The raw response and normalized candidate are retained for every queued
 candidate, while malformed provider responses are reported as scan errors and
 never become ledger records.

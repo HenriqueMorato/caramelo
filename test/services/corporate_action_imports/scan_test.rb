@@ -34,6 +34,36 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     assert_equal [ [ @instrument, Date.new(2026, 8, 1), Date.new(2026, 8, 31) ] ], provider.requests
   end
 
+  test "skips provider events from dates when the owner had no position" do
+    before_first_trade = @candidate.with(
+      source_reference: "PETR4.SA:split:before-first-trade", event_on: Date.new(2026, 7, 31)
+    )
+    provider = ListProvider.new([ before_first_trade, @candidate ])
+
+    result = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 7, 1), to: Date.new(2026, 8, 31), provider:
+    )
+
+    assert_equal [ @candidate.source_reference ], result.imports.map(&:source_reference)
+    assert_equal Date.new(2026, 8, 1), provider.requests.sole[1]
+    assert_equal 1, result.created_count
+  end
+
+  test "keeps a candidate when position replay is invalid" do
+    scan = CorporateActionImports::Scan.new(
+      user: users(:owner), from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31),
+      source: "yahoo_finance", instrument: @instrument, provider: EmptyProvider.new, strict: false
+    )
+    error = Position::InvalidLongOnlyData.new(Trade.new(id: 1))
+    original = Position::Calculator.method(:quantity_timeline)
+    Position::Calculator.define_singleton_method(:quantity_timeline) { |**| raise error }
+
+    assert scan.send(:candidate_has_position?, @instrument, @candidate)
+  ensure
+    Position::Calculator.define_singleton_method(:quantity_timeline, original) if original
+  end
+
   test "collects provider errors unless strict mode is requested" do
     provider = ErrorProvider.new
     result = CorporateActionImports::Scan.call(
@@ -325,6 +355,20 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     def fetch(instrument:, from:, to:)
       requests << [ instrument, from, to ]
       [ candidate ]
+    end
+  end
+
+  class ListProvider
+    attr_reader :requests
+
+    def initialize(candidates)
+      @candidates = candidates
+      @requests = []
+    end
+
+    def fetch(instrument:, from:, to:)
+      requests << [ instrument, from, to ]
+      @candidates
     end
   end
 

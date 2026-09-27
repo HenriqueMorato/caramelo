@@ -109,6 +109,23 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name='corporate_action_import[kind]'] option[value='jcp']", count: 0
   end
 
+  test "prefills a provisional payment date and gross amount estimate" do
+    import = build_import(
+      instrument: instruments(:voo_arcx), currency: "USD", kind: "dividend",
+      source_reference: "usd-dividend-estimate", event_on: Date.new(2026, 8, 20),
+      ex_date: Date.new(2026, 8, 20), ratio_numerator: nil, ratio_denominator: nil,
+      amount_per_share: "0.25"
+    )
+
+    get edit_corporate_action_import_url(import)
+
+    assert_response :success
+    assert_select "input[name='corporate_action_import[paid_on]'][value='2026-08-20']"
+    assert_select "input[name='corporate_action_import[gross_amount]'][value='0.63']"
+    assert_select "#corporate-action-import-payment-date-help", text: /not a reliable payment date/
+    assert_select "#corporate-action-import-gross-amount-help", text: /quantity held on the event date/
+  end
+
   test "starts an explicit bounded scan and reports provider results" do
     result = CorporateActionImports::Scan::Result.new(
       Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0
@@ -129,6 +146,14 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_equal Date.new(2026, 8, 31), received.fetch(:to)
   ensure
     CorporateActionImports::Scan.define_singleton_method(:call, original)
+  end
+
+  test "renders aligned scan controls with the shared field treatment" do
+    get corporate_action_imports_url
+
+    assert_response :success
+    assert_select "form[action='#{corporate_action_imports_path}'] select.ui-field", count: 2
+    assert_select "form[action='#{corporate_action_imports_path}'] button.ui-button-primary.min-h-11", count: 1
   end
 
   test "reports provider scan errors in the flash" do
