@@ -106,7 +106,7 @@ nested instrument action enqueues one instrument. The recurring job runs every
 30 minutes. Scheduled refreshes use normal cache freshness checks, while a user
 action uses `force: true` because it explicitly requests a new quote.
 
-### Refresh coordination, throttling, and retries
+### Refresh Coordination, Throttling, and Retries
 
 `RefreshCurrentMarketPriceJob.enqueue_for` writes an instrument-specific cache
 marker with a two-minute TTL before enqueueing. A second request for the same
@@ -144,7 +144,7 @@ if a job disappears. Every attempt broadcasts the final quote state, and the
 `market_price.refresh` notification exposes enqueue, coalesced, throttled,
 attempted, retried, succeeded, failed, and skipped events for monitoring.
 
-### Refresh progress state
+### Refresh Progress State
 
 `RefreshStatus::Tracker` keeps user-facing batch state in the shared Rails cache.
 Each batch receives a `run_id`; child jobs carry that identifier so a late job
@@ -158,7 +158,7 @@ This is coordination and display metadata, not financial data. It can be lost or
 rebuilt safely; trades, quotes, and daily history remain the durable or
 replaceable records described above.
 
-### How batch identity is enforced
+### How Batch Identity is Enforced
 
 `RefreshStatus::Tracker.enqueue` creates a UUID before any child job is queued
 and stores it with the batch state. The coordinator passes both the shared scope
@@ -175,7 +175,7 @@ starting it again. The browser sees these transitions through the shared cache
 and Turbo Stream broadcast, which is why progress survives a page reload and
 why the displayed count belongs to one refresh run.
 
-## End-to-end refresh paths
+## End-to-End Refresh Paths
 
 All refresh paths converge on the same provider-neutral services and jobs. The
 entry point decides what needs refreshing; the job owns provider work; the
@@ -285,7 +285,7 @@ rather than pounds. `Client` preserves that raw provider denomination on
 A true `GBP` quote is not divided. Cache values therefore always contain an ISO
 currency and a price expressed in that currency's major unit.
 
-### ISIN and listing identity
+### ISIN and Listing Identity
 
 [ISO 6166](https://www.iso.org/standard/78502.html) identifies the financial
 instrument, while caramelo must identify the particular exchange listing.

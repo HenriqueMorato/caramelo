@@ -4,7 +4,7 @@
 historical valuation and performance calculations. It is separate from
 `ExchangeRateCache`, which is a replaceable cache for current quotes.
 
-## Stored observation
+## Stored Observation
 
 Each record contains:
 
@@ -21,7 +21,7 @@ Imports are idempotent: a later observation for the same key updates the row,
 so provider corrections do not create duplicates. Original trade currencies
 and amounts are never rewritten.
 
-## Lookup behavior
+## Lookup Behavior
 
 `HistoricalExchangeRate::Service#read` first searches for the requested pair
 and date, then searches the reverse pair and returns its exact `BigDecimal`
@@ -34,14 +34,14 @@ fallback.
 
 Data health checks this lookup contract for trade settlement dates and for each
 calendar day on which a foreign-currency position is open. Recovery expands the
-first uncovered valuation date to include the seven-day lookback, ensuring that
-a weekend gap can fetch its missing Friday observation instead of requesting
-only a non-trading date.
+first uncovered valuation date to include the seven-day lookback. This lets a
+weekend gap fetch its missing Friday observation instead of requesting only a
+non-trading date.
 
 Yahoo daily candle timestamps are interpreted as UTC dates, matching the daily
 closing-price importer. This policy keeps persisted historical dates stable.
 
-## Imports and scheduled capture
+## Imports and Scheduled Capture
 
 `HistoricalExchangeRate::Importer` accepts a single date or a backfill range,
 rejects future/inverted ranges, reports missing weekdays, and validates every

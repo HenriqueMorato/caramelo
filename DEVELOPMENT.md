@@ -1,11 +1,11 @@
-# caramelo development
+# caramelo Development
 
-## Dev Container setup
+## Dev Container Setup
 
-The Dev Container is the simplest way to get the complete development
-environment, including Ruby, SQLite, Chrome, and the HTTP transport used for
-market-price refreshes. Install Docker, VS Code, and the VS Code Dev Containers
-extension, then open this checkout:
+The Dev Container provides the full development environment, including Ruby,
+SQLite, Chrome, and the HTTP transport used for market-price refreshes. Install
+Docker, VS Code, and the VS Code Dev Containers extension, then open this
+checkout:
 
 ```sh
 code .
@@ -68,7 +68,7 @@ the checkout:
 docker compose -f .devcontainer/compose.yaml down
 ```
 
-## Native requirements
+## Native Requirements
 
 - Ruby 4.0.6 with Bundler
 - Node 24.19.0 with npm 11 or newer for Herb template linting
@@ -78,7 +78,7 @@ docker compose -f .devcontainer/compose.yaml down
 - `curl_chrome146` for live Yahoo Finance quote refreshes
 - Docker-compatible runtime for production-image verification
 
-## Native setup
+## Native Setup
 
 Install dependencies and prepare the development database:
 
@@ -121,7 +121,7 @@ Login is intentionally inactive during the single-user phase. Authentication
 models, routes, password hashing, and reset behavior remain covered for future
 activation, while application pages stay public.
 
-## Current market prices
+## Current Market Prices
 
 caramelo uses the Yahoo Finance chart endpoint for current B3, NASDAQ, NYSE,
 NYSE Arca, London Stock Exchange, Xetra, Euronext Amsterdam, and Euronext Paris
@@ -151,9 +151,9 @@ Never commit or redistribute fetched market data. Each operator is responsible
 for complying with the market-data provider's terms. Tests must stub the
 transport and must not call the live endpoint.
 
-For the class responsibilities, public entry points, cache states, and complete
-read and refresh flows, see
-[Current Market Price Architecture](docs/current-market-prices.md).
+See [Current Market Price Architecture](docs/current-market-prices.md) for
+class responsibilities, public entry points, cache states, and read and refresh
+flows.
 
 Historical FX storage, direct/inverse lookup, backfills, and scheduled capture
 are described in [Historical Exchange Rates](docs/historical-exchange-rates.md).
@@ -162,7 +162,7 @@ are described in [Historical Data Backfills](docs/historical-data-backfills.md).
 Portfolio valuation, cash-flow-adjusted returns, and historical-data safety are
 described in [Portfolio Performance](docs/portfolio-performance.md).
 
-### SQLite backups
+### SQLite Backups
 
 Backups are application services, with `bin/backup` as the operator-facing
 adapter. A low-priority backup is scheduled ten minutes after startup or the
@@ -220,7 +220,7 @@ publication fences, reset previews, and Turbo row updates are documented in
 with `bin/rails test test/services/market_data/health_report_test.rb` while
 iterating, then use `bin/ci` before proposing a commit.
 
-### Feedback surfaces
+### Feedback Surfaces
 
 The application has two feedback surfaces. The layout's flash notification
 stack handles full-page redirects and remains available after navigation. The
@@ -230,10 +230,10 @@ repeated actions, and dismisses it after three seconds. Both surfaces use
 polite live-region semantics and the same success/error visual language; the
 toast is not specific to backups.
 
-### Appearance themes
+### Appearance Themes
 
 Appearance is a browser-local preference until account preferences are modeled.
-The three supported values—`light`, `dark`, and `system`—are stored under
+The three supported values, `light`, `dark`, and `system`, are stored under
 `caramelo.appearance`. The layout's small inline bootstrap migrates the legacy
 key and applies the saved choice before loading CSS, so the first paint uses the
 correct palette.
@@ -248,7 +248,7 @@ theme color, and emits `appearance:change`. Chart.js listens for that event and
 recolors the existing chart without rebuilding its financial data. The PWA
 manifest intentionally retains the light palette as its static fallback.
 
-### Automatic market-data refreshes
+### Automatic Market-Data Refreshes
 
 When `bin/dev` is running, the Solid Queue worker schedules a current-price
 check every five minutes. Only supported instruments with missing or stale
@@ -273,7 +273,7 @@ requests retain the last successful value and are reported through Rails error
 reporting. Exchange-specific holiday calendars remain part of the valuation-date
 work tracked in issue #124.
 
-### Development database storage and migrations
+### Development Database Storage and Migrations
 
 The primary development database remains at `storage/development.sqlite3` so
 it is easy to back up from the checkout. Solid Cache, Solid Queue, and Solid
@@ -302,7 +302,7 @@ example, `db/queue_migrate/`); do not replace them with a rollback merely to
 make the generated schema look unchanged. Stop Rails and Solid Queue before
 running migrations or resetting a runtime database.
 
-### Rebuilding a local Solid Queue database
+### Rebuilding a Local Solid Queue Database
 
 The development queue database is replaceable runtime state. If SQLite reports
 `database disk image is malformed`, stop Rails and Solid Queue, move
@@ -323,7 +323,7 @@ The command should print `ok`. Do not use this procedure for
 `storage/development.sqlite3`: it contains user-entered trades and must be
 preserved or backed up separately.
 
-## Quality and security
+## Quality and Security
 
 Run the repeatable local pipeline:
 
@@ -351,7 +351,7 @@ bin/importmap audit
 npm audit --audit-level=high
 ```
 
-### Association loading checks
+### Association Loading Checks
 
 Read-heavy trade and position collections use Rails strict loading with explicit
 preloads. Bullet is used in development and test to detect N+1 queries and
@@ -441,7 +441,7 @@ The health check rejects missing, unused, inconsistent, or unnormalized keys
 and runs as part of `bin/ci`. Development and test raise immediately when a
 rendered translation is missing.
 
-## Money and currencies
+## Money and Currencies
 
 Use `money-rails` for monetary model attributes. Persist settled amounts such
 as fees as integer subunits alongside an explicit ISO 4217 currency code: for
@@ -474,7 +474,7 @@ preference; explicit `reporting_currency:` arguments remain useful for pinned
 background calculations. FX batches snapshot the preference at execution start
 so a later change cannot mix target currencies within one batch.
 
-## Position calculation conventions
+## Position Calculation Conventions
 
 Trades remain authoritative; completed position materializations provide the
 normal read path, while direct replay remains available for historical and
@@ -509,7 +509,7 @@ bin/rails test test/system/positions_test.rb \
   test/system/instruments_test.rb
 ```
 
-## Current market price cache
+## Current Market Price Cache
 
 `CurrentMarketPrice` represents a replaceable intraday unit price. Keep its
 unit price as a normalized precise-decimal string in cache and convert it back
@@ -535,7 +535,7 @@ and `ARCX` listings, plus ETF listings on `XLON`, `XETR`, `XAMS`, and `XPAR`.
 Provider-specific errors must be translated into application-level failures
 before reaching jobs or controllers.
 
-## Trade Ledger model conventions
+## Trade Ledger Model Conventions
 
 - Resolve the single owner through `User.owner`. Scope institutions and trades
   through that owner; never accept a request-supplied user ID.
@@ -550,7 +550,7 @@ before reaching jobs or controllers.
   `DailyClosingPrice` is the separate durable daily-history record used by the
   Performance milestone.
 
-## Contribution workflow
+## Contribution Workflow
 
 1. Start from an issue with agreed scope and acceptance criteria.
 2. Create a type-prefixed branch such as `feat/4-navigation-shell`,
@@ -566,7 +566,7 @@ before reaching jobs or controllers.
 Preserve unrelated changes. Keep changes within their issue's agreed milestone
 and acceptance criteria.
 
-## Trade Ledger and Positions acceptance
+## Trade Ledger and Positions Acceptance
 
 Run the complete local acceptance pass:
 

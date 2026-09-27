@@ -1,4 +1,4 @@
-# Instrument performance observations
+# Instrument Performance Observations
 
 Instrument performance is an independently materialized, replaceable projection for one owner, instrument, and reporting currency. It is derived from the same authoritative trades, daily closing prices, historical exchange rates, paid settlement exchange rates, fees, and position calculator as portfolio performance.
 
@@ -14,7 +14,7 @@ Portfolio observations   Instrument observations
 
 This separation is required because portfolio cash flows must be weighted against total portfolio capital. Instrument return percentages are never added or averaged to produce portfolio performance.
 
-## Durable projection
+## Durable Projection
 
 `InstrumentPerformanceMaterialization` records the requested range and current source generation for one user, instrument, and currency. `InstrumentPerformanceObservation` records one calendar-day result with:
 
@@ -30,7 +30,7 @@ Analytical monetary values use text affinity so SQLite does not round them befor
 
 The projection is replaceable derived data. Trades remain the durable source of truth.
 
-## Valuation and FX rules
+## Valuation and FX Rules
 
 Each observation replays trades through its valuation date using the long-only weighted-average position calculator.
 
@@ -43,7 +43,7 @@ Each observation replays trades through its valuation date using the long-only w
 
 Calendar days use `MarketData::HistoricalObservationWindow` to find the latest eligible close and exchange rate. Weekends and holidays can therefore have projected observations without creating synthetic `DailyClosingPrice` or `HistoricalExchangeRate` rows. A current quote never substitutes for missing historical data.
 
-## Return methodologies
+## Return Methodologies
 
 The instrument graph includes two return series. Modified Dietz is visible by default; Gain on cost is initially hidden and can be revealed from the chart legend. Period selection changes the visible window for both methods.
 
@@ -63,7 +63,7 @@ return = gain / (opening.market_value + weighted_flow)
 
 The opening chart point is zero. A missing or incomparable opening observation leaves Modified Dietz unavailable rather than inventing a value. Generation fencing prevents returns from combining a stale opening with a rebuilt closing observation.
 
-### Gain on cost
+### Gain on Cost
 
 Gain on cost answers how much cumulative profit exists relative to gross purchase spending:
 
@@ -78,7 +78,7 @@ Both return lines are included in the instrument chart. Modified Dietz is visibl
 
 The public explanation at `/performance/methodology` provides a worked example and describes where caramelo uses each method.
 
-## Refresh and generation fencing
+## Refresh and Generation Fencing
 
 `Performance::SeriesRefresh` coordinates transient leases while requested ranges and generations remain durable in the materialization row. Instrument lease keys include user, instrument, and reporting currency, allowing different instruments to progress independently while preventing overlapping workers for the same target.
 
@@ -109,7 +109,7 @@ Invalidation begins at the earliest date whose replay or valuation can change:
 
 For every traded instrument, startup preparation maintains the unique set of its native currency and the owner's reporting currency from the first trade through today.
 
-## Recovery and health
+## Recovery and Health
 
 Data health reports instrument targets that are pending, stale, partial, missing, or failed. Retry preserves source records and resumes the requested range. Safe reset deletes only derived observations, advances the source generation, and rebuilds from authoritative trades and market history.
 

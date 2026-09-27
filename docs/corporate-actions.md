@@ -1,4 +1,4 @@
-# Corporate actions and income
+# Corporate Actions and Income
 
 caramelo records cash income paid by an instrument as either a dividend or, for BRL instruments, juros sobre capital próprio (JCP). Income belongs to the portfolio owner and one instrument. It may also identify the institution that received the payment.
 
@@ -6,7 +6,7 @@ The same durable ledger records quantity-changing events: stock splits, reverse 
 
 The instrument determines the income currency. If the owner has traded the instrument through one active institution, caramelo associates that institution automatically. If there are multiple eligible institutions, the form lets the owner choose one. The association remains optional when no institution applies.
 
-## Amounts and withholding tax
+## Amounts and Withholding Tax
 
 Each income entry records a gross amount and optional withholding tax. caramelo calculates the received amount as:
 
@@ -18,7 +18,7 @@ Amounts are stored in integer currency subunits. The gross amount must be positi
 
 The net amount is shown in income history and is the amount included in after-tax performance.
 
-## Payment date and ex-date
+## Payment Date and Ex-Date
 
 The payment date records when the income reached the account. It is required and is used to order income history.
 
@@ -30,7 +30,7 @@ performance date = ex-date or payment date
 
 Using the ex-date aligns the distribution with the related price adjustment. The performance date also determines historical exchange-rate lookup, market-data backfill, and the earliest date rebuilt after an income change.
 
-## Portfolio and instrument performance
+## Portfolio and Instrument Performance
 
 Confirmed income is investment return, not an external contribution. It is included in both portfolio and instrument performance as a cash distribution on the performance date.
 
@@ -51,19 +51,19 @@ sale realized gain + unrealized gain + net investment income
 
 Modified Dietz treats the received income as a withdrawal from the measured investment. This preserves the economic return represented by the distribution while market value continues to represent only the units still held.
 
-## Currency conversion and missing data
+## Currency Conversion and Missing Data
 
 Native-currency performance uses the net amount directly. Reporting-currency performance converts the net amount using historical FX for the performance date.
 
 If the required historical exchange rate is unavailable, the affected performance observation is unavailable. caramelo never substitutes a current exchange rate for missing historical data. Saving or updating confirmed income requests the necessary historical data and schedules the affected portfolio and instrument observations for rebuilding.
 
-## Reinvested income
+## Reinvested Income
 
 Income and reinvestment are separate events. A dividend or JCP entry always records the distribution as return. If some or all of that money buys units, the purchase is recorded as an ordinary trade.
 
 There is no required one-to-one link between income and a trade because reinvestment may be partial, delayed, combined with other cash, or used to buy a different instrument. Leaving out a purchase keeps holdings unchanged without removing the income from performance.
 
-## Splits, reverse splits, and share bonifications
+## Splits, Reverse Splits, and Share Bonifications
 
 A quantity action has one effective date and an exact “new shares for old shares” ratio. For example, a 2-for-1 split multiplies the open quantity by `2 / 1`, while a 1-for-10 reverse split multiplies it by `1 / 10`.
 
@@ -83,7 +83,7 @@ adjusted unit basis = prior total basis / adjusted quantity
 
 A quantity action encountered while the position has no open units is a no-op. This includes events during a closed period and events on the date of the first purchase, because quantity actions replay before same-day trades. A later reopened position therefore starts from its own purchases without inheriting an action from a period when the owner held no units.
 
-## Fractional entitlements and cash in lieu
+## Fractional Entitlements and Cash in Lieu
 
 When a split or bonification creates a fraction the institution will not hold, record both the fractional quantity disposed of and the cash received. caramelo applies the ratio first, then removes that quantity at its proportional moving-average basis:
 
@@ -96,7 +96,7 @@ The remaining total basis excludes the allocated amount. Cash received is a with
 
 The fractional quantity and cash amount are optional as a pair. Entering only one is invalid. A cash-free action has no stored currency; when cash in lieu exists, its currency is derived from the instrument.
 
-## Position and performance replay
+## Position and Performance Replay
 
 Trades and confirmed quantity actions are replayed together in deterministic chronological order using exact rational arithmetic. Buys and sells retain the existing moving-average calculations. Quantity actions alter that replayed state without mutating any trade.
 
@@ -104,7 +104,7 @@ Current-position materializations and independently calculated portfolio and ins
 
 Historical continuity still depends on authoritative adjusted price history. caramelo changes the replayed quantity but never creates a synthetic daily close or conceals missing or unadjusted provider data.
 
-## Lifecycle, provenance, and recalculation
+## Lifecycle, Provenance, and Recalculation
 
 Corporate actions can be pending, confirmed, ignored, or reversed. Only confirmed actions affect performance. Manual entries are confirmed when saved through an income or quantity-action form.
 
@@ -112,7 +112,7 @@ Each record retains its source and may retain a source reference and raw provide
 
 Creating, editing, deleting, confirming, ignoring, or reversing an effective corporate action invalidates the independently materialized portfolio and instrument observations from the earliest affected performance date. Quantity events also rebuild the current-position projection. Rebuild jobs recalculate derived observations from the durable trade, action, closing-price, and historical-FX records.
 
-## Privacy and deletion
+## Privacy and Deletion
 
 Income and cash-in-lieu amounts follow the application-wide monetary-value visibility setting. When values are hidden, the server renders masked values and blocks income or cash-in-lieu changes. Cash-free ratios and quantities remain usable because they do not reveal a monetary value.
 

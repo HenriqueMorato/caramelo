@@ -5,7 +5,7 @@ imports. It is not a market-data table and it does not retain a job history.
 The durable observations remain `DailyClosingPrice` and
 `HistoricalExchangeRate`, which performance needs to value a past date.
 
-## Request lifecycle
+## Request Lifecycle
 
 Each request records an `instrument`, its trade `currency`, the earliest
 affected `from_date`, and a `generation`. There is one request per instrument
@@ -25,7 +25,7 @@ and also deletes it, leaving Performance explicitly unavailable. Temporary
 transport, rate-limit, and provider-unavailable failures retry through Active
 Job before that cleanup happens.
 
-## Coalescing concurrent changes
+## Coalescing Concurrent Changes
 
 `instrument` and `currency` form the request's unique key. The first relevant
 trade change creates the request and queues a job. Later changes for the same

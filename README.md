@@ -10,7 +10,7 @@ Your investments, without sending your portfolio somewhere else.
 follow positions, compare native and reporting-currency values, and explore
 historical performance while keeping the primary ledger on your own machine.
 
-## What you can do
+## What You Can Do
 
 - Keep a precise buy-and-sell ledger with fees, institutions, notes, and paid FX.
 - Follow open and closed positions with weighted-average cost basis.
@@ -55,7 +55,7 @@ volumes, so the next start is simply:
 docker compose up
 ```
 
-### Useful Docker commands
+### Useful Docker Commands
 
 | Task | Command |
 | --- | --- |
@@ -70,7 +70,7 @@ docker compose up
 the named volumes. Do not add `--volumes` unless you intentionally want to
 delete the local application data and backups.
 
-### Optional configuration
+### Optional Configuration
 
 The built-in owner identifier is `admin@caramelo.local`. To choose another
 address for a fresh install, copy the example before the first run:
@@ -101,7 +101,7 @@ CARAMELO_BIND_ADDRESS=0.0.0.0 docker compose up --build
 
 Do not expose that address to an untrusted network while login remains inactive.
 
-## Your data stays local
+## Your Data Stays Local
 
 The Compose stack uses two named volumes:
 
@@ -118,7 +118,7 @@ Login is intentionally inactive during the current single-user phase. Anyone
 who can reach the running web port can access the portfolio, so bind or expose
 that port only on a network you trust.
 
-### Back up and export
+### Back Up and Export
 
 Create and verify a backup from the running stack:
 
@@ -143,7 +143,7 @@ also lets you create or verify a backup and download the trade ledger as CSV.
 See [development and operations](DEVELOPMENT.md#sqlite-backups) for retention,
 restore rehearsal, and safe pruning details.
 
-## How the portfolio works
+## How the Portfolio Works
 
 Trades are authoritative. Positions are derived from those trades using exact
 decimal quantities and weighted-average cost basis. Buy fees increase cost;
@@ -151,7 +151,7 @@ sell fees reduce realized proceeds. Native-currency values remain native, while
 reporting views use the appropriate paid, trade-date, or valuation-date FX rate.
 
 Performance is materialized asynchronously from trades, daily closing prices,
-and historical FX. Missing historical data stays visibly unavailable—current
+and historical FX. Missing historical data stays visibly unavailable. Current
 quotes never masquerade as historical closes. Portfolio and instrument return
 series are calculated independently because their cash flows have different
 capital weights.

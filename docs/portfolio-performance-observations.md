@@ -1,4 +1,4 @@
-# Portfolio performance observations
+# Portfolio Performance Observations
 
 Long performance ranges use `PortfolioPerformanceObservation` as a derived,
 durable read model. Trades, daily closing prices, and historical exchange rates
@@ -14,7 +14,7 @@ is the sum of signed reporting-currency trade amounts; `dated_cash_flow_total`
 is the sum of each amount multiplied by its trade date's Julian day number.
 These are calculation inputs, not extra money balances or user-facing metrics.
 
-## Read and build flow
+## Read and Build Flow
 
 `Performance::Series` reads the materialization metadata and a complete observation
 range in two queries, regardless of the range length. It derives daily gain
@@ -75,10 +75,10 @@ then enqueue only after commit. Queue failure therefore cannot lose the repair
 request or undo a successful financial write. Direct database changes that bypass
 callbacks/importers require the rebuild command below.
 
-### An edit during a build
+### An Edit During a Build
 
-Suppose a worker is rebuilding 15 August–3 September using generation 7. A trade
-dated 20 August changes while it is calculating a day:
+Suppose a worker is rebuilding from 15 August to 3 September using generation
+7. A trade dated 20 August changes while it is calculating a day:
 
 1. The trade transaction advances the generation to 8 and retains the earliest
    unfinished date. The existing job's lease prevents a second overlapping enqueue.
@@ -99,7 +99,7 @@ endpoints exist; the individual known market values remain visible. Different
 generations are safe to compare when both endpoints are fresh, such as today's
 rebuilt value against an unaffected historical opening.
 
-## Rebuild command
+## Rebuild Command
 
 Rebuild all dates synchronously:
 
