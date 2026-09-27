@@ -14,6 +14,8 @@ class CorporateActionImports::Providers::YahooFinanceTest < ActiveSupport::TestC
     ).sole
 
     assert_equal "dividend", candidate.kind
+    assert_predicate candidate, :dividend?
+    assert_predicate candidate, :cash_action?
     assert_equal "VOO:dividend:1787851200", candidate.source_reference
     assert_equal "VOO", candidate.provider_symbol
     assert_equal "ARCX", candidate.provider_exchange
@@ -41,7 +43,9 @@ class CorporateActionImports::Providers::YahooFinanceTest < ActiveSupport::TestC
     ).sole
 
     assert_equal "split", candidate.kind
+    refute_predicate candidate, :cash_action?
     assert_equal [ 2, 1 ], [ candidate.ratio_numerator, candidate.ratio_denominator ]
+    assert_equal "PETR4.SA:split:1787851200", candidate.source_reference
   end
 
   class FakeClient

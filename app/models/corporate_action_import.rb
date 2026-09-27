@@ -4,12 +4,17 @@ class CorporateActionImport < ApplicationRecord
   belongs_to :institution, optional: true
   belongs_to :corporate_action, optional: true
 
+  KINDS = {
+    dividend: "dividend", jcp: "jcp", split: "split",
+    reverse_split: "reverse_split", share_bonus: "share_bonus"
+  }.freeze
+  SUPPORTED_KINDS = KINDS.keys.map(&:to_s).freeze
+
+  enum :kind, KINDS, validate: { allow_nil: true }, scopes: false
   enum :status, {
     pending: "pending", ambiguous: "ambiguous", confirmed: "confirmed",
     ignored: "ignored", failed: "failed", conflict: "conflict"
   }, validate: true
-
-  SUPPORTED_KINDS = %w[dividend jcp split reverse_split share_bonus].freeze
 
   normalizes :source, with: ->(value) { value.to_s.strip.downcase }
   normalizes :source_reference, with: ->(value) { value.to_s.strip.presence }
@@ -21,7 +26,6 @@ class CorporateActionImport < ApplicationRecord
 
   validates :source, presence: true, length: { maximum: 64 }
   validates :source_reference, presence: true, uniqueness: { scope: %i[user_id source] }
-  validates :kind, inclusion: { in: SUPPORTED_KINDS }, allow_nil: true
   validates :currency, iso_currency: true, allow_nil: true
   validates :amount_per_share, numericality: { greater_than: 0 }, allow_nil: true
   validates :gross_amount_cents, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
@@ -33,6 +37,7 @@ class CorporateActionImport < ApplicationRecord
     numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validate :owner_matches_associations
   validate :confirmed_import_has_action
+  validate :jcp_requires_brl
 
   scope :reviewable, -> { where(status: %w[pending ambiguous conflict]) }
   scope :reverse_chronological, -> { order(event_on: :desc, created_at: :desc, id: :desc) }
@@ -41,12 +46,16 @@ class CorporateActionImport < ApplicationRecord
     SUPPORTED_KINDS
   end
 
+  def self.stock_split_kind?(value)
+    value.to_s.in?(%w[stock_split split])
+  end
+
   def cash_action?
-    %w[dividend jcp].include?(kind)
+    dividend? || jcp?
   end
 
   def quantity_action?
-    %w[split reverse_split share_bonus].include?(kind)
+    split? || reverse_split? || share_bonus?
   end
 
   def reviewable?
@@ -55,6 +64,7 @@ class CorporateActionImport < ApplicationRecord
 
   def ready_for_confirmation?
     return false unless (pending? || ambiguous?) && instrument && kind.present?
+    return false if ambiguous? && institution.blank?
 
     cash_action? ? paid_on.present? && gross_amount_cents.present? :
       event_on.present? && ratio_numerator.present? && ratio_denominator.present?
@@ -123,5 +133,12 @@ class CorporateActionImport < ApplicationRecord
     return unless confirmed? && corporate_action_id.blank?
 
     errors.add(:corporate_action, :required)
+  end
+
+  def jcp_requires_brl
+    return unless jcp?
+    return if instrument&.currency_brl? && (currency.blank? || currency_brl?)
+
+    errors.add(:kind, :jcp_requires_brl)
   end
 end

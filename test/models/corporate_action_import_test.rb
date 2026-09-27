@@ -42,6 +42,22 @@ class CorporateActionImportTest < ActiveSupport::TestCase
     assert_includes import.errors.full_messages, "Corporate action must exist for a confirmed import"
   end
 
+  test "provides enum and dynamic currency predicates" do
+    import = build_import
+
+    assert_predicate import, :split?
+    assert_predicate import, :currency_brl?
+    refute_predicate import, :currency_usd?
+    assert_predicate instruments(:voo_arcx), :currency_usd?
+  end
+
+  test "rejects JCP for a non-BRL instrument" do
+    import = build_import(instrument: instruments(:voo_arcx), currency: "USD", kind: "jcp")
+
+    assert_not import.valid?
+    assert_includes import.errors[:kind], "must use a BRL instrument"
+  end
+
   test "requires an action for confirmed status and validates association ownership" do
     import = build_import(institution: institutions(:other_owner), status: :pending)
 

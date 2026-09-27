@@ -8,7 +8,7 @@ class CorporateAction < ApplicationRecord
   belongs_to :user
   belongs_to :instrument
   belongs_to :institution, optional: true
-  has_one :corporate_action_import, dependent: :nullify
+  has_one :corporate_action_import
 
   enum :kind, {
     dividend: "dividend", jcp: "jcp", stock_split: "split",
@@ -77,6 +77,7 @@ class CorporateAction < ApplicationRecord
   validate :institution_belongs_to_user
 
   after_save :mark_performance_observations_stale, if: :performance_inputs_changed?
+  before_destroy :reopen_corporate_action_import
   after_destroy :mark_performance_observations_stale, if: :confirmed?
   after_commit :enqueue_performance_observation_rebuild, on: %i[create update destroy]
   after_save :capture_position_materialization_targets, if: :position_inputs_changed?
@@ -197,7 +198,7 @@ class CorporateAction < ApplicationRecord
   end
 
   def jcp_requires_brl
-    return unless jcp? && currency != "BRL"
+    return unless jcp? && !currency_brl?
 
     errors.add(:kind, :jcp_requires_brl)
   end
@@ -206,6 +207,14 @@ class CorporateAction < ApplicationRecord
     return if institution.blank? || user.blank? || institution.user == user
 
     errors.add(:institution, :wrong_owner)
+  end
+
+  def reopen_corporate_action_import
+    return unless corporate_action_import
+
+    corporate_action_import.update!(
+      corporate_action: nil, status: :pending, reviewed_at: nil, failure_message: nil
+    )
   end
 
   def performance_inputs_changed?

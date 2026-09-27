@@ -78,6 +78,37 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 8_500, action.net_amount_cents
   end
 
+  test "defaults blank withholding tax to zero" do
+    import = build_import(
+      source_reference: "dividend-no-tax", kind: "dividend", event_on: Date.new(2026, 8, 21),
+      ex_date: Date.new(2026, 8, 21), ratio_numerator: nil, ratio_denominator: nil,
+      amount_per_share: "0.25"
+    )
+
+    patch corporate_action_import_url(import), params: {
+      corporate_action_import: {
+        kind: "dividend", paid_on: "2026-08-25", ex_date: "2026-08-21",
+        gross_amount: "100", withholding_tax: ""
+      }
+    }
+
+    assert_redirected_to corporate_action_imports_url
+    assert_equal 0, import.reload.withholding_tax_cents
+  end
+
+  test "does not offer JCP for a USD instrument" do
+    import = build_import(
+      instrument: instruments(:voo_arcx), currency: "USD", kind: "dividend",
+      source_reference: "usd-dividend", event_on: Date.new(2026, 8, 21),
+      ex_date: Date.new(2026, 8, 21), ratio_numerator: nil, ratio_denominator: nil
+    )
+
+    get edit_corporate_action_import_url(import)
+
+    assert_response :success
+    assert_select "select[name='corporate_action_import[kind]'] option[value='jcp']", count: 0
+  end
+
   test "starts an explicit bounded scan and reports provider results" do
     result = CorporateActionImports::Scan::Result.new(
       Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0

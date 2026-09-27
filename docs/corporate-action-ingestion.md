@@ -36,8 +36,12 @@ Bulk confirmation runs one transaction per row. A failed dividend does not
 roll back a successful split, and the result reports confirmed, duplicate,
 failed, and skipped rows. Re-running a scan is idempotent: the owner/source/
 provider-reference key updates unresolved candidates without creating
-duplicates. A payload correction after confirmation becomes a conflict for
-explicit review instead of mutating the existing ledger event.
+duplicates. Reviewed accounting fields are preserved while a scan refreshes
+provider metadata. A payload correction after review becomes a conflict for
+explicit review; confirming the reviewed correction updates the existing
+authoritative event instead of creating a second event. If an authoritative
+event is deleted, its import is reopened as pending so the owner can confirm it
+again.
 
 ## Provider identity and matching
 
@@ -45,7 +49,8 @@ The Yahoo adapter uses the existing exchange-aware ticker and MIC mapping. It
 never creates an instrument from provider data. Scans only request events for
 instruments already traded by the owner; an institution is auto-selected only
 when exactly one institution is associated with that instrument. Multiple
-institutions remain a warning and the field is left unresolved.
+institutions mark an import ambiguous and block confirmation until the owner
+selects the institution in the review form.
 
 Yahoo chart events provide dividend/ex-date and split data, but not a reliable
 payment date, withholding tax, JCP classification, institution, or credited

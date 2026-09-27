@@ -18,7 +18,7 @@ module CorporateActionImports
         client.corporate_action_events(identifier: yahoo_identifier, from:, to:).map do |event|
           CorporateActionImports::Candidate.new(
             kind: event.kind.to_s,
-            source_reference: "#{yahoo_identifier.value}:#{event.kind}:#{event.source_reference}",
+            source_reference: "#{yahoo_identifier.value}:#{provider_event_kind(event)}:#{event.source_reference}",
             event_on: event.event_on,
             amount_per_share: event.amount,
             ratio_numerator: event.ratio_numerator,
@@ -27,7 +27,7 @@ module CorporateActionImports
             provider_symbol: yahoo_identifier.value,
             provider_exchange: instrument.exchange,
             raw_payload: event.raw_payload,
-            warnings: warnings_for(event.kind)
+            warnings: warnings_for(event)
           )
         end
       end
@@ -44,10 +44,14 @@ module CorporateActionImports
         )
       end
 
-      def warnings_for(kind)
-        return %w[payment_date_required gross_amount_requires_review] if kind == :dividend
+      def warnings_for(event)
+        return %w[payment_date_required gross_amount_requires_review] if event.dividend?
 
         []
+      end
+
+      def provider_event_kind(event)
+        event.dividend? ? "dividend" : "split"
       end
     end
   end

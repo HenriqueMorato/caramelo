@@ -122,7 +122,9 @@ module MarketData
       DailyClose = Data.define(:close_price, :currency, :trading_date, :observed_at)
       CorporateActionEvent = Data.define(
         :kind, :source_reference, :event_on, :amount, :ratio_numerator, :ratio_denominator, :raw_payload
-      )
+      ) do
+        def dividend? = kind.to_s == "dividend"
+      end
     end
   end
 end

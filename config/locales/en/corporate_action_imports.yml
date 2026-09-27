@@ -16,12 +16,15 @@ en:
       Ex-date: Ex-date
       Gross amount: Gross amount
       Heading: Review imported event
+      Institution: Institution
+      Institution help: Choose the institution that received or held this event.
       Introduction: Complete the accounting fields before confirming. Nothing changes
         your ledger while this row is under review.
       New units: New units
       Old units: Old units
       Page title: Review imported event · %{application}
       Payment date: Payment date
+      Select institution: Select an institution
       Withholding tax: Withholding tax
     errors:
       invalid_date: Enter a valid date range.

@@ -74,6 +74,29 @@ class CorporateActionImports::ConfirmationTest < ActiveSupport::TestCase
     assert_equal "confirmed", import.status
   end
 
+  test "reopens the review when its authoritative action is deleted" do
+    import = build_import
+    CorporateActionImports::Confirmation.call(import:)
+
+    import.corporate_action.destroy!
+
+    assert_equal "pending", import.reload.status
+    assert_nil import.corporate_action_id
+    assert_nil import.reviewed_at
+  end
+
+  test "recovers an orphaned confirmed import during confirmation" do
+    import = build_import
+    CorporateActionImports::Confirmation.call(import:)
+    import.update_columns(corporate_action_id: nil)
+
+    result = CorporateActionImports::Confirmation.call(import:)
+
+    assert_predicate result, :duplicate?
+    assert_equal "confirmed", import.reload.status
+    assert_not_nil import.corporate_action_id
+  end
+
   private
 
   def build_import(overrides = {})

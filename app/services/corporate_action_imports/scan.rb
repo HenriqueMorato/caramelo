@@ -47,7 +47,13 @@ module CorporateActionImports
     def strict = @strict
 
     def instruments
-      return [ instrument ] if instrument
+      if instrument
+        unless user.trades.where(instrument_id: instrument.id).exists?
+          raise ArgumentError, "instrument is not traded by this owner"
+        end
+
+        return [ instrument ]
+      end
 
       instrument_ids = user.trades.where(traded_on: ..to).distinct.pluck(:instrument_id)
       Instrument.where(id: instrument_ids).alphabetical.to_a
@@ -57,24 +63,48 @@ module CorporateActionImports
       source_reference = candidate.source_reference.to_s
       raise ArgumentError, "provider event reference is blank" if source_reference.empty?
 
-      import = user.corporate_action_imports.find_or_initialize_by(
-        source:, source_reference:
-      )
-      was_new = import.new_record?
+      import = user.corporate_action_imports.find_by(source:, source_reference:)
+      return persist_existing_import(import, current_instrument, candidate) if import
+
+      persist_new_import(current_instrument, candidate, source_reference)
+    end
+
+    def persist_existing_import(import, current_instrument, candidate)
+      import.with_lock do
+        persist_import(import, current_instrument, candidate, was_new: false)
+      end
+    end
+
+    def persist_new_import(current_instrument, candidate, source_reference)
+      import = user.corporate_action_imports.new(source:, source_reference:)
+      persist_import(import, current_instrument, candidate, was_new: true)
+    rescue ActiveRecord::RecordNotUnique
+      import = user.corporate_action_imports.find_by!(source:, source_reference:)
+      import.with_lock do
+        persist_import(import, current_instrument, candidate, was_new: false)
+      end
+    end
+
+    def persist_import(import, current_instrument, candidate, was_new:)
       previous_status = import.status
-      changed_after_confirmation = import.confirmed? && candidate_changed?(import, current_instrument, candidate)
-      preserve_review = import.confirmed? || import.ignored?
-      assign_candidate(import, current_instrument, candidate, preserve_review:)
-      if changed_after_confirmation
+      manually_reviewed = import.reviewed_at.present?
+      changed_after_review = (import.confirmed? || manually_reviewed) &&
+        candidate_changed?(import, current_instrument, candidate)
+      preserve_review = import.confirmed? || import.ignored? || manually_reviewed
+      institution_warning = assign_candidate(import, current_instrument, candidate, preserve_review:)
+      if changed_after_review
         import.status = :conflict
-        import.failure_message = "The provider payload changed after confirmation; review it explicitly."
+        import.failure_message = "The provider payload changed after review; review it explicitly."
       elsif previous_status == "confirmed" || previous_status == "ignored"
         import.status = previous_status
-      else
+      elsif preserve_review
         import.status = :pending
         import.failure_message = nil
+      else
+        import.status = institution_warning ? :ambiguous : :pending
+        import.failure_message = nil
       end
-      import.reviewed_at = nil unless import.confirmed? || import.ignored?
+      import.reviewed_at = nil if was_new
       import.save!
       [ import, was_new ]
     end
@@ -82,26 +112,27 @@ module CorporateActionImports
     def assign_candidate(import, current_instrument, candidate, preserve_review: false)
       institution, institution_warning = institution_match_for(current_instrument)
       import.instrument = current_instrument
-      import.institution = institution
+      import.institution = institution unless preserve_review
       import.source = source
       import.provider_symbol = candidate.provider_symbol
       import.provider_exchange = candidate.provider_exchange
-      import.kind = candidate.kind
-      import.event_on = candidate.event_on
-      import.ex_date = candidate.kind.to_s.in?(%w[dividend jcp]) ? candidate.event_on : nil
-      import.paid_on = nil unless preserve_review
       import.amount_per_share = candidate.amount_per_share&.to_s("F")
       unless preserve_review
+        import.kind = candidate.kind
+        import.event_on = candidate.event_on
+        import.ex_date = candidate.cash_action? ? candidate.event_on : nil
+        import.paid_on = nil
         import.gross_amount_cents = nil
         import.withholding_tax_cents = nil
         import.net_amount_cents = nil
+        import.ratio_numerator = candidate.ratio_numerator
+        import.ratio_denominator = candidate.ratio_denominator
       end
       import.currency = candidate.currency
-      import.ratio_numerator = candidate.ratio_numerator
-      import.ratio_denominator = candidate.ratio_denominator
       import.normalized_candidate = normalized_candidate(candidate)
       import.raw_payload_hash = candidate.raw_payload
       import.warning_list = candidate.warnings + [ institution_warning ].compact
+      institution_warning
     end
 
     def normalized_candidate(candidate)
@@ -133,7 +164,18 @@ module CorporateActionImports
     end
 
     def canonical_json(value)
-      JSON.generate(value)
+      JSON.generate(canonicalize(value))
+    end
+
+    def canonicalize(value)
+      case value
+      when Hash
+        value.keys.sort_by(&:to_s).to_h { |key| [ key, canonicalize(value[key]) ] }
+      when Array
+        value.map { |entry| canonicalize(entry) }
+      else
+        value
+      end
     end
 
     def default_provider

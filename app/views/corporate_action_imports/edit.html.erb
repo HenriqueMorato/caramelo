@@ -12,13 +12,32 @@
 
   <div class="rounded-2xl border border-coffee/10 bg-paper p-5 shadow-sm sm:p-6">
     <p class="text-sm text-muted"><%= @import.source %> · <%= @import.source_reference %></p>
-    <% currency_subunit = @import.currency ? Money::Currency.find(@import.currency).subunit_to_unit : 100 %>
+    <%
+      currency_subunit = @import.currency ? Money::Currency.find(@import.currency).subunit_to_unit : 100
+      kind_options = if @import.cash_action?
+        %w[dividend jcp]
+      elsif @import.quantity_action?
+        %w[split reverse_split share_bonus]
+      else
+        CorporateActionImport.kinds.keys
+      end
+      kind_options -= [ "jcp" ] unless @import.instrument&.currency_brl?
+    %>
     <%= form_with model: @import, url: corporate_action_import_path(@import), method: :patch, class: "mt-6 space-y-6" do |form| %>
       <% if flash[:alert] %><div class="ui-form-errors" role="alert"><%= flash[:alert] %></div><% end %>
       <div>
         <%= form.label :kind, t("corporate_action_imports.edit.Event type"), class: "block text-sm font-semibold text-coffee" %>
-        <%= form.select :kind, CorporateActionImport::SUPPORTED_KINDS.map { |kind| [t("corporate_actions.kinds.#{kind}"), kind] }, {}, class: "ui-field" %>
+        <%= form.select :kind, kind_options.map { |kind| [t("corporate_actions.kinds.#{kind}"), kind] }, {}, class: "ui-field" %>
       </div>
+      <% if @institutions.size > 1 || @import.warning_list.include?("multiple_institutions") %>
+        <div>
+          <%= form.label :institution_id, t("corporate_action_imports.edit.Institution"), class: "block text-sm font-semibold text-coffee" %>
+          <%= form.select :institution_id, options_from_collection_for_select(@institutions, :id, :name, @import.institution_id), { include_blank: t("corporate_action_imports.edit.Select institution") }, class: "ui-field", required: true %>
+          <p class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Institution help") %></p>
+        </div>
+      <% elsif @import.institution %>
+        <%= form.hidden_field :institution_id, value: @import.institution_id %>
+      <% end %>
       <% if @import.cash_action? %>
         <div class="grid gap-6 sm:grid-cols-2">
           <div><%= form.label :paid_on, t("corporate_action_imports.edit.Payment date"), class: "block text-sm font-semibold text-coffee" %><%= form.date_field :paid_on, class: "ui-field", required: true %></div>

@@ -78,6 +78,8 @@ en:
               required: must exist for a confirmed import
             institution:
               wrong_owner: must belong to the import owner
+            kind:
+              jcp_requires_brl: must use a BRL instrument
         historical_data_backfill:
           attributes:
             currency:

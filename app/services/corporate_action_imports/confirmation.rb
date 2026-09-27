@@ -3,7 +3,8 @@ module CorporateActionImports
     Result = Data.define(:status, :import, :corporate_action, :error) do
       def confirmed? = status == :confirmed
       def duplicate? = status == :duplicate
-      def skipped? = %i[ignored conflict].include?(status)
+      def ambiguous? = status == :ambiguous
+      def skipped? = %i[ignored conflict ambiguous].include?(status)
       def failed? = status == :failed
     end
 
@@ -19,9 +20,16 @@ module CorporateActionImports
     def call
       import.with_lock do
         import.reload
+        import.association(:corporate_action).reset
+        if import.confirmed? && import.corporate_action_id.blank?
+          import.update!(status: :pending, reviewed_at: nil, failure_message: nil)
+        end
         return result(:duplicate, corporate_action: import.corporate_action) if import.confirmed?
         return result(:ignored) if import.ignored?
         return result(:conflict, error: import.failure_message) if import.conflict?
+        if import.ambiguous? && import.institution.blank?
+          return result(:ambiguous, error: "An institution must be selected before confirmation.")
+        end
 
         action = nil
         CorporateAction.transaction do
@@ -38,11 +46,11 @@ module CorporateActionImports
       handle_duplicate(error)
     rescue ActiveRecord::RecordInvalid => error
       duplicate = existing_action
-      return link_duplicate!(duplicate) if duplicate
+      return link_duplicate!(duplicate) if duplicate && import.corporate_action_id.blank? && !import.conflict?
 
       mark_failed!(error.record.errors.full_messages.to_sentence)
       result(:failed, error: error.record.errors.full_messages.to_sentence)
-    rescue ArgumentError, TypeError => error
+    rescue ArgumentError, TypeError, FloatDomainError => error
       mark_failed!(error.message)
       result(:failed, error: error.message)
     end
@@ -52,7 +60,10 @@ module CorporateActionImports
     attr_reader :import, :attributes
 
     def build_action
-      action = CorporateAction.new(
+      action = import.corporate_action if import.corporate_action_id.present?
+      action ||= existing_action if import.conflict?
+      action ||= CorporateAction.new
+      action.assign_attributes(
         user: import.user, instrument: import.instrument, institution: import.institution,
         kind: corporate_action_kind, status: :confirmed,
         source: import.source, source_reference: import.source_reference,
@@ -67,8 +78,10 @@ module CorporateActionImports
     end
 
     def corporate_action_kind
-      import_kind = attributes.fetch(:kind, import.kind).to_s
-      import_kind == "split" ? :stock_split : import_kind
+      kind = attributes.fetch(:kind, import.kind).to_s
+      return :stock_split if CorporateActionImport.stock_split_kind?(kind)
+
+      kind
     end
 
     def assign_cash_fields(action)
@@ -106,9 +119,9 @@ module CorporateActionImports
 
     def cents_value(cents_key, amount_key, fallback, currency)
       value = if attributes.key?(cents_key)
-        attributes[cents_key]
+        attributes[cents_key].presence || fallback
       elsif attributes.key?(amount_key)
-        amount_to_cents(attributes[amount_key], currency)
+        attributes[amount_key].blank? ? fallback : amount_to_cents(attributes[amount_key], currency)
       else
         fallback
       end
@@ -121,6 +134,8 @@ module CorporateActionImports
       raise ArgumentError, "currency is required" if currency.blank?
 
       decimal = BigDecimal(value.to_s)
+      raise ArgumentError, "amount is invalid" unless decimal.finite?
+
       subunit = Money::Currency.find(currency).subunit_to_unit
       (decimal * subunit).round(0).to_i
     end

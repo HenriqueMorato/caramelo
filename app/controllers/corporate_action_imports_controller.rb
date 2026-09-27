@@ -69,6 +69,14 @@ class CorporateActionImportsController < ApplicationController
 
   def set_form_options
     @instruments = Instrument.where(id: owner.trades.select(:instrument_id)).alphabetical.to_a
+    @institutions = if @import&.instrument
+      owner.institutions.where(
+        id: owner.trades.where(instrument: @import.instrument).where.not(institution_id: nil)
+          .select(:institution_id)
+      ).order(:name).to_a
+    else
+      []
+    end
   end
 
   def imports_scope
@@ -123,7 +131,7 @@ class CorporateActionImportsController < ApplicationController
     params.fetch(:corporate_action_import, {}).permit(
       :kind, :paid_on, :ex_date, :gross_amount, :gross_amount_cents,
       :withholding_tax, :withholding_tax_cents, :effective_on,
-      :ratio_numerator, :ratio_denominator
+      :ratio_numerator, :ratio_denominator, :institution_id
     ).to_h.symbolize_keys
   end
 
@@ -144,6 +152,8 @@ class CorporateActionImportsController < ApplicationController
       { notice: t("corporate_action_imports.notices.confirmed") }
     elsif result.duplicate?
       { notice: t("corporate_action_imports.notices.duplicate") }
+    elsif result.ambiguous?
+      { alert: result.error || t("corporate_action_imports.notices.not_confirmed") }
     else
       { alert: result.error || t("corporate_action_imports.notices.not_confirmed") }
     end
@@ -153,7 +163,8 @@ class CorporateActionImportsController < ApplicationController
     t(
       "corporate_action_imports.notices.bulk_complete",
       confirmed: summary.fetch(:confirmed, 0), duplicate: summary.fetch(:duplicate, 0),
-      failed: summary.fetch(:failed, 0), skipped: summary.fetch(:ignored, 0) + summary.fetch(:conflict, 0)
+      failed: summary.fetch(:failed, 0), skipped: summary.fetch(:ignored, 0) +
+        summary.fetch(:conflict, 0) + summary.fetch(:ambiguous, 0)
     )
   end
 end

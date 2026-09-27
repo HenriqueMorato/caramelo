@@ -16,13 +16,13 @@ module CorporateActionImports
         return Result.new(import, false, "Confirmed imports cannot be edited.") if import.confirmed?
 
         assign_attributes
-        import.status = :pending
+        import.status = ambiguous_institution? ? :ambiguous : :pending
         import.failure_message = nil
-        import.reviewed_at = nil
+        import.reviewed_at = Time.current
         import.save!
       end
       Result.new(import, true, nil)
-    rescue ActiveRecord::RecordInvalid, ArgumentError, TypeError => error
+    rescue ActiveRecord::RecordInvalid, ArgumentError, TypeError, FloatDomainError => error
       Result.new(import, false, error_message(error))
     end
 
@@ -34,14 +34,15 @@ module CorporateActionImports
       kind = attributes[:kind].presence || import.kind
       raise ArgumentError, "event type is required" if kind.blank?
 
-      kind = "split" if kind.to_s == "stock_split"
+      kind = "split" if CorporateActionImport.stock_split_kind?(kind)
       import.kind = kind
-      if kind.to_s.in?(%w[dividend jcp])
+      assign_institution if attributes.key?(:institution_id)
+      if import.cash_action?
         import.paid_on = date_value(:paid_on, import.paid_on)
         import.ex_date = date_value(:ex_date, import.ex_date)
         import.gross_amount_cents = amount_cents(:gross_amount, :gross_amount_cents, import.gross_amount_cents)
         import.withholding_tax_cents = amount_cents(
-          :withholding_tax, :withholding_tax_cents, import.withholding_tax_cents || 0
+          :withholding_tax, :withholding_tax_cents, import.withholding_tax_cents || 0, blank_fallback: true
         )
         import.net_amount_cents = import.gross_amount_cents &&
           import.gross_amount_cents - import.withholding_tax_cents
@@ -55,6 +56,18 @@ module CorporateActionImports
         import.withholding_tax_cents = nil
         import.net_amount_cents = nil
       end
+    end
+
+    def assign_institution
+      institution_id = attributes[:institution_id].presence
+      return import.institution = nil if institution_id.blank?
+
+      import.institution = import.user.institutions.find_by(id: institution_id)
+      raise ArgumentError, "institution is not available for this owner" unless import.institution
+    end
+
+    def ambiguous_institution?
+      import.institution.blank? && import.warning_list.include?("multiple_institutions")
     end
 
     def date_value(key, fallback)
@@ -72,22 +85,34 @@ module CorporateActionImports
       Integer(value)
     end
 
-    def amount_cents(amount_key, cents_key, fallback)
+    def amount_cents(amount_key, cents_key, fallback, blank_fallback: false)
       value = if attributes.key?(cents_key)
-        attributes[cents_key]
+        attributes[cents_key].presence || (blank_fallback ? fallback : nil)
       elsif attributes.key?(amount_key)
-        amount = BigDecimal(attributes[amount_key].to_s)
-        currency = import.currency || import.instrument&.currency
-        raise ArgumentError, "currency is required" if currency.blank?
+        raw_amount = attributes[amount_key]
+        if raw_amount.blank?
+          blank_fallback ? fallback : nil
+        else
+          amount = decimal_value(raw_amount)
+          currency = import.currency || import.instrument&.currency
+          raise ArgumentError, "currency is required" if currency.blank?
 
-        subunit = Money::Currency.find(currency).subunit_to_unit
-        (amount * subunit).round(0).to_i
+          subunit = Money::Currency.find(currency).subunit_to_unit
+          (amount * subunit).round(0).to_i
+        end
       else
         fallback
       end
       return if value.blank?
 
       Integer(value)
+    end
+
+    def decimal_value(value)
+      decimal = BigDecimal(value.to_s)
+      raise ArgumentError, "amount is invalid" unless decimal.finite?
+
+      decimal
     end
 
     def error_message(error)

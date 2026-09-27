@@ -10,9 +10,18 @@ class ScanCorporateActionImportsJob < ApplicationJob
 
   def perform(user_id:, from:, to:, source: "yahoo_finance", instrument_id: nil)
     user = User.find(user_id)
-    instrument = Instrument.find_by(id: instrument_id) if instrument_id
+    instrument = traded_instrument_for(user, instrument_id) if instrument_id
     CorporateActionImports::Scan.call(
       user:, from: Date.iso8601(from.to_s), to: Date.iso8601(to.to_s), source:, instrument:, strict: true
     )
+  end
+
+  private
+
+  def traded_instrument_for(user, instrument_id)
+    trade = user.trades.includes(:instrument).find_by(instrument_id: instrument_id)
+    raise ActiveRecord::RecordNotFound, "instrument is not traded by this owner" unless trade
+
+    trade.instrument
   end
 end
