@@ -368,6 +368,8 @@ Run the focused request checks with:
 bin/rails test test/controllers/positions_controller_test.rb test/controllers/instruments_controller_test.rb test/controllers/trades_controller_test.rb
 ```
 
+### Coverage
+
 Every Rails test run generates line and branch coverage for Ruby files under
 `app/` and `lib/`. Reports are local, ignored by Git, and available at
 `coverage/index.html`. Configuration, migrations, tests, generated assets, and

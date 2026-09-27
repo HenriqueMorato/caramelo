@@ -116,12 +116,27 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Clean coverage data
+        run: bin/simplecov clean --quiet
+
       - name: Run tests
         env:
           RAILS_ENV: test
+          COVERAGE_RESULTSET_ONLY: "1"
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test
+
+      - name: Upload Rails coverage
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage/.resultset.json
+          format: simplecov
+          flag-name: rails-tests
+          parallel: true
+          build-number: ${{ github.run_id }}
+          fail-on-error: false
 
   system-test:
     runs-on: ubuntu-latest
@@ -144,12 +159,27 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Clean coverage data
+        run: bin/simplecov clean --quiet
+
       - name: Run System Tests
         env:
           RAILS_ENV: test
+          COVERAGE_RESULTSET_ONLY: "1"
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test:system
+
+      - name: Upload system coverage
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage/.resultset.json
+          format: simplecov
+          flag-name: system-tests
+          parallel: true
+          build-number: ${{ github.run_id }}
+          fail-on-error: false
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v7
@@ -158,3 +188,19 @@ jobs:
           name: screenshots
           path: ${{ github.workspace }}/tmp/screenshots
           if-no-files-found: ignore
+
+  coverage:
+    if: ${{ always() }}
+    needs:
+      - test
+      - system-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Finish Coveralls parallel build
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
+          build-number: ${{ github.run_id }}
+          fail-on-error: false

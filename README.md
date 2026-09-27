@@ -2,13 +2,28 @@
   <img src="app/assets/images/caramelo-logo.svg" alt="caramelo" width="112">
 </p>
 
-# caramelo
+<h1 align="center">caramelo</h1>
 
-Your investments, without sending your portfolio somewhere else.
+<p align="center">
+  Your investments, without sending your portfolio somewhere else.
+</p>
 
-`caramelo` is a local-first portfolio tracker for one owner. Record trades,
-follow positions, compare native and reporting-currency values, and explore
-historical performance while keeping the primary ledger on your own machine.
+<p align="center">
+  <a href="https://github.com/HenriqueMorato/caramelo/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/HenriqueMorato/caramelo/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI status on main"></a>
+  <a href="https://coveralls.io/github/HenriqueMorato/caramelo?branch=main"><img src="https://coveralls.io/repos/github/HenriqueMorato/caramelo/badge.svg?branch=main" alt="Coverage on main"></a>
+  <a href="#quick-start"><img src="https://img.shields.io/badge/docker%20compose-ready-2496ed?logo=docker&logoColor=white" alt="Docker Compose ready"></a>
+  <a href="https://ko-fi.com/henriquemorato"><img src="https://img.shields.io/badge/support-Ko--fi-ff5e5b?logo=ko-fi&logoColor=white" alt="Support caramelo on Ko-fi"></a>
+</p>
+
+<p align="center">
+  A local-first portfolio tracker for one owner. Record trades, follow
+  positions, compare currencies, and explore historical performance while
+  keeping the primary ledger on your own machine.
+</p>
+
+<p align="center">
+  <img src="docs/images/caramelo-dashboard-themes.png" alt="caramelo portfolio dashboard shown in dark and light themes side by side with a vertical divider" width="960">
+</p>
 
 ## What You Can Do
 
@@ -22,7 +37,9 @@ historical performance while keeping the primary ledger on your own machine.
 - Create verified local backups and export the trade ledger as CSV.
 - Switch between light, dark, and system appearance.
 
-## Run caramelo with Docker
+## Quick Start
+
+The Docker setup is the easiest way to try caramelo.
 
 You need [Docker Desktop](https://www.docker.com/products/docker-desktop/),
 [OrbStack](https://orbstack.dev/), or another Docker-compatible runtime with
