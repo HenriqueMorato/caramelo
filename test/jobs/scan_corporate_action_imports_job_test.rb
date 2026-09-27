@@ -33,4 +33,21 @@ class ScanCorporateActionImportsJobTest < ActiveJob::TestCase
       )
     end
   end
+
+  test "scans all traded instruments when no target is supplied" do
+    result = Object.new
+    received = nil
+    original = CorporateActionImports::Scan.method(:call)
+    CorporateActionImports::Scan.define_singleton_method(:call) do |**arguments|
+      received = arguments
+      result
+    end
+
+    assert_same result, ScanCorporateActionImportsJob.perform_now(
+      user_id: users(:owner).id, from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance"
+    )
+    assert_nil received.fetch(:instrument)
+  ensure
+    CorporateActionImports::Scan.define_singleton_method(:call, original)
+  end
 end

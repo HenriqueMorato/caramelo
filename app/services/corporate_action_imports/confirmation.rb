@@ -61,7 +61,6 @@ module CorporateActionImports
 
     def build_action
       action = import.corporate_action if import.corporate_action_id.present?
-      action ||= existing_action if import.conflict?
       action ||= CorporateAction.new
       action.assign_attributes(
         user: import.user, instrument: import.instrument, institution: import.institution,

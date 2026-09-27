@@ -34,6 +34,68 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     assert_equal [ [ @instrument, Date.new(2026, 8, 1), Date.new(2026, 8, 31) ] ], provider.requests
   end
 
+  test "collects provider errors unless strict mode is requested" do
+    provider = ErrorProvider.new
+    result = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider:
+    )
+    assert_equal 1, result.error_count
+    assert_empty result.imports
+
+    assert_raises(StandardError) do
+      CorporateActionImports::Scan.call(
+        user: users(:owner), instrument: @instrument,
+        from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider:, strict: true
+      )
+    end
+  end
+
+  test "scans all traded instruments when no instrument is selected" do
+    provider = EmptyProvider.new
+
+    result = CorporateActionImports::Scan.call(
+      user: users(:owner), from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider:
+    )
+
+    assert_empty result.imports
+    assert_equal 2, provider.requests.size
+    assert_equal [ "PETR4", "VOO" ], provider.requests.map(&:ticker).sort
+  end
+
+  test "rejects an instrument that is not traded by the owner" do
+    untraded = Instrument.create!(ticker: "UNTR", exchange: "BVMF", name: "Untraded", currency: "BRL")
+
+    assert_raises(ArgumentError) do
+      CorporateActionImports::Scan.call(
+        user: users(:owner), instrument: untraded,
+        from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: EmptyProvider.new
+      )
+    end
+  end
+
+  test "reports blank provider references and invalid ranges" do
+    blank_reference = @candidate.with(source_reference: nil)
+    result = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(blank_reference)
+    )
+    assert_equal 1, result.error_count
+
+    assert_raises(ArgumentError) do
+      CorporateActionImports::Scan.call(
+        user: users(:owner), instrument: @instrument, source: "manual",
+        from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: EmptyProvider.new
+      )
+    end
+    assert_raises(ArgumentError) do
+      CorporateActionImports::Scan.call(
+        user: users(:owner), instrument: @instrument,
+        from: Date.current + 1.day, to: Date.current + 2.days, provider: EmptyProvider.new
+      )
+    end
+  end
+
   test "rerunning a scan updates unresolved payloads without creating duplicates" do
     provider = FakeProvider.new(@candidate)
     first = CorporateActionImports::Scan.call(
@@ -190,6 +252,67 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     assert_equal 1, CorporateAction.where(source_reference: conflict.source_reference).count
   end
 
+  test "coalesces a concurrent create after the unique constraint wins" do
+    existing = build_import
+    existing.save!
+    scan = CorporateActionImports::Scan.new(
+      user: users(:owner), from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31),
+      source: "yahoo_finance", instrument: @instrument, provider: EmptyProvider.new, strict: false
+    )
+    calls = 0
+    original_persist_import = scan.method(:persist_import)
+    scan.define_singleton_method(:persist_import, lambda { |import, _instrument, _candidate, was_new:|
+      calls += 1
+      raise ActiveRecord::RecordNotUnique if calls == 1
+
+      [ import, was_new ]
+    })
+    result = scan.send(:persist_new_import, @instrument, @candidate, @candidate.source_reference)
+
+    assert_equal [ existing, false ], result
+  ensure
+    scan.define_singleton_method(:persist_import, original_persist_import) if scan && original_persist_import
+  end
+
+  test "canonicalizes nested payloads and exposes the default provider" do
+    scan = CorporateActionImports::Scan.new(
+      user: users(:owner), from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31),
+      source: "yahoo_finance", instrument: @instrument, provider: EmptyProvider.new, strict: false
+    )
+    assert_equal '{"a":[{"a":2,"z":1},"x"],"b":null}', scan.send(
+      :canonical_json, { "b" => nil, "a" => [ { "z" => 1, "a" => 2 }, "x" ] }
+    )
+    assert_instance_of CorporateActionImports::Providers::YahooFinance, scan.send(:default_provider)
+  end
+
+  test "leaves institution unresolved when no trade institution exists" do
+    instrument = Instrument.create!(ticker: "NOI", exchange: "BVMF", name: "No institution", currency: "BRL")
+    Trade.create!(
+      user: users(:owner), instrument:, institution: nil, side: :buy, traded_on: Date.new(2026, 8, 1),
+      quantity: 1, unit_price: 10, fees_cents: 0, currency: "BRL"
+    )
+    candidate = @candidate.with(source_reference: "NOI:split:1")
+
+    import = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument:, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31),
+      provider: FakeProvider.new(candidate)
+    ).imports.sole
+
+    assert_equal "pending", import.status
+    assert_nil import.institution
+    assert_empty import.warning_list
+  end
+
+  test "preserves a missing candidate date in normalized data" do
+    candidate = @candidate.with(source_reference: "missing-date", event_on: nil)
+    import = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(candidate)
+    ).imports.sole
+
+    assert_nil import.normalized_candidate.fetch("event_on")
+  end
+
   class FakeProvider
     attr_accessor :candidate
     attr_reader :requests
@@ -202,6 +325,25 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     def fetch(instrument:, from:, to:)
       requests << [ instrument, from, to ]
       [ candidate ]
+    end
+  end
+
+  class EmptyProvider
+    attr_reader :requests
+
+    def initialize
+      @requests = []
+    end
+
+    def fetch(instrument:, from:, to:)
+      requests << instrument
+      []
+    end
+  end
+
+  class ErrorProvider
+    def fetch(**)
+      raise StandardError, "provider down"
     end
   end
 

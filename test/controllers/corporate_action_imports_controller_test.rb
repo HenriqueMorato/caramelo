@@ -131,6 +131,130 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     CorporateActionImports::Scan.define_singleton_method(:call, original)
   end
 
+  test "reports provider scan errors in the flash" do
+    result = CorporateActionImports::Scan::Result.new(
+      Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [],
+      [ { instrument: instruments(:petr4_bvmf), error: StandardError.new("provider down") } ], 0
+    )
+    original = CorporateActionImports::Scan.method(:call)
+    CorporateActionImports::Scan.define_singleton_method(:call) { |**| result }
+
+    post corporate_action_imports_url, params: {
+      scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance" }
+    }
+
+    assert_redirected_to corporate_action_imports_url
+    assert_match(/Skipped 1 instrument scan/, flash[:notice])
+  ensure
+    CorporateActionImports::Scan.define_singleton_method(:call, original)
+  end
+
+  test "redirects invalid scan dates with an alert" do
+    post corporate_action_imports_url, params: {
+      scan: { from: "not-a-date", to: "2026-08-31", source: "yahoo_finance" }
+    }
+
+    assert_redirected_to corporate_action_imports_url
+    assert_equal "Enter a valid date range.", flash[:alert]
+  end
+
+  test "renders the edit form when review validation fails" do
+    import = build_import(source_reference: "review-failure", instrument: instruments(:voo_arcx), currency: "USD")
+    patch corporate_action_import_url(import), params: {
+      corporate_action_import: { kind: "jcp" }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "div[role=alert]", text: /BRL instrument/
+  end
+
+  test "ignores one imported event" do
+    import = build_import(source_reference: "ignore-controller")
+
+    post ignore_corporate_action_import_url(import)
+
+    assert_redirected_to corporate_action_imports_url
+    assert_equal "ignored", import.reload.status
+    assert_match(/ignored/i, flash[:notice])
+  end
+
+  test "bulk ignores selected imported events" do
+    first = build_import(source_reference: "bulk-ignore-one")
+    second = build_import(source_reference: "bulk-ignore-two")
+
+    post bulk_ignore_corporate_action_imports_url, params: { import_ids: [ first.id, second.id ] }
+
+    assert_redirected_to corporate_action_imports_url
+    assert_equal [ "ignored", "ignored" ], [ first.reload.status, second.reload.status ]
+    assert_match(/Ignored 2/, flash[:notice])
+  end
+
+  test "supports all and specific status filters" do
+    pending = build_import(source_reference: "status-pending")
+    failed = build_import(source_reference: "status-failed", status: :failed, failure_message: "bad payload")
+
+    get corporate_action_imports_url(status: "all")
+    assert_response :success
+    assert_select "tr##{dom_id(pending)}", count: 1
+    assert_select "tr##{dom_id(failed)}", count: 1
+
+    get corporate_action_imports_url(status: "failed")
+    assert_response :success
+    assert_select "tr##{dom_id(failed)}", count: 1
+    assert_select "tr##{dom_id(pending)}", count: 0
+  end
+
+  test "passes a valid scan instrument and ignores an unknown target" do
+    result = CorporateActionImports::Scan::Result.new(
+      Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0
+    )
+    original = CorporateActionImports::Scan.method(:call)
+    received = []
+    CorporateActionImports::Scan.define_singleton_method(:call) do |**arguments|
+      received << arguments
+      result
+    end
+
+    post corporate_action_imports_url, params: {
+      scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", instrument_id: instruments(:voo_arcx).id }
+    }
+    post corporate_action_imports_url, params: {
+      scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", instrument_id: "999999" }
+    }
+
+    assert_equal instruments(:voo_arcx), received.first.fetch(:instrument)
+    assert_nil received.second.fetch(:instrument)
+  ensure
+    CorporateActionImports::Scan.define_singleton_method(:call, original)
+  end
+
+  test "normalizes invalid dates in the history filter" do
+    get corporate_action_imports_url(from: "not-a-date", to: "2026-08-31")
+
+    assert_response :success
+    assert_select "h1", "Review imported events"
+    controller = CorporateActionImportsController.new
+    assert_equal Date.current, controller.send(:parse_date, Date.current)
+  end
+
+  test "shows duplicate, ambiguous, and failed confirmation feedback" do
+    split = build_import(source_reference: "flash-duplicate")
+    post confirm_corporate_action_import_url(split)
+    post confirm_corporate_action_import_url(split)
+    assert_match(/already confirmed/i, flash[:notice])
+
+    ambiguous = build_import(source_reference: "flash-ambiguous", status: :ambiguous, institution: nil)
+    post confirm_corporate_action_import_url(ambiguous)
+    assert_match(/institution must be selected/i, flash[:alert])
+
+    failed = build_import(
+      source_reference: "flash-failed", kind: "dividend", event_on: Date.new(2026, 8, 20),
+      ex_date: Date.new(2026, 8, 20), ratio_numerator: nil, ratio_denominator: nil
+    )
+    post confirm_corporate_action_import_url(failed)
+    assert_match(/Paid on|Gross amount/i, flash[:alert])
+  end
+
   private
 
   def build_import(overrides = {})

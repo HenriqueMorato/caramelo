@@ -51,11 +51,70 @@ class CorporateActionImportTest < ActiveSupport::TestCase
     assert_predicate instruments(:voo_arcx), :currency_usd?
   end
 
+  test "exposes the supported kind list and quantity predicates" do
+    assert_equal %w[dividend jcp split reverse_split share_bonus], CorporateActionImport.kinds_for_select
+
+    reverse = build_import(kind: "reverse_split", ratio_numerator: 1, ratio_denominator: 2)
+    assert_predicate reverse, :quantity_action?
+    assert_predicate reverse, :reverse_split?
+    refute_predicate reverse, :cash_action?
+  end
+
+  test "requires complete fields only for a pending import" do
+    complete = build_import
+    assert_predicate complete, :ready_for_confirmation?
+    refute_predicate build_import(status: :confirmed), :ready_for_confirmation?
+    refute_predicate build_import(instrument: nil), :ready_for_confirmation?
+    refute_predicate build_import(status: :ambiguous, institution: nil), :ready_for_confirmation?
+    refute_predicate build_import(ratio_numerator: nil), :ready_for_confirmation?
+  end
+
+  test "marks an import reviewed and tolerates malformed stored JSON" do
+    import = build_import
+    import.save!
+    import.mark_reviewed!(status: :pending)
+
+    assert_not_nil import.reload.reviewed_at
+    import.update_columns(normalized_data: "not-json", warnings: "{}")
+    assert_equal({}, import.normalized_candidate)
+    assert_equal([], import.warning_list)
+
+    import.update_columns(normalized_data: "", warnings: "")
+    assert_equal({}, import.normalized_candidate)
+    assert_equal([], import.warning_list)
+  end
+
+  test "allows a BRL JCP and handles an import without an owner" do
+    jcp = build_import(kind: "jcp", currency: nil)
+    assert_predicate jcp, :valid?
+
+    ownerless = build_import(user: nil)
+    ownerless.valid?
+    assert_empty ownerless.errors.details[:institution]
+  end
+
+  test "rejects associations belonging to another owner or instrument" do
+    action = CorporateAction.new(
+      user: users(:one), instrument: instruments(:voo_arcx), kind: :stock_split,
+      status: :confirmed, effective_on: Date.new(2026, 8, 20), ratio_numerator: 2,
+      ratio_denominator: 1, source: "manual", source_reference: "wrong-import-action"
+    )
+    import = build_import(corporate_action: action)
+
+    assert_not import.valid?
+    codes = import.errors.details[:corporate_action].map { |error| error[:error] }
+    assert_includes codes, :wrong_owner
+    assert_includes codes, :instrument_mismatch
+  end
+
   test "rejects JCP for a non-BRL instrument" do
     import = build_import(instrument: instruments(:voo_arcx), currency: "USD", kind: "jcp")
+    mismatched_currency = build_import(currency: "USD", kind: "jcp")
 
     assert_not import.valid?
     assert_includes import.errors[:kind], "must use a BRL instrument"
+    assert_not mismatched_currency.valid?
+    assert_not build_import(instrument: nil, currency: "BRL", kind: "jcp").valid?
   end
 
   test "requires an action for confirmed status and validates association ownership" do

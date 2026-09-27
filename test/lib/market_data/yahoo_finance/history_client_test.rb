@@ -50,6 +50,118 @@ class MarketData::YahooFinance::HistoryClientTest < ActiveSupport::TestCase
     )
   end
 
+  test "rejects malformed corporate-action event containers and payloads" do
+    malformed_events = default_result.merge(events: [])
+    malformed_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: malformed_events))
+    )
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      malformed_client.corporate_action_events(identifier:, from: Date.current - 1.day, to: Date.current)
+    end
+
+    malformed_payload = default_result.merge(events: { dividends: { "1" => "bad" } })
+    payload_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: malformed_payload))
+    )
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      payload_client.corporate_action_events(identifier:, from: Date.current - 1.day, to: Date.current)
+    end
+
+    malformed_dividends = default_result.merge(events: { dividends: [] })
+    dividends_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: malformed_dividends))
+    )
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      dividends_client.corporate_action_events(identifier:, from: Date.current - 1.day, to: Date.current)
+    end
+  end
+
+  test "skips events outside the requested date range" do
+    result = default_result.merge(events: {
+      dividends: { "1787851200" => { "amount" => "0.25", "date" => 1787851200 } }
+    })
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_empty client.corporate_action_events(
+      identifier:, from: Date.new(2026, 9, 1), to: Date.new(2026, 9, 30)
+    )
+  end
+
+  test "rejects invalid event dates and amounts" do
+    invalid_date = default_result.merge(events: {
+      dividends: { "bad" => { "amount" => "0.25", "date" => "bad" } }
+    })
+    date_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: invalid_date))
+    )
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      date_client.corporate_action_events(identifier:, from: Date.current - 1.day, to: Date.current)
+    end
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      date_client.send(:normalize_event_amount, 0.25)
+    end
+
+    invalid_amount = default_result.merge(events: {
+      dividends: { "1787851200" => { "amount" => "not-a-number", "date" => 1787851200 } }
+    })
+    amount_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: invalid_amount))
+    )
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      amount_client.corporate_action_events(identifier:, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31))
+    end
+  end
+
+  test "rejects invalid event split ratios" do
+    result = default_result.merge(events: {
+      splits: { "1787851200" => { "splitRatio" => "0:1", "date" => 1787851200 } }
+    })
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response(result:)))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.corporate_action_events(identifier:, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31))
+    end
+
+    invalid_text = default_result.merge(events: {
+      splits: { "1787851200" => { "splitRatio" => "bad", "date" => 1787851200 } }
+    })
+    text_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: invalid_text))
+    )
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      text_client.corporate_action_events(identifier:, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31))
+    end
+
+    increasing = default_result.merge(events: {
+      splits: { "1787851200" => { "splitRatio" => "2:1", "date" => 1787851200 } }
+    })
+    increasing_client = MarketData::YahooFinance::HistoryClient.new(
+      transport: FakeTransport.new(response: response(result: increasing))
+    )
+    assert_equal :split, increasing_client.corporate_action_events(
+      identifier:, from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31)
+    ).sole.kind
+  end
+
+  test "rejects non-finite event amounts" do
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response))
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.send(:normalize_event_amount, "NaN")
+    end
+  end
+
+  test "wraps parser argument errors as invalid provider responses" do
+    client = MarketData::YahooFinance::HistoryClient.new(transport: FakeTransport.new(response: response))
+    client.define_singleton_method(:parse_corporate_action_events) { |*| raise ArgumentError, "bad parser input" }
+
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client.corporate_action_events(identifier:, from: Date.current - 1.day, to: Date.current)
+    end
+    assert_equal "bad parser input", error.message
+  end
+
   test "URL-encodes a benchmark identifier as a path segment" do
     benchmark_identifier = MarketBenchmark::Providers::YahooFinance::YahooBenchmarkIdentifier.new("^BVSP")
     result = default_result.merge(
