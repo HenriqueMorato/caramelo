@@ -69,10 +69,11 @@ import does not create an accounting record. Failed rows remain visible with
 their error message and can be edited and retried; provider failures do not
 delete confirmed actions.
 
-The review page is available at `/corporate-action-imports` and is linked from
-Transactions. Provider requests in tests use recorded response objects; no
-live Yahoo request is required to exercise parsing, matching, idempotence, or
-confirmation behavior. Manual scans stay synchronous so the preview is ready
-when the page returns; scheduled or long-running callers can enqueue
-`ScanCorporateActionImportsJob`, which uses the same service with per-owner
-source concurrency and provider retry handling.
+The review page is available at `/corporate-action-imports`. Transactions shows
+a discreet review banner only while pending, ambiguous, or conflicted imports
+exist; it stays out of the way when the queue is empty. Provider requests in
+tests use recorded response objects; no live Yahoo request is required to
+exercise parsing, matching, idempotence, or confirmation behavior. Manual scans
+stay synchronous so the preview is ready when the page returns; scheduled or
+long-running callers can enqueue `ScanCorporateActionImportsJob`, which uses
+the same service with per-owner source concurrency and provider retry handling.

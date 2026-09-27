@@ -35,6 +35,23 @@ class TradesTest < ApplicationSystemTestCase
     assert_selector "#corporate_action_#{income.id}"
   end
 
+  test "shows the review banner only when imported events are pending" do
+    CorporateActionImport.create!(
+      user: User.owner, instrument: instruments(:petr4_bvmf), source: "yahoo_finance",
+      source_reference: "system-banner-review", status: :pending, kind: :split,
+      event_on: Date.current, ratio_numerator: 2, ratio_denominator: 1, currency: "BRL",
+      normalized_data: {}, raw_payload: {}, warnings: []
+    )
+
+    visit transactions_path
+
+    within "[data-testid='corporate-action-import-review-banner']" do
+      assert_text "1 imported market event is waiting for your review."
+      click_on "Review imports"
+    end
+    assert_current_path corporate_action_imports_path
+  end
+
   test "shows an empty state without owner activity" do
     Trade.where(user: User.owner).delete_all
     CorporateAction.where(user: User.owner).delete_all
