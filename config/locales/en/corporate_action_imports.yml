@@ -88,6 +88,8 @@ en:
       gross_amount_requires_review: Total amount required
       multiple_institutions: Multiple institutions
       payment_date_required: Payment date required
+      possible_duplicate: A manually entered event has the same instrument, date,
+        and type. Review before confirming.
   transactions:
     index:
       Review imports: Review imports

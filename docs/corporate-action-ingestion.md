@@ -56,6 +56,14 @@ with that instrument. Multiple
 institutions mark an import ambiguous and block confirmation until the owner
 selects the institution in the review form.
 
+Data health keeps ignored imports in a separate review-queue card while any
+remain. Its review link opens the import list filtered to ignored rows, so an
+earlier decision can be revisited without starting another scan. During a scan,
+a provider candidate also receives a `possible_duplicate` warning when a
+non-reversed manual event already has the same instrument, event/payment date,
+and action type. The candidate stays in the review queue; the warning prevents
+an accidental second confirmation without discarding the provider payload.
+
 Yahoo chart events provide dividend/ex-date and split data, but not a reliable
 payment date, withholding tax, JCP classification, institution, or credited
 total. Those accounting fields remain in review until the owner supplies them.

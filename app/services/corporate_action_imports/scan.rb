@@ -135,7 +135,7 @@ module CorporateActionImports
       changed_after_review = (import.confirmed? || manually_reviewed) &&
         candidate_changed?(import, current_instrument, candidate)
       preserve_review = import.confirmed? || import.ignored? || manually_reviewed
-      institution_warning = assign_candidate(import, current_instrument, candidate, preserve_review:)
+      warnings = assign_candidate(import, current_instrument, candidate, preserve_review:)
       if changed_after_review
         import.status = :conflict
         import.failure_message = "The provider payload changed after review; review it explicitly."
@@ -145,7 +145,7 @@ module CorporateActionImports
         import.status = :pending
         import.failure_message = nil
       else
-        import.status = institution_warning ? :ambiguous : :pending
+        import.status = warnings.include?("multiple_institutions") ? :ambiguous : :pending
         import.failure_message = nil
       end
       import.reviewed_at = nil if was_new
@@ -155,6 +155,7 @@ module CorporateActionImports
 
     def assign_candidate(import, current_instrument, candidate, preserve_review: false)
       institution, institution_warning = institution_match_for(current_instrument)
+      duplicate_warning = manual_duplicate_warning_for(current_instrument, candidate)
       import.instrument = current_instrument
       import.institution = institution unless preserve_review
       import.source = source
@@ -175,8 +176,37 @@ module CorporateActionImports
       import.currency = candidate.currency
       import.normalized_candidate = normalized_candidate(candidate)
       import.raw_payload_hash = candidate.raw_payload
-      import.warning_list = candidate.warnings + [ institution_warning ].compact
-      institution_warning
+      warnings = candidate.warnings + [ institution_warning, duplicate_warning ].compact
+      import.warning_list = warnings
+      warnings
+    end
+
+    def manual_duplicate_warning_for(current_instrument, candidate)
+      return unless candidate.event_on
+
+      key = [ normalized_action_kind(candidate.kind), candidate.event_on ]
+      "possible_duplicate" if manual_action_keys_for(current_instrument).key?(key)
+    end
+
+    def manual_action_keys_for(current_instrument)
+      @manual_action_keys_by_instrument ||= {}
+      @manual_action_keys_by_instrument.fetch(current_instrument.id) do
+        keys = user.corporate_actions.where(
+          instrument: current_instrument, source: "manual"
+        ).where.not(status: :reversed).pluck(:kind, :effective_on, :ex_date, :paid_on).each_with_object({}) do |row, result|
+          kind, effective_on, ex_date, paid_on = row
+          [ effective_on, ex_date, paid_on ].compact.uniq.each do |date|
+            result[[ normalized_action_kind(kind), date ]] = true
+          end
+        end
+        @manual_action_keys_by_instrument[current_instrument.id] = keys
+      end
+    end
+
+    def normalized_action_kind(kind)
+      return "split" if CorporateActionImport.stock_split_kind?(kind)
+
+      kind.to_s
     end
 
     def normalized_candidate(candidate)

@@ -34,6 +34,41 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     assert_equal [ [ @instrument, Date.new(2026, 8, 1), Date.new(2026, 8, 31) ] ], provider.requests
   end
 
+  test "flags a provider event that may duplicate a manually entered event" do
+    users(:owner).corporate_actions.create!(
+      instrument: @instrument, kind: :stock_split, status: :confirmed,
+      effective_on: @candidate.event_on, ratio_numerator: 2, ratio_denominator: 1,
+      source: "manual"
+    )
+
+    import = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(@candidate)
+    ).imports.sole
+
+    assert_equal "pending", import.status
+    assert_includes import.warning_list, "possible_duplicate"
+  end
+
+  test "matches a provider cash event against a manual payment date" do
+    users(:owner).corporate_actions.create!(
+      instrument: @instrument, kind: :dividend, status: :confirmed,
+      paid_on: @candidate.event_on + 5.days, gross_amount_cents: 100,
+      withholding_tax_cents: 0, net_amount_cents: 100, currency: "BRL", source: "manual"
+    )
+    candidate = @candidate.with(
+      kind: "dividend", amount_per_share: BigDecimal("0.25"), ratio_numerator: nil,
+      ratio_denominator: nil, event_on: @candidate.event_on + 5.days
+    )
+
+    import = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(candidate)
+    ).imports.sole
+
+    assert_includes import.warning_list, "possible_duplicate"
+  end
+
   test "skips provider events from dates when the owner had no position" do
     before_first_trade = @candidate.with(
       source_reference: "PETR4.SA:split:before-first-trade", event_on: Date.new(2026, 7, 31)

@@ -8,6 +8,7 @@ class MarketDataHealthController < ApplicationController
     @status_filter = params[:status].presence_in(%w[all attention healthy]) || "all"
     @health = MarketData::HealthReportPresenter.new(report: @report, status_filter: @status_filter)
     @entries = @health.entries
+    @ignored_import_count = User.owner.corporate_action_imports.where(status: :ignored).count
     @backup = Backup::Presenter.new(
       catalog: Backup::Catalog.call,
       state: Backup::State.current

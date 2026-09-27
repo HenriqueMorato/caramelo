@@ -135,6 +135,31 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "shows ignored corporate action imports in a separate review card" do
+    users(:owner).corporate_action_imports.create!(
+      instrument: instruments(:petr4_bvmf), source: "yahoo_finance",
+      source_reference: "health-ignored-event", status: :ignored,
+      kind: "split", event_on: Date.new(2026, 8, 20)
+    )
+    report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [])
+
+    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { }) do
+        with_stubbed_method(MarketPrice::ManualRefresh, :available?, -> { true }) do
+          get market_data_health_url
+        end
+      end
+    end
+
+    assert_response :success
+    assert_select "#corporate-action-import-review" do
+      assert_select "h2", "Imported events"
+      assert_select "p", /1 imported event was ignored/
+    end
+    assert_select "a[href=?]", corporate_action_imports_path(status: "ignored"), text: "Review ignored imports"
+    refute_select "#health-entry-market_data_health-corporate_action_imports"
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

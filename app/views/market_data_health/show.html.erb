@@ -39,5 +39,7 @@
 
   <%= render "report", report: @report, health: @health, entries: @entries %>
 
+  <%= render "import_review", ignored_count: @ignored_import_count if @ignored_import_count.positive? %>
+
   <%= render "backups", backup: @backup %>
 </section>
