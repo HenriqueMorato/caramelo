@@ -3,6 +3,7 @@ class CorporateActionImportsController < ApplicationController
 
   before_action :set_import, only: %i[ edit update confirm ignore ]
   before_action :set_form_options, only: %i[ index edit update ]
+  before_action :set_edit_presenter, only: %i[ edit update ]
 
   def index
     @status_filter = params[:status].presence_in(%w[all reviewable confirmed ignored failed]) || "reviewable"
@@ -31,6 +32,7 @@ class CorporateActionImportsController < ApplicationController
     if result.success?
       redirect_to corporate_action_imports_path, notice: t("corporate_action_imports.notices.review_saved")
     else
+      @edit = build_edit_presenter
       flash.now[:alert] = result.error
       render :edit, status: :unprocessable_content
     end
@@ -77,6 +79,14 @@ class CorporateActionImportsController < ApplicationController
     else
       []
     end
+  end
+
+  def set_edit_presenter
+    @edit = build_edit_presenter
+  end
+
+  def build_edit_presenter
+    CorporateActionImports::EditPresenter.new(import: @import, institutions: @institutions)
   end
 
   def imports_scope
