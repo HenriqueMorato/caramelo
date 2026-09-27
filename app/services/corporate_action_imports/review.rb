@@ -14,6 +14,7 @@ module CorporateActionImports
     def call
       import.with_lock do
         return Result.new(import, false, "Confirmed imports cannot be edited.") if import.confirmed?
+        return Result.new(import, false, "Review the provider update before saving.") if provider_update_requires_acknowledgement?
 
         assign_attributes
         import.status = ambiguous_institution? ? :ambiguous : :pending
@@ -29,6 +30,10 @@ module CorporateActionImports
     private
 
     attr_reader :import, :attributes
+
+    def provider_update_requires_acknowledgement?
+      import.conflict? && !ActiveModel::Type::Boolean.new.cast(attributes[:accept_provider_update])
+    end
 
     def assign_attributes
       kind = attributes[:kind].presence || import.kind

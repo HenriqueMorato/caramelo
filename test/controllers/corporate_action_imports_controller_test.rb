@@ -126,6 +126,25 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#corporate-action-import-gross-amount-help", text: /quantity held on the event date/
   end
 
+  test "shows provider corrections before a conflicted import can be reviewed" do
+    import = build_import(
+      source_reference: "conflict-details", status: :conflict,
+      normalized_data: {
+        "kind" => "split", "event_on" => "2026-08-22", "ratio_numerator" => 3,
+        "ratio_denominator" => 1, "amount_per_share" => nil
+      }, raw_payload: { "splitRatio" => "3:1" }
+    )
+
+    get edit_corporate_action_import_url(import)
+
+    assert_response :success
+    assert_select "aside[aria-labelledby='corporate-action-import-conflict-heading']"
+    assert_select "input[name='corporate_action_import[accept_provider_update]'][required]", count: 1
+    assert_select "input[name='corporate_action_import[effective_on]'][value='2026-08-22']"
+    assert_select "input[name='corporate_action_import[ratio_numerator]'][value='3']"
+    assert_select "pre", text: /splitRatio/
+  end
+
   test "starts an explicit bounded scan and reports provider results" do
     result = CorporateActionImports::Scan::Result.new(
       Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0
@@ -229,7 +248,7 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tr##{dom_id(pending)}", count: 0
   end
 
-  test "passes a valid scan instrument and ignores an unknown target" do
+  test "passes a valid scan instrument and rejects an unknown target" do
     result = CorporateActionImports::Scan::Result.new(
       Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0
     )
@@ -246,9 +265,13 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     post corporate_action_imports_url, params: {
       scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", instrument_id: "999999" }
     }
+    post corporate_action_imports_url, params: {
+      scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", instrument_id: "not-an-id" }
+    }
 
     assert_equal instruments(:voo_arcx), received.first.fetch(:instrument)
-    assert_nil received.second.fetch(:instrument)
+    assert_equal 1, received.size
+    assert_equal "Select an instrument traded by this owner.", flash[:alert]
   ensure
     CorporateActionImports::Scan.define_singleton_method(:call, original)
   end

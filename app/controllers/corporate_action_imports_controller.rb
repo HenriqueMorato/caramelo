@@ -108,10 +108,12 @@ class CorporateActionImportsController < ApplicationController
     id = scan_params[:instrument_id]
     return if id.blank?
 
-    @instruments_for_scan ||= owner.trades.where(instrument_id: id).distinct.pluck(:instrument_id)
-    return unless @instruments_for_scan.include?(id.to_i)
+    instrument_id = Integer(id, exception: false)
+    unless owner.trades.exists?(instrument_id:)
+      raise ArgumentError, t("corporate_action_imports.errors.invalid_instrument")
+    end
 
-    Instrument.find(id)
+    Instrument.find(instrument_id)
   end
 
   def parse_date(value)
@@ -131,7 +133,7 @@ class CorporateActionImportsController < ApplicationController
     params.fetch(:corporate_action_import, {}).permit(
       :kind, :paid_on, :ex_date, :gross_amount, :gross_amount_cents,
       :withholding_tax, :withholding_tax_cents, :effective_on,
-      :ratio_numerator, :ratio_denominator, :institution_id
+      :ratio_numerator, :ratio_denominator, :institution_id, :accept_provider_update
     ).to_h.symbolize_keys
   end
 

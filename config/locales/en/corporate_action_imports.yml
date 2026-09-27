@@ -9,8 +9,15 @@ en:
     confirm:
       Ignore: Ignore this imported event?
     edit:
+      Acknowledge provider update: I reviewed the provider update and will use or
+        edit the values below.
       Amount help: Enter the total credited amount in %{currency}. The provider value
         above is per share and is only a discovery hint.
+      Conflict heading: Provider data changed
+      Conflict introduction: This event was already reviewed, but the provider now
+        reports different data. Compare the values, then use or edit the form below
+        before saving.
+      Current value: Current reviewed value
       Effective date: Effective date
       Event type: Event type
       Ex-date: Ex-date
@@ -28,10 +35,17 @@ en:
       Payment date: Payment date
       Payment date help: Yahoo supplies an ex-date, not a reliable payment date. This
         is prefilled with the event date; verify it against your statement.
+      Provider amount per share: Provider amount per share
+      Provider event date: Provider event date
+      Provider event type: Provider event type
+      Provider payload: Provider payload
+      Provider ratio: Provider ratio
+      Provider value: Provider value
       Select institution: Select an institution
       Withholding tax: Withholding tax
     errors:
       invalid_date: Enter a valid date range.
+      invalid_instrument: Select an instrument traded by this owner.
     index:
       Actions: Actions
       All instruments: All traded instruments

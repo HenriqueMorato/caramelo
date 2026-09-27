@@ -15,6 +15,29 @@ class CorporateActionImports::ReviewTest < ActiveSupport::TestCase
     assert_match(/Confirmed imports cannot be edited/, result.error)
   end
 
+  test "requires acknowledgement before editing a provider conflict" do
+    import = build_import(status: :conflict, failure_message: "provider changed")
+
+    result = CorporateActionImports::Review.call(import:, attributes: { kind: "split" })
+
+    refute_predicate result, :success?
+    assert_equal "Review the provider update before saving.", result.error
+    assert_equal "conflict", import.reload.status
+  end
+
+  test "accepts an acknowledged provider conflict review" do
+    import = build_import(status: :conflict, failure_message: "provider changed")
+
+    result = CorporateActionImports::Review.call(import:, attributes: {
+      kind: "split", effective_on: Date.new(2026, 8, 21), ratio_numerator: 3,
+      ratio_denominator: 1, accept_provider_update: "1"
+    })
+
+    assert_predicate result, :success?
+    assert_equal "pending", import.reload.status
+    assert_equal Date.new(2026, 8, 21), import.event_on
+  end
+
   test "requires an event type" do
     import = build_import(kind: nil)
 

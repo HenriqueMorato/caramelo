@@ -308,13 +308,39 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     assert_equal "conflict", conflict.status
 
     CorporateActionImports::Review.call(import: conflict, attributes: {
-      kind: "split", effective_on: "2026-08-20", ratio_numerator: 3, ratio_denominator: 1
+      kind: "split", effective_on: "2026-08-20", ratio_numerator: 3, ratio_denominator: 1,
+      accept_provider_update: true
     })
     result = CorporateActionImports::Confirmation.call(import: conflict)
 
     assert_predicate result, :confirmed?
     assert_equal 3, conflict.reload.corporate_action.ratio_numerator
     assert_equal 1, CorporateAction.where(source_reference: conflict.source_reference).count
+  end
+
+  test "does not create another provider action after a manual duplicate is confirmed" do
+    first = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(@candidate)
+    )
+    import = first.imports.sole
+    CorporateActionImports::Confirmation.call(import:)
+
+    users(:owner).corporate_actions.create!(
+      instrument: @instrument, kind: :stock_split, status: :confirmed,
+      effective_on: @candidate.event_on, ratio_numerator: 2, ratio_denominator: 1,
+      source: "manual"
+    )
+
+    second = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(@candidate)
+    )
+
+    assert_equal 0, second.created_count
+    assert_equal 1, CorporateAction.where(source: "yahoo_finance", source_reference: import.source_reference).count
+    assert_equal 2, CorporateAction.where(instrument: @instrument).count
+    assert_includes second.imports.sole.warning_list, "possible_duplicate"
   end
 
   test "coalesces a concurrent create after the unique constraint wins" do
