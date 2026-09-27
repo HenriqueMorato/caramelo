@@ -2,26 +2,44 @@
   <img src="app/assets/images/caramelo-logo.svg" alt="caramelo" width="112">
 </p>
 
-# caramelo
+<h1 align="center">caramelo</h1>
 
-Your investments, without sending your portfolio somewhere else.
+<p align="center">
+  Your investments, without sending your portfolio somewhere else.
+</p>
 
-`caramelo` is a local-first portfolio tracker for one owner. Record trades,
-follow positions, compare native and reporting-currency values, and explore
-historical performance while keeping the primary ledger on your own machine.
+<p align="center">
+  <a href="https://github.com/HenriqueMorato/caramelo/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/HenriqueMorato/caramelo/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI status on main"></a>
+  <a href="https://coveralls.io/github/HenriqueMorato/caramelo?branch=main"><img src="https://coveralls.io/repos/github/HenriqueMorato/caramelo/badge.svg?branch=main" alt="Coverage on main"></a>
+  <a href="#quick-start"><img src="https://img.shields.io/badge/docker%20compose-ready-2496ed?logo=docker&logoColor=white" alt="Docker Compose ready"></a>
+  <a href="https://ko-fi.com/henriquemorato"><img src="https://img.shields.io/badge/support-Ko--fi-ff5e5b?logo=ko-fi&logoColor=white" alt="Support caramelo on Ko-fi"></a>
+</p>
 
-## What you can do
+<p align="center">
+  A local-first portfolio tracker for one owner. Record trades, follow
+  positions, compare currencies, and explore historical performance while
+  keeping the primary ledger on your own machine.
+</p>
+
+<p align="center">
+  <img src="docs/images/caramelo-dashboard-themes.png" alt="caramelo portfolio dashboard shown in dark and light themes side by side with a vertical divider" width="960">
+</p>
+
+## What You Can Do
 
 - Keep a precise buy-and-sell ledger with fees, institutions, notes, and paid FX.
 - Follow open and closed positions with weighted-average cost basis.
 - Track current prices for supported Brazilian, US, and European listings.
 - Review portfolio and per-instrument performance from persisted daily history.
 - Compare portfolio returns with Ibovespa, S&P 500, and CDI benchmarks.
+- Review provider-sourced dividends and corporate actions before confirmation.
 - See missing or stale market data and safely retry replaceable projections.
 - Create verified local backups and export the trade ledger as CSV.
 - Switch between light, dark, and system appearance.
 
-## Run caramelo with Docker
+## Quick Start
+
+The Docker setup is the easiest way to try caramelo.
 
 You need [Docker Desktop](https://www.docker.com/products/docker-desktop/),
 [OrbStack](https://orbstack.dev/), or another Docker-compatible runtime with
@@ -54,7 +72,7 @@ volumes, so the next start is simply:
 docker compose up
 ```
 
-### Useful Docker commands
+### Useful Docker Commands
 
 | Task | Command |
 | --- | --- |
@@ -69,7 +87,7 @@ docker compose up
 the named volumes. Do not add `--volumes` unless you intentionally want to
 delete the local application data and backups.
 
-### Optional configuration
+### Optional Configuration
 
 The built-in owner identifier is `admin@caramelo.local`. To choose another
 address for a fresh install, copy the example before the first run:
@@ -98,9 +116,55 @@ network to connect, opt in explicitly:
 CARAMELO_BIND_ADDRESS=0.0.0.0 docker compose up --build
 ```
 
-Do not expose that address to an untrusted network while login remains inactive.
+caramelo is currently a single-user app and login is not active. Keep the
+default localhost binding unless you trust every device on the network. Do not
+expose the `0.0.0.0` binding to an untrusted network.
 
-## Your data stays local
+## First Run
+
+Once the dashboard opens, set up one position from the menus:
+
+1. Open **Instruments** and choose **Add instrument**. Enter the listing's
+   ticker, exchange MIC (the market's short code, such as `BVMF` for B3 or
+   `XNAS` for Nasdaq), currency, and asset type.
+2. If you want to record a broker or custodian, open **Institutions** and add
+   it. Institutions are optional.
+3. Choose **Add transaction** on the dashboard, or open **Transactions** and
+   choose **Add → Trade**. Select the instrument, enter the side, date,
+   quantity, price, and any fees, then save.
+4. Open **Data health** and choose **Refresh prices**. The `jobs` container
+   handles this work in the background; the trade remains saved while a quote
+   is pending or unavailable.
+5. Open **Positions** to check the holding. **Performance** becomes available
+   as daily closing prices and historical FX are prepared. Weekends and market
+   holidays may leave an expected gap; current quotes are never used as
+   historical prices.
+
+You can change the reporting currency in **Settings**. The default is BRL, and
+the required historical FX is prepared in the background. If you receive a
+dividend or another market event, open **Transactions → Review imports** when a
+review banner appears. Imported events stay out of the ledger until you review
+and confirm them.
+
+## When Data Is Missing
+
+The **Data health** page tells you whether a price, exchange rate, benchmark,
+or performance series is missing, stale, queued, or failed. Use its retry or
+refresh actions before changing a trade. A missing market observation does not
+delete your trades or positions.
+
+If the page does not update, check that both containers are running:
+
+```sh
+docker compose ps
+docker compose logs --follow web jobs
+```
+
+The `web` service serves the pages and the `jobs` service processes prices,
+historical data, income scans, backups, and performance rebuilds. Keep both
+running while the application is preparing data.
+
+## Your Data Stays Local
 
 The Compose stack uses two named volumes:
 
@@ -113,11 +177,7 @@ supported prices, exchange rates, or benchmarks makes outbound requests to the
 documented market-data providers. Current quotes and historical observations
 are replaceable data; trades remain the durable source of truth.
 
-Login is intentionally inactive during the current single-user phase. Anyone
-who can reach the running web port can access the portfolio, so bind or expose
-that port only on a network you trust.
-
-### Back up and export
+### Back Up and Export
 
 Create and verify a backup from the running stack:
 
@@ -142,7 +202,7 @@ also lets you create or verify a backup and download the trade ledger as CSV.
 See [development and operations](DEVELOPMENT.md#sqlite-backups) for retention,
 restore rehearsal, and safe pruning details.
 
-## How the portfolio works
+## How the Portfolio Works
 
 Trades are authoritative. Positions are derived from those trades using exact
 decimal quantities and weighted-average cost basis. Buy fees increase cost;
@@ -150,7 +210,7 @@ sell fees reduce realized proceeds. Native-currency values remain native, while
 reporting views use the appropriate paid, trade-date, or valuation-date FX rate.
 
 Performance is materialized asynchronously from trades, daily closing prices,
-and historical FX. Missing historical data stays visibly unavailable—current
+and historical FX. Missing historical data stays visibly unavailable. Current
 quotes never masquerade as historical closes. Portfolio and instrument return
 series are calculated independently because their cash flows have different
 capital weights.
@@ -160,8 +220,16 @@ Read more:
 - [Portfolio performance](docs/portfolio-performance.md)
 - [Instrument performance](docs/instrument-performance-observations.md)
 - [Current market prices](docs/current-market-prices.md)
+- [Current valuation and currencies](docs/current-valuations.md)
 - [Historical exchange rates](docs/historical-exchange-rates.md)
+- [Corporate actions and income](docs/corporate-actions.md)
+- [Corporate-action ingestion](docs/corporate-action-ingestion.md)
 - [Data health and recovery](docs/market-data-health.md)
+
+## Support caramelo
+
+caramelo is independent and local-first. If it helps you keep your portfolio in
+order, you can [support its development on Ko-fi](https://ko-fi.com/henriquemorato).
 
 ## Develop caramelo
 
@@ -181,3 +249,11 @@ bin/ci
 
 Ruby, Node, SQLite, browser-test, Dev Container, and focused-test instructions
 are in [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## License
+
+caramelo is free software under the GNU Affero General Public License v3.0.
+You can use, modify, and redistribute it, including commercially, as long as
+you preserve the license and provide the corresponding source for modified
+versions. Modified hosted versions must also offer that source to users over
+the network. See the [license](LICENSE) for the full terms.

@@ -22,6 +22,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Portfolio overview"
     assert_select "h2", "Your portfolio starts with a trade"
     assert_select "a", { text: "Add trade", count: 0 }
+    assert_select "footer[aria-label='Project support']"
+    assert_select "footer a[href='https://ko-fi.com/henriquemorato']", text: /Support caramelo/
   end
 
   test "explains when existing trades lack current market data" do

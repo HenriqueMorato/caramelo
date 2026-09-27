@@ -1,10 +1,10 @@
-# Position materializations
+# Position Materializations
 
 Trades remain the source of truth. A `PositionMaterialization` is a replaceable,
 owner-and-instrument projection of the same weighted-average replay: quantity,
 analytical cost basis, average unit cost, and realized gains.
 
-## Refresh flow
+## Refresh Flow
 
 Creating, editing, deleting, or moving a trade enqueues
 `RefreshPositionMaterializationJob`. The callback advances `source_generation`

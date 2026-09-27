@@ -46,7 +46,7 @@ withholding tax, and corporate actions. The report's realized and unrealized
 gain cards are cumulative through the selected ending date; the headline
 gain/loss is specific to the selected period.
 
-## Worked example
+## Worked Example
 
 For an August reporting period, assume the following USD holding and BRL
 reporting currency:
@@ -67,7 +67,7 @@ would be a negative cash flow; realized gain would be those proceeds less the
 proportional weighted-average basis, while the remaining shares retain the
 unrealized component.
 
-## Historical data safety
+## Historical Data Safety
 
 Performance requires persisted daily closes and FX; it never substitutes a
 current cached quote. Exact observations are preferred. A recent observation
@@ -92,7 +92,7 @@ backfills](historical-data-backfills.md) coalesce and import that range in the
 background. Performance displays a loading state while relevant work is
 pending.
 
-## Changing reporting currency
+## Changing Reporting Currency
 
 **Settings → Reporting currency** saves the owner's preference for portfolio
 totals, performance, and charts. Trades, instrument currencies, fees, and
@@ -123,7 +123,7 @@ trades by native currency and prepares each foreign-currency pair:
    of preparation does not mean the queued rebuild has finished.
 
 For example, changing a portfolio with USD trades to EUR prepares USD/EUR
-current and historical rates. BRL trades additionally require BRL/EUR. EUR
+current and historical rates. BRL trades also require BRL/EUR. EUR
 trades require no conversion. Existing stock-price history is reused, not fetched
 again by this workflow.
 
@@ -140,7 +140,7 @@ cancelled; the cached form retains its selection, and the server-rendered saved
 currency remains the baseline for detecting unsaved changes when returning.
 This draft is temporary browser state, not a saved preference.
 
-## Historical series
+## Historical Series
 
 `Performance::Series.for(from:, to:)` reads materialized daily portfolio
 observations and returns one result per calendar date with the portfolio value,

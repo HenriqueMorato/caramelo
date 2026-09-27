@@ -4,7 +4,7 @@
 valuation and performance calculations. It is deliberately separate from
 `CurrentMarketPrice`, which remains replaceable cache data for the live UI.
 
-## Stored observation
+## Stored Observation
 
 Each record belongs to an instrument and contains:
 
@@ -24,7 +24,7 @@ The unique key is instrument, trading date, and provider. Re-importing a date
 updates the existing row, allowing provider corrections without duplicates.
 Historical trade prices are never changed.
 
-## Imports and missing days
+## Imports and Missing Days
 
 `DailyClosingPrice::Importer` accepts an instrument and date range. Providers
 return only observations that exist; the importer reports weekdays with no

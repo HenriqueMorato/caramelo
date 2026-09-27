@@ -1,4 +1,4 @@
-# CDI benchmark
+# CDI Benchmark
 
 caramelo reads the CDI daily rate from Banco Central do Brasil’s SGS series
 12. The service receives the published percentage as a decimal string and
@@ -6,7 +6,7 @@ normalizes it once: `0.051660%` becomes `0.00051660`. Values are stored as
 decimal daily return ratios in `MarketBenchmarkObservation` with provider
 `bcb` and benchmark identifier `CDI`.
 
-## Date and precision rules
+## Date and Precision Rules
 
 Performance uses the end-exclusive interval `[from, to)`. BCB requests are
 inclusive, so the client maps application intervals explicitly. The client

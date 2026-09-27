@@ -1,10 +1,10 @@
-# Market-data request throttling
+# Market-Data Request Throttling
 
 Market-data providers can impose rate limits across every endpoint, not just
 one instrument or job type. caramelo coordinates Yahoo Finance requests from
 current quotes, daily closing prices, and historical FX through two layers.
 
-## Job concurrency and provider requests
+## Job Concurrency and Provider Requests
 
 Solid Queue limits execution of Yahoo refresh jobs. This prevents a burst of
 jobs from actively running together, but it does not make the request interval
@@ -15,7 +15,7 @@ guarantee immediately before a provider request.
 with the `yahoo_finance` provider scope. A future provider creates its own
 specialization with a different identifier and interval.
 
-## Shared cache state
+## Shared Cache State
 
 For provider `yahoo_finance`, the throttle uses these shared cache keys:
 
@@ -52,7 +52,7 @@ lease can overlap with a later worker; Yahoo requests are short-lived today, so
 the lease is intentionally a recovery boundary rather than a long-running job
 lock.
 
-## Configuration and observability
+## Configuration and Observability
 
 `YAHOO_FINANCE_MINIMUM_INTERVAL_SECONDS` sets Yahoo's provider-wide minimum
 interval. It defaults to one second and must be positive. It applies equally to

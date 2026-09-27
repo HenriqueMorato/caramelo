@@ -1,10 +1,10 @@
 # Current Valuation
 
 Positions keep their native instrument currency for trades, fees, cost basis,
-and cached market prices. The Positions page additionally shows market value in
+and cached market prices. The Positions page also shows market value in
 the configured reporting currency (`BRL` by default).
 
-## Conversion flow
+## Conversion Flow
 
 1. `CurrentMarketPrice#valuation_amount_for` multiplies the precise quote by
    the precise position quantity without rounding.
@@ -17,7 +17,7 @@ the configured reporting currency (`BRL` by default).
 Trade prices, fees, cost basis, and cached quotes are never mutated or
 converted in storage.
 
-## Yahoo Finance FX provider
+## Yahoo Finance FX Provider
 
 `ExchangeRate::Providers::YahooFinance` requests Yahoo currency-pair symbols
 such as `USDBRL=X` through the isolated Yahoo transport. The provider returns

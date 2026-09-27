@@ -1,6 +1,6 @@
-# Corporate-action and income ingestion
+# Corporate-Action and Income Ingestion
 
-Caramelo keeps imported market events separate from the financial ledger until
+caramelo keeps imported market events separate from the financial ledger until
 the owner reviews them. A provider scan creates `CorporateActionImport` rows;
 only an explicit confirmation creates the authoritative `CorporateAction` row.
 Ignored, failed, and superseded candidates retain their provider payload for
@@ -16,7 +16,7 @@ CorporateAction (authoritative ledger)
 positions and performance rebuilds
 ```
 
-## Historical scans
+## Historical Scans
 
 Historical ingestion is opt-in. The review page asks for a date range and an
 optional traded instrument. The suggested range is the first trade through
@@ -43,7 +43,7 @@ authoritative event instead of creating a second event. If an authoritative
 event is deleted, its import is reopened as pending so the owner can confirm it
 again.
 
-## Provider identity and matching
+## Provider Identity and Matching
 
 The Yahoo adapter uses the existing exchange-aware ticker and MIC mapping. It
 never creates an instrument from provider data. Scans only request events for
@@ -67,7 +67,7 @@ an accidental second confirmation without discarding the provider payload.
 Yahoo chart events provide dividend/ex-date and split data, but not a reliable
 payment date, withholding tax, JCP classification, institution, or credited
 total. Those accounting fields remain in review until the owner supplies them.
-For convenience, the review form pre-fills a missing payment date with the
+The review form pre-fills a missing payment date with the
 provider event/ex-date and estimates a missing gross total from the quantity
 held on that event date multiplied by Yahoo's per-share amount. Both values are
 explicitly provisional and remain editable; confirmation uses only what the
@@ -76,7 +76,7 @@ The raw response and normalized candidate are retained for every queued
 candidate, while malformed provider responses are reported as scan errors and
 never become ledger records.
 
-## Confirmation and recovery
+## Confirmation and Recovery
 
 Confirmation builds a normal `CorporateAction` with the same validations and
 provenance constraints as a manually entered event. Existing corporate-action
