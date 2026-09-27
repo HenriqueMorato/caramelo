@@ -44,13 +44,19 @@ module RefreshStatus
     end
 
     def self.health_scope?(scope)
-      scope.nil? || !scope.start_with?("market_data_recovery:")
+      scope.nil? || !hidden_scope?(scope)
     end
 
     def self.status_scope?(scope)
-      scope.nil? || !(scope.start_with?("current_market_price:") || scope.start_with?("market_data_recovery:"))
+      scope.nil? || !hidden_scope?(scope)
     end
 
-    private_class_method :broadcast_status, :broadcast_progress, :health_scope?, :status_scope?
+    def self.hidden_scope?(scope)
+      scope.start_with?("current_market_price:") ||
+        scope.start_with?("market_data_recovery:") ||
+        scope.start_with?("corporate_action_imports_scan:")
+    end
+
+    private_class_method :broadcast_status, :broadcast_progress, :health_scope?, :status_scope?, :hidden_scope?
   end
 end

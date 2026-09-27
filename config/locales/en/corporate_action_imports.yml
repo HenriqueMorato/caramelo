@@ -84,9 +84,16 @@ en:
       ignored_many: Ignored %{count} imported events.
       not_confirmed: Imported event was not confirmed.
       review_saved: Review saved. Confirm it when the accounting fields are complete.
-      scan_complete: Scan found %{count} provider events for review.
-      scan_errors: Skipped %{count} instrument scans because the provider returned
-        an error.
+      scan_already_running: A scan with these settings is already running.
+      scan_start_failed: The scan could not be started. Try again.
+      scan_started: Scan queued. This page will refresh when it finishes.
+    scan_status:
+      complete: Scan complete. Updating imported events…
+      failed: The provider scan failed. Review any candidates already imported, or
+        retry.
+      queued: Provider scan queued…
+      retry: Retry scan
+      running: Scanning provider history…
     sources:
       yahoo_finance: Yahoo Finance
     statuses:

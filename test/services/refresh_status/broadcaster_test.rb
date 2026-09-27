@@ -61,7 +61,7 @@ class RefreshStatus::BroadcasterTest < ActiveSupport::TestCase
   test "ignores progress from hidden bookkeeping scopes" do
     calls = 0
     with_stubbed_method(Turbo::StreamsChannel, :broadcast_update_to, ->(*, **) { calls += 1 }) do
-      %w[current_market_price:42 market_data_recovery:1:run].each do |scope|
+      %w[current_market_price:42 market_data_recovery:1:run corporate_action_imports_scan:1:run].each do |scope|
         RefreshStatus::Broadcaster.refresh(
           state: Struct.new(:scope).new(scope), health: false, progress_only: true
         )
@@ -85,7 +85,7 @@ class RefreshStatus::BroadcasterTest < ActiveSupport::TestCase
 
   test "does not repaint global status for per-instrument bookkeeping" do
     calls = 0
-    state = Struct.new(:scope).new("current_market_price:42")
+    state = Struct.new(:scope).new("corporate_action_imports_scan:1:run")
     with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { }) do
       with_stubbed_method(Turbo::StreamsChannel, :broadcast_update_to, ->(*, **) { calls += 1 }) do
         RefreshStatus::Broadcaster.refresh(state:)

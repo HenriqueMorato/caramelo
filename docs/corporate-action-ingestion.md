@@ -90,7 +90,14 @@ The review page is available at `/corporate-action-imports`. Transactions shows
 a discreet review banner only while pending, ambiguous, or conflicted imports
 exist; it stays out of the way when the queue is empty. Provider requests in
 tests use recorded response objects; no live Yahoo request is required to
-exercise parsing, matching, idempotence, or confirmation behavior. Manual scans
-stay synchronous so the preview is ready when the page returns; scheduled or
-long-running callers can enqueue `ScanCorporateActionImportsJob`, which uses
-the same service with per-owner source concurrency and provider retry handling.
+exercise parsing, matching, idempotence, or confirmation behavior. A manual
+scan is queued immediately and the page keeps its selected range, source, and
+instrument while it subscribes to that scan's private status stream. The page
+reloads once the complete scan has persisted all candidates; it does not show
+partial results or refresh after each provider event. A retryable provider
+failure keeps the scan active until Active Job exhausts its retries. A terminal
+failure does not trigger a partial page refresh and offers a retry link; any
+candidates persisted before the provider error remain reviewable. Scans for
+different instruments can run independently, while overlapping scans for the
+same owner, source, and instrument share a concurrency lease. The job uses the
+same bounded, strict service as synchronous callers.

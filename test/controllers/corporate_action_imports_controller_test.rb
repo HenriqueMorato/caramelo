@@ -4,6 +4,8 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
   setup do
     CorporateActionImport.delete_all
     CorporateAction.delete_all
+    Rails.cache.clear
+    clear_enqueued_jobs
   end
 
   test "lists old candidates before applying them and distinguishes confirmable rows" do
@@ -145,26 +147,23 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "pre", text: /splitRatio/
   end
 
-  test "starts an explicit bounded scan and reports provider results" do
-    result = CorporateActionImports::Scan::Result.new(
-      Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0
-    )
-    original = CorporateActionImports::Scan.method(:call)
-    received = nil
-    CorporateActionImports::Scan.define_singleton_method(:call) do |**arguments|
-      received = arguments
-      result
-    end
-
+  test "queues an explicit bounded scan and redirects with its status state" do
     post corporate_action_imports_url, params: {
       scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance" }
     }
 
-    assert_redirected_to corporate_action_imports_url
-    assert_equal Date.new(2026, 8, 1), received.fetch(:from)
-    assert_equal Date.new(2026, 8, 31), received.fetch(:to)
-  ensure
-    CorporateActionImports::Scan.define_singleton_method(:call, original)
+    assert_response :redirect
+    assert_equal "Scan queued. This page will refresh when it finishes.", flash[:notice]
+    assert_equal 1, enqueued_jobs.count { |job| job[:job] == ScanCorporateActionImportsJob }
+    query = Rack::Utils.parse_query(URI.parse(response.location).query)
+    scope = CorporateActionImports::ScanStatus.scope(
+      user: users(:owner), from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31),
+      source: "yahoo_finance", instrument_id: nil
+    )
+    assert_equal "queued", RefreshStatus::State.read(scope).status
+    assert_equal RefreshStatus::State.read(scope).run_id, query.fetch("scan_run_id")
+    assert_equal "2026-08-01", query.fetch("from")
+    assert_equal "2026-08-31", query.fetch("to")
   end
 
   test "renders aligned scan controls with the shared field treatment" do
@@ -172,25 +171,91 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "form[action='#{corporate_action_imports_path}'] select.ui-field", count: 2
-    assert_select "form[action='#{corporate_action_imports_path}'] button.ui-button-primary.min-h-11", count: 1
+    assert_select "form[action='#{corporate_action_imports_path}'] button.ui-button-primary.min-h-\\[3\\.125rem\\]", count: 1
   end
 
-  test "reports provider scan errors in the flash" do
-    result = CorporateActionImports::Scan::Result.new(
-      Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [],
-      [ { instrument: instruments(:petr4_bvmf), error: StandardError.new("provider down") } ], 0
-    )
-    original = CorporateActionImports::Scan.method(:call)
-    CorporateActionImports::Scan.define_singleton_method(:call) { |**| result }
-
+  test "keeps the scan filters selected while the queued scan is active" do
     post corporate_action_imports_url, params: {
-      scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance" }
+      scan: {
+        from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance",
+        instrument_id: instruments(:voo_arcx).id
+      }
+    }
+    query = Rack::Utils.parse_query(URI.parse(response.location).query)
+
+    get response.location
+
+    assert_response :success
+    assert_select "#corporate-action-scan-status", text: /Provider scan queued/
+    assert_select "select[name='scan[instrument_id]'] option[selected][value='#{instruments(:voo_arcx).id}']"
+    assert_select "turbo-cable-stream-source", minimum: 2
+    assert_equal "2026-08-01", query.fetch("from")
+  end
+
+  test "does not enqueue a duplicate scan while the same request is active" do
+    params = {
+      scan: {
+        from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance",
+        instrument_id: instruments(:voo_arcx).id
+      }
     }
 
-    assert_redirected_to corporate_action_imports_url
-    assert_match(/Skipped 1 instrument scan/, flash[:notice])
+    post corporate_action_imports_url, params: params
+    post corporate_action_imports_url, params: params
+
+    assert_equal 1, enqueued_jobs.count { |job| job[:job] == ScanCorporateActionImportsJob }
+    assert_equal "A scan with these settings is already running.", flash[:notice]
+  end
+
+  test "reports when a scan cannot be enqueued" do
+    original = ScanCorporateActionImportsJob.method(:perform_later)
+    ScanCorporateActionImportsJob.define_singleton_method(:perform_later) do |**|
+      raise ActiveJob::EnqueueError, "queue unavailable"
+    end
+
+    post corporate_action_imports_url, params: {
+      scan: {
+        from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance",
+        instrument_id: instruments(:voo_arcx).id
+      }
+    }
+
+    assert_equal corporate_action_imports_path, URI.parse(response.location).path
+    assert URI.parse(response.location).query.include?("scan_run_id=")
+    assert_equal "The scan could not be started. Try again.", flash[:alert]
+
+    post corporate_action_imports_url, params: {
+      scan: { from: "2026-08-02", to: "2026-08-31", source: "yahoo_finance" }
+    }
+    assert_equal "The scan could not be started. Try again.", flash[:alert]
   ensure
-    CorporateActionImports::Scan.define_singleton_method(:call, original)
+    ScanCorporateActionImportsJob.define_singleton_method(:perform_later, original)
+  end
+
+  test "does not enqueue a duplicate owner-wide scan" do
+    params = { scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance" } }
+
+    post corporate_action_imports_url, params: params
+    post corporate_action_imports_url, params: params
+
+    assert_equal 1, enqueued_jobs.count { |job| job[:job] == ScanCorporateActionImportsJob }
+  end
+
+  test "shows a failed scan with a retry link" do
+    from = Date.new(2026, 8, 1)
+    to = Date.new(2026, 8, 31)
+    scope = CorporateActionImports::ScanStatus.scope(
+      user: users(:owner), from:, to:, source: "yahoo_finance", instrument_id: nil
+    )
+    state = CorporateActionImports::ScanStatus.enqueue(scope:)
+    CorporateActionImports::ScanStatus.fail(scope:, run_id: state.run_id, error: RuntimeError.new("provider down"))
+
+    get corporate_action_imports_url(
+      from: from, to:, source: "yahoo_finance", scan_run_id: state.run_id
+    )
+
+    assert_select "#corporate-action-scan-status[aria-live=polite]", text: /provider scan failed/i
+    assert_select "#corporate-action-scan-status a", text: "Retry scan", count: 1
   end
 
   test "redirects invalid scan dates with an alert" do
@@ -200,6 +265,29 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to corporate_action_imports_url
     assert_equal "Enter a valid date range.", flash[:alert]
+  end
+
+  test "rejects a scan range in the future or reverse order" do
+    travel_to Date.new(2026, 9, 27) do
+      post corporate_action_imports_url, params: {
+        scan: { from: "2026-09-28", to: "2026-09-29", source: "yahoo_finance" }
+      }
+      assert_equal "Enter a valid date range.", flash[:alert]
+
+      post corporate_action_imports_url, params: {
+        scan: { from: "2026-08-31", to: "2026-08-01", source: "yahoo_finance" }
+      }
+      assert_equal "Enter a valid date range.", flash[:alert]
+    end
+  end
+
+  test "does not subscribe to a status run that belongs to another request" do
+    get corporate_action_imports_url(
+      from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", scan_run_id: "unknown"
+    )
+
+    assert_response :success
+    assert_select "#corporate-action-scan-status", text: ""
   end
 
   test "renders the edit form when review validation fails" do
@@ -249,16 +337,6 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "passes a valid scan instrument and rejects an unknown target" do
-    result = CorporateActionImports::Scan::Result.new(
-      Date.new(2026, 8, 1), Date.new(2026, 8, 31), "yahoo_finance", [], [], 0
-    )
-    original = CorporateActionImports::Scan.method(:call)
-    received = []
-    CorporateActionImports::Scan.define_singleton_method(:call) do |**arguments|
-      received << arguments
-      result
-    end
-
     post corporate_action_imports_url, params: {
       scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", instrument_id: instruments(:voo_arcx).id }
     }
@@ -269,11 +347,9 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
       scan: { from: "2026-08-01", to: "2026-08-31", source: "yahoo_finance", instrument_id: "not-an-id" }
     }
 
-    assert_equal instruments(:voo_arcx), received.first.fetch(:instrument)
-    assert_equal 1, received.size
+    job = enqueued_jobs.find { |entry| entry[:job] == ScanCorporateActionImportsJob }
+    assert_equal instruments(:voo_arcx).id, job[:args].last.fetch("instrument_id")
     assert_equal "Select an instrument traded by this owner.", flash[:alert]
-  ensure
-    CorporateActionImports::Scan.define_singleton_method(:call, original)
   end
 
   test "normalizes invalid dates in the history filter" do

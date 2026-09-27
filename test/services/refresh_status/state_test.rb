@@ -30,12 +30,14 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   test "does not expose per-instrument refresh leases as global activity" do
     RefreshStatus::State.write(scope: "current_market_price:42", status: "running")
     RefreshStatus::State.write(scope: "market_data_recovery:1:run", status: "queued", total_count: 1)
+    RefreshStatus::State.write(scope: "corporate_action_imports_scan:1:yahoo_finance:all:2026-08-01:2026-08-31", status: "running")
     RefreshStatus::State.write(scope: "manual_current_market_prices", status: "queued", total_count: 3)
 
     active_scopes = RefreshStatus::State.active.map(&:scope)
     assert_includes active_scopes, "manual_current_market_prices"
     refute_includes active_scopes, "current_market_price:42"
     refute_includes active_scopes, "market_data_recovery:1:run"
+    refute_includes active_scopes, "corporate_action_imports_scan:1:yahoo_finance:all:2026-08-01:2026-08-31"
   end
 
   test "identifies running states" do
