@@ -99,7 +99,53 @@ network to connect, opt in explicitly:
 CARAMELO_BIND_ADDRESS=0.0.0.0 docker compose up --build
 ```
 
-Do not expose that address to an untrusted network while login remains inactive.
+caramelo is currently a single-user app and login is not active. Keep the
+default localhost binding unless you trust every device on the network. Do not
+expose the `0.0.0.0` binding to an untrusted network.
+
+## First Run
+
+Once the dashboard opens, set up one position from the menus:
+
+1. Open **Instruments** and choose **Add instrument**. Enter the listing's
+   ticker, exchange MIC (the market's short code, such as `BVMF` for B3 or
+   `XNAS` for Nasdaq), currency, and asset type.
+2. If you want to record a broker or custodian, open **Institutions** and add
+   it. Institutions are optional.
+3. Choose **Add transaction** on the dashboard, or open **Transactions** and
+   choose **Add → Trade**. Select the instrument, enter the side, date,
+   quantity, price, and any fees, then save.
+4. Open **Data health** and choose **Refresh prices**. The `jobs` container
+   handles this work in the background; the trade remains saved while a quote
+   is pending or unavailable.
+5. Open **Positions** to check the holding. **Performance** becomes available
+   as daily closing prices and historical FX are prepared. Weekends and market
+   holidays may leave an expected gap; current quotes are never used as
+   historical prices.
+
+You can change the reporting currency in **Settings**. The default is BRL, and
+the required historical FX is prepared in the background. If you receive a
+dividend or another market event, open **Transactions → Review imports** when a
+review banner appears. Imported events stay out of the ledger until you review
+and confirm them.
+
+## When Data Is Missing
+
+The **Data health** page tells you whether a price, exchange rate, benchmark,
+or performance series is missing, stale, queued, or failed. Use its retry or
+refresh actions before changing a trade. A missing market observation does not
+delete your trades or positions.
+
+If the page does not update, check that both containers are running:
+
+```sh
+docker compose ps
+docker compose logs --follow web jobs
+```
+
+The `web` service serves the pages and the `jobs` service processes prices,
+historical data, income scans, backups, and performance rebuilds. Keep both
+running while the application is preparing data.
 
 ## Your Data Stays Local
 
@@ -113,10 +159,6 @@ The browser does not upload your ledger to a caramelo service. Refreshing
 supported prices, exchange rates, or benchmarks makes outbound requests to the
 documented market-data providers. Current quotes and historical observations
 are replaceable data; trades remain the durable source of truth.
-
-Login is intentionally inactive during the current single-user phase. Anyone
-who can reach the running web port can access the portfolio, so bind or expose
-that port only on a network you trust.
 
 ### Back Up and Export
 
@@ -161,7 +203,9 @@ Read more:
 - [Portfolio performance](docs/portfolio-performance.md)
 - [Instrument performance](docs/instrument-performance-observations.md)
 - [Current market prices](docs/current-market-prices.md)
+- [Current valuation and currencies](docs/current-valuations.md)
 - [Historical exchange rates](docs/historical-exchange-rates.md)
+- [Corporate actions and income](docs/corporate-actions.md)
 - [Corporate-action ingestion](docs/corporate-action-ingestion.md)
 - [Data health and recovery](docs/market-data-health.md)
 
