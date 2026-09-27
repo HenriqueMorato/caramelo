@@ -1,0 +1,116 @@
+---
+en:
+  corporate_action_imports:
+    actions:
+      Confirm selected: Confirm selected
+      Save review: Save review
+      Scan: Scan provider history
+      Scanning: Scanning…
+    confirm:
+      Ignore: Ignore this imported event?
+    edit:
+      Acknowledge provider update: I reviewed the provider update and will use or
+        edit the values below.
+      Amount help: Enter the total credited amount in %{currency}. The provider value
+        above is per share and is only a discovery hint.
+      Conflict heading: Provider data changed
+      Conflict introduction: This event was already reviewed, but the provider now
+        reports different data. Compare the values, then use or edit the form below
+        before saving.
+      Current value: Current reviewed value
+      Effective date: Effective date
+      Event type: Event type
+      Ex-date: Ex-date
+      Gross amount: Gross amount
+      Gross amount estimate help: 'Prefilled estimate: quantity held on the event
+        date × Yahoo''s per-share amount. Verify it against your statement.'
+      Heading: Review imported event
+      Institution: Institution
+      Institution help: Choose the institution that received or held this event.
+      Introduction: Complete the accounting fields before confirming. Nothing changes
+        your ledger while this row is under review.
+      New units: New units
+      Old units: Old units
+      Page title: Review imported event · %{application}
+      Payment date: Payment date
+      Payment date help: Yahoo supplies an ex-date, not a reliable payment date. This
+        is prefilled with the event date; verify it against your statement.
+      Provider amount per share: Provider amount per share
+      Provider event date: Provider event date
+      Provider event type: Provider event type
+      Provider payload: Provider payload
+      Provider ratio: Provider ratio
+      Provider value: Provider value
+      Select institution: Select an institution
+      Withholding tax: Withholding tax
+    errors:
+      invalid_date: Enter a valid date range.
+      invalid_instrument: Select an instrument traded by this owner.
+    index:
+      Actions: Actions
+      All instruments: All traded instruments
+      Back to transactions: Back to transactions
+      Details: Details
+      Empty body: Start a bounded scan to discover provider events. The scan never
+        confirms anything by itself.
+      Empty heading: No imported events to review
+      Event: Event
+      Eyebrow: Market events
+      From: From
+      Heading: Review imported events
+      Instrument: Instrument
+      Introduction: Discover dividends and split events, review the source payload,
+        and confirm only the rows you choose.
+      Needs review: Needs review
+      Page title: Imported events · %{application}
+      Payment: Payment
+      Per share: Per share
+      Scan heading: Scan a bounded history
+      Scan help: Historical ingestion is opt-in. Start with first trade through today,
+        or narrow the range before scanning.
+      Select all: Select all confirmable events
+      Selection help: Only selected rows with complete accounting fields can be confirmed.
+      Source: Source
+      Status: Status
+      Status filter: Imported event status
+      To: To
+      Unmatched: Unmatched instrument
+    notices:
+      bulk_complete: Confirmed %{confirmed}; duplicates %{duplicate}; failed %{failed};
+        skipped %{skipped}.
+      confirmed: Imported event confirmed.
+      duplicate: This event was already confirmed.
+      ignored: Imported event ignored.
+      ignored_many: Ignored %{count} imported events.
+      not_confirmed: Imported event was not confirmed.
+      review_saved: Review saved. Confirm it when the accounting fields are complete.
+      scan_already_running: A scan with these settings is already running.
+      scan_start_failed: The scan could not be started. Try again.
+      scan_started: Scan queued. This page will refresh when it finishes.
+    scan_status:
+      complete: Scan complete. Updating imported events…
+      failed: The provider scan failed. Review any candidates already imported, or
+        retry.
+      queued: Provider scan queued…
+      retry: Retry scan
+      running: Scanning provider history…
+    sources:
+      yahoo_finance: Yahoo Finance
+    statuses:
+      all: All
+      ambiguous: Ambiguous
+      confirmed: Confirmed
+      conflict: Conflict
+      failed: Failed
+      ignored: Ignored
+      pending: Pending
+      reviewable: Needs review
+    warnings:
+      gross_amount_requires_review: Total amount required
+      multiple_institutions: Multiple institutions
+      payment_date_required: Payment date required
+      possible_duplicate: A manually entered event has the same instrument, date,
+        and type. Review before confirming.
+  transactions:
+    index:
+      Review imports: Review imports

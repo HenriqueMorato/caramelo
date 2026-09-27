@@ -10,7 +10,54 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_20_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_26_000200) do
+  create_table "corporate_action_imports", force: :cascade do |t|
+    t.text "amount_per_share"
+    t.integer "corporate_action_id"
+    t.datetime "created_at", null: false
+    t.string "currency", limit: 3
+    t.date "event_on"
+    t.date "ex_date"
+    t.text "failure_message"
+    t.integer "gross_amount_cents"
+    t.integer "institution_id"
+    t.integer "instrument_id"
+    t.string "kind", limit: 32
+    t.integer "net_amount_cents"
+    t.text "normalized_data", default: "{}", null: false
+    t.date "paid_on"
+    t.string "provider_exchange", limit: 16
+    t.string "provider_symbol", limit: 64
+    t.integer "ratio_denominator"
+    t.integer "ratio_numerator"
+    t.text "raw_payload", default: "{}", null: false
+    t.datetime "reviewed_at"
+    t.string "slug", null: false
+    t.string "source", limit: 64, null: false
+    t.string "source_reference", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.text "warnings", default: "[]", null: false
+    t.integer "withholding_tax_cents"
+    t.index ["corporate_action_id"], name: "index_corporate_action_imports_on_corporate_action_id"
+    t.index ["institution_id"], name: "index_corporate_action_imports_on_institution_id"
+    t.index ["instrument_id"], name: "index_corporate_action_imports_on_instrument_id"
+    t.index ["slug"], name: "index_corporate_action_imports_on_slug", unique: true
+    t.index ["user_id", "instrument_id", "status"], name: "index_corporate_action_imports_on_owner_instrument_status"
+    t.index ["user_id", "source", "source_reference"], name: "index_corporate_action_imports_on_owner_source_reference", unique: true
+    t.index ["user_id", "status", "event_on"], name: "index_corporate_action_imports_on_owner_status_event"
+    t.index ["user_id"], name: "index_corporate_action_imports_on_user_id"
+    t.check_constraint "gross_amount_cents IS NULL OR gross_amount_cents > 0", name: "corporate_action_imports_gross_positive"
+    t.check_constraint "kind IS NULL OR kind IN ('dividend', 'jcp', 'split', 'reverse_split', 'share_bonus')", name: "corporate_action_imports_kind"
+    t.check_constraint "net_amount_cents IS NULL OR net_amount_cents >= 0", name: "corporate_action_imports_net_nonnegative"
+    t.check_constraint "ratio_denominator IS NULL OR ratio_denominator > 0", name: "corporate_action_imports_ratio_denominator_positive"
+    t.check_constraint "ratio_numerator IS NULL OR ratio_numerator > 0", name: "corporate_action_imports_ratio_numerator_positive"
+    t.check_constraint "source_reference <> ''", name: "corporate_action_imports_source_reference_present"
+    t.check_constraint "status IN ('pending', 'ambiguous', 'confirmed', 'ignored', 'failed', 'conflict')", name: "corporate_action_imports_status"
+    t.check_constraint "withholding_tax_cents IS NULL OR withholding_tax_cents >= 0", name: "corporate_action_imports_tax_nonnegative"
+  end
+
   create_table "corporate_actions", force: :cascade do |t|
     t.integer "cash_in_lieu_amount_cents"
     t.decimal "cash_in_lieu_quantity", precision: 28, scale: 12
@@ -320,6 +367,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_000000) do
     t.check_constraint "reporting_currency GLOB '[A-Z][A-Z][A-Z]'", name: "users_reporting_currency_format"
   end
 
+  add_foreign_key "corporate_action_imports", "corporate_actions", on_delete: :nullify
+  add_foreign_key "corporate_action_imports", "institutions"
+  add_foreign_key "corporate_action_imports", "instruments"
+  add_foreign_key "corporate_action_imports", "users"
   add_foreign_key "corporate_actions", "institutions"
   add_foreign_key "corporate_actions", "instruments"
   add_foreign_key "corporate_actions", "users"

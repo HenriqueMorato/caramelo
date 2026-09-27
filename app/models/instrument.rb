@@ -7,6 +7,7 @@ class Instrument < ApplicationRecord
   has_many :instrument_performance_materializations, dependent: :delete_all
   has_many :trades, dependent: :restrict_with_error
   has_many :corporate_actions, dependent: :restrict_with_error
+  has_many :corporate_action_imports, dependent: :delete_all
   has_many :daily_closing_prices, dependent: :restrict_with_error
   has_many :position_materializations, dependent: :delete_all
 

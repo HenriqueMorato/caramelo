@@ -16,6 +16,8 @@ class BackupTest < ActiveSupport::TestCase
 
   teardown do
     FileUtils.rm_rf(@destination)
+    CorporateActionImport.delete_all
+    CorporateAction.delete_all
   end
 
   test "creates and verifies complete and portable artifacts" do
@@ -30,6 +32,29 @@ class BackupTest < ActiveSupport::TestCase
     assert_equal 3, verification.record_counts.fetch("primary").fetch("users")
     assert_equal 1, verification.record_counts.fetch("ledger").fetch("users")
     assert_equal 0, verification.record_counts.fetch("ledger").fetch("daily_closing_prices")
+  end
+
+  test "keeps corporate actions and import reviews in the durable ledger artifact" do
+    action = CorporateAction.create!(
+      user: users(:owner), instrument: instruments(:petr4_bvmf), kind: :dividend,
+      status: :confirmed, paid_on: Date.new(2026, 8, 20), gross_amount_cents: 1_000,
+      withholding_tax_cents: 0, net_amount_cents: 1_000, currency: "BRL",
+      source: "manual"
+    )
+    CorporateActionImport.create!(
+      user: users(:owner), instrument: action.instrument, corporate_action: action,
+      source: "yahoo_finance", source_reference: "backup-review", status: :confirmed,
+      kind: "dividend", event_on: Date.new(2026, 8, 18), paid_on: action.paid_on,
+      ex_date: action.ex_date, currency: "BRL", gross_amount_cents: 1_000,
+      withholding_tax_cents: 0, net_amount_cents: 1_000,
+      normalized_data: {}, raw_payload: {}, warnings: []
+    )
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    counts = Backup::Verifier.call(directory: result.directory).record_counts.fetch("ledger")
+
+    assert_equal 1, counts.fetch("corporate_actions")
+    assert_equal 1, counts.fetch("corporate_action_imports")
   end
 
   test "requires a valid retention policy" do

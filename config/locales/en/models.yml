@@ -71,6 +71,15 @@ en:
             ratio_numerator:
               must_increase_quantity: must be greater than old shares
               must_reduce_quantity: must be less than old shares
+        corporate_action_import:
+          attributes:
+            corporate_action:
+              instrument_mismatch: must match the imported instrument
+              required: must exist for a confirmed import
+            institution:
+              wrong_owner: must belong to the import owner
+            kind:
+              jcp_requires_brl: must use a BRL instrument
         historical_data_backfill:
           attributes:
             currency:

@@ -120,12 +120,19 @@ module RefreshStatus
     end
 
     def self.states_with_finish_time(status)
-      scopes.filter_map { |scope| state = read(scope); state if state&.status == status && state.finished_at }
+      scopes.filter_map do |scope|
+        next if hidden_activity_scope?(scope)
+
+        state = read(scope)
+        state if state&.status == status && state.finished_at
+      end
     end
 
     # Per-instrument leases support refresh bookkeeping but should not keep the global toast open.
     def self.hidden_activity_scope?(scope)
-      scope.match?(/\Acurrent_market_price:\d+\z/) || scope.start_with?("market_data_recovery:")
+      scope.match?(/\Acurrent_market_price:\d+\z/) ||
+        scope.start_with?("market_data_recovery:") ||
+        scope.start_with?(CorporateActionImports::ScanStatus::SCOPE_PREFIX)
     end
 
     private_class_method :register, :serialize_time, :parse_time, :key, :states_with_finish_time, :hidden_activity_scope?

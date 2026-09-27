@@ -13,6 +13,22 @@
       test_id: "add-transaction-menu" %>
   </div>
 
+  <% if @reviewable_import_count.positive? %>
+    <aside
+      class="flex flex-col gap-4 rounded-2xl border border-caramel-deep/30 bg-caramel/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+      data-testid="corporate-action-import-review-banner"
+      role="status"
+      aria-live="polite"
+      aria-labelledby="corporate-action-import-review-heading"
+    >
+      <div class="min-w-0">
+        <h2 id="corporate-action-import-review-heading" class="font-semibold text-coffee"><%= t("transactions.index.Imported events heading") %></h2>
+        <p class="mt-1 text-sm leading-6 text-muted"><%= t("transactions.index.Imported events pending", count: @reviewable_import_count) %></p>
+      </div>
+      <%= link_to t("transactions.index.Review imports"), corporate_action_imports_path, class: "ui-button ui-button-secondary shrink-0" %>
+    </aside>
+  <% end %>
+
   <%= render "history",
     transactions: @transactions,
     activity: @activity,

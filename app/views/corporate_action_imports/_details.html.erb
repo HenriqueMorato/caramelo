@@ -1,0 +1,8 @@
+<%# locals: (import:) %>
+
+<% if import.cash_action? %>
+  <p class="text-muted"><%= t("corporate_action_imports.index.Per share") %>: <span class="font-mono tabular-nums"><%= import.amount_per_share || t("Not available") %></span></p>
+  <p class="mt-1 text-muted"><%= t("corporate_action_imports.index.Payment") %>: <%= import.paid_on ? l(import.paid_on, format: :short) : t("corporate_action_imports.index.Needs review") %></p>
+<% else %>
+  <p class="font-mono tabular-nums text-muted"><%= import.ratio_numerator %> : <%= import.ratio_denominator %></p>
+<% end %>

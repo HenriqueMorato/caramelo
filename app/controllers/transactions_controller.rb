@@ -6,6 +6,7 @@ class TransactionsController < ApplicationController
     history = ActivityHistory.new(trades:, income:, activity: params[:activity])
     @has_transactions = history.any?
     @transactions = history.transactions
+    @reviewable_import_count = owner.corporate_action_imports.reviewable.count
   end
 
   private

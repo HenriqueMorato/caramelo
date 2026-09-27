@@ -3,6 +3,7 @@ require "test_helper"
 class TransactionsControllerTest < ActionDispatch::IntegrationTest
   setup do
     CorporateAction.delete_all
+    CorporateActionImport.delete_all
     @trade = trades(:owner_voo_buy)
     @income = create_income
   end
@@ -25,6 +26,30 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_select "tr", text: /Other owner trade/, count: 0
     assert_equal [ dom_id(@income), dom_id(@trade) ], transaction_row_ids
+    assert_select "[data-testid='corporate-action-import-review-banner']", count: 0
+  end
+
+  test "shows a review banner only when imported events are reviewable" do
+    import = CorporateActionImport.create!(
+      user: users(:owner), instrument: instruments(:petr4_bvmf), source: "yahoo_finance",
+      source_reference: "banner-review", status: :pending, kind: :split,
+      event_on: Date.current, ratio_numerator: 2, ratio_denominator: 1, currency: "BRL",
+      normalized_data: {}, raw_payload: {}, warnings: []
+    )
+
+    get transactions_url
+
+    assert_response :success
+    assert_select "[data-testid='corporate-action-import-review-banner']" do
+      assert_select "h2", "Imported market events need review"
+      assert_select "a[href='#{corporate_action_imports_path}']", text: "Review imports"
+      assert_select "p", text: /1 imported market event is waiting/
+    end
+
+    import.update!(status: :ignored)
+    get transactions_url
+
+    assert_select "[data-testid='corporate-action-import-review-banner']", count: 0
   end
 
   test "filters the combined history through URL-backed activity links" do

@@ -54,9 +54,11 @@ en:
   actions:
     Add: Add %{model}
     Cancel: Cancel
+    Confirm: Confirm
     Delete: Delete
     Edit: Edit
     Edit model: Edit %{model}
+    Ignore: Ignore
     View details: View details
   alerts:
     Invalid credentials: Try another email address or password.
@@ -122,6 +124,13 @@ en:
     Required fields: Required fields
     Select an instrument: Select an instrument
   market_data_health:
+    import_review:
+      Eyebrow: Review queue
+      Heading: Imported events
+      Intro:
+        one: 1 imported event was ignored and can be reviewed again.
+        other: "%{count} imported events were ignored and can be reviewed again."
+      Review ignored: Review ignored imports
     show:
       Actions: Actions
       Checked at: Checked at %{time}

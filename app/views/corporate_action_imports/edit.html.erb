@@ -1,0 +1,98 @@
+<% content_for :title, t("corporate_action_imports.edit.Page title", application: t("caramelo")) %>
+
+<section class="mx-auto max-w-3xl space-y-8">
+  <div class="ui-page-header">
+    <div class="ui-page-header-copy">
+      <p class="ui-eyebrow"><%= t("corporate_action_imports.index.Eyebrow") %></p>
+      <h1 class="ui-page-title"><%= t("corporate_action_imports.edit.Heading") %></h1>
+      <p class="ui-page-intro"><%= t("corporate_action_imports.edit.Introduction") %></p>
+    </div>
+    <%= link_to t("actions.Cancel"), corporate_action_imports_path, class: "ui-button ui-button-secondary" %>
+  </div>
+
+  <div class="rounded-2xl border border-coffee/10 bg-paper p-5 shadow-sm sm:p-6">
+    <p class="text-sm text-muted"><%= @import.source %> · <%= @import.source_reference %></p>
+    <% if @edit.conflict? %>
+      <aside class="mt-6 rounded-2xl border border-caramel/40 bg-caramel/10 p-4 text-sm text-coffee" role="alert" aria-labelledby="corporate-action-import-conflict-heading">
+        <h2 id="corporate-action-import-conflict-heading" class="font-semibold"><%= t("corporate_action_imports.edit.Conflict heading") %></h2>
+        <p class="mt-2 leading-6"><%= t("corporate_action_imports.edit.Conflict introduction") %></p>
+        <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("corporate_action_imports.edit.Current value") %> · <%= t("corporate_action_imports.edit.Event type") %></dt>
+            <dd class="mt-1"><%= @edit.current_kind.to_s.humanize %></dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("corporate_action_imports.edit.Provider value") %> · <%= t("corporate_action_imports.edit.Provider event type") %></dt>
+            <dd class="mt-1"><%= @edit.provider_kind&.humanize || t("Not available") %></dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("corporate_action_imports.edit.Current value") %> · <%= t("corporate_action_imports.edit.Effective date") %></dt>
+            <dd class="mt-1"><%= @edit.current_event_on || t("Not available") %></dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("corporate_action_imports.edit.Provider value") %> · <%= t("corporate_action_imports.edit.Provider event date") %></dt>
+            <dd class="mt-1"><%= @edit.provider_event_on || t("Not available") %></dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("corporate_action_imports.edit.Provider value") %> · <%= t("corporate_action_imports.edit.Provider ratio") %></dt>
+            <dd class="mt-1"><%= @edit.provider_ratio || t("Not available") %></dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("corporate_action_imports.edit.Provider value") %> · <%= t("corporate_action_imports.edit.Provider amount per share") %></dt>
+            <dd class="mt-1"><%= @edit.provider_amount_per_share || t("Not available") %></dd>
+          </div>
+        </dl>
+        <details class="mt-4">
+          <summary class="cursor-pointer font-semibold"><%= t("corporate_action_imports.edit.Provider payload") %></summary>
+          <pre class="mt-3 max-h-64 overflow-auto rounded-xl bg-paper/70 p-3 text-xs"><%= JSON.pretty_generate(@edit.provider_payload) %></pre>
+        </details>
+      </aside>
+    <% end %>
+    <%= form_with model: @import, url: corporate_action_import_path(@import), method: :patch, class: "mt-6 space-y-6" do |form| %>
+      <% if flash[:alert] %><div class="ui-form-errors" role="alert"><%= flash[:alert] %></div><% end %>
+      <% if @edit.conflict? %>
+        <label class="flex items-start gap-3 rounded-xl border border-coffee/10 bg-oat-2/60 p-4 text-sm leading-6 text-coffee">
+          <%= form.check_box :accept_provider_update, required: true, class: "mt-1 h-5 w-5 rounded border-coffee/30 text-caramel focus:ring-caramel" %>
+          <span><%= t("corporate_action_imports.edit.Acknowledge provider update") %></span>
+        </label>
+      <% end %>
+      <div>
+        <%= form.label :kind, t("corporate_action_imports.edit.Event type"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.select :kind, @edit.kind_options.map { |kind| [t("corporate_actions.kinds.#{kind}"), kind] }, { selected: @edit.review_kind }, class: "ui-field" %>
+      </div>
+      <% if @edit.institution_select? %>
+        <div>
+          <%= form.label :institution_id, t("corporate_action_imports.edit.Institution"), class: "block text-sm font-semibold text-coffee" %>
+          <%= form.select :institution_id, options_from_collection_for_select(@edit.institutions, :id, :name, @edit.institution_id), { include_blank: t("corporate_action_imports.edit.Select institution") }, class: "ui-field", required: true %>
+          <p class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Institution help") %></p>
+        </div>
+      <% elsif @edit.hidden_institution? %>
+        <%= form.hidden_field :institution_id, value: @edit.institution_id %>
+      <% end %>
+      <% if @edit.cash_action? %>
+        <div class="grid gap-6 sm:grid-cols-2">
+          <div>
+            <%= form.label :paid_on, t("corporate_action_imports.edit.Payment date"), class: "block text-sm font-semibold text-coffee" %>
+            <%= form.date_field :paid_on, value: @edit.suggested_payment_date, class: "ui-field", required: true, aria: { describedby: ("corporate-action-import-payment-date-help" if @edit.payment_date_suggested?) } %>
+            <% if @edit.payment_date_suggested? %><p id="corporate-action-import-payment-date-help" class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Payment date help") %></p><% end %>
+          </div>
+          <div><%= form.label :ex_date, t("corporate_action_imports.edit.Ex-date"), class: "block text-sm font-semibold text-coffee" %><%= form.date_field :ex_date, value: @edit.review_ex_date, class: "ui-field" %></div>
+          <div>
+            <%= form.label :gross_amount, t("corporate_action_imports.edit.Gross amount"), class: "block text-sm font-semibold text-coffee" %>
+            <%= form.text_field :gross_amount, value: @edit.gross_amount_value, inputmode: "decimal", class: "ui-field", required: true, aria: { describedby: ("corporate-action-import-gross-amount-help" if @edit.estimated_gross_amount_cents) } %>
+            <% if @edit.estimated_gross_amount_cents %><p id="corporate-action-import-gross-amount-help" class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Gross amount estimate help") %></p><% end %>
+          </div>
+          <div><%= form.label :withholding_tax, t("corporate_action_imports.edit.Withholding tax"), class: "block text-sm font-semibold text-coffee" %><%= form.text_field :withholding_tax, value: @edit.withholding_tax_value, inputmode: "decimal", class: "ui-field" %></div>
+        </div>
+        <p class="text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Amount help", currency: @edit.review_currency || t("Not available")) %></p>
+      <% else %>
+        <div class="grid gap-6 sm:grid-cols-3">
+          <div><%= form.label :effective_on, t("corporate_action_imports.edit.Effective date"), class: "block text-sm font-semibold text-coffee" %><%= form.date_field :effective_on, value: @edit.review_event_on, class: "ui-field", required: true %></div>
+          <div><%= form.label :ratio_numerator, t("corporate_action_imports.edit.New units"), class: "block text-sm font-semibold text-coffee" %><%= form.number_field :ratio_numerator, value: @edit.review_ratio_numerator, class: "ui-field", min: 1, step: 1, required: true %></div>
+          <div><%= form.label :ratio_denominator, t("corporate_action_imports.edit.Old units"), class: "block text-sm font-semibold text-coffee" %><%= form.number_field :ratio_denominator, value: @edit.review_ratio_denominator, class: "ui-field", min: 1, step: 1, required: true %></div>
+        </div>
+      <% end %>
+      <div class="flex flex-wrap gap-3"><%= form.button t("corporate_action_imports.actions.Save review"), class: "ui-button ui-button-primary" %><%= link_to t("actions.Cancel"), corporate_action_imports_path, class: "ui-button ui-button-secondary" %></div>
+    <% end %>
+  </div>
+</section>

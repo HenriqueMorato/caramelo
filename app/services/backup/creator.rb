@@ -96,14 +96,28 @@ module Backup
       raise Error, "configured owner is missing from the primary database" unless owner_id
 
       empty_replaceable_tables(database)
+      database.execute("DELETE FROM corporate_action_imports WHERE user_id <> ?", [ owner_id ])
+      database.execute("DELETE FROM corporate_actions WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM trades WHERE user_id <> ?", [ owner_id ])
       database.execute(<<~SQL, [ owner_id ])
         DELETE FROM institutions
-        WHERE user_id <> ? OR id NOT IN (SELECT institution_id FROM trades WHERE institution_id IS NOT NULL)
+        WHERE user_id <> ? OR id NOT IN (
+          SELECT institution_id FROM trades WHERE institution_id IS NOT NULL
+          UNION
+          SELECT institution_id FROM corporate_actions WHERE institution_id IS NOT NULL
+          UNION
+          SELECT institution_id FROM corporate_action_imports WHERE institution_id IS NOT NULL
+        )
       SQL
       database.execute(<<~SQL)
         DELETE FROM instruments
-        WHERE id NOT IN (SELECT instrument_id FROM trades)
+        WHERE id NOT IN (
+          SELECT instrument_id FROM trades
+          UNION
+          SELECT instrument_id FROM corporate_actions
+          UNION
+          SELECT instrument_id FROM corporate_action_imports WHERE instrument_id IS NOT NULL
+        )
       SQL
       database.execute("DELETE FROM users WHERE id <> ?", [ owner_id ])
       database.execute("PRAGMA foreign_keys = ON")

@@ -24,11 +24,11 @@ module MarketData
         )
       end
 
-      def history_uri(identifier:, from:, to:)
-        history_uri_for(value: identifier.value, from:, to:)
+      def history_uri(identifier:, from:, to:, events: "history")
+        history_uri_for(value: identifier.value, from:, to:, events:)
       end
 
-      def history_uri_for(value:, from:, to:)
+      def history_uri_for(value:, from:, to:, events: "history")
         URI::HTTPS.build(
           host: CurlTransport::ALLOWED_HOST,
           path: chart_path(value),
@@ -36,7 +36,7 @@ module MarketData
             period1: from.in_time_zone.beginning_of_day.to_i,
             period2: (to + 1).in_time_zone.beginning_of_day.to_i,
             interval: "1d",
-            events: "history"
+            events:
           )
         )
       end

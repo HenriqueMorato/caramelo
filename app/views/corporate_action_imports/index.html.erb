@@ -1,0 +1,93 @@
+<% content_for :title, t("corporate_action_imports.index.Page title", application: t("caramelo")) %>
+
+<section class="space-y-8">
+  <%= turbo_stream_from CorporateActionImports::ScanStatus.stream_name(@scan_scope) if @scan_scope && @scan_state %>
+
+  <div class="ui-page-header">
+    <div class="ui-page-header-copy">
+      <p class="ui-eyebrow"><%= t("corporate_action_imports.index.Eyebrow") %></p>
+      <h1 class="ui-page-title"><%= t("corporate_action_imports.index.Heading") %></h1>
+      <p class="ui-page-intro"><%= t("corporate_action_imports.index.Introduction") %></p>
+    </div>
+    <%= link_to t("corporate_action_imports.index.Back to transactions"), transactions_path, class: "ui-button ui-button-secondary" %>
+  </div>
+
+  <div class="rounded-2xl border border-coffee/10 bg-paper p-5 shadow-sm sm:p-6">
+    <h2 class="text-lg font-semibold text-coffee"><%= t("corporate_action_imports.index.Scan heading") %></h2>
+    <p class="mt-1 text-sm leading-6 text-muted"><%= t("corporate_action_imports.index.Scan help") %></p>
+    <%= form_with url: corporate_action_imports_path, scope: :scan, method: :post, class: "mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" do |form| %>
+      <div>
+        <%= form.label :from, t("corporate_action_imports.index.From"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.date_field :from, value: @from, required: true, max: Date.current, class: "ui-field" %>
+      </div>
+      <div>
+        <%= form.label :to, t("corporate_action_imports.index.To"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.date_field :to, value: @to, required: true, max: Date.current, class: "ui-field" %>
+      </div>
+      <div>
+        <%= form.label :source, t("corporate_action_imports.index.Source"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.select :source, [[t("corporate_action_imports.sources.yahoo_finance"), "yahoo_finance"]], {}, class: "ui-field" %>
+      </div>
+      <div>
+        <%= form.label :instrument_id, t("corporate_action_imports.index.Instrument"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.select :instrument_id,
+          options_from_collection_for_select(@instruments, :id, ->(instrument) { "#{instrument.ticker} · #{instrument.exchange}" }, @scan_instrument_id),
+          { include_blank: t("corporate_action_imports.index.All instruments") }, class: "ui-field" %>
+      </div>
+      <div class="flex items-end">
+        <%= form.button t("corporate_action_imports.actions.Scan"), class: "ui-button ui-button-primary min-h-[3.125rem] w-full", data: { turbo_submits_with: t("corporate_action_imports.actions.Scanning") } %>
+      </div>
+    <% end %>
+  </div>
+
+  <div id="<%= CorporateActionImports::ScanStatus::TARGET %>" aria-live="polite">
+    <%= render "scan_status", state: @scan_state, refresh_path: @scan_refresh_path, reload: false %>
+  </div>
+
+  <nav class="flex flex-wrap items-center gap-3" aria-label="<%= t("corporate_action_imports.index.Status filter") %>">
+    <% [["reviewable", t("corporate_action_imports.statuses.reviewable")], ["all", t("corporate_action_imports.statuses.all")], ["confirmed", t("corporate_action_imports.statuses.confirmed")], ["ignored", t("corporate_action_imports.statuses.ignored")], ["failed", t("corporate_action_imports.statuses.failed")]].each do |status, label| %>
+      <%= link_to label, corporate_action_imports_path(status:), class: ["grouping-option", ("rounded-md border border-caramel-deep bg-caramel-deep text-on-accent" if @status_filter == status)].compact.join(" "), aria: { current: ("page" if @status_filter == status) } %>
+    <% end %>
+  </nav>
+
+  <% if @imports.any? %>
+    <%= form_with url: bulk_confirm_corporate_action_imports_path, method: :post,
+      data: { controller: "bulk-selection" } do |form| %>
+      <div class="mb-3 flex flex-wrap items-center gap-3">
+        <%= form.button t("corporate_action_imports.actions.Confirm selected"), class: "ui-button ui-button-primary" %>
+        <span class="text-sm text-muted"><%= t("corporate_action_imports.index.Selection help") %></span>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-coffee/10 bg-oat-2">
+        <table class="ui-data-table min-w-[70rem] text-sm">
+          <thead>
+            <tr class="text-xs uppercase tracking-[0.08em] text-muted">
+              <th scope="col" class="px-4 py-3"><label><span class="sr-only"><%= t("corporate_action_imports.index.Select all") %></span><input type="checkbox" data-bulk-selection-target="all" data-action="bulk-selection#toggleAll" class="size-5 rounded border-coffee/30"></label></th>
+              <th scope="col" class="px-4 py-3"><%= t("corporate_action_imports.index.Source") %></th>
+              <th scope="col" class="px-4 py-3"><%= t("corporate_action_imports.index.Instrument") %></th>
+              <th scope="col" class="px-4 py-3"><%= t("corporate_action_imports.index.Event") %></th>
+              <th scope="col" class="px-4 py-3"><%= t("corporate_action_imports.index.Details") %></th>
+              <th scope="col" class="px-4 py-3"><%= t("corporate_action_imports.index.Status") %></th>
+              <th scope="col" class="px-4 py-3"><span class="sr-only"><%= t("corporate_action_imports.index.Actions") %></span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-coffee/10">
+            <% @imports.each do |import| %>
+              <tr id="<%= dom_id(import) %>">
+                <td class="px-4 py-4 align-top"><%= check_box_tag "import_ids[]", import.id, false, disabled: !import.ready_for_confirmation?, data: { bulk_selection_target: "item" }, class: "size-5 rounded border-coffee/30" %></td>
+                <td class="px-4 py-4 align-top"><p class="font-semibold text-coffee"><%= import.source %></p><p class="mt-1 max-w-[14rem] break-all text-xs text-muted"><%= import.source_reference %></p></td>
+                <td class="px-4 py-4 align-top"><% if import.instrument %><%= link_to "#{import.instrument.ticker} · #{import.instrument.exchange}", instrument_path(import.instrument), class: "font-semibold text-caramel-deep hover:underline" %><% else %><span class="text-muted"><%= t("corporate_action_imports.index.Unmatched") %></span><% end %></td>
+                <td class="px-4 py-4 align-top"><p class="font-semibold text-coffee"><%= t("corporate_actions.kinds.#{import.kind}", default: import.kind.to_s.humanize) %></p><p class="mt-1 text-muted"><%= import.event_on ? l(import.event_on, format: :short) : t("Not available") %></p></td>
+                <td class="px-4 py-4 align-top"><%= render "details", import: import %></td>
+                <td class="px-4 py-4 align-top"><span class="inline-flex rounded-full bg-caramel/15 px-2.5 py-1 text-xs font-semibold text-caramel-deep"><%= t("corporate_action_imports.statuses.#{import.status}") %></span><% import.warning_list.each do |warning| %><p class="mt-1 text-xs text-muted"><%= t("corporate_action_imports.warnings.#{warning}", default: warning.humanize) %></p><% end %><% if import.failure_message %><p class="mt-1 max-w-xs text-xs text-guava"><%= import.failure_message %></p><% end %></td>
+                <td class="px-4 py-4 align-top"><div class="flex flex-wrap gap-2"><%= link_to t("actions.Edit"), edit_corporate_action_import_path(import), class: "ui-button ui-button-secondary px-3 py-2 text-xs" unless import.confirmed? %><% if import.ready_for_confirmation? %><%= link_to t("actions.Confirm"), confirm_corporate_action_import_path(import), data: { turbo_method: :post }, class: "ui-button ui-button-primary px-3 py-2 text-xs" unless import.confirmed? %><% end %><%= link_to t("actions.Ignore"), ignore_corporate_action_import_path(import), data: { turbo_method: :post, turbo_confirm: t("corporate_action_imports.confirm.Ignore") }, class: "ui-button ui-button-secondary px-3 py-2 text-xs" unless %w[confirmed ignored].include?(import.status) %></div></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="ui-empty-state"><p class="font-medium text-coffee"><%= t("corporate_action_imports.index.Empty heading") %></p><p class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.index.Empty body") %></p></div>
+  <% end %>
+</section>
