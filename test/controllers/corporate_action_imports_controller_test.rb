@@ -258,6 +258,24 @@ class CorporateActionImportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#corporate-action-scan-status a", text: "Retry scan", count: 1
   end
 
+  test "shows an interrupted scan with a retry link" do
+    from = Date.new(2026, 8, 1)
+    to = Date.new(2026, 8, 31)
+    scope = CorporateActionImports::ScanStatus.scope(
+      user: users(:owner), from:, to:, source: "yahoo_finance", instrument_id: nil
+    )
+    travel_to 11.minutes.ago do
+      CorporateActionImports::ScanStatus.enqueue(scope:)
+    end
+
+    get corporate_action_imports_url(
+      from: from, to:, source: "yahoo_finance", scan_run_id: RefreshStatus::State.read(scope).run_id
+    )
+
+    assert_select "#corporate-action-scan-status", text: /stopped before completion/i
+    assert_select "#corporate-action-scan-status a", text: "Retry scan", count: 1
+  end
+
   test "redirects invalid scan dates with an alert" do
     post corporate_action_imports_url, params: {
       scan: { from: "not-a-date", to: "2026-08-31", source: "yahoo_finance" }

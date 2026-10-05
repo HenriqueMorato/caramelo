@@ -7,6 +7,7 @@ class Trade < ApplicationRecord
     user_id instrument_id side traded_on quantity unit_price fees_cents currency
     settlement_currency settlement_exchange_rate
   ].freeze
+  CORPORATE_ACTION_SCAN_INPUTS = %w[user_id instrument_id side traded_on quantity].freeze
 
   belongs_to :user
   belongs_to :instrument
@@ -37,6 +38,7 @@ class Trade < ApplicationRecord
   after_destroy :mark_performance_observations_stale
   after_commit :enqueue_performance_observation_rebuild, on: %i[create update destroy]
   after_commit :enqueue_position_materialization_refresh, on: %i[create update destroy]
+  after_commit :enqueue_corporate_action_scan, on: %i[create update destroy], if: :corporate_action_scan_inputs_changed?
 
   scope :reverse_chronological, -> { order(traded_on: :desc, id: :desc) }
 
@@ -118,6 +120,27 @@ class Trade < ApplicationRecord
     Rails.error.report(error, handled: true, context: { trade_id: id })
   end
 
+  def enqueue_corporate_action_scan
+    today = Date.current
+    corporate_action_scan_targets.each do |(target_user_id, target_instrument_id), from|
+      next if from > today
+
+      target_user = User.find_by(id: target_user_id)
+      target_instrument = Instrument.find_by(id: target_instrument_id)
+      next unless target_user && target_instrument
+
+      scan = CorporateActionImportScan.find_by(
+        user: target_user, instrument: target_instrument, source: CorporateActionImports::Automation::SOURCE
+      )
+      scan&.rewind!(from:)
+      next unless target_user.trades.where(instrument: target_instrument, traded_on: ..today).exists?
+
+      CorporateActionImports::Automation.call(user: target_user, instrument: target_instrument, today:)
+    end
+  rescue StandardError => error
+    Rails.error.report(error, handled: true, context: { trade_id: id, source: "corporate_action_scan" })
+  end
+
   def position_materialization_targets
     current = [ user_id, instrument_id ]
     return [ current ] unless saved_change_to_user_id? || saved_change_to_instrument_id?
@@ -149,6 +172,24 @@ class Trade < ApplicationRecord
 
   def performance_inputs_changed?
     (saved_changes.keys & PERFORMANCE_INPUTS).any?
+  end
+
+  def corporate_action_scan_inputs_changed?
+    destroyed? || (previous_changes.keys & CORPORATE_ACTION_SCAN_INPUTS).any?
+  end
+
+  def corporate_action_scan_targets
+    return { [ user_id, instrument_id ] => traded_on } if destroyed?
+
+    old_user_id, new_user_id = previous_changes.fetch("user_id", [ user_id, user_id ])
+    old_instrument_id, new_instrument_id = previous_changes.fetch(
+      "instrument_id", [ instrument_id, instrument_id ]
+    )
+    old_date, new_date = previous_changes.fetch("traded_on", [ traded_on, traded_on ])
+    [ [ old_user_id, old_instrument_id, old_date ], [ new_user_id, new_instrument_id, new_date ] ]
+      .reject { |target_user_id, target_instrument_id, date| target_user_id.nil? || target_instrument_id.nil? || date.nil? }
+      .group_by { |target_user_id, target_instrument_id, _date| [ target_user_id, target_instrument_id ] }
+      .transform_values { |targets| targets.map(&:last).min }
   end
 
   def performance_invalidation_targets

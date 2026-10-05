@@ -1,6 +1,6 @@
 module MarketData
   class Reset
-    SUPPORTED_KINDS = Recovery::HANDLERS.keys.freeze
+    SUPPORTED_KINDS = (Recovery::HANDLERS.keys - [ :corporate_action_imports ]).freeze
 
     Result = Data.define(:status, :target) do
       def queued? = status == :queued

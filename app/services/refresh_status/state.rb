@@ -77,7 +77,7 @@ module RefreshStatus
     def self.prune!
       retained = scopes.select do |scope|
         state = read(scope)
-        state && (!state.finished_at || state.updated_at > ACTIVE_TIMEOUT.ago)
+        state && state.updated_at && state.updated_at > ACTIVE_TIMEOUT.ago
       end
       Rails.cache.write(SCOPES_KEY, retained)
       retained

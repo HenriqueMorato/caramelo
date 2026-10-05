@@ -1,15 +1,18 @@
 module CorporateActionImports
   class Scan
+    class Superseded < StandardError; end
+
     Result = Data.define(:from, :to, :source, :imports, :errors, :created_count) do
       def reviewable_count = imports.count(&:reviewable?)
       def error_count = errors.size
     end
 
-    def self.call(user:, from:, to:, source: "yahoo_finance", instrument: nil, provider: nil, strict: false)
-      new(user:, from:, to:, source:, instrument:, provider:, strict:).call
+    def self.call(user:, from:, to:, source: Providers::YAHOO_FINANCE, instrument: nil, provider: nil, strict: false,
+      fence: nil)
+      new(user:, from:, to:, source:, instrument:, provider:, strict:, fence:).call
     end
 
-    def initialize(user:, from:, to:, source:, instrument:, provider:, strict:)
+    def initialize(user:, from:, to:, source:, instrument:, provider:, strict:, fence: nil)
       @user = user
       @from = from
       @to = to
@@ -17,6 +20,7 @@ module CorporateActionImports
       @instrument = instrument
       @provider = provider || default_provider
       @strict = strict
+      @fence = fence
     end
 
     def call
@@ -26,14 +30,17 @@ module CorporateActionImports
       created_count = 0
       instruments.each do |current_instrument|
         begin
+          ensure_current_run!
           fetch_from = [ from, trades_for(current_instrument).first.traded_on ].max
           @provider.fetch(instrument: current_instrument, from: fetch_from, to:).each do |candidate|
             next unless candidate_has_position?(current_instrument, candidate)
 
-            import, created = persist_candidate(current_instrument, candidate)
+            import, created = persist_candidate_with_fence(current_instrument, candidate)
             imports << import
             created_count += 1 if created
           end
+        rescue Superseded
+          raise
         rescue StandardError => error
           raise if strict
 
@@ -45,9 +52,16 @@ module CorporateActionImports
 
     private
 
-    attr_reader :user, :from, :to, :source, :instrument, :provider
+    attr_reader :user, :from, :to, :source, :instrument, :provider, :fence
 
     def strict = @strict
+
+    def ensure_current_run!
+      return unless fence
+      return if fence.call { true }
+
+      raise Superseded, "corporate-action scan generation was superseded"
+    end
 
     def instruments
       if instrument
@@ -111,6 +125,15 @@ module CorporateActionImports
       return persist_existing_import(import, current_instrument, candidate) if import
 
       persist_new_import(current_instrument, candidate, source_reference)
+    end
+
+    def persist_candidate_with_fence(current_instrument, candidate)
+      return persist_candidate(current_instrument, candidate) unless fence
+
+      persisted = fence.call { persist_candidate(current_instrument, candidate) }
+      raise Superseded, "corporate-action scan generation was superseded" unless persisted
+
+      persisted
     end
 
     def persist_existing_import(import, current_instrument, candidate)
@@ -257,7 +280,7 @@ module CorporateActionImports
     end
 
     def validate_range!
-      raise ArgumentError, "unsupported import source" unless source == "yahoo_finance"
+      raise ArgumentError, "unsupported import source" unless Providers::SUPPORTED_SOURCES.include?(source)
 
       unless from.is_a?(Date) && to.is_a?(Date) && from <= to && to <= Date.current
         raise ArgumentError, "import range must use past dates in chronological order"

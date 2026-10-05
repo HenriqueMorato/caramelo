@@ -16,8 +16,10 @@ class BackupTest < ActiveSupport::TestCase
 
   teardown do
     FileUtils.rm_rf(@destination)
+    CorporateActionImportScan.delete_all
     CorporateActionImport.delete_all
     CorporateAction.delete_all
+    Instrument.where(id: @scan_instrument_id).delete_all if @scan_instrument_id
   end
 
   test "creates and verifies complete and portable artifacts" do
@@ -55,6 +57,22 @@ class BackupTest < ActiveSupport::TestCase
 
     assert_equal 1, counts.fetch("corporate_actions")
     assert_equal 1, counts.fetch("corporate_action_imports")
+  end
+
+  test "keeps automatic corporate-action scan watermarks in the durable ledger artifact" do
+    instrument = Instrument.create!(
+      ticker: "BKP#{SecureRandom.hex(4).upcase}", exchange: "BVMF", name: "Backup scan instrument", currency: "BRL"
+    )
+    @scan_instrument_id = instrument.id
+    CorporateActionImportScan.create!(
+      user: users(:owner), instrument:, source: "yahoo_finance",
+      status: :succeeded, scanned_through: Date.new(2026, 9, 5), completed_at: Time.current
+    )
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    counts = Backup::Verifier.call(directory: result.directory).record_counts.fetch("ledger")
+
+    assert_equal 1, counts.fetch("corporate_action_import_scans")
   end
 
   test "requires a valid retention policy" do

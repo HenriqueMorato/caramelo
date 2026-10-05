@@ -18,7 +18,8 @@ module MarketData
       historical_exchange_rates: MarketData::Recoveries::HistoricalExchangeRates,
       benchmark_observations: MarketData::Recoveries::BenchmarkObservations,
       portfolio_performance: MarketData::Recoveries::PerformanceObservations,
-      instrument_performance: MarketData::Recoveries::PerformanceObservations
+      instrument_performance: MarketData::Recoveries::PerformanceObservations,
+      corporate_action_imports: MarketData::Recoveries::CorporateActionImports
     }.freeze
 
     def self.call(target:, range: nil, owner: User.owner, cache: Rails.cache, handlers: HANDLERS,

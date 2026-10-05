@@ -3,6 +3,7 @@ require "test_helper"
 class TradePerformanceInvalidationTest < ActiveJob::TestCase
   setup do
     Rails.cache.clear
+    CorporateActionImportScan.delete_all
     @user = users(:owner)
     @trade = trades(:owner_voo_buy)
     @state = PortfolioPerformanceMaterialization.for(user: @user)
@@ -70,6 +71,133 @@ class TradePerformanceInvalidationTest < ActiveJob::TestCase
     assert_equal 1, alternate.reload.source_generation
     assert_equal @trade.traded_on, alternate.requested_from
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
+  end
+
+  test "a new traded instrument schedules its provider scan" do
+    calls = []
+    original = CorporateActionImports::Automation.method(:call)
+    CorporateActionImports::Automation.define_singleton_method(:call) do |**arguments|
+      calls << arguments
+      CorporateActionImports::Automation::Result.new(scheduled_count: 1, skipped_count: 0, failed_count: 0)
+    end
+
+    trade = @trade.dup
+    trade.slug = nil
+    trade.traded_on = Date.new(2026, 9, 1)
+    trade.save!
+
+    assert_equal [ @user, @trade.instrument ], [ calls.sole.fetch(:user), calls.sole.fetch(:instrument) ]
+    assert_equal Date.current, calls.sole.fetch(:today)
+  ensure
+    CorporateActionImports::Automation.define_singleton_method(:call, original) if original
+  end
+
+  test "a trade date change rewinds and reschedules the instrument scan" do
+    today = Date.current
+    scan = CorporateActionImportScan.for(
+      user: @user, instrument: @trade.instrument, source: CorporateActionImports::Automation::SOURCE
+    )
+    request = scan.claim!(from: @trade.traded_on, to: today)
+    scan.start!(request.run_id)
+    scan.complete!(request.run_id, through: today)
+    calls = []
+    original = CorporateActionImports::Automation.method(:call)
+    CorporateActionImports::Automation.define_singleton_method(:call) do |**arguments|
+      calls << arguments
+      CorporateActionImports::Automation::Result.new(scheduled_count: 1, skipped_count: 0, failed_count: 0)
+    end
+
+    moved_on = @trade.traded_on - 2.days
+    @trade.update!(traded_on: moved_on)
+
+    assert_predicate scan.reload, :pending?
+    assert_equal moved_on - 1.day, scan.scanned_through
+    assert_equal [ @user, @trade.instrument ], [ calls.sole.fetch(:user), calls.sole.fetch(:instrument) ]
+  ensure
+    CorporateActionImports::Automation.define_singleton_method(:call, original) if original
+  end
+
+  test "a trade date change supersedes an active provider scan" do
+    today = Date.current
+    scan = CorporateActionImportScan.for(
+      user: @user, instrument: @trade.instrument, source: CorporateActionImports::Automation::SOURCE
+    )
+    request = scan.claim!(from: @trade.traded_on, to: today)
+    scan.start!(request.run_id)
+    original_enqueue = ScanCorporateActionImportsJob.method(:perform_later)
+    ScanCorporateActionImportsJob.define_singleton_method(:perform_later) { |**| Object.new }
+    @trade.update!(traded_on: @trade.traded_on - 2.days)
+
+    assert_predicate scan.reload, :queued?
+    refute_equal request.run_id, scan.run_id
+    assert_equal @trade.traded_on, scan.requested_from
+  ensure
+    ScanCorporateActionImportsJob.define_singleton_method(:perform_later, original_enqueue) if original_enqueue
+  end
+
+  test "position quantity and side edits rewind the instrument scan" do
+    today = Date.current
+    scan = CorporateActionImportScan.for(
+      user: @user, instrument: @trade.instrument, source: CorporateActionImports::Automation::SOURCE
+    )
+    request = scan.claim!(from: @trade.traded_on, to: today)
+    scan.start!(request.run_id)
+    scan.complete!(request.run_id, through: today)
+    original = CorporateActionImports::Automation.method(:call)
+    CorporateActionImports::Automation.define_singleton_method(:call) do |**|
+      CorporateActionImports::Automation::Result.new(scheduled_count: 1, skipped_count: 0, failed_count: 0)
+    end
+
+    @trade.update!(quantity: "3")
+    assert_predicate scan.reload, :pending?
+
+    request = scan.claim!(from: @trade.traded_on, to: today)
+    scan.start!(request.run_id)
+    scan.complete!(request.run_id, through: today)
+    @trade.update!(side: :sell)
+
+    assert_predicate scan.reload, :pending?
+  ensure
+    CorporateActionImports::Automation.define_singleton_method(:call, original) if original
+  end
+
+  test "notes edits do not schedule a provider scan" do
+    calls = 0
+    original = CorporateActionImports::Automation.method(:call)
+    CorporateActionImports::Automation.define_singleton_method(:call) { |**| calls += 1 }
+
+    @trade.update!(notes: "Only explanatory text changed")
+
+    assert_equal 0, calls
+  ensure
+    CorporateActionImports::Automation.define_singleton_method(:call, original) if original
+  end
+
+  test "reports a handled provider scan enqueue failure" do
+    failure = RuntimeError.new("scan unavailable")
+    original_automation = CorporateActionImports::Automation.method(:call)
+    reporter = Rails.error
+    original_report = reporter.method(:report)
+    reported = nil
+    CorporateActionImports::Automation.define_singleton_method(:call) { |**| raise failure }
+    reporter.define_singleton_method(:report) { |error, **context| reported = [ error, context ] }
+
+    @trade.send(:enqueue_corporate_action_scan)
+
+    assert_equal failure, reported.first
+    assert_equal({ handled: true, context: { trade_id: @trade.id, source: "corporate_action_scan" } }, reported.second)
+  ensure
+    CorporateActionImports::Automation.define_singleton_method(:call, original_automation)
+    reporter.define_singleton_method(:report, original_report)
+  end
+
+  test "skips a corporate action target when its records were removed" do
+    original_targets = @trade.method(:corporate_action_scan_targets)
+    @trade.define_singleton_method(:corporate_action_scan_targets) { { [ -1, -1 ] => Date.current } }
+
+    assert_nothing_raised { @trade.send(:enqueue_corporate_action_scan) }
+  ensure
+    @trade.define_singleton_method(:corporate_action_scan_targets, original_targets) if original_targets
   end
 
   test "deleting the last trade queues a cleanup that cannot recreate its history" do
