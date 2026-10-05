@@ -127,16 +127,12 @@ jobs:
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test
 
-      - name: Upload Rails coverage
-        uses: coverallsapp/github-action@v2
+      - name: Upload Rails coverage artifact
+        uses: actions/upload-artifact@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          file: coverage/.resultset.json
-          format: simplecov
-          flag-name: rails-tests
-          parallel: true
-          build-number: ${{ github.run_id }}
-          fail-on-error: false
+          name: rails-coverage
+          path: coverage/.resultset.json
+          include-hidden-files: true
 
   system-test:
     runs-on: ubuntu-latest
@@ -170,16 +166,12 @@ jobs:
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test:system
 
-      - name: Upload system coverage
-        uses: coverallsapp/github-action@v2
+      - name: Upload system coverage artifact
+        uses: actions/upload-artifact@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          file: coverage/.resultset.json
-          format: simplecov
-          flag-name: system-tests
-          parallel: true
-          build-number: ${{ github.run_id }}
-          fail-on-error: false
+          name: system-coverage
+          path: coverage/.resultset.json
+          include-hidden-files: true
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v7
@@ -190,17 +182,39 @@ jobs:
           if-no-files-found: ignore
 
   coverage:
-    if: ${{ always() }}
+    if: ${{ needs.test.result == 'success' && needs['system-test'].result == 'success' }}
     needs:
       - test
       - system-test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Finish Coveralls parallel build
+      - name: Download Rails coverage
+        uses: actions/download-artifact@v8
+        with:
+          name: rails-coverage
+          path: coverage/rails
+
+      - name: Download system coverage
+        uses: actions/download-artifact@v8
+        with:
+          name: system-coverage
+          path: coverage/system
+
+      - name: Merge coverage reports
+        run: |
+          ruby -rjson -rfileutils -e '
+            reports = ARGV.map { |path| JSON.parse(File.read(path)) }
+            merged = reports.each_with_object({}) { |report, result| result.merge!(report) }
+            FileUtils.mkdir_p("coverage")
+            File.write("coverage/.resultset.json", JSON.generate(merged))
+          ' coverage/rails/.resultset.json coverage/system/.resultset.json
+
+      - name: Upload combined coverage
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
+          file: coverage/.resultset.json
+          format: simplecov
           build-number: ${{ github.run_id }}
           fail-on-error: false
