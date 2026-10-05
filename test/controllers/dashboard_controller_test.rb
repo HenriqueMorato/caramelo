@@ -7,6 +7,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   teardown do
     Trade.delete_all
+    CorporateActionImportScan.delete_all
     DailyClosingPrice.delete_all
     HistoricalDataBackfill.delete_all
     PortfolioPerformanceObservation.delete_all
