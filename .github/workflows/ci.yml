@@ -189,6 +189,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
       - name: Download Rails coverage
         uses: actions/download-artifact@v8
         with:
@@ -203,11 +211,11 @@ jobs:
 
       - name: Merge coverage reports
         run: |
-          ruby -rjson -rfileutils -e '
-            reports = ARGV.map { |path| JSON.parse(File.read(path)) }
-            merged = reports.each_with_object({}) { |report, result| result.merge!(report) }
+          bundle exec ruby -rjson -rfileutils -rsimplecov -e '
+            result = SimpleCov::ResultMerger.merge_results(*ARGV, ignore_timeout: true)
+            abort "No coverage results were produced" unless result
             FileUtils.mkdir_p("coverage")
-            File.write("coverage/.resultset.json", JSON.generate(merged))
+            File.write("coverage/.resultset.json", JSON.generate(result.to_hash))
           ' coverage/rails/.resultset.json coverage/system/.resultset.json
 
       - name: Upload combined coverage
