@@ -83,5 +83,5 @@ group :test do
   gem "selenium-webdriver"
 
   # Report line and branch coverage across test processes [https://github.com/simplecov-ruby/simplecov]
-  gem "simplecov", "~> 1.2", require: false
+  gem "simplecov", "~> 1.3", require: false
 end
