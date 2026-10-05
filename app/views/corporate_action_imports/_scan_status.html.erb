@@ -1,6 +1,6 @@
 <%# locals: (state:, refresh_path:, reload:) %>
 
-<% if state&.active? %>
+<% if state&.active? && !state.interrupted? %>
   <div class="inline-flex items-start gap-3 rounded-2xl border border-caramel/25 bg-paper px-4 py-3 text-sm font-medium text-coffee shadow-sm" role="status">
     <span class="mt-0.5 flex size-5 shrink-0 animate-spin items-center justify-center rounded-full border-2 border-caramel/25 border-t-caramel" aria-hidden="true"></span>
     <span>
@@ -9,6 +9,12 @@
         <span class="ml-1 text-muted">(<%= state.progress_label %>)</span>
       <% end %>
     </span>
+  </div>
+<% elsif state&.active? && state.interrupted? %>
+  <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-guava/25 bg-paper px-4 py-3 text-sm text-coffee shadow-sm" role="alert">
+    <span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-guava/15 text-xs font-semibold text-guava" aria-hidden="true">!</span>
+    <span><%= t("corporate_action_imports.scan_status.interrupted") %></span>
+    <%= link_to t("corporate_action_imports.scan_status.retry"), refresh_path, class: "ui-button ui-button-secondary px-3 py-2 text-xs" %>
   </div>
 <% elsif state&.failed? %>
   <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-guava/25 bg-paper px-4 py-3 text-sm text-coffee shadow-sm" role="alert">

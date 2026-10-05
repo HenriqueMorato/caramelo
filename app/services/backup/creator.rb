@@ -97,6 +97,7 @@ module Backup
 
       empty_replaceable_tables(database)
       database.execute("DELETE FROM corporate_action_imports WHERE user_id <> ?", [ owner_id ])
+      database.execute("DELETE FROM corporate_action_import_scans WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM corporate_actions WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM trades WHERE user_id <> ?", [ owner_id ])
       database.execute(<<~SQL, [ owner_id ])
@@ -117,6 +118,8 @@ module Backup
           SELECT instrument_id FROM corporate_actions
           UNION
           SELECT instrument_id FROM corporate_action_imports WHERE instrument_id IS NOT NULL
+          UNION
+          SELECT instrument_id FROM corporate_action_import_scans
         )
       SQL
       database.execute("DELETE FROM users WHERE id <> ?", [ owner_id ])

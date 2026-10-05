@@ -1,6 +1,15 @@
 require "test_helper"
 
 class CorporateActionImports::Providers::YahooFinanceTest < ActiveSupport::TestCase
+  test "registers Yahoo Finance through the provider registry" do
+    assert_equal MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
+      CorporateActionImports::Providers::YAHOO_FINANCE
+    assert_equal [ CorporateActionImports::Providers::YAHOO_FINANCE ],
+      CorporateActionImports::Providers::SUPPORTED_SOURCES
+    assert_equal CorporateActionImports::Providers::YAHOO_FINANCE,
+      CorporateActionImports::Providers::YahooFinance::IDENTIFIER
+  end
+
   test "maps provider events to review candidates with exchange-aware identity" do
     event = MarketData::YahooFinance::HistoryClient::CorporateActionEvent.new(
       kind: :dividend, source_reference: "1787851200", event_on: Date.new(2026, 8, 27),

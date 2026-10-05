@@ -30,6 +30,11 @@ development:
     queue: market_prices
     schedule: <%= Caramelo::Environment.fetch("BENCHMARK_REFRESH_SCHEDULE", default: "at 2:30am every day") %>
 
+  scan_corporate_action_imports:
+    class: ScheduleCorporateActionImportsJob
+    queue: market_prices
+    schedule: at 2:45am every day
+
   create_backup:
     class: CreateBackupJob
     queue: maintenance
@@ -55,6 +60,11 @@ production:
     class: CaptureMarketBenchmarkObservationsJob
     queue: market_prices
     schedule: <%= Caramelo::Environment.fetch("BENCHMARK_REFRESH_SCHEDULE", default: "at 2:30am every day") %>
+
+  scan_corporate_action_imports:
+    class: ScheduleCorporateActionImportsJob
+    queue: market_prices
+    schedule: at 2:45am every day
 
   create_backup:
     class: CreateBackupJob

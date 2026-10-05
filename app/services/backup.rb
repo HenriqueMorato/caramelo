@@ -2,7 +2,7 @@ module Backup
   FORMAT_VERSION = 1
   ARTIFACTS = %w[primary ledger].freeze
   DURABLE_TABLES = %w[
-    users institutions instruments trades corporate_actions corporate_action_imports
+    users institutions instruments trades corporate_actions corporate_action_imports corporate_action_import_scans
   ].freeze
 
   Error = Class.new(StandardError)

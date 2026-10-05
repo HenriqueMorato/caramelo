@@ -10,7 +10,30 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_26_000200) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_04_130000) do
+  create_table "corporate_action_import_scans", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.text "failure_message"
+    t.integer "instrument_id", null: false
+    t.date "requested_from"
+    t.date "requested_to"
+    t.string "run_id", limit: 64
+    t.date "scanned_through"
+    t.string "source", limit: 64, default: "yahoo_finance", null: false
+    t.datetime "started_at"
+    t.string "status", limit: 16, default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["instrument_id"], name: "index_corporate_action_import_scans_on_instrument_id"
+    t.index ["user_id", "instrument_id", "source"], name: "index_corporate_action_import_scans_uniqueness", unique: true
+    t.index ["user_id", "status"], name: "index_corporate_action_import_scans_on_owner_status"
+    t.index ["user_id"], name: "index_corporate_action_import_scans_on_user_id"
+    t.check_constraint "(requested_from IS NULL AND requested_to IS NULL) OR (requested_from IS NOT NULL AND requested_to IS NOT NULL AND requested_from <= requested_to)", name: "corporate_action_import_scans_requested_range"
+    t.check_constraint "source IN ('yahoo_finance')", name: "corporate_action_import_scans_source"
+    t.check_constraint "status IN ('pending', 'queued', 'running', 'succeeded', 'failed')", name: "corporate_action_import_scans_status"
+  end
+
   create_table "corporate_action_imports", force: :cascade do |t|
     t.text "amount_per_share"
     t.integer "corporate_action_id"
@@ -367,6 +390,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_26_000200) do
     t.check_constraint "reporting_currency GLOB '[A-Z][A-Z][A-Z]'", name: "users_reporting_currency_format"
   end
 
+  add_foreign_key "corporate_action_import_scans", "instruments"
+  add_foreign_key "corporate_action_import_scans", "users"
   add_foreign_key "corporate_action_imports", "corporate_actions", on_delete: :nullify
   add_foreign_key "corporate_action_imports", "institutions"
   add_foreign_key "corporate_action_imports", "instruments"

@@ -33,6 +33,8 @@ module MarketData
         ensure_benchmark!(target)
       when :portfolio_performance
         ensure_reporting_currency!(target)
+      when :corporate_action_imports
+        ensure_traded_instrument!(target)
       end
     end
 
@@ -86,6 +88,8 @@ module MarketData
         MarketData::YahooFinance::FX_CONFIGURATION.identifier
       when :benchmark_observations
         MarketBenchmark.find(target.record_id).provider
+      when :corporate_action_imports
+        CorporateActionImports::Automation::SOURCE
       end
       Target.new(**target.to_h, provider:)
     end

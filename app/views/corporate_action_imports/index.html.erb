@@ -26,7 +26,7 @@
       </div>
       <div>
         <%= form.label :source, t("corporate_action_imports.index.Source"), class: "block text-sm font-semibold text-coffee" %>
-        <%= form.select :source, [[t("corporate_action_imports.sources.yahoo_finance"), "yahoo_finance"]], {}, class: "ui-field" %>
+        <%= form.select :source, [[t("corporate_action_imports.sources.yahoo_finance"), CorporateActionImports::Providers::YAHOO_FINANCE]], {}, class: "ui-field" %>
       </div>
       <div>
         <%= form.label :instrument_id, t("corporate_action_imports.index.Instrument"), class: "block text-sm font-semibold text-coffee" %>

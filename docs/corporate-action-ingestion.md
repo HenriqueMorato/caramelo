@@ -18,10 +18,27 @@ positions and performance rebuilds
 
 ## Historical Scans
 
-Historical ingestion is opt-in. The review page asks for a date range and an
-optional traded instrument. The suggested range is the first trade through
-today, but it can be narrowed before the scan starts. A scan never confirms a
-candidate or changes positions by itself.
+The review page still supports an explicit historical scan. It asks for a date
+range and an optional traded instrument; the suggested range is the first trade
+through today, but it can be narrowed before the scan starts. A scan never
+confirms a candidate or changes positions by itself.
+
+caramelo also keeps one durable scan state for each owner, traded instrument,
+and provider. A newly created trade, or a change to its owner, instrument, or
+date, rewinds the affected target and queues an incremental scan immediately.
+Startup creates the initial first-trade-through-today request, and the daily
+Solid Queue schedule requests an inclusive range from the last successful
+watermark through today. The existing strict scan job performs the provider
+request, so different instruments can run independently while the same
+owner/source/instrument remains serialized. A provider error leaves the
+watermark unchanged and retries through Active Job; only a fully successful
+request advances it. An owner without trades creates no automatic scan state.
+
+Automatic scans remain review-only. They create or update
+`CorporateActionImport` rows and never confirm or apply an event. Data health
+shows queued/running, failed, stale, and completed automatic scans; a failed
+or stale target can be retried there, while the imported-events page remains
+the place where candidates are reviewed and confirmed.
 
 The review list keeps source, stable provider reference, exchange-aware symbol,
 event date, provider amount or ratio, warnings, and the complete raw payload.
@@ -61,8 +78,9 @@ remain. Its review link opens the import list filtered to ignored rows, so an
 earlier decision can be revisited without starting another scan. During a scan,
 a provider candidate also receives a `possible_duplicate` warning when a
 non-reversed manual event already has the same instrument, event/payment date,
-and action type. The candidate stays in the review queue; the warning prevents
-an accidental second confirmation without discarding the provider payload.
+and action type. The candidate stays in the review queue with a warning;
+confirmation remains an explicit user decision. The importer itself never
+creates a second authoritative event for the same provider reference.
 
 Yahoo chart events provide dividend/ex-date and split data, but not a reliable
 payment date, withholding tax, JCP classification, institution, or credited

@@ -1,6 +1,8 @@
 class CorporateActionImportsController < ApplicationController
   allow_unauthenticated_access
 
+  SUPPORTED_SOURCES = CorporateActionImports::Providers::SUPPORTED_SOURCES
+
   before_action :set_import, only: %i[ edit update confirm ignore ]
   before_action :set_form_options, only: %i[ index edit update ]
   before_action :set_edit_presenter, only: %i[ edit update ]
@@ -134,7 +136,7 @@ class CorporateActionImportsController < ApplicationController
   end
 
   def scan_source
-    scan_params[:source].presence_in(%w[yahoo_finance]) || "yahoo_finance"
+    scan_params[:source].presence_in(SUPPORTED_SOURCES) || CorporateActionImports::Providers::YAHOO_FINANCE
   end
 
   def validate_scan_range!(from:, to:)
@@ -169,7 +171,7 @@ class CorporateActionImportsController < ApplicationController
   end
 
   def prepare_scan_state
-    @scan_source = params[:source].presence_in(%w[yahoo_finance]) || "yahoo_finance"
+    @scan_source = params[:source].presence_in(SUPPORTED_SOURCES) || CorporateActionImports::Providers::YAHOO_FINANCE
     @scan_instrument_id = Integer(params[:instrument_id], exception: false) if params[:instrument_id].present?
     @scan_refresh_path = scan_path(
       from: @from, to: @to, source: @scan_source, instrument_id: @scan_instrument_id

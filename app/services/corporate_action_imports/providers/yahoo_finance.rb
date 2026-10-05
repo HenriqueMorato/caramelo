@@ -1,7 +1,7 @@
 module CorporateActionImports
   module Providers
     class YahooFinance
-      IDENTIFIER = MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
+      IDENTIFIER = CorporateActionImports::Providers::YAHOO_FINANCE
 
       def initialize(client: default_client)
         @client = client

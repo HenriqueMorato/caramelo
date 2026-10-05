@@ -15,6 +15,15 @@ class InstrumentsTest < ApplicationSystemTestCase
   end
 
   test "shows an empty state without instruments" do
+    # Clear every instrument foreign key before exercising the empty catalog.
+    CorporateActionImport.delete_all
+    CorporateActionImportScan.delete_all
+    CorporateAction.delete_all
+    DailyClosingPrice.delete_all
+    HistoricalDataBackfill.delete_all
+    InstrumentPerformanceObservation.delete_all
+    InstrumentPerformanceMaterialization.delete_all
+    PositionMaterialization.delete_all
     Trade.delete_all
     Instrument.delete_all
 

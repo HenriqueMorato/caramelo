@@ -90,6 +90,18 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_includes retained, "recent_finished"
   end
 
+  test "prunes unfinished states after their cache lease expires" do
+    travel_to 11.minutes.ago do
+      RefreshStatus::State.write(scope: "old_unfinished", status: "running", started_at: Time.current)
+    end
+    RefreshStatus::State.write(scope: "recent_unfinished", status: "running", started_at: Time.current)
+
+    retained = RefreshStatus::State.prune!
+
+    refute_includes retained, "old_unfinished"
+    assert_includes retained, "recent_unfinished"
+  end
+
   test "tracker records completion and failure" do
     with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       completed = RefreshStatus::Tracker.perform(scope: "tracked_success", total_count: 1) do |refresh|

@@ -61,6 +61,25 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_predicate entry, :actionable?
   end
 
+  test "does not report a missing range after provider scans reach today" do
+    today = Date.new(2026, 9, 2)
+    scan = CorporateActionImportScan.create!(
+      user: users(:owner), instrument: instruments(:voo_arcx),
+      source: CorporateActionImports::Providers::YAHOO_FINANCE,
+      status: :succeeded, scanned_through: today, completed_at: Time.current
+    )
+
+    entry = MarketData::HealthReport::CorporateActionImports.new(
+      owner: users(:owner), today:
+    ).entries.find { |candidate| candidate.target.record_id == scan.instrument_id }
+
+    assert_equal :healthy, entry.status
+    assert_nil entry.missing_range
+
+    inspector = MarketData::HealthReport::CorporateActionImports.new(owner: users(:owner), today:)
+    assert_nil inspector.send(:covered_range, scan, first_trade_on: nil)
+  end
+
   test "does not report Brazilian banking holidays as missing CDI observations" do
     benchmark = MarketBenchmark.create!(identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL",
       provider: "bcb", provider_identifier: "CDI")
@@ -607,6 +626,105 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_empty entries.fetch("USD").actions
     assert_equal :missing, entries.fetch("BRL").status
     assert_equal [ :retry ], entries.fetch("BRL").actions
+  end
+
+  test "reports automatic corporate-action scan progress and failures" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    scan = CorporateActionImportScan.for(user: owner, instrument:)
+    scan.update!(status: :queued, requested_from: Date.current - 2.days, requested_to: Date.current)
+
+    queued = MarketData::HealthReport::CorporateActionImports.new(owner:, today: Date.current).entries.sole
+    assert_equal :updating, queued.status
+    assert_empty queued.actions
+
+    scan.update!(status: :failed, requested_from: Date.current - 2.days, requested_to: Date.current,
+      failure_message: "provider timeout")
+    failed = MarketData::HealthReport::CorporateActionImports.new(owner:, today: Date.current).entries.sole
+    assert_equal :failed, failed.status
+    assert_equal :error, failed.severity
+    assert_predicate failed, :actionable?
+    assert_includes failed.description, "provider timeout"
+    assert_equal :corporate_action_imports, failed.target.kind
+  end
+
+  test "reports a completed scan as healthy through its watermark" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    CorporateActionImportScan.create!(
+      user: owner, instrument:, source: CorporateActionImports::Providers::YAHOO_FINANCE,
+      status: :succeeded, scanned_through: Date.current, completed_at: Time.current
+    )
+
+    entry = MarketData::HealthReport.for(
+      owner:, current_market_price_service: CurrentPriceService.new, today: Date.current
+    ).entries.find { |candidate| candidate.code == :corporate_action_imports }
+
+    assert_equal :healthy, entry.status
+    assert_empty entry.actions
+  end
+
+  test "reports an abandoned active scan as failed and retryable" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    scan = CorporateActionImportScan.for(user: owner, instrument:)
+    scan.update!(
+      status: :running, run_id: SecureRandom.uuid, requested_from: Date.current - 2.days,
+      requested_to: Date.current, started_at: 2.days.ago
+    )
+
+    entry = MarketData::HealthReport::CorporateActionImports.new(owner:, today: Date.current).entries.sole
+
+    assert_equal :failed, entry.status
+    assert_equal :error, entry.severity
+    assert_equal [ :retry ], entry.actions
+    assert_includes entry.description, "lease expired"
+  end
+
+  test "does not report a scan after the owner deletes all trades for its instrument" do
+    owner = User.create!(email_address: "scan-health-empty@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    CorporateActionImportScan.create!(user: owner, instrument:, status: :failed, failure_message: "provider down")
+
+    assert_empty MarketData::HealthReport::CorporateActionImports.new(owner:, today: Date.current).entries
+  end
+
+  test "does not report a scan for an instrument whose first trade is still in the future" do
+    owner = User.create!(email_address: "future-scan-health@example.com", password: "password")
+    instrument = instruments(:voo_arcx)
+    owner.trades.create!(instrument:, side: :buy, traded_on: Date.current + 1.day, quantity: 1, unit_price: 10, currency: "USD")
+    CorporateActionImportScan.create!(user: owner, instrument:, status: :queued,
+      requested_from: Date.current, requested_to: Date.current)
+
+    entries = MarketData::HealthReport::CorporateActionImports.new(owner:, today: Date.current).entries
+
+    assert_empty entries
+  end
+
+  test "maps a corporate-action issue to its health target" do
+    issue = MarketData::HealthReport::Issue.new(
+      code: :corporate_action_imports, severity: :warning, subject: instruments(:voo_arcx), details: "stale"
+    )
+
+    entry = MarketData::HealthReport::Result.new(checked_at: Time.current, issues: [ issue ]).entries.sole
+
+    assert_equal :corporate_action_imports, entry.target.kind
+    assert_equal instruments(:voo_arcx).id, entry.target.record_id
+  end
+
+  test "reports the missing range after an automatic scan watermark" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    scanned_through = Date.current - 2.days
+    CorporateActionImportScan.create!(
+      user: owner, instrument:, source: CorporateActionImports::Providers::YAHOO_FINANCE,
+      status: :succeeded, scanned_through:, completed_at: Time.current
+    )
+
+    entry = MarketData::HealthReport::CorporateActionImports.new(owner:, today: Date.current).entries.sole
+
+    assert_equal :stale, entry.status
+    assert_equal (scanned_through + 1.day)..Date.current, entry.missing_range
   end
 
   test "ignores an active instrument marker when no durable work remains" do

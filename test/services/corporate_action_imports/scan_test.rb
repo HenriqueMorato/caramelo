@@ -161,6 +161,46 @@ class CorporateActionImports::ScanTest < ActiveSupport::TestCase
     end
   end
 
+  test "stops before persisting when a scan generation is superseded" do
+    calls = 0
+    fence = lambda do |&block|
+      calls += 1
+      calls == 1 ? block.call : false
+    end
+
+    assert_raises(CorporateActionImports::Scan::Superseded) do
+      CorporateActionImports::Scan.call(
+        user: users(:owner), instrument: @instrument,
+        from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(@candidate),
+        fence:
+      )
+    end
+
+    assert_equal 2, calls
+    assert_empty CorporateActionImport.where(source_reference: @candidate.source_reference)
+  end
+
+  test "raises before fetching when a scan generation is already superseded" do
+    assert_raises(CorporateActionImports::Scan::Superseded) do
+      CorporateActionImports::Scan.call(
+        user: users(:owner), instrument: @instrument,
+        from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: EmptyProvider.new,
+        fence: ->(&) { false }
+      )
+    end
+  end
+
+  test "persists candidates while the scan generation remains current" do
+    result = CorporateActionImports::Scan.call(
+      user: users(:owner), instrument: @instrument,
+      from: Date.new(2026, 8, 1), to: Date.new(2026, 8, 31), provider: FakeProvider.new(@candidate),
+      fence: ->(&block) { block.call }
+    )
+
+    assert_equal 1, result.created_count
+    assert_equal [ @candidate.source_reference ], result.imports.map(&:source_reference)
+  end
+
   test "rerunning a scan updates unresolved payloads without creating duplicates" do
     provider = FakeProvider.new(@candidate)
     first = CorporateActionImports::Scan.call(

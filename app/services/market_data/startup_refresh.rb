@@ -10,6 +10,7 @@ module MarketData
       RefreshStatus::Tracker.enqueue(scope: "market_benchmarks")
       CaptureMarketBenchmarkObservationsJob.perform_later(from: benchmark_history_start)
       InstrumentPerformance::StartupPreparation.call
+      CorporateActionImports::Automation.call
     end
 
     def self.traded_instrument_count

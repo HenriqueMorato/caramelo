@@ -171,6 +171,16 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
     assert_equal "USD", target.quote_currency
   end
 
+  test "resolves an owner-traded corporate-action import target" do
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "corporate_action_imports", record_id: instruments(:voo_arcx).id },
+      owner: users(:owner)
+    )
+
+    assert_equal :corporate_action_imports, target.kind
+    assert_equal CorporateActionImports::Providers::YAHOO_FINANCE, target.provider
+  end
+
   test "resolves an existing additional instrument performance currency view" do
     owner = users(:owner)
     instrument = instruments(:voo_arcx)

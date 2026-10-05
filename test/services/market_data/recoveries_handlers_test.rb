@@ -241,6 +241,42 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     assert_not enqueued.key?(:instrument)
   end
 
+  test "queues corporate-action scan recovery for the traded instrument" do
+    target = MarketData::Target.new(
+      kind: :corporate_action_imports, record_id: @instrument.id,
+      provider: CorporateActionImports::Providers::YAHOO_FINANCE
+    )
+    result = CorporateActionImports::Automation::Result.new(scheduled_count: 1, skipped_count: 0, failed_count: 0)
+
+    with_stubbed_method(CorporateActionImports::Automation, :call, ->(**arguments) {
+      assert_equal @owner, arguments.fetch(:user)
+      assert_equal @instrument, arguments.fetch(:instrument)
+      result
+    }) do
+      assert_equal RefreshCurrentMarketPriceJob::COALESCED,
+        MarketData::Recoveries::CorporateActionImports.call(target:, owner: @owner)
+    end
+  end
+
+  test "rejects corporate-action recovery for an untraded instrument" do
+    target = MarketData::Target.new(kind: :corporate_action_imports, record_id: instruments(:petr4_bvmf).id)
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      MarketData::Recoveries::CorporateActionImports.call(target:, owner: @owner)
+    end
+  end
+
+  test "raises when corporate-action recovery cannot enqueue a scan" do
+    target = MarketData::Target.new(kind: :corporate_action_imports, record_id: @instrument.id)
+    result = CorporateActionImports::Automation::Result.new(scheduled_count: 0, skipped_count: 0, failed_count: 1)
+
+    with_stubbed_method(CorporateActionImports::Automation, :call, ->(**) { result }) do
+      assert_raises(ActiveJob::EnqueueError) do
+        MarketData::Recoveries::CorporateActionImports.call(target:, owner: @owner)
+      end
+    end
+  end
+
   test "raises when performance recovery enqueue fails" do
     target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
 
