@@ -44,21 +44,27 @@ class HistoricalExchangeRate
       window = (dates.min - MarketData::HistoricalObservationWindow::MAXIMUM_LOOKBACK_DAYS)..dates.max
       direct = HistoricalExchangeRate.where(
         base_currency:, quote_currency:, provider: provider_identifier, rate_date: window
-      ).order(:rate_date).to_a
+      ).order(:rate_date).index_by(&:rate_date)
       inverse = HistoricalExchangeRate.where(
         base_currency: quote_currency, quote_currency: base_currency, provider: provider_identifier, rate_date: window
-      ).order(:rate_date).to_a
+      ).order(:rate_date).index_by(&:rate_date)
 
       dates.each do |date|
         key = lookup_key(base_currency:, quote_currency:, rate_date: date)
         next if @lookups.key?(key)
 
+        # A preload is a request-scoped snapshot, so cache misses too; this
+        # keeps an unavailable range from falling back to one query per date.
         direct_record = latest_record(direct, date)
         if direct_record
           @lookups[key] = available_lookup(direct_record, inverted: false)
         else
           inverse_record = latest_record(inverse, date)
-          @lookups[key] = available_lookup(inverse_record, inverted: true) if inverse_record
+          @lookups[key] = if inverse_record
+            available_lookup(inverse_record, inverted: true)
+          else
+            missing_lookup
+          end
         end
       end
     end
@@ -74,9 +80,9 @@ class HistoricalExchangeRate
         .first
     end
 
-    def latest_record(records, date)
+    def latest_record(records_by_date, date)
       (date - MarketData::HistoricalObservationWindow::MAXIMUM_LOOKBACK_DAYS..date).reverse_each do |candidate|
-        record = records.find { |item| item.rate_date == candidate }
+        record = records_by_date[candidate]
         return record if record
       end
       nil

@@ -70,20 +70,45 @@ module Performance
       validate_range!
       observations = benchmark.observations.where(observed_on: from..to).chronological.to_a
       return missing_result(observations:) unless observations.length >= 2
+      return missing_result(observations:) unless source_history_available?(observations)
 
       calculation_observations = convert_observations(observations)
       return missing_result(observations:, calculation_observations:) unless calculation_observations.length == observations.length
+      chart_points = chart_observations(observations, calculation_observations)
+      anchored = chart_points.length > calculation_observations.length
+      return_observations = if anchored && benchmark.rate?
+        chart_points.drop(1)
+      elsif anchored && benchmark.index?
+        chart_points
+      else
+        calculation_observations
+      end
 
       Result.new(
         benchmark:, from:, to:, observations:, first_observation: observations.first, last_observation: observations.last,
-        return_ratio: calculate_return(calculation_observations), status: :available,
-        calculation_observations:, chart_observations: chart_observations(observations, calculation_observations)
+        return_ratio: calculate_return(return_observations), status: :available,
+        calculation_observations:, chart_observations: chart_points
       )
     end
 
     private
 
     attr_reader :benchmark, :from, :to, :reporting_currency, :exchange_rate_service
+
+    def source_history_available?(observations)
+      return true unless benchmark.index?
+
+      source_start = MarketBenchmark::Importer.default.available_from_for(benchmark:)
+      return false if source_start && from < source_start
+
+      maximum_gap = MarketData::HistoricalObservationWindow::MAXIMUM_LOOKBACK_DAYS
+      return false if observations.first.observed_on - from > maximum_gap
+      return false if to - observations.last.observed_on > maximum_gap
+
+      observations.each_cons(2).all? do |left, right|
+        right.observed_on - left.observed_on <= maximum_gap
+      end
+    end
 
     def calculate_return(observations)
       if benchmark.rate?
@@ -108,9 +133,11 @@ module Performance
     end
 
     def convert_observations(observations)
-      return observations if benchmark.rate? || reporting_currency == benchmark.currency
+      return observations if reporting_currency == benchmark.currency
 
       preload_exchange_rates(observations)
+      return convert_rate_observations(observations) if benchmark.rate?
+
       observations.filter_map { |observation| convert_observation(observation) }
     end
 
@@ -124,15 +151,39 @@ module Performance
     end
 
     def convert_observation(observation)
-      lookup = exchange_rate_service.read(
-        base_currency: benchmark.currency, quote_currency: reporting_currency, rate_date: observation.observed_on
-      )
+      lookup = exchange_rate_for(observation)
       return unless lookup.available?
 
+      build_observation(observation, observation.value.to_d * lookup.exchange_rate.rate.to_d)
+    end
+
+    def convert_rate_observations(observations)
+      previous_rate = nil
+      observations.filter_map do |observation|
+        lookup = exchange_rate_for(observation)
+        next unless lookup.available?
+
+        rate = lookup.exchange_rate.rate.to_d
+        value = if previous_rate
+          ((BigDecimal("1") + observation.value.to_d) * rate / previous_rate) - 1
+        else
+          observation.value
+        end
+        previous_rate = rate
+        build_observation(observation, value)
+      end
+    end
+
+    def exchange_rate_for(observation)
+      exchange_rate_service.read(
+        base_currency: benchmark.currency, quote_currency: reporting_currency, rate_date: observation.observed_on
+      )
+    end
+
+    def build_observation(observation, value)
       MarketBenchmarkObservation::Observation.new(
         market_benchmark: benchmark, observed_on: observation.observed_on,
-        value: observation.value.to_d * lookup.exchange_rate.rate.to_d,
-        currency: reporting_currency, provider: observation.provider, observed_at: observation.observed_at
+        value:, currency: reporting_currency, provider: observation.provider, observed_at: observation.observed_at
       )
     end
 
@@ -141,6 +192,13 @@ module Performance
 
       anchor = benchmark.observations.where(observed_on: ...from).chronological.last
       return calculation_observations unless anchor && MarketData::HistoricalObservationWindow.for(from).cover?(anchor.observed_on)
+
+      if benchmark.rate? && reporting_currency != benchmark.currency
+        converted_observations = convert_observations([ anchor, *observations ])
+        return calculation_observations unless converted_observations.length == observations.length + 1
+
+        return converted_observations
+      end
 
       converted_anchor = convert_observations([ anchor ]).first
       return calculation_observations unless converted_anchor

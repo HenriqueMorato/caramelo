@@ -65,7 +65,8 @@ module MarketData
       end
 
       def benchmark_currencies
-        MarketBenchmark.where(kind: %w[price total_return]).where.not(currency: owner.reporting_currency).distinct.pluck(:currency)
+        MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS)
+          .where.not(currency: owner.reporting_currency).distinct.pluck(:currency)
       end
 
       def benchmark_dates(currency)
@@ -102,7 +103,7 @@ module MarketData
       end
 
       def benchmark_for_currency(currency)
-        MarketBenchmark.where(kind: %w[price total_return], currency:)
+        MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS, currency:)
       end
 
       def benchmark_importer

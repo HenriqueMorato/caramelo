@@ -8,8 +8,11 @@ class CaptureMarketBenchmarkObservationsJob < ApplicationJob
         next unless importer.supports?(benchmark:)
         next if captured?(benchmark, from:, to: observed_on)
 
+        requested_from = request_from(benchmark, from:, to: observed_on)
+        next if requested_from > observed_on
+
         throttle.wait!
-        importer.call(benchmark:, from: request_from(benchmark, from:, to: observed_on), to: observed_on,
+        importer.call(benchmark:, from: requested_from, to: observed_on,
           fence: publication_fence(benchmark:))
       rescue StandardError => error
         Rails.error.report(error, handled: true, context: { benchmark_id: benchmark.id, observed_on: })
@@ -43,6 +46,10 @@ class CaptureMarketBenchmarkObservationsJob < ApplicationJob
   end
 
   def request_from(benchmark, from:, to:)
+    source_from = if importer.respond_to?(:available_from_for)
+      importer.available_from_for(benchmark:)
+    end
+    from = [ from, source_from ].compact.max
     return from unless benchmark.rate? && from == to
 
     to - 7.days

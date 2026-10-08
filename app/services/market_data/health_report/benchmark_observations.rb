@@ -50,8 +50,10 @@ module MarketData
 
       def first_date(benchmark:, end_date:, importer:)
         activity_date = context&.first_trade_date || owner.trades.minimum(:traded_on)
+        return unless activity_date
+
         source_date = importer.available_from_for(benchmark:)
-        [ activity_date, source_date ].compact.max || end_date
+        [ activity_date, source_date ].compact.max
       end
 
       def historical_end_date
@@ -63,11 +65,12 @@ module MarketData
       end
 
       def status_for(benchmark:, coverage:, supported:, end_date:)
+        return :healthy if coverage.complete?
+
         latest = coverage.latest_observed_on
         if benchmark.index? && latest && latest < end_date
           return latest < end_date - HistoricalObservationWindow::MAXIMUM_LOOKBACK_DAYS ? :stale : :delayed
         end
-        return :healthy if coverage.complete?
         return :unsupported unless supported
         return :missing unless coverage.partial?
         return :partial unless benchmark.index?

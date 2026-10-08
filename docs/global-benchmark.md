@@ -1,6 +1,6 @@
 # Global All-Cap Benchmark
 
-caramelo includes an **MSCI ACWI IMI Net Total Return USD** comparison. The
+caramelo includes an **MSCI ACWI IMI Net Total Return USD proxy** comparison. The
 [MSCI ACWI Investable Market Index](https://www.msci.com/indexes/index/664204/msci-acwi-imi-index)
 covers large-, mid-, and small-cap companies across developed and emerging
 markets. It is a global equity comparison, not a cash return or risk-free rate.
@@ -20,7 +20,9 @@ code. The seeded definition therefore uses `IMID.L`, the [USD-traded,
 accumulating SPDR MSCI ACWI IMI tracker](https://www.ssga.com/uk/en_gb/intermediary/etfs/state-street-spdr-msci-all-country-world-investable-market-ucits-etf-acc-spyi-gy),
 as a historical proxy for the same index universe. Its accumulating price
 includes reinvested distributions after fund costs, so the comparison is a net
-total-return proxy rather than a direct MSCI index feed. Each persisted
+total-return proxy rather than a direct MSCI index feed. The label says
+“proxy” deliberately: fund fees, tracking error, and market-price deviations
+can differ from the underlying MSCI index. Each persisted
 observation keeps the benchmark, provider, source date, currency, and retrieval
 timestamp. caramelo does not turn a current quote into a historical point.
 
@@ -32,7 +34,9 @@ series. Benchmark returns compare the first and last available index levels
 in the selected period; CDI compounds its daily rate observations separately.
 When the portfolio reports in another currency, each index observation is
 converted with the historical rate eligible for that observation date before
-the return is calculated. A missing conversion keeps the benchmark unavailable.
+the return is calculated. Daily-rate benchmarks compound their native factor
+and apply the historical FX change to that accumulated factor. A missing
+conversion keeps the benchmark unavailable.
 Portfolio returns remain independently calculated with Modified Dietz and are
 never reconstructed by adding or averaging benchmark or instrument returns.
 

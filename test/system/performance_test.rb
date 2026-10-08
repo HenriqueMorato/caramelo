@@ -32,7 +32,7 @@ class PerformanceTest < ApplicationSystemTestCase
     create_trade(instrument:, traded_on: Date.current)
     create_daily_close(instrument:, date: from, close_price: "10")
     create_daily_close(instrument:, date: Date.current, close_price: "11")
-    benchmark = MarketBenchmark.create!(identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI (Net Total Return)",
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI (Net Total Return proxy)",
       kind: :total_return, currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L",
       return_convention: :net)
     benchmark.observations.create!(observed_on: from, value: "100", currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
@@ -53,7 +53,7 @@ class PerformanceTest < ApplicationSystemTestCase
         return controller.chart.data.datasets.map((dataset) => dataset.label)
       })()
     JS
-    assert_includes labels, "MSCI ACWI IMI (Net Total Return)"
+    assert_includes labels, "MSCI ACWI IMI (Net Total Return proxy)"
   end
 
   test "shows a closed portfolio without requiring a current price" do

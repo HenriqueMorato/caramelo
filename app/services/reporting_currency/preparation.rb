@@ -87,8 +87,17 @@ module ReportingCurrency
       ].compact.min
       return {} unless first_activity
 
-      MarketBenchmark.where(kind: %w[price total_return]).where.not(currency:)
-        .distinct.pluck(:currency).index_with { first_activity }
+      benchmarks = MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS).where.not(currency:).to_a
+      benchmarks.group_by(&:currency).transform_values do |currency_benchmarks|
+        currency_benchmarks.map do |benchmark|
+          source_start = benchmark_importer.available_from_for(benchmark:)
+          [ first_activity, source_start ].compact.max
+        end.min
+      end
+    end
+
+    def benchmark_importer
+      @benchmark_importer ||= MarketBenchmark::Importer.default
     end
 
     def corporate_action_instrument_starts

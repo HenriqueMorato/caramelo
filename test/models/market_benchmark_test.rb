@@ -1,6 +1,11 @@
 require "test_helper"
 
 class MarketBenchmarkTest < ActiveSupport::TestCase
+  setup do
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
+  end
+
   test "ensures each default benchmark exists without overwriting existing definitions" do
     existing = MarketBenchmark.create!(MarketBenchmark::DEFAULTS.first.merge(name: "Custom Ibovespa"))
 

@@ -47,7 +47,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
     trade_currencies = Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id)).pluck(:currency)
     income_currencies = CorporateAction.effective_on_or_before(Date.current)
       .where(user: User.owner).includes(:instrument).map { |action| action.currency || action.instrument.currency }
-    benchmark_currencies = MarketBenchmark.where(kind: %w[price total_return]).distinct.pluck(:currency)
+    benchmark_currencies = MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS).distinct.pluck(:currency)
     (trade_currencies | income_currencies | benchmark_currencies).excluding(reporting_currency)
   end
 

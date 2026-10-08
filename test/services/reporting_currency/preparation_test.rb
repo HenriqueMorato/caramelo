@@ -3,6 +3,7 @@ require "test_helper"
 class ReportingCurrency::PreparationTest < ActiveJob::TestCase
   setup do
     Rails.cache.clear
+    MarketBenchmark.delete_all
     @user = users(:owner)
     @user.update!(reporting_currency: "EUR")
     @refreshes = []
@@ -137,6 +138,42 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     starts = preparation.send(:currency_starts)
 
     assert_equal @user.trades.minimum(:traded_on), starts.fetch("USD")
+  end
+
+  test "does not prepare benchmark FX before the provider source begins" do
+    MarketBenchmark.delete_all
+    MarketBenchmark.create!(identifier: "PREP_ACWI_SOURCE", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    @user.trades.create!(instrument: instruments(:petr4_bvmf), traded_on: Date.new(2010, 1, 4), side: :buy,
+      quantity: 1, unit_price: 10, currency: "BRL")
+
+    starts = preparation.send(:currency_starts)
+
+    assert_equal Date.new(2011, 7, 26), starts.fetch("USD")
+  end
+
+  test "uses the earliest effective source when benchmarks share a currency" do
+    MarketBenchmark.delete_all
+    MarketBenchmark.create!(identifier: "PREP_SP500", name: "S&P 500", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    MarketBenchmark.create!(identifier: "PREP_ACWI_SOURCE", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    early_native_trade = @user.trades.create!(instrument: instruments(:petr4_bvmf), traded_on: Date.new(2010, 1, 4),
+      side: :buy, quantity: 1, unit_price: 10, currency: "BRL")
+
+    starts = preparation.send(:currency_starts)
+
+    assert_equal early_native_trade.traded_on, starts.fetch("USD")
+  end
+
+  test "includes rate benchmark currencies in preparation" do
+    @user.update!(reporting_currency: "USD")
+    MarketBenchmark.create!(identifier: "PREP_CDI", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+
+    starts = preparation.send(:currency_starts)
+
+    assert_equal @user.trades.minimum(:traded_on), starts.fetch("BRL")
   end
 
   test "an empty portfolio requires neither FX nor a rebuild" do

@@ -225,6 +225,36 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_empty inspector.send(:benchmark_dates, "USD")
   end
 
+  test "does not request benchmark history for an owner without activity" do
+    owner = User.create!(email_address: "benchmark-no-activity@example.com", password: "password")
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_NO_ACTIVITY", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+    inspector = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: context.today, context:)
+
+    entry = inspector.entries.find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :healthy, entry.status
+    assert_nil entry.missing_range
+  end
+
+  test "treats a carry-forward-complete index calendar as healthy" do
+    owner = User.create!(email_address: "benchmark-holiday-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    benchmark = MarketBenchmark.create!(identifier: "HOLIDAY_INDEX", name: "Holiday index", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    [ Date.new(2026, 9, 1), Date.new(2026, 9, 7) ].each do |date|
+      benchmark.observations.create!(observed_on: date, value: 1, currency: "USD", provider: "yahoo_finance",
+        observed_at: Time.current)
+    end
+
+    entry = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: Date.new(2026, 9, 9)).entries
+      .find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :healthy, entry.status
+  end
+
   test "starts global benchmark FX requirements at the proxy listing date" do
     owner = User.create!(email_address: "benchmark-start-health@example.com", password: "password")
     owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2010, 1, 4),
@@ -237,6 +267,20 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     dates = inspector.send(:benchmark_dates, benchmark.currency)
 
     assert_equal Date.new(2011, 7, 26), dates.min
+  end
+
+  test "includes rate benchmark currencies in historical FX health" do
+    owner = User.create!(email_address: "rate-benchmark-health@example.com", password: "password",
+      reporting_currency: "USD")
+    owner.trades.create!(instrument: instruments(:voo_arcx), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "USD")
+    MarketBenchmark.create!(identifier: "CDI_HEALTH", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+
+    entries = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:).entries
+
+    assert_equal "BRL", entries.find { |entry| entry.subject == "BRL" }.subject
   end
 
   test "skips benchmark FX sources that ended before the owner performance start" do
@@ -459,12 +503,12 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       quantity: 1, unit_price: 10, currency: "BRL")
     benchmark = MarketBenchmark.create!(identifier: "DELAYEDSP", name: "Delayed S&P", kind: :price,
       currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
-    TradingCalendar.weekdays_between(Date.new(2026, 9, 1), Date.new(2026, 9, 7)).each do |date|
+    [ Date.new(2026, 9, 1), Date.new(2026, 9, 10), Date.new(2026, 9, 18) ].each do |date|
       benchmark.observations.create!(observed_on: date, value: 1, currency: "USD", provider: "yahoo_finance",
         observed_at: Time.current)
     end
 
-    entry = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: Date.new(2026, 9, 9)).entries
+    entry = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: Date.new(2026, 9, 22)).entries
       .find { |candidate| candidate.subject == benchmark }
 
     assert_equal :delayed, entry.status

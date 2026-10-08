@@ -2,10 +2,11 @@ class MarketBenchmark < ApplicationRecord
   DEFAULTS = [
     { identifier: "IBOV", name: "Ibovespa", kind: "price", currency: "BRL", provider: "yahoo_finance", provider_identifier: "^BVSP" },
     { identifier: "SP500", name: "S&P 500", kind: "price", currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC" },
-    { identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI (Net Total Return)", kind: "total_return", currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: "net" },
+    { identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI (Net Total Return proxy)", kind: "total_return", currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: "net" },
     { identifier: "CDI", name: "CDI", kind: "rate", currency: "BRL", provider: "bcb", provider_identifier: "CDI" }
   ].freeze
 
+  PERFORMANCE_KINDS = %w[price total_return rate].freeze
   RETURN_CONVENTIONS = %w[gross net].freeze
 
   def self.ensure_defaults!
