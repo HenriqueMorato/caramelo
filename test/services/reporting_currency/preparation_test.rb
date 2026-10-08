@@ -129,6 +129,16 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     end
   end
 
+  test "includes foreign benchmark history from the first owner activity" do
+    MarketBenchmark.delete_all
+    MarketBenchmark.create!(identifier: "PREP_ACWI", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+
+    starts = preparation.send(:currency_starts)
+
+    assert_equal @user.trades.minimum(:traded_on), starts.fetch("USD")
+  end
+
   test "an empty portfolio requires neither FX nor a rebuild" do
     @user = users(:two)
 

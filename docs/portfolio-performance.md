@@ -155,11 +155,20 @@ reader users. A missing observation marks the series incomplete; it is never
 drawn as a zero or replaced with a current quote.
 
 Benchmark chart series use the result contract (`available?`, `missing?`, and
-`observations`) and carry each benchmark's latest real observation across
+`observations`) and carry each price or total-return benchmark's latest real observation across
 non-trading dates. If a requested range starts during a closure, a prior
 observation is used only when it falls inside the seven-day safety window; no
 synthetic database rows are created. This is evaluated independently per
 benchmark, so markets with different holidays do not share a calendar.
+
+The seeded global comparison is an MSCI ACWI IMI **net total-return** USD
+proxy. Yahoo's `IMID.L` series is the USD-traded, accumulating SPDR tracker for
+the index, so its price includes reinvested distributions after fund costs.
+The return convention is explicit on `MarketBenchmark`, and the series is not a
+risk-free or cash benchmark. Foreign benchmark levels are converted through the
+same date-eligible historical FX lookup used by portfolio valuation; missing FX
+keeps that benchmark unavailable. See [Global all-cap benchmark](global-benchmark.md)
+for its provider identity and recovery rules.
 
 The CDI benchmark is a daily rate series from Banco Central's SGS series 12.
 Published percentages are normalized to decimal daily returns once, then

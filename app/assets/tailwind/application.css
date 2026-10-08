@@ -51,6 +51,7 @@
   --caramelo-chart-invested: #766b60;
   --caramelo-benchmark-ibov: #3f5f86;
   --caramelo-benchmark-sp500: #7b3f78;
+  --caramelo-benchmark-acwi: #287b72;
   --caramelo-benchmark-cdi: #a66c12;
 }
 
@@ -84,6 +85,7 @@ html[data-theme="dark"] {
   --caramelo-chart-invested: #b9aaa0;
   --caramelo-benchmark-ibov: #78a7dc;
   --caramelo-benchmark-sp500: #d58bd0;
+  --caramelo-benchmark-acwi: #6cc7b8;
   --caramelo-benchmark-cdi: #e2ad54;
 }
 

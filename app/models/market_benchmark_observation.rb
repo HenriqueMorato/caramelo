@@ -1,6 +1,7 @@
 class MarketBenchmarkObservation < ApplicationRecord
-  # One dated benchmark point. `value` is an index level for price series or
-  # the provider's daily rate value for rate series, kept in `currency`.
+  # One dated benchmark point. `value` is an index level for price and
+  # total-return series or the provider's daily rate value for rate series,
+  # kept in `currency`.
   belongs_to :market_benchmark
 
   Observation = Data.define(:market_benchmark, :observed_on, :value, :currency, :provider, :observed_at)

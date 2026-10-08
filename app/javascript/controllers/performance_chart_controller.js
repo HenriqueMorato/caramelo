@@ -39,6 +39,7 @@ const hoverGuidePlugin = {
 const benchmarkColorProperties = {
   IBOV: "--caramelo-benchmark-ibov",
   SP500: "--caramelo-benchmark-sp500",
+  ACWI_IMI_NET: "--caramelo-benchmark-acwi",
   CDI: "--caramelo-benchmark-cdi"
 }
 

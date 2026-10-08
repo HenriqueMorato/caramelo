@@ -19,6 +19,23 @@ class MarketBenchmark::Providers::YahooFinanceTest < ActiveSupport::TestCase
     assert_equal "yahoo_finance", observation.provider
   end
 
+  test "supports total-return index benchmarks" do
+    benchmark = MarketBenchmark.new(
+      identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI", kind: "total_return", currency: "USD",
+      provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: "net"
+    )
+    provider = described_class.new(client: FakeClient.new)
+
+    assert provider.supports?(benchmark:)
+    assert_equal "USD", provider.fetch(benchmark:, from: Date.current - 1, to: Date.current).sole.currency
+  end
+
+  test "exposes the listed start of the seeded global proxy" do
+    benchmark = MarketBenchmark.new(provider: "yahoo_finance", provider_identifier: "IMID.L")
+
+    assert_equal Date.new(2011, 7, 26), described_class.new(client: FakeClient.new).available_from(benchmark:)
+  end
+
   test "does not request unsupported benchmark providers or rate benchmarks" do
     client = FakeClient.new
     provider = described_class.new(client:)

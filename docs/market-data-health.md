@@ -17,7 +17,7 @@ A weekend or holiday is valued from the latest real observation within the
 seven-calendar-day historical window. Synthetic rows are never written. Direct
 or inverse FX pairs satisfy the same requirement.
 
-Benchmark calendars remain source-specific. Price benchmarks may carry their
+Benchmark calendars remain source-specific. Price and total-return benchmarks may carry their
 latest real close across a short market closure. CDI requires an observation on
 each published Brazilian banking day, excludes its fixed and movable banking
 holidays, and allows one banking day for BCB publication. Persisted performance

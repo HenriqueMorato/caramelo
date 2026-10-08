@@ -22,6 +22,40 @@ class PerformanceTest < ApplicationSystemTestCase
     assert_text "20.00%"
   end
 
+  test "shows the global all-cap benchmark in the performance legend" do
+    Trade.where(user: User.owner).delete_all
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
+    from = Date.current - 1.week
+    instrument = Instrument.create!(ticker: "GLOB", exchange: "BVMF", name: "Global benchmark holding", currency: "BRL")
+    create_trade(instrument:, traded_on: from)
+    create_trade(instrument:, traded_on: Date.current)
+    create_daily_close(instrument:, date: from, close_price: "10")
+    create_daily_close(instrument:, date: Date.current, close_price: "11")
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI (Net Total Return)",
+      kind: :total_return, currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L",
+      return_convention: :net)
+    benchmark.observations.create!(observed_on: from, value: "100", currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    benchmark.observations.create!(observed_on: Date.current, value: "105", currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    [ [ from, "5" ], [ Date.current, "5.5" ] ].each do |date, rate|
+      HistoricalExchangeRate.create!(base_currency: "USD", quote_currency: "BRL", rate_date: date, rate:,
+        provider: "yahoo_finance_fx", observed_at: Time.current, fetched_at: Time.current)
+    end
+    Performance::ObservationBuilder.new(user: User.owner).call(from:, to: Date.current)
+
+    visit performance_path(period: "week")
+    click_on "Performance"
+
+    labels = page.evaluate_script(<<~JS)
+      (() => {
+        const element = document.querySelector("[data-controller='performance-chart']")
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
+        return controller.chart.data.datasets.map((dataset) => dataset.label)
+      })()
+    JS
+    assert_includes labels, "MSCI ACWI IMI (Net Total Return)"
+  end
+
   test "shows a closed portfolio without requiring a current price" do
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "SCLP", exchange: "BVMF", name: "Sold performance stock", currency: "BRL")

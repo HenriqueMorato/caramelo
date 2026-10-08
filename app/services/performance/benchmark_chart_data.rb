@@ -13,10 +13,12 @@ module Performance
       benchmark_results.filter_map do |benchmark, result|
         next unless result.available? || result.missing?
 
-        observations = chart_observations(benchmark, result)
+        observations = result.respond_to?(:chart_observations) ? result.chart_observations : chart_observations(benchmark, result)
         next if result.missing? && observations.length < 2
 
-        cumulative_values = if result.available? && observations.equal?(result.observations)
+        cumulative_values = if result.respond_to?(:chart_cumulative_return_values)
+          result.chart_cumulative_return_values
+        elsif result.available? && observations.equal?(result.observations)
           result.cumulative_return_values
         else
           Performance::Benchmark.cumulative_return_values(

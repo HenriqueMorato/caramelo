@@ -56,6 +56,36 @@ class HistoricalExchangeRate::ServiceTest < ActiveSupport::TestCase
     assert @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: @date).missing?
   end
 
+  test "preloads a currency pair with range queries and serves cached dates" do
+    create_rate(base_currency: "USD", quote_currency: "BRL", rate: "5")
+    later = @date + 1
+
+    assert_queries_count(2) do
+      @service.preload(base_currency: "USD", quote_currency: "BRL", rate_dates: [ @date, later ])
+    end
+    @service.preload(base_currency: "USD", quote_currency: "BRL", rate_dates: [ @date ])
+
+    assert_queries_count(0) do
+      assert_equal BigDecimal("5"), @service.read(
+        base_currency: "USD", quote_currency: "BRL", rate_date: later
+      ).exchange_rate.rate
+    end
+  end
+
+  test "preload handles empty, same-currency, inverse, and missing ranges" do
+    @service.preload(base_currency: "USD", quote_currency: "BRL", rate_dates: [])
+    @service.preload(base_currency: "BRL", quote_currency: "BRL", rate_dates: [ @date ])
+    @service.preload(base_currency: "BRL", quote_currency: "BRL", rate_dates: [ @date ])
+    assert @service.read(base_currency: "BRL", quote_currency: "BRL", rate_date: @date).same_currency?
+
+    create_rate(base_currency: "BRL", quote_currency: "USD", rate: "0.2")
+    @service.preload(base_currency: "USD", quote_currency: "BRL", rate_dates: [ @date ])
+    assert @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: @date).inverted
+
+    @service.preload(base_currency: "USD", quote_currency: "EUR", rate_dates: [ @date ])
+    assert @service.read(base_currency: "USD", quote_currency: "EUR", rate_date: @date).missing?
+  end
+
   test "rejects future rate dates" do
     assert_raises(ArgumentError) do
       @service.read(base_currency: "USD", quote_currency: "BRL", rate_date: Date.current + 1)

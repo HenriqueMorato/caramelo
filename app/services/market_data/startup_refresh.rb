@@ -1,12 +1,14 @@
 module MarketData
   class StartupRefresh
     def self.call
+      MarketBenchmark.ensure_defaults!
       RefreshStatus::Tracker.enqueue(scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: traded_instrument_count)
       RefreshTradedMarketPricesJob.enqueue_for
       RefreshStatus::Tracker.enqueue(scope: "daily_closing_prices")
       CaptureDailyClosingPricesJob.perform_later
       RefreshStatus::Tracker.enqueue(scope: "historical_exchange_rates")
       CaptureHistoricalExchangeRatesJob.perform_later
+      PrepareReportingCurrencyJob.enqueue_for(user: User.owner)
       RefreshStatus::Tracker.enqueue(scope: "market_benchmarks")
       CaptureMarketBenchmarkObservationsJob.perform_later(from: benchmark_history_start)
       InstrumentPerformance::StartupPreparation.call
