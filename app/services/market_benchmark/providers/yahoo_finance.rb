@@ -2,9 +2,10 @@ class MarketBenchmark
   module Providers
     class YahooFinance
       IDENTIFIER = MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
+      AVAILABLE_FROM = { "IMID.L" => Date.new(2011, 7, 26) }.freeze
       YahooBenchmarkIdentifier = Data.define(:value) do
         def matches_provider_exchange?(_exchange) = true
-        def supports_instrument_type?(type) = type == "INDEX"
+        def supports_instrument_type?(type) = %w[ETF INDEX].include?(type)
       end
 
       def initialize(client: default_client)
@@ -14,7 +15,11 @@ class MarketBenchmark
       def identifier = IDENTIFIER
 
       def supports?(benchmark:)
-        benchmark.provider == identifier && benchmark.price?
+        benchmark.provider == identifier && benchmark.index?
+      end
+
+      def available_from(benchmark:)
+        AVAILABLE_FROM[benchmark.provider_identifier]
       end
 
       def fetch(benchmark:, from:, to:)

@@ -22,6 +22,49 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_equal @target, @calls.first.fetch(:target)
   end
 
+  test "broadcasts health after queueing work" do
+    broadcasts = 0
+    with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { broadcasts += 1 }) do
+      result = MarketData::Recovery.call(
+        target: @target, cache: @cache, handlers: { current_price: @handler }
+      )
+
+      assert_predicate result, :queued?
+    end
+
+    assert_equal 1, broadcasts
+  end
+
+  test "broadcasts health after coalesced work is completed" do
+    broadcasts = 0
+    handler = ->(**) { RefreshCurrentMarketPriceJob::COALESCED }
+
+    with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { broadcasts += 1 }) do
+      result = MarketData::Recovery.call(target: @target, cache: @cache, handlers: { current_price: handler })
+
+      assert_predicate result, :queued?
+    end
+
+    assert_equal 1, broadcasts
+  end
+
+  test "keeps recovery successful when the health broadcast fails" do
+    broadcast_error = RuntimeError.new("broadcast unavailable")
+    reported = []
+
+    with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { raise broadcast_error }) do
+      with_stubbed_method(Rails.error, :report, ->(error, **) { reported << error }) do
+        result = MarketData::Recovery.call(
+          target: @target, cache: @cache, handlers: { current_price: @handler }
+        )
+
+        assert_predicate result, :queued?
+      end
+    end
+
+    assert_equal [ broadcast_error ], reported
+  end
+
   test "advances the publication fence before replacement work is enqueued" do
     fence = MarketData::PublicationFence.new(target: @target, cache: @cache)
     previous_generation = fence.capture

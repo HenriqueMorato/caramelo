@@ -9,9 +9,11 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
   test "builds the default provider and delegates support and identifier" do
     importer = MarketBenchmark::Importer.default
     benchmark = MarketBenchmark.new(provider: "yahoo_finance", kind: "price")
+    total_return = MarketBenchmark.new(provider: "yahoo_finance", kind: "total_return", return_convention: "net")
 
     assert_instance_of MarketBenchmark::Providers::YahooFinance, importer.instance_variable_get(:@provider)
     assert importer.supports?(benchmark:)
+    assert importer.supports?(benchmark: total_return)
     assert_equal "yahoo_finance", importer.identifier
   end
 
@@ -53,6 +55,18 @@ class MarketBenchmark::ImporterTest < ActiveSupport::TestCase
     unmatched = MarketBenchmark::Importer.new(providers: [ provider, other ])
     assert_nil unmatched.identifier_for(benchmark:)
     refute unmatched.supports?(benchmark:)
+  end
+
+  test "exposes optional source availability boundaries" do
+    source_date = Date.new(2011, 7, 26)
+    provider = Object.new
+    provider.define_singleton_method(:identifier) { "yahoo_finance" }
+    provider.define_singleton_method(:supports?) { true }
+    provider.define_singleton_method(:available_from) { |benchmark:| source_date if benchmark.provider_identifier == "IMID.L" }
+    importer = MarketBenchmark::Importer.new(provider:)
+    benchmark = MarketBenchmark.new(provider: "yahoo_finance", provider_identifier: "IMID.L")
+
+    assert_equal source_date, importer.available_from_for(benchmark:)
   end
 
   test "rejects a benchmark without a matching provider" do

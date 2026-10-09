@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_04_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_08_000000) do
   create_table "corporate_action_import_scans", force: :cascade do |t|
     t.datetime "completed_at"
     t.datetime "created_at", null: false
@@ -263,7 +263,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_04_130000) do
     t.string "provider", null: false
     t.string "provider_identifier", null: false
     t.datetime "updated_at", null: false
+    t.string "return_convention"
     t.index ["identifier"], name: "index_market_benchmarks_on_identifier", unique: true
+    t.check_constraint "return_convention IS NULL OR return_convention IN ('gross', 'net')", name: "market_benchmarks_return_convention"
   end
 
   create_table "market_data_refreshes", force: :cascade do |t|

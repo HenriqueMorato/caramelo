@@ -31,7 +31,8 @@
 - Follow open and closed positions with weighted-average cost basis.
 - Track current prices for supported Brazilian, US, and European listings.
 - Review portfolio and per-instrument performance from persisted daily history.
-- Compare portfolio returns with Ibovespa, S&P 500, and CDI benchmarks.
+- Compare portfolio returns with Ibovespa, S&P 500, CDI, and a global all-cap
+  MSCI ACWI IMI net total-return benchmark.
 - Review provider-sourced dividends and corporate actions before confirmation.
 - See missing or stale market data and safely retry replaceable projections.
 - Create verified local backups and export the trade ledger as CSV.
@@ -222,6 +223,7 @@ Read more:
 - [Current market prices](docs/current-market-prices.md)
 - [Current valuation and currencies](docs/current-valuations.md)
 - [Historical exchange rates](docs/historical-exchange-rates.md)
+- [Global all-cap benchmark](docs/global-benchmark.md)
 - [Corporate actions and income](docs/corporate-actions.md)
 - [Corporate-action ingestion](docs/corporate-action-ingestion.md)
 - [Data health and recovery](docs/market-data-health.md)

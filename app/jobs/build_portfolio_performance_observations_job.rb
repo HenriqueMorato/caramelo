@@ -31,6 +31,7 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
   ensure
     release_lease
     resume_pending_materialization
+    broadcast_health
   end
 
   def release_lease
@@ -56,5 +57,11 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
       to: materialization.requested_to,
       reporting_currency:
     )
+  end
+
+  def broadcast_health
+    MarketData::HealthReportBroadcaster.refresh
+  rescue StandardError => error
+    Rails.error.report(error, handled: true, context: { source: "portfolio_performance_health_broadcast" })
   end
 end

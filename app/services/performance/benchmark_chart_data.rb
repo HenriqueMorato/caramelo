@@ -11,12 +11,13 @@ module Performance
 
     def to_a
       benchmark_results.filter_map do |benchmark, result|
-        next unless result.available? || result.missing?
+        next unless result.available?
 
-        observations = chart_observations(benchmark, result)
-        next if result.missing? && observations.length < 2
+        observations = result.respond_to?(:chart_observations) ? result.chart_observations : chart_observations(benchmark, result)
 
-        cumulative_values = if result.available? && observations.equal?(result.observations)
+        cumulative_values = if result.respond_to?(:chart_cumulative_return_values)
+          result.chart_cumulative_return_values
+        elsif result.available? && observations.equal?(result.observations)
           result.cumulative_return_values
         else
           Performance::Benchmark.cumulative_return_values(
@@ -28,13 +29,16 @@ module Performance
         end
         values = values_by_date.sort
         index = -1
-        last_value = nil
         {
           identifier: benchmark.identifier,
           label: benchmark.name,
           values: series.observations.map do |observation|
             index += 1 while values[index + 1]&.first && values[index + 1].first <= observation.date
-            last_value = index >= 0 ? values[index].last : last_value
+            if index >= 0 && MarketData::HistoricalObservationWindow.for(observation.date).cover?(values[index].first)
+              values[index].last
+            else
+              nil
+            end
           end
         }
       end

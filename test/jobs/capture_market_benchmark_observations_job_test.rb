@@ -128,6 +128,42 @@ class CaptureMarketBenchmarkObservationsJobTest < ActiveJob::TestCase
     assert_equal({ benchmark:, from:, to: }, imports.sole.slice(:benchmark, :from, :to))
   end
 
+  test "does not request a benchmark before its provider source begins" do
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_SOURCE", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:identifier) { "yahoo_finance" }
+    importer.define_singleton_method(:supports?) { |benchmark:| benchmark.provider == "yahoo_finance" }
+    importer.define_singleton_method(:available_from_for) { |benchmark:| Date.new(2011, 7, 26) }
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureMarketBenchmarkObservationsJob.new
+    job.define_singleton_method(:importer) { importer }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job.define_singleton_method(:throttle) { throttle }
+    job.perform(observed_on: Date.new(2026, 8, 28), from: Date.new(2000, 1, 1))
+
+    assert_equal Date.new(2011, 7, 26), imports.sole[:from]
+  end
+
+  test "skips a benchmark capture when the provider source begins after the target date" do
+    create_benchmark
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:identifier) { "yahoo_finance" }
+    importer.define_singleton_method(:supports?) { |benchmark:| true }
+    importer.define_singleton_method(:available_from_for) { |benchmark:| Date.new(2027, 1, 1) }
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    job = CaptureMarketBenchmarkObservationsJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { Object.new.tap { |object| object.define_singleton_method(:wait!) { } } }
+
+    job.perform(observed_on: Date.new(2026, 8, 28))
+
+    assert_empty imports
+  end
+
   test "skips unsupported and already captured benchmarks" do
     supported = create_benchmark
     unsupported = MarketBenchmark.create!(

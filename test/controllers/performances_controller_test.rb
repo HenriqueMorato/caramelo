@@ -90,6 +90,41 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", /\+5\.00%/
   end
 
+  test "converts a total-return global benchmark into the reporting currency" do
+    Trade.where(user: User.owner).delete_all
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
+    from = Date.current - 1.week
+    instrument = Instrument.create!(ticker: "GLOBAL", exchange: "BVMF", name: "Global benchmark stock", currency: "BRL")
+    create_trade(instrument:, traded_on: from)
+    create_trade(instrument:, traded_on: Date.current)
+    create_daily_close(instrument:, date: from, close_price: "10")
+    create_daily_close(instrument:, date: Date.current, close_price: "11")
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_IMI_NET", name: "MSCI ACWI IMI (Net Total Return proxy)",
+      kind: "total_return", currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L",
+      return_convention: "net")
+    benchmark.observations.create!(observed_on: from, value: "100", currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    benchmark.observations.create!(observed_on: Date.current, value: "110", currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    [ [ from, "5" ], [ Date.current, "5.5" ] ].each do |date, rate|
+      HistoricalExchangeRate.create!(base_currency: "USD", quote_currency: "BRL", rate_date: date, rate:,
+        provider: "yahoo_finance_fx", observed_at: Time.current, fetched_at: Time.current)
+    end
+
+    get performance_url(period: "week")
+
+    assert_select "body", /MSCI ACWI IMI \(Net Total Return proxy\)/
+    assert_select "body", /\+21\.00%/
+  end
+
+  test "includes a global total-return benchmark in the seeded definitions" do
+    attributes = MarketBenchmark::DEFAULTS.find { |item| item.fetch(:identifier) == "ACWI_IMI_NET" }
+
+    assert_equal "total_return", attributes.fetch(:kind)
+    assert_equal "net", attributes.fetch(:return_convention)
+    assert_equal "USD", attributes.fetch(:currency)
+    assert_equal "IMID.L", attributes.fetch(:provider_identifier)
+  end
+
   test "keeps internal market observation dates out of the summary" do
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "FXDATE", exchange: "XNAS", name: "Foreign performance stock", currency: "USD")

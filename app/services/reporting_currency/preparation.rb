@@ -44,8 +44,11 @@ module ReportingCurrency
       trade_starts = native_starts.merge(settlement_starts) { |_currency, native_date, settlement_date|
         [ native_date, settlement_date ].min
       }
-      trade_starts.merge(corporate_action_currency_starts) { |_currency, trade_date, action_date|
+      trade_starts = trade_starts.merge(corporate_action_currency_starts) { |_currency, trade_date, action_date|
         [ trade_date, action_date ].min
+      }
+      trade_starts.merge(benchmark_currency_starts) { |_currency, trade_date, benchmark_date|
+        [ trade_date, benchmark_date ].min
       }
     end
 
@@ -75,6 +78,26 @@ module ReportingCurrency
       effective_corporate_actions.group_by { |action| action.currency || action.instrument.currency }.transform_values do |actions|
         actions.map(&:performance_on).min
       end
+    end
+
+    def benchmark_currency_starts
+      first_activity = [
+        user.trades.where(traded_on: ..Date.current).minimum(:traded_on),
+        effective_corporate_actions.map(&:performance_on).min
+      ].compact.min
+      return {} unless first_activity
+
+      benchmarks = MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS).where.not(currency:).to_a
+      benchmarks.group_by(&:currency).transform_values do |currency_benchmarks|
+        currency_benchmarks.map do |benchmark|
+          source_start = benchmark_importer.available_from_for(benchmark:)
+          [ first_activity, source_start ].compact.max
+        end.min
+      end
+    end
+
+    def benchmark_importer
+      @benchmark_importer ||= MarketBenchmark::Importer.default
     end
 
     def corporate_action_instrument_starts

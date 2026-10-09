@@ -71,9 +71,11 @@ module MarketData
         RefreshStatus::Tracker.advance(batch)
         release_cooldown(token)
         RecoveryLease.release(target:, token: lease.token, cache:)
+        broadcast_health if handler_result == RefreshCurrentMarketPriceJob::COALESCED
         return result(handler_result.nil? ? :unsupported : :queued, batch:)
       end
 
+      broadcast_health
       result(:queued, batch:)
     rescue StandardError => error
       release_cooldown(token)
@@ -111,6 +113,12 @@ module MarketData
     def release_cooldown(token)
       key = self.class.cooldown_key(target)
       cache.delete(key) if token && cache.read(key) == token
+    end
+
+    def broadcast_health
+      MarketData::HealthReportBroadcaster.refresh
+    rescue StandardError => error
+      Rails.error.report(error, handled: true, context: { source: "market_data_recovery_health_broadcast" })
     end
   end
 end

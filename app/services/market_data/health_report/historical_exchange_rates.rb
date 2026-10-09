@@ -9,7 +9,8 @@ module MarketData
       def entries
         currencies = (
           trades.flat_map { |trade| [ trade.currency, trade.instrument.currency ] } +
-          corporate_actions.map { |action| action.currency || action.instrument.currency }
+          corporate_actions.map { |action| action.currency || action.instrument.currency } +
+          benchmark_currencies
         ).uniq
         currencies.map { |currency| entry_for(currency) }
       end
@@ -60,7 +61,53 @@ module MarketData
         income_dates = corporate_actions.filter_map do |action|
           action.performance_on if (action.currency || action.instrument.currency) == currency
         end
-        (settlement_dates + income_dates + valuation_dates(currency)).uniq
+        (settlement_dates + income_dates + valuation_dates(currency) + benchmark_dates(currency)).uniq
+      end
+
+      def benchmark_currencies
+        MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS)
+          .where.not(currency: owner.reporting_currency).distinct.pluck(:currency)
+      end
+
+      def benchmark_dates(currency)
+        return [] if currency == owner.reporting_currency
+
+        first_date = context&.first_performance_date || trades.map(&:traded_on).min
+        return [] unless first_date
+
+        benchmark_for_currency(currency).flat_map do |benchmark|
+          end_date = benchmark_end_date(benchmark)
+          start_date = [ first_date, benchmark_start_date(benchmark) ].compact.max
+          next [] if end_date < start_date
+
+          benchmark_importer.expected_dates_for(benchmark:, from: start_date, to: end_date)
+        end
+      end
+
+      def benchmark_start_date(benchmark)
+        return unless benchmark_importer.respond_to?(:available_from_for)
+
+        benchmark_importer.available_from_for(benchmark:)
+      end
+
+      def benchmark_end_date(benchmark)
+        benchmark_importer.available_through_for(benchmark:, on: context_today) || historical_end_date
+      end
+
+      def historical_end_date
+        @historical_end_date ||= if TradingCalendar.weekend?(context_today)
+          TradingCalendar.previous_business_day(context_today + 1.day)
+        else
+          TradingCalendar.previous_business_day(context_today)
+        end
+      end
+
+      def benchmark_for_currency(currency)
+        MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS, currency:)
+      end
+
+      def benchmark_importer
+        @benchmark_importer ||= MarketBenchmark::Importer.default
       end
 
       def valuation_dates(currency)

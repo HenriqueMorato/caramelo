@@ -77,7 +77,7 @@
           <h2 id="market-benchmarks-heading" class="font-display text-xl font-semibold tracking-tight text-coffee"><%= t(".Market benchmarks") %></h2>
           <p class="text-xs text-muted"><%= t(".Market benchmarks explanation") %></p>
         </div>
-        <div class="mt-3 grid gap-0 sm:grid-cols-3 sm:divide-x sm:divide-coffee/10">
+        <div class="mt-3 grid gap-0 sm:grid-cols-2 sm:divide-x sm:divide-coffee/10 lg:grid-cols-4">
           <% @benchmark_results.each do |benchmark, result| %>
             <article class="border-t border-coffee/10 py-3 text-center first:border-t-0 sm:border-t-0 sm:px-5 sm:first:pl-0 sm:last:pr-0">
               <h3 class="truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted"><%= benchmark.name %></h3>
@@ -160,6 +160,32 @@
               </tbody>
             </table>
           </div>
+          <% if @benchmark_chart_data.present? %>
+            <h3 class="mt-6 font-semibold text-coffee"><%= t(".Benchmark exact values") %></h3>
+            <div class="mt-3 overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr>
+                    <th class="py-2 pr-4 font-semibold"><%= t(".Date") %></th>
+                    <% @benchmark_chart_data.each do |benchmark| %>
+                      <th class="py-2 pr-4 font-semibold"><%= benchmark.fetch(:label) %></th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @series.observations.each_with_index do |observation, index| %>
+                    <tr class="border-t border-coffee/10">
+                      <td class="py-2 pr-4"><%= l(observation.date, format: :short) %></td>
+                      <% @benchmark_chart_data.each do |benchmark| %>
+                        <% value = benchmark.fetch(:values)[index] %>
+                        <td class="py-2 pr-4"><%= value_or_not_available(value && number_to_percentage(value, precision: 2)) %></td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
         </details>
       <% elsif @series.pending? %>
         <div class="mt-5 h-56 rounded-xl bg-coffee/5 motion-safe:animate-pulse sm:h-64" aria-hidden="true"></div>

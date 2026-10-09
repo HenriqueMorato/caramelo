@@ -21,7 +21,8 @@ module MarketData
           reporting_currency: owner.reporting_currency, observed_on: (first_date..today)
         ).to_a.reject(&:missing?)
         coverage = CoverageCalculator.for(required_dates:, observations:)
-        status = status_for(materialization, coverage)
+        refresh = Performance::SeriesRefresh.read(user: owner, reporting_currency: owner.reporting_currency)
+        status = status_for(materialization, coverage, refresh)
         [ build(status:, coverage:) ]
       end
 
@@ -29,7 +30,8 @@ module MarketData
 
       attr_reader :owner, :today, :context
 
-      def status_for(materialization, coverage)
+      def status_for(materialization, coverage, refresh)
+        return :failed if materialization.pending? && refresh&.failed?
         return :updating if materialization.pending?
         return :healthy if coverage.complete?
         return :partial if coverage.partial?
@@ -38,17 +40,20 @@ module MarketData
       end
 
       def build(status:, coverage:)
+        severity = :error if status == :failed
+        severity ||= :warning if %i[missing partial].include?(status)
         HealthReport::Entry.new(
-          code: :portfolio_performance, status:, severity: %i[missing partial].include?(status) ? :warning : nil,
+          code: :portfolio_performance, status:, severity:,
           subject: "Portfolio performance", label: "Portfolio performance",
-          description: description(coverage),
+          description: description(status:, coverage:),
           target: Target.new(kind: :portfolio_performance, quote_currency: owner.reporting_currency),
           actions: status == :healthy ? [] : [ :retry ], observed_on: nil, fetched_at: nil,
           covered_range: coverage.covered_range, missing_range: coverage.missing_range
         )
       end
 
-      def description(coverage)
+      def description(status:, coverage:)
+        return "Portfolio performance failed to rebuild." if status == :failed
         return "Portfolio performance is up to date." if coverage.complete?
 
         "Portfolio performance is missing values for #{format_ranges(coverage.missing_ranges)}."

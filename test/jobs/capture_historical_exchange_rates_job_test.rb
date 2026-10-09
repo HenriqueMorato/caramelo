@@ -1,6 +1,11 @@
 require "test_helper"
 
 class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
+  setup do
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
+  end
+
   test "does not change target currency between pairs in one execution" do
     users(:owner).update!(reporting_currency: "EUR")
     users(:owner).trades.create!(
@@ -94,6 +99,49 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
     end
 
     assert_equal [ "USD" ], imports.map { |call| call[:base_currency] }
+  end
+
+  test "imports a rate for an index benchmark without a foreign holding" do
+    owner = User.create!(email_address: "benchmark-fx-capture@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.current - 1.day,
+      quantity: 1, unit_price: 10, currency: "BRL")
+    MarketBenchmark.create!(identifier: "ACWI_FX_CAPTURE", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { throttle }
+
+    with_stubbed_class_method(User, :owner, -> { owner }) do
+      job.perform(rate_date: Date.current - 1.day)
+    end
+
+    assert_equal [ "USD" ], imports.map { |call| call[:base_currency] }
+  end
+
+  test "imports a rate for a foreign rate benchmark without a foreign holding" do
+    owner = User.create!(email_address: "rate-benchmark-fx-capture@example.com", password: "password",
+      reporting_currency: "USD")
+    MarketBenchmark.create!(identifier: "CDI_FX_CAPTURE", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { throttle }
+
+    with_stubbed_class_method(User, :owner, -> { owner }) do
+      job.perform(rate_date: Date.current - 1.day)
+    end
+
+    assert_equal [ "BRL" ], imports.map { |call| call[:base_currency] }
   end
 
   test "skips a currency with an existing observation" do

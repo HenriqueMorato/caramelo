@@ -35,6 +35,11 @@ class MarketBenchmark
       selected_provider.available_through(on:) if selected_provider&.respond_to?(:available_through)
     end
 
+    def available_from_for(benchmark:)
+      selected_provider = provider_for(benchmark:)
+      selected_provider.available_from(benchmark:) if selected_provider&.respond_to?(:available_from)
+    end
+
     def call(benchmark:, from:, to:, fence: nil)
       raise ArgumentError, "from must be on or before to" if from > to
 

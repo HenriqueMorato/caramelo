@@ -57,6 +57,9 @@ Commit/PR titles. Keep commits focused, include `Closes #<issue>` in PR bodies,
 record verification, attach screenshots for UI changes, and merge only with
 green checks. Never commit `.env*`, keys, credentials, or SQLite data.
 
-Agents must obtain fresh one-time user approval before creating or rewriting a
-commit or merge. Approval applies only to the exact staged state and message and
-must be requested again after any index change.
+Agents must obtain explicit user approval before creating or rewriting a commit
+or merge. A user may grant scoped approval for multiple commits on a named
+feature branch; that approval remains valid while the work stays within the
+named scope. Before each commit, agents must show the staged status, summary,
+complete diff, verification results, and proposed message. A fresh approval is
+required when the scope changes or the staged contents change after review.

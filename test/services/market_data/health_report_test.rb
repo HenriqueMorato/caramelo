@@ -187,6 +187,118 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_empty current_market_entries
   end
 
+  test "reports historical FX needed to compare a global index" do
+    owner = User.create!(email_address: "benchmark-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    MarketBenchmark.create!(identifier: "ACWI_HEALTH", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 3))
+    entry = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:).entries
+      .find { |candidate| candidate.subject == "USD" }
+
+    assert_equal :missing, entry.status
+    assert_equal Date.new(2026, 9, 1)..Date.new(2026, 9, 2), entry.missing_range
+  end
+
+  test "uses the prior business day when checking benchmark FX on a weekend" do
+    owner = User.create!(email_address: "benchmark-weekend-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    MarketBenchmark.create!(identifier: "ACWI_WEEKEND_HEALTH", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:)
+
+    assert_equal Date.new(2026, 9, 4), inspector.send(:historical_end_date)
+  end
+
+  test "does not require benchmark FX when the owner has no performance start" do
+    owner = User.create!(email_address: "benchmark-empty-health@example.com", password: "password")
+    MarketBenchmark.create!(identifier: "ACWI_EMPTY_HEALTH", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:)
+
+    assert_empty inspector.send(:benchmark_dates, "USD")
+  end
+
+  test "does not request benchmark history for an owner without activity" do
+    owner = User.create!(email_address: "benchmark-no-activity@example.com", password: "password")
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_NO_ACTIVITY", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+    inspector = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: context.today, context:)
+
+    entry = inspector.entries.find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :healthy, entry.status
+    assert_nil entry.missing_range
+  end
+
+  test "treats a carry-forward-complete index calendar as healthy" do
+    owner = User.create!(email_address: "benchmark-holiday-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    benchmark = MarketBenchmark.create!(identifier: "HOLIDAY_INDEX", name: "Holiday index", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    [ Date.new(2026, 9, 1), Date.new(2026, 9, 7) ].each do |date|
+      benchmark.observations.create!(observed_on: date, value: 1, currency: "USD", provider: "yahoo_finance",
+        observed_at: Time.current)
+    end
+
+    entry = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: Date.new(2026, 9, 9)).entries
+      .find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :healthy, entry.status
+  end
+
+  test "starts global benchmark FX requirements at the proxy listing date" do
+    owner = User.create!(email_address: "benchmark-start-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2010, 1, 4),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_START_HEALTH", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2011, 7, 28))
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:)
+
+    dates = inspector.send(:benchmark_dates, benchmark.currency)
+
+    assert_equal Date.new(2011, 7, 26), dates.min
+  end
+
+  test "includes rate benchmark currencies in historical FX health" do
+    owner = User.create!(email_address: "rate-benchmark-health@example.com", password: "password",
+      reporting_currency: "USD")
+    owner.trades.create!(instrument: instruments(:voo_arcx), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "USD")
+    MarketBenchmark.create!(identifier: "CDI_HEALTH", name: "CDI", kind: :rate, currency: "BRL",
+      provider: "bcb", provider_identifier: "CDI")
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+
+    entries = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:).entries
+
+    assert_equal "BRL", entries.find { |entry| entry.subject == "BRL" }.subject
+  end
+
+  test "skips benchmark FX sources that ended before the owner performance start" do
+    owner = User.create!(email_address: "benchmark-ended-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 4),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    benchmark = MarketBenchmark.create!(identifier: "ACWI_ENDED_HEALTH", name: "Global index", kind: :total_return,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "IMID.L", return_convention: :net)
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 5))
+    inspector = MarketData::HealthReport::HistoricalExchangeRates.new(owner:, context:)
+    importer = Object.new
+    importer.define_singleton_method(:available_through_for) { |**| Date.new(2026, 9, 3) }
+    importer.define_singleton_method(:expected_dates_for) { |**| flunk "ended benchmark should not request dates" }
+    inspector.define_singleton_method(:benchmark_importer) { importer }
+
+    assert_empty inspector.send(:benchmark_dates, benchmark.currency)
+  end
+
   test "requires historical FX for open-position valuation dates" do
     owner = users(:owner)
     HistoricalExchangeRate.delete_all
@@ -385,6 +497,42 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_includes entry.description, Date.new(2026, 9, 4).iso8601
   end
 
+  test "labels a missing latest benchmark session as delayed" do
+    owner = User.create!(email_address: "delayed-benchmark-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    benchmark = MarketBenchmark.create!(identifier: "DELAYEDSP", name: "Delayed S&P", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    [ Date.new(2026, 9, 1), Date.new(2026, 9, 10), Date.new(2026, 9, 18) ].each do |date|
+      benchmark.observations.create!(observed_on: date, value: 1, currency: "USD", provider: "yahoo_finance",
+        observed_at: Time.current)
+    end
+
+    entry = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: Date.new(2026, 9, 22)).entries
+      .find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :delayed, entry.status
+    assert_includes entry.description, "delayed"
+    assert_predicate entry, :actionable?
+  end
+
+  test "labels an old missing latest benchmark session as stale" do
+    owner = User.create!(email_address: "stale-benchmark-health@example.com", password: "password")
+    owner.trades.create!(instrument: instruments(:petr4_bvmf), side: :buy, traded_on: Date.new(2026, 9, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    benchmark = MarketBenchmark.create!(identifier: "STALESP", name: "Stale S&P", kind: :price,
+      currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
+    benchmark.observations.create!(observed_on: Date.new(2026, 9, 1), value: 1, currency: "USD",
+      provider: "yahoo_finance", observed_at: Time.current)
+
+    entry = MarketData::HealthReport::BenchmarkObservations.new(owner:, today: Date.new(2026, 9, 10)).entries
+      .find { |candidate| candidate.subject == benchmark }
+
+    assert_equal :stale, entry.status
+    assert_includes entry.description, "stale"
+    assert_predicate entry, :actionable?
+  end
+
   test "formats a single benchmark date without a range separator" do
     inspector = MarketData::HealthReport::BenchmarkObservations.new(owner: users(:owner), today: Date.current)
 
@@ -555,6 +703,27 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     entry = report.entries.find { |candidate| candidate.code == :portfolio_performance }
     assert_equal :updating, entry.status
+  end
+
+  test "reports a failed portfolio performance rebuild" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, reporting_currency: owner.reporting_currency)
+    Performance::SeriesRefresh.failed(
+      user: owner, reporting_currency: owner.reporting_currency, from: first_date, to: first_date,
+      token:, error: RuntimeError.new("calculation failed")
+    )
+
+    entry = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: first_date).entries.sole
+
+    assert_equal :failed, entry.status
+    assert_equal :error, entry.severity
+    assert_equal "Portfolio performance failed to rebuild.", entry.description
+    assert_equal [ :retry ], entry.actions
+  ensure
+    Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
   end
 
   test "builds performance coverage without a shared context" do
@@ -837,6 +1006,8 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     benchmark = MarketBenchmark.create!(identifier: "PARTIALSP", name: "Partial S&P", kind: :price,
       currency: "USD", provider: "yahoo_finance", provider_identifier: "^GSPC")
     MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: partial_date, value: 1,
+      currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
+    MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: Date.new(2026, 9, 1), value: 1,
       currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
 
     report = MarketData::HealthReport.for(owner:, current_market_price_service: CurrentPriceService.new,
