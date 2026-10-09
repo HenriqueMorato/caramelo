@@ -120,16 +120,16 @@ class TradesTest < ApplicationSystemTestCase
   test "creates a trade from the global flow" do
     visit new_trade_path
 
-    assert_select "Side *", selected: "Buy"
-    assert_select "Institution (optional)", selected: "No institution"
-    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    assert_caramelo_select_value "Buy", from: "Side *"
+    assert_caramelo_select_value "No institution", from: "Institution (optional)"
+    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
     assert_field "Currency", with: "BRL", disabled: true
-    select "Buy", from: "Side"
+    choose_caramelo_option "Buy", from: "Side *"
     fill_in "Trade date", with: "2026-08-20"
     fill_in "Quantity", with: "10.25"
     fill_in "Unit price", with: "32.45"
     fill_in "Fees", with: "4.90"
-    select "XP Investimentos", from: "Institution (optional)"
+    choose_caramelo_option "XP Investimentos", from: "Institution (optional)"
     fill_in "Notes", with: "New position"
     click_on "Create Trade"
 
@@ -157,11 +157,11 @@ class TradesTest < ApplicationSystemTestCase
 
     visit new_trade_path
 
-    assert_select "Institution (optional)", selected: "No institution"
-    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
-    assert_select "Institution (optional)", selected: "XP Investimentos"
-    select "VOO · ARCX — Vanguard S&P 500 ETF", from: "Instrument"
-    assert_select "Institution (optional)", selected: "No institution"
+    assert_caramelo_select_value "No institution", from: "Institution (optional)"
+    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    assert_caramelo_select_value "XP Investimentos", from: "Institution (optional)"
+    choose_caramelo_option "VOO · ARCX — Vanguard S&P 500 ETF", from: "Instrument"
+    assert_caramelo_select_value "No institution", from: "Institution (optional)"
   end
 
   test "creates a trade from an instrument context" do
@@ -182,8 +182,8 @@ class TradesTest < ApplicationSystemTestCase
     assert_no_select "Instrument"
     assert_field "trade[instrument_id]", type: "hidden", with: instrument.id, visible: false
     assert_field "Currency", with: "BRL", disabled: true
-    assert_select "Institution (optional)", selected: "XP Investimentos"
-    select "Buy", from: "Side"
+    assert_caramelo_select_value "XP Investimentos", from: "Institution (optional)"
+    choose_caramelo_option "Buy", from: "Side *"
     fill_in "Trade date", with: "2026-08-21"
     fill_in "Quantity", with: "5"
     fill_in "Unit price", with: "33.10"
@@ -203,8 +203,8 @@ class TradesTest < ApplicationSystemTestCase
       click_on "Edit"
     end
 
-    assert_select "Institution (optional)", selected: "Banco do Brasil"
-    select "Sell", from: "Side"
+    assert_caramelo_select_value "Banco do Brasil", from: "Institution (optional)"
+    choose_caramelo_option "Sell", from: "Side *"
     fill_in "Quantity", with: "1"
     fill_in "Unit price", with: "620"
     fill_in "Fees", with: "1.50"
@@ -248,8 +248,8 @@ class TradesTest < ApplicationSystemTestCase
   test "shows validation errors and preserves values" do
     visit new_trade_path
 
-    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
-    select "Buy", from: "Side"
+    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    choose_caramelo_option "Buy", from: "Side *"
     fill_in "Trade date", with: "2026-08-20"
     fill_in "Quantity", with: "0"
     fill_in "Unit price", with: "0"

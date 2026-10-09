@@ -39,9 +39,9 @@ export default class extends Controller {
     event.returnValue = ""
   }
 
-  syncInstrument() {
+  syncInstrument(event) {
     this.syncCurrency()
-    this.syncKind()
+    this.syncKind(event)
     this.syncInstitution()
   }
 
@@ -57,12 +57,15 @@ export default class extends Controller {
     this.updateNet()
   }
 
-  syncKind() {
+  syncKind(event) {
     const supportsJcp = this.currencyValue === "BRL"
     this.kindFieldTarget.hidden = !supportsJcp
     this.kindTarget.disabled = !supportsJcp
     this.hiddenKindTarget.disabled = supportsJcp
-    if (!supportsJcp) this.kindTarget.value = "dividend"
+    if (!supportsJcp && this.kindTarget.value !== "dividend") {
+      this.kindTarget.value = "dividend"
+      if (event) this.kindTarget.dispatchEvent(new Event("change", { bubbles: true }))
+    }
   }
 
   syncInstitution() {

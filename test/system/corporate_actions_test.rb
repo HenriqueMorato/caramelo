@@ -25,7 +25,7 @@ class CorporateActionsTest < ApplicationSystemTestCase
       end
     end
 
-    select "JCP", from: "Action type"
+    choose_caramelo_option "JCP", from: "Action type"
     assert_no_field "Institution (optional)"
     assert_text "If blank, payment date is used instead."
     set_date("corporate_action_paid_on", "2026-08-25")
@@ -105,7 +105,7 @@ class CorporateActionsTest < ApplicationSystemTestCase
       click_on "Quantity action"
     end
 
-    select "Reverse split", from: "Action type"
+    choose_caramelo_option "Reverse split", from: "Action type"
     set_date("corporate_action_effective_on", "2026-08-20")
     fill_in "New shares", with: "1"
     fill_in "Old shares", with: "10"
@@ -141,12 +141,12 @@ class CorporateActionsTest < ApplicationSystemTestCase
 
   test "switches share bonus to a percentage field and saves exact units" do
     visit new_quantity_action_path
-    select "Share bonus", from: "Action type"
+    choose_caramelo_option "Share bonus", from: "Action type"
 
     assert_selector "input[name='corporate_action[bonus_percentage]']:not([disabled])"
     assert_no_selector "input[name='corporate_action[ratio_numerator]']:not([disabled])"
 
-    select "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
     set_date("corporate_action_effective_on", "2026-08-20")
     fill_in "Bonus percentage", with: "2.5"
     click_button "Save quantity action"
