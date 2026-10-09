@@ -41,6 +41,7 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
   ensure
     release_lease
     resume_pending_materialization
+    broadcast_health
   end
 
   def refresh(status, **arguments)
@@ -70,5 +71,11 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
       user:, instrument: target_instrument, from: materialization.requested_from,
       to: materialization.requested_to, reporting_currency:
     )
+  end
+
+  def broadcast_health
+    MarketData::HealthReportBroadcaster.refresh
+  rescue StandardError => error
+    Rails.error.report(error, handled: true, context: { source: "instrument_performance_health_broadcast" })
   end
 end

@@ -705,6 +705,27 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :updating, entry.status
   end
 
+  test "reports a failed portfolio performance rebuild" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, reporting_currency: owner.reporting_currency)
+    Performance::SeriesRefresh.failed(
+      user: owner, reporting_currency: owner.reporting_currency, from: first_date, to: first_date,
+      token:, error: RuntimeError.new("calculation failed")
+    )
+
+    entry = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: first_date).entries.sole
+
+    assert_equal :failed, entry.status
+    assert_equal :error, entry.severity
+    assert_equal "Portfolio performance failed to rebuild.", entry.description
+    assert_equal [ :retry ], entry.actions
+  ensure
+    Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
+  end
+
   test "builds performance coverage without a shared context" do
     owner = users(:owner)
     PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)

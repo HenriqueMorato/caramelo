@@ -34,6 +34,30 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     assert_equal "failed", refresh_state.status
     assert_predicate @materialization.reload, :pending?
     assert_no_enqueued_jobs only: BuildInstrumentPerformanceObservationsJob
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner: @user, today: @to).entries.find do |candidate|
+      candidate.subject == @instrument && candidate.target.quote_currency == "USD"
+    end
+    assert_equal :failed, entry.status
+    assert_equal [ :retry ], entry.actions
+  end
+
+  test "keeps the durable failure when the health broadcast fails" do
+    calculation_error = RuntimeError.new("instrument calculation failed")
+    broadcast_error = RuntimeError.new("broadcast unavailable")
+    reported = []
+
+    with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { raise broadcast_error }) do
+      with_stubbed_method(Rails.error, :report, ->(error, **) { reported << error }) do
+        with_builder(RecordingBuilder.new(error: calculation_error)) do
+          assert_raises(RuntimeError) { perform_job }
+        end
+      end
+    end
+
+    assert_equal "failed", refresh_state.status
+    assert_predicate @materialization.reload, :pending?
+    assert_includes reported, broadcast_error
   end
 
   test "requeues an overlapping newer generation after releasing the target lease" do
@@ -125,6 +149,14 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     yield
   ensure
     Performance::ObservationBuilder.define_singleton_method(:new, original)
+  end
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
+    yield
+  ensure
+    object.define_singleton_method(method_name, original)
   end
 
   class RecordingBuilder
