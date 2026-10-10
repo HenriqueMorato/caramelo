@@ -7,7 +7,7 @@
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=4.0.6
+ARG RUBY_VERSION=4.0.7
 ARG CURL_IMPERSONATE_VERSION=2.1.1
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
