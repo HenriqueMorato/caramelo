@@ -70,7 +70,7 @@ docker compose -f .devcontainer/compose.yaml down
 
 ## Native Requirements
 
-- Ruby 4.0.6 with Bundler
+- Ruby 4.0.7 with Bundler
 - Node 24.19.0 with npm 11 or newer for Herb template linting
 - SQLite 3
 - libvips
