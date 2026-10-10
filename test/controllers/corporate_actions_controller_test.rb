@@ -208,9 +208,13 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     get new_quantity_action_url
 
     assert_response :success
-    assert_select "option[value='stock_split'][selected]"
-    assert_select "option[value='reverse_split']"
-    assert_select "option[value='share_bonus']"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='stock_split'][checked]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='reverse_split']"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='share_bonus']"
+    assert_select ".action-type-option", count: 3
+    assert_select "#quantity-action-preview-title", text: "Action preview"
+    assert_select "[data-quantity-action-form-target='previewFractionalNote'][hidden]"
+    assert_select "option[data-preview-quantity='2.5']"
     assert_select "input[name='corporate_action[ratio_numerator]'][value='2']"
     assert_select "input[name='corporate_action[ratio_denominator]'][value='1']"
     assert_select "input[name='corporate_action[cash_in_lieu_quantity]'][step='0.1']"
@@ -218,6 +222,14 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-controller~='form-state']"
     assert_select "[data-controller~='institution-picker']"
     assert_select "[data-controller~='quantity-action-form']"
+  end
+
+  test "colors the current and resulting quantities in the contextual preview" do
+    get instrument_new_quantity_action_url(instruments(:voo_arcx))
+
+    assert_response :success
+    assert_select ".action-preview-quantity-before", text: "2.5 shares"
+    assert_select ".action-preview-quantity-after", text: "… shares"
   end
 
   test "creates and edits a share bonus using percentage rather than ratio inputs" do

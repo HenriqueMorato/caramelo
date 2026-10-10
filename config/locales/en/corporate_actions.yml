@@ -43,7 +43,30 @@ en:
         fraction disposed of and the cash received for it.
       Cash in lieu optional: Cash in lieu (optional)
       Discard changes: Discard your unsaved quantity-action changes?
+      Preview asset placeholder: Your instrument
+      Preview cash in lieu: "%{cash} fractional %{cash_unit} is paid in cash."
+      Preview cash label: Cash received
+      Preview copy lead: Your
+      Preview copy transition: become
+      Preview copy unit: shares
+      Preview date placeholder: Effective date
+      Preview fractional note: "* The fractional amount (%{quantity} %{unit}) may
+        be paid in cash. If so, record the fraction and cash received in Cash in lieu
+        below. Treatment depends on the issuer or broker."
+      Preview helper: Quantity actions adjust the position without creating a buy
+        or sell. Your original trades and cost basis stay intact.
+      Preview instrument placeholder: Choose an instrument to preview the action.
+      Preview intro: A plain-language version of the adjustment you’re about to record.
+      Preview no quantity: Select an instrument with a position to preview the resulting
+        shares.
+      Preview reverse split: Your %{current} shares become %{result} shares.
+      Preview share bonus: Your %{current} shares become %{result} shares.
+      Preview stock split: Your %{current} shares become %{result} shares.
+      Preview title: Action preview
       Ratio: Share ratio
       Ratio help: Enter how many new shares replace the old shares, such as 2 for
         1 for a split or 1 for 10 for a reverse split.
+      Reverse split helper: Shares consolidate
+      Share bonus helper: Extra shares arrive
+      Stock split helper: Shares multiply
       for: for

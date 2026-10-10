@@ -44,6 +44,7 @@ class CorporateActionsController < ApplicationController
       ratio_denominator: 1,
       source: "manual"
     )
+    prepare_quantity_preview
   end
 
   def create_quantity
@@ -54,6 +55,7 @@ class CorporateActionsController < ApplicationController
       enqueue_historical_data_backfill
       redirect_to transactions_path, notice: t("notices.Created", model: CorporateAction.model_name.human)
     else
+      prepare_quantity_preview
       render :new_quantity, status: :unprocessable_content
     end
   end
@@ -64,6 +66,8 @@ class CorporateActionsController < ApplicationController
 
   def edit_quantity
     raise ActiveRecord::RecordNotFound unless @corporate_action.quantity_action?
+
+    prepare_quantity_preview
   end
 
   def update
@@ -89,6 +93,7 @@ class CorporateActionsController < ApplicationController
       redirect_to @return_to,
         notice: t("notices.Updated", model: CorporateAction.model_name.human), status: :see_other
     else
+      prepare_quantity_preview
       render :edit_quantity, status: :unprocessable_content
     end
   end
@@ -228,5 +233,44 @@ class CorporateActionsController < ApplicationController
 
   def enqueue_historical_data_backfill
     CorporateActions::HistoricalDataBackfillEnqueuer.call(corporate_action: @corporate_action)
+  end
+
+  def prepare_quantity_preview
+    instruments = @instruments.to_a
+    trades_by_instrument = owner.trades.where(instrument_id: instruments.map(&:id))
+      .order(:traded_on, :id).to_a.group_by(&:instrument_id)
+    actions_by_instrument = owner.corporate_actions.effective.quantity_actions
+      .where(instrument_id: instruments.map(&:id), effective_on: ..Date.current)
+      .order(:effective_on, :id).to_a.group_by(&:instrument_id)
+
+    @quantity_action_preview_quantities = instruments.to_h do |instrument|
+      [ instrument.id, preview_quantity_for(instrument,
+        trades: trades_by_instrument.fetch(instrument.id, []),
+        corporate_actions: actions_by_instrument.fetch(instrument.id, [])) ]
+    end
+    selected_instrument = @context_instrument || @corporate_action.instrument
+    @quantity_action_preview_quantity = @quantity_action_preview_quantities[selected_instrument&.id]
+  end
+
+  def preview_quantity_for(instrument, trades:, corporate_actions:)
+    return unless instrument
+
+    effective_through = if @corporate_action&.persisted? && @corporate_action.instrument_id == instrument.id &&
+      @corporate_action.effective_on.present?
+      @corporate_action.effective_on&.-(1.day)
+    else
+      Date.current
+    end
+    calculation = Position::Calculator.for(
+      trades: trades.select { |trade| trade.traded_on <= effective_through },
+      corporate_actions: corporate_actions.select { |action| action.effective_on <= effective_through },
+      amount_for: ->(trade) { trade.total_amount }
+    )
+    quantity = BigDecimal(calculation.quantity, Position::ANALYTICAL_DECIMAL_PRECISION)
+    return if quantity.zero?
+
+    quantity.to_s("F")
+  rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData
+    nil
   end
 end

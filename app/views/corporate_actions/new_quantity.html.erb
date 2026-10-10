@@ -1,14 +1,25 @@
 <% content_for :title, t(".Page title", application: t("caramelo")) %>
 
-<section class="mx-auto max-w-4xl space-y-8">
+<section
+  class="mx-auto max-w-6xl space-y-8"
+  data-controller="quantity-action-form"
+  data-action="input->quantity-action-form#refreshPreview change->quantity-action-form#refreshPreview reset->quantity-action-form#resetPreview"
+  data-quantity-action-form-context-asset-value="<%= @context_instrument ? "#{@context_instrument.ticker} · #{@context_instrument.exchange}" : "" %>"
+  data-quantity-action-form-context-instrument-value="<%= @context_instrument&.name.to_s %>"
+  data-quantity-action-form-context-currency-value="<%= @context_instrument&.currency.to_s %>"
+>
   <%= link_to t("Back"), @context_instrument || transactions_path, class: "inline-flex min-h-11 items-center text-sm font-semibold text-caramel-deep hover:text-coffee" %>
   <div class="ui-page-header-copy">
     <p class="ui-eyebrow"><%= t("Portfolio activity") %></p>
     <h1 class="ui-page-title"><%= t("corporate_actions.actions.Add quantity action") %></h1>
     <p class="ui-page-intro"><%= t(".Introduction") %></p>
   </div>
-  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
+  <div class="action-entry-layout">
     <%= render "quantity_form", corporate_action: @corporate_action, context_instrument: @context_instrument,
-      instruments: @instruments, institutions_by_instrument: @institutions_by_instrument %>
+      instruments: @instruments, institutions_by_instrument: @institutions_by_instrument,
+      preview_quantity: @quantity_action_preview_quantity,
+      preview_quantities_by_instrument: @quantity_action_preview_quantities %>
+    <%= render "quantity_preview", corporate_action: @corporate_action, context_instrument: @context_instrument,
+      preview_quantity: @quantity_action_preview_quantity %>
   </div>
 </section>

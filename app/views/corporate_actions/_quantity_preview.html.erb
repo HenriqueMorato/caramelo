@@ -1,0 +1,84 @@
+<%# locals: (corporate_action:, context_instrument:, preview_quantity: nil) %>
+
+<% selected_instrument = context_instrument || corporate_action.instrument %>
+<% selected_kind = corporate_action.kind.presence || "stock_split" %>
+<% preview_copy = if preview_quantity.present?
+  if selected_kind == "share_bonus"
+    t("corporate_actions.quantity_form.Preview share bonus", current: preview_quantity, result: "…")
+  elsif selected_kind == "reverse_split"
+    t("corporate_actions.quantity_form.Preview reverse split", current: preview_quantity, result: "…")
+  else
+    t("corporate_actions.quantity_form.Preview stock split", current: preview_quantity, result: "…")
+  end
+else
+  t("corporate_actions.quantity_form.Preview no quantity")
+end %>
+<aside
+  class="action-preview-panel ui-panel"
+  aria-labelledby="quantity-action-preview-title"
+  data-quantity-action-form-target="previewPanel"
+  data-quantity-action-form-stock-split-copy-value="<%= t("corporate_actions.quantity_form.Preview stock split", current: "%{current}", result: "%{result}") %>"
+  data-quantity-action-form-reverse-split-copy-value="<%= t("corporate_actions.quantity_form.Preview reverse split", current: "%{current}", result: "%{result}") %>"
+  data-quantity-action-form-share-bonus-copy-value="<%= t("corporate_actions.quantity_form.Preview share bonus", current: "%{current}", result: "%{result}") %>"
+  data-quantity-action-form-no-quantity-copy-value="<%= t("corporate_actions.quantity_form.Preview no quantity") %>"
+  data-quantity-action-form-cash-in-lieu-copy-value="<%= t("corporate_actions.quantity_form.Preview cash in lieu", cash: "%{cash}", cash_unit: "%{cash_unit}") %>"
+  data-quantity-action-form-fractional-note-value="<%= t("corporate_actions.quantity_form.Preview fractional note", quantity: "%{quantity}", unit: "%{unit}") %>"
+  data-quantity-action-form-copy-lead-value="<%= t("corporate_actions.quantity_form.Preview copy lead") %>"
+  data-quantity-action-form-copy-transition-value="<%= t("corporate_actions.quantity_form.Preview copy transition") %>"
+  data-quantity-action-form-copy-unit-value="<%= t("corporate_actions.quantity_form.Preview copy unit") %>"
+  data-quantity-action-form-stock-split-label-value="<%= t("corporate_actions.kinds.stock_split") %>"
+  data-quantity-action-form-reverse-split-label-value="<%= t("corporate_actions.kinds.reverse_split") %>"
+  data-quantity-action-form-share-bonus-label-value="<%= t("corporate_actions.kinds.share_bonus") %>"
+>
+  <h2 id="quantity-action-preview-title" class="action-preview-title"><%= t("corporate_actions.quantity_form.Preview title") %></h2>
+  <p class="action-preview-intro"><%= t("corporate_actions.quantity_form.Preview intro") %></p>
+
+  <article class="action-preview-card">
+    <div class="action-preview-top">
+      <div class="flex min-w-0 items-start gap-3">
+        <span class="action-preview-mark" aria-hidden="true">↗</span>
+        <span class="min-w-0">
+          <strong
+            class="block truncate text-sm font-semibold text-coffee"
+            data-quantity-action-form-target="previewAsset"
+            data-placeholder="<%= t("corporate_actions.quantity_form.Preview asset placeholder") %>"
+          ><%= selected_instrument ? "#{selected_instrument.ticker} · #{selected_instrument.exchange}" : t("corporate_actions.quantity_form.Preview asset placeholder") %></strong>
+          <small
+            class="mt-1 block truncate text-xs text-caramel-deep"
+            data-quantity-action-form-target="previewInstrument"
+            data-placeholder="<%= t("corporate_actions.quantity_form.Preview instrument placeholder") %>"
+          ><%= selected_instrument&.name || t("corporate_actions.quantity_form.Preview instrument placeholder") %></small>
+          <small
+            class="mt-1 block text-xs text-muted"
+            data-quantity-action-form-target="previewDate"
+            data-placeholder="<%= t("corporate_actions.quantity_form.Preview date placeholder") %>"
+          ><%= corporate_action.effective_on&.strftime("%d %b %Y") || t("corporate_actions.quantity_form.Preview date placeholder") %></small>
+        </span>
+      </div>
+      <span class="action-preview-tag" data-quantity-action-form-target="previewTag"><%= t("corporate_actions.kinds.#{selected_kind}").upcase %></span>
+    </div>
+
+    <p class="action-preview-copy" aria-live="polite" aria-atomic="true" data-quantity-action-form-target="previewCopy">
+      <% if preview_quantity.present? %>
+        <%= t("corporate_actions.quantity_form.Preview copy lead") %>
+        <span class="action-preview-quantity action-preview-quantity-before"><%= preview_quantity %> <%= t("corporate_actions.quantity_form.Preview copy unit") %></span>
+        <%= t("corporate_actions.quantity_form.Preview copy transition") %>
+        <span class="action-preview-quantity action-preview-quantity-after">… <%= t("corporate_actions.quantity_form.Preview copy unit") %></span>.
+      <% else %>
+        <%= preview_copy %>
+      <% end %>
+    </p>
+
+    <p class="action-preview-footnote" hidden aria-live="polite" data-quantity-action-form-target="previewFractionalNote"></p>
+
+    <div class="action-preview-detail">
+      <span><%= t("corporate_actions.quantity_form.Preview cash label") %></span>
+      <strong data-quantity-action-form-target="previewCash">—</strong>
+    </div>
+  </article>
+
+  <p class="action-preview-helper">
+    <span class="action-preview-helper-dot" aria-hidden="true"></span>
+    <span><%= t("corporate_actions.quantity_form.Preview helper") %></span>
+  </p>
+</aside>

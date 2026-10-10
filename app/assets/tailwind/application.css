@@ -477,7 +477,15 @@ html[data-theme="dark"] {
     @apply grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.65fr)];
   }
 
+  .action-entry-layout {
+    @apply grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.65fr)];
+  }
+
   .trade-form-panel {
+    @apply min-w-0 space-y-6 p-5 sm:p-7;
+  }
+
+  .action-form-panel {
     @apply min-w-0 space-y-6 p-5 sm:p-7;
   }
 
@@ -516,6 +524,46 @@ html[data-theme="dark"] {
   }
 
   .trade-side-option input:focus-visible + span {
+    @apply ring-2 ring-caramel ring-offset-2;
+  }
+
+  .action-type-options {
+    @apply grid grid-cols-1 gap-2 sm:grid-cols-3;
+  }
+
+  .action-type-option {
+    @apply relative block cursor-pointer;
+  }
+
+  .action-type-option input {
+    @apply absolute inset-0 size-full cursor-pointer opacity-0;
+  }
+
+  .action-type-option > span {
+    @apply flex min-h-20 flex-col justify-center rounded-xl border border-coffee/15 bg-paper px-4 py-3 text-left transition-[background-color,border-color,box-shadow,color] duration-150;
+  }
+
+  .action-type-option > span strong {
+    @apply text-sm font-semibold text-coffee;
+  }
+
+  .action-type-option > span small {
+    @apply mt-1 text-xs text-muted;
+  }
+
+  .action-type-option:hover > span {
+    @apply border-caramel bg-oat;
+  }
+
+  .action-type-option input:checked + span {
+    @apply border-caramel-deep bg-caramel/15 shadow-sm ring-1 ring-inset ring-caramel/40;
+  }
+
+  .action-type-option input:checked + span small {
+    @apply text-caramel-deep;
+  }
+
+  .action-type-option input:focus-visible + span {
     @apply ring-2 ring-caramel ring-offset-2;
   }
 
@@ -571,6 +619,71 @@ html[data-theme="dark"] {
 
   .trade-receipt-helper {
     @apply mt-4 flex gap-2 rounded-xl bg-paper p-3 text-xs leading-5 text-muted;
+  }
+
+  .action-preview-panel {
+    @apply min-w-0 p-5 sm:p-6 lg:sticky lg:top-6;
+  }
+
+  .action-preview-title {
+    @apply font-display text-2xl font-semibold tracking-tight text-coffee;
+  }
+
+  .action-preview-intro {
+    @apply mt-2 text-sm leading-6 text-muted;
+  }
+
+  .action-preview-card {
+    @apply mt-6 rounded-2xl bg-caramel/15 p-4 sm:p-5;
+  }
+
+  .action-preview-top {
+    @apply flex items-start justify-between gap-3 border-b border-dashed border-caramel-deep/30 pb-4;
+  }
+
+  .action-preview-mark {
+    @apply grid size-9 shrink-0 place-items-center rounded-lg bg-caramel-deep text-sm font-semibold text-on-accent;
+  }
+
+  .action-preview-tag {
+    @apply shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-caramel-deep;
+  }
+
+  .action-preview-copy {
+    @apply py-5 font-display text-2xl font-semibold leading-tight tracking-tight text-coffee;
+  }
+
+  .action-preview-quantity {
+    @apply font-semibold tabular-nums text-caramel-deep;
+  }
+
+  .action-preview-quantity-after {
+    @apply font-bold;
+  }
+
+  .action-preview-footnote {
+    @apply pb-4 text-xs leading-5 text-muted;
+  }
+
+  .action-preview-detail {
+    @apply flex items-center justify-between gap-3 border-t border-dashed border-caramel-deep/30 pt-4 text-sm;
+  }
+
+  .action-preview-detail > span {
+    @apply text-caramel-deep;
+  }
+
+  .action-preview-detail > strong {
+    @apply min-w-0 break-words text-right font-mono tabular-nums text-coffee;
+    overflow-wrap: anywhere;
+  }
+
+  .action-preview-helper {
+    @apply mt-4 flex gap-2 rounded-xl bg-paper p-3 text-xs leading-5 text-muted;
+  }
+
+  .action-preview-helper-dot {
+    @apply mt-1.5 size-2 shrink-0 rounded-full bg-caramel-deep;
   }
 
   .ui-badge {

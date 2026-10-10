@@ -124,6 +124,10 @@ class CorporateActionsTest < ApplicationSystemTestCase
 
   test "records edits filters and deletes a quantity action from instrument activity" do
     instrument = instruments(:petr4_bvmf)
+    Trade.create!(
+      user: users(:owner), instrument:, side: :buy, traded_on: Date.new(2026, 8, 12),
+      quantity: 305, unit_price: 10, fees_cents: 0, currency: instrument.currency
+    )
     visit instrument_path(instrument)
 
     within("[aria-labelledby='activity-history-heading']") do
@@ -131,12 +135,22 @@ class CorporateActionsTest < ApplicationSystemTestCase
       click_on "Quantity action"
     end
 
-    choose_caramelo_option "Reverse split", from: "Action type"
+    choose_quantity_action "Reverse split"
     set_date("corporate_action_effective_on", "2026-08-20")
+    choose_quantity_action "Stock split"
+    fill_in "New shares", with: "2"
+    fill_in "Old shares", with: "1"
+    assert_text "Your 305 shares become 610 shares."
+    choose_quantity_action "Reverse split"
     fill_in "New shares", with: "1"
     fill_in "Old shares", with: "10"
+    assert_text "Your 305 shares become 30.5* shares."
+    assert_selector ".action-preview-quantity-before", text: "305"
+    assert_selector ".action-preview-quantity-after", text: "30.5*"
+    assert_text "* The fractional amount (0.5 shares) may be paid in cash. If so, record the fraction and cash received in Cash in lieu below. Treatment depends on the issuer or broker."
     fill_in "Fractional quantity sold", with: "0.5"
     fill_in "Cash received", with: "12.34"
+    assert_text "Your 305 shares become 30 shares. 0.5 fractional shares is paid in cash."
     fill_in "Notes", with: "Fraction settled in cash"
     click_button "Save quantity action"
 
@@ -167,14 +181,20 @@ class CorporateActionsTest < ApplicationSystemTestCase
 
   test "switches share bonus to a percentage field and saves exact units" do
     visit new_quantity_action_path
-    choose_caramelo_option "Share bonus", from: "Action type"
+    choose_quantity_action "Share bonus"
 
     assert_selector "input[name='corporate_action[bonus_percentage]']:not([disabled])"
     assert_no_selector "input[name='corporate_action[ratio_numerator]']:not([disabled])"
+    assert_text "Select an instrument with a position to preview the resulting shares."
 
-    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    choose_caramelo_option "VOO · ARCX — Vanguard S&P 500 ETF", from: "Instrument"
+    assert_selector "option[data-preview-quantity='2.5']", visible: :all
     set_date("corporate_action_effective_on", "2026-08-20")
     fill_in "Bonus percentage", with: "2.5"
+    assert_text "Your 2.5 shares become 2.5625* shares."
+    assert_selector ".action-preview-quantity-before", text: "2.5"
+    assert_selector ".action-preview-quantity-after", text: "2.5625*"
+    assert_text "* The fractional amount (0.5625 shares) may be paid in cash. If so, record the fraction and cash received in Cash in lieu below. Treatment depends on the issuer or broker."
     click_button "Save quantity action"
 
     assert_current_path transactions_path, wait: 10
@@ -183,6 +203,10 @@ class CorporateActionsTest < ApplicationSystemTestCase
   end
 
   private
+
+  def choose_quantity_action(label)
+    find("label.action-type-option", text: /#{Regexp.escape(label)}/).click
+  end
 
   def set_date(id, value)
     page.execute_script(<<~JS, id, value)
