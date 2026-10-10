@@ -34,7 +34,7 @@ class TradesControllerTest < ActionDispatch::IntegrationTest
     assert_select "option", text: /#{Regexp.escape(institutions(:owner_xp).name)}/
     assert_select "option", text: /#{Regexp.escape(institutions(:owner_inactive).name)}/, count: 0
     assert_select "option", text: /#{Regexp.escape(institutions(:other_owner).name)}/, count: 0
-    assert_select "option[value='buy'][selected]"
+    assert_select "input[name='trade[side]'][value='buy'][checked]"
     assert_select "input[name='trade[quantity]'][step='any']"
     assert_select "[data-trade-form-target='settlement'][hidden]"
   end

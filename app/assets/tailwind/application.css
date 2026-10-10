@@ -473,6 +473,106 @@ html[data-theme="dark"] {
     @apply text-sm leading-6 text-muted;
   }
 
+  .trade-entry-layout {
+    @apply grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.65fr)];
+  }
+
+  .trade-form-panel {
+    @apply min-w-0 space-y-6 p-5 sm:p-7;
+  }
+
+  .trade-form-actions {
+    @apply border-t border-coffee/10 pt-5;
+  }
+
+  .trade-side-options {
+    @apply grid grid-cols-2 gap-1 rounded-xl bg-oat p-1;
+  }
+
+  .trade-side-option {
+    @apply relative block cursor-pointer;
+  }
+
+  .trade-side-option input {
+    @apply absolute inset-0 size-full cursor-pointer opacity-0;
+  }
+
+  .trade-side-option > span {
+    @apply flex min-h-11 flex-col items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold text-muted;
+    transition-property: background-color, box-shadow, color;
+    transition-duration: 150ms;
+  }
+
+  .trade-side-option > span small {
+    @apply mt-0.5 text-xs font-normal;
+  }
+
+  .trade-side-option input:checked + span {
+    @apply bg-paper text-leaf shadow-sm;
+  }
+
+  .trade-side-option--sell input:checked + span {
+    @apply text-guava;
+  }
+
+  .trade-side-option input:focus-visible + span {
+    @apply ring-2 ring-caramel ring-offset-2;
+  }
+
+  .trade-receipt-panel {
+    @apply min-w-0 p-5 sm:p-6 lg:sticky lg:top-6;
+  }
+
+  .trade-receipt-card {
+    @apply mt-6 rounded-2xl bg-caramel/15 p-4 sm:p-5;
+  }
+
+  .trade-receipt-top {
+    @apply flex items-start justify-between gap-3 border-b border-dashed border-caramel-deep/30 pb-4;
+  }
+
+  .trade-receipt-mark {
+    @apply grid size-9 shrink-0 place-items-center rounded-lg bg-caramel-deep px-1 text-center font-mono text-[0.6rem] font-medium text-on-accent;
+  }
+
+  .trade-receipt-side {
+    @apply shrink-0 text-xs font-bold text-leaf;
+  }
+
+  .trade-receipt-side--sell {
+    @apply text-guava;
+  }
+
+  .trade-receipt-lines {
+    @apply grid gap-3 py-4;
+  }
+
+  .trade-receipt-line {
+    @apply flex items-center justify-between gap-3 text-sm;
+  }
+
+  .trade-receipt-line > span {
+    @apply text-caramel-deep;
+  }
+
+  .trade-receipt-line > strong,
+  .trade-receipt-total > strong {
+    @apply min-w-0 break-words text-right font-mono tabular-nums text-coffee;
+    overflow-wrap: anywhere;
+  }
+
+  .trade-receipt-total {
+    @apply flex items-center justify-between gap-3 border-t border-dashed border-caramel-deep/30 pt-4 text-sm;
+  }
+
+  .trade-receipt-total > strong {
+    @apply text-lg;
+  }
+
+  .trade-receipt-helper {
+    @apply mt-4 flex gap-2 rounded-xl bg-paper p-3 text-xs leading-5 text-muted;
+  }
+
   .ui-badge {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }

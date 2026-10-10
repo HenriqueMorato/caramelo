@@ -1,0 +1,57 @@
+<%# locals: (trade:, context_instrument:) %>
+
+<% instrument = trade.instrument || context_instrument %>
+<% currency = trade.currency || instrument&.currency %>
+<% side = trade.side.presence || "buy" %>
+<% quantity = trade.quantity.presence&.to_d %>
+<% unit_price = trade.unit_price.presence&.to_d %>
+<% fees = trade.fees&.to_d || BigDecimal("0") %>
+<% total = if quantity && unit_price
+  quantity * unit_price + (side == "buy" ? fees : -fees)
+end %>
+
+<aside class="trade-receipt-panel ui-panel" aria-labelledby="trade-receipt-heading">
+  <h2 id="trade-receipt-heading" class="font-display text-2xl font-semibold tracking-tight text-coffee"><%= t("trades.form.Receipt heading") %></h2>
+  <p class="mt-2 text-xs leading-5 text-muted"><%= t("trades.form.Receipt intro") %></p>
+
+  <div class="trade-receipt-card">
+    <div class="trade-receipt-top">
+      <div class="min-w-0">
+        <div class="flex items-center gap-3">
+          <span class="trade-receipt-mark" aria-hidden="true" data-placeholder="<%= t("trades.form.Receipt unavailable") %>" data-trade-form-target="receiptMark"><%= instrument&.ticker || t("trades.form.Receipt unavailable") %></span>
+          <div class="min-w-0">
+            <strong class="block truncate text-sm text-coffee" data-placeholder="<%= t("trades.form.Receipt asset placeholder") %>" data-trade-form-target="receiptAsset"><%= instrument ? "#{instrument.ticker} · #{instrument.exchange}" : t("trades.form.Receipt asset placeholder") %></strong>
+            <small class="mt-1 block truncate text-xs text-caramel-deep" data-placeholder="<%= t("trades.form.Receipt instrument placeholder") %>" data-trade-form-target="receiptInstrument"><%= instrument&.name || t("trades.form.Receipt instrument placeholder") %></small>
+          </div>
+        </div>
+        <small class="mt-3 block text-xs text-caramel-deep" data-placeholder="<%= t("trades.form.Receipt date placeholder") %>" data-trade-form-target="receiptDate"><%= trade.traded_on ? l(trade.traded_on, format: :long) : t("trades.form.Receipt date placeholder") %></small>
+      </div>
+      <span class="trade-receipt-side <%= "trade-receipt-side--sell" if side == "sell" %>" data-trade-form-target="receiptSide"><%= side.upcase %></span>
+    </div>
+
+    <div class="trade-receipt-lines">
+      <div class="trade-receipt-line">
+        <span><%= t("Quantity") %></span>
+        <strong data-placeholder="<%= t("trades.form.Receipt unavailable") %>" data-trade-form-target="receiptQuantity"><%= quantity ? format_quantity(quantity) : t("trades.form.Receipt unavailable") %></strong>
+      </div>
+      <div class="trade-receipt-line">
+        <span><%= Trade.human_attribute_name(:unit_price) %></span>
+        <strong data-placeholder="<%= t("trades.form.Receipt unavailable") %>" data-trade-form-target="receiptPrice"><%= unit_price && currency ? format_currency_amount(unit_price, currency) : t("trades.form.Receipt unavailable") %></strong>
+      </div>
+      <div class="trade-receipt-line">
+        <span><%= Trade.human_attribute_name(:fees) %></span>
+        <strong data-placeholder="<%= t("trades.form.Receipt unavailable") %>" data-trade-form-target="receiptFees"><%= currency ? format_currency_amount(fees, currency) : t("trades.form.Receipt unavailable") %></strong>
+      </div>
+    </div>
+
+    <div class="trade-receipt-total">
+      <span><%= t("trades.form.Receipt total") %></span>
+      <strong aria-live="polite" aria-atomic="true" data-placeholder="<%= t("trades.form.Receipt unavailable") %>" data-trade-form-target="receiptTotal"><%= total && currency ? format_currency_amount(total, currency) : t("trades.form.Receipt unavailable") %></strong>
+    </div>
+  </div>
+
+  <div class="trade-receipt-helper">
+    <span class="mt-1 size-2 shrink-0 rounded-full bg-caramel" aria-hidden="true"></span>
+    <p><%= t("trades.form.Receipt helper") %></p>
+  </div>
+</aside>

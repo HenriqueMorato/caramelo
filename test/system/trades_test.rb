@@ -123,17 +123,42 @@ class TradesTest < ApplicationSystemTestCase
   test "creates a trade from the global flow" do
     visit new_trade_path
 
-    assert_caramelo_select_value "Buy", from: "Side *"
+    assert find("#trade_side_buy", visible: :all).checked?
     assert_caramelo_select_value "No institution", from: "Institution (optional)"
     choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
     assert_field "Currency", with: "BRL", disabled: true
-    choose_caramelo_option "Buy", from: "Side *"
-    fill_in "Trade date", with: "2026-08-20"
+    find("label", text: /^Buy/).click
+    page.execute_script(<<~JS)
+      const date = document.getElementById("trade_traded_on")
+      date.value = "2026-08-20"
+      date.dispatchEvent(new Event("input", { bubbles: true }))
+      date.dispatchEvent(new Event("change", { bubbles: true }))
+    JS
     fill_in "Quantity", with: "10.25"
     fill_in "Unit price", with: "32.45"
     fill_in "Fees", with: "4.90"
     choose_caramelo_option "XP Investimentos", from: "Institution (optional)"
     fill_in "Notes", with: "New position"
+    within "[aria-labelledby='trade-receipt-heading']" do
+      assert_selector "[data-trade-form-target='receiptAsset']", text: "PETR4 · BVMF"
+      assert_selector "[data-trade-form-target='receiptDate']", text: /Aug 20, 2026/
+      assert_selector "[data-trade-form-target='receiptQuantity']", text: "10.25"
+      assert_selector "[data-trade-form-target='receiptPrice']", text: /32[.,]45/
+      assert_selector "[data-trade-form-target='receiptFees']", text: /4[.,]90/
+      assert_selector "[data-trade-form-target='receiptTotal'][aria-live='polite'][aria-atomic='true']", text: /337[.,]51/
+      assert_selector "[data-trade-form-target='receiptSide']", text: "BUY"
+      assert_text "R$"
+    end
+
+    find("label", text: /^Sell/).click
+
+    within "[aria-labelledby='trade-receipt-heading']" do
+      assert_selector "[data-trade-form-target='receiptSide']", text: "SELL"
+      assert_selector "[data-trade-form-target='receiptTotal']", text: /327[.,]71/
+    end
+
+    find("label", text: /^Buy/).click
+
     click_on "Create Trade"
 
     assert_current_path transactions_path, wait: 10
@@ -142,6 +167,32 @@ class TradesTest < ApplicationSystemTestCase
     assert_text "New position"
     assert_text "XP Investimentos"
     assert_text "BRL"
+  end
+
+  test "formats receipt values with the selected currency precision" do
+    instrument = Instrument.create!(
+      ticker: "JPYX", exchange: "XTKS", name: "Japan test asset", currency: "JPY"
+    )
+
+    visit new_trade_path
+    choose_caramelo_option "JPYX · XTKS — Japan test asset", from: "Instrument *"
+    fill_in "Quantity", with: "2"
+    fill_in "Unit price", with: "1234.5"
+    fill_in "Fees", with: "1"
+
+    within "[aria-labelledby='trade-receipt-heading']" do
+      assert_selector "[data-trade-form-target='receiptPrice']", text: /¥1,234[.]5/
+      assert_selector "[data-trade-form-target='receiptFees']", text: /¥1$/
+      assert_selector "[data-trade-form-target='receiptTotal']", text: /¥2,470$/
+    end
+
+    page.execute_script(<<~JS)
+      const quantity = document.getElementById("trade_quantity")
+      quantity.value = "9007199254740993.12345678"
+      quantity.dispatchEvent(new Event("input", { bubbles: true }))
+    JS
+
+    assert_selector "[data-trade-form-target='receiptQuantity']", text: "9,007,199,254,740,993.12345678"
   end
 
   test "quantity accepts fractions and increments by one full unit" do
@@ -186,7 +237,7 @@ class TradesTest < ApplicationSystemTestCase
     assert_field "trade[instrument_id]", type: "hidden", with: instrument.id, visible: false
     assert_field "Currency", with: "BRL", disabled: true
     assert_caramelo_select_value "XP Investimentos", from: "Institution (optional)"
-    choose_caramelo_option "Buy", from: "Side *"
+    find("label", text: /^Buy/).click
     fill_in "Trade date", with: "2026-08-21"
     fill_in "Quantity", with: "5"
     fill_in "Unit price", with: "33.10"
@@ -207,11 +258,17 @@ class TradesTest < ApplicationSystemTestCase
     end
 
     assert_caramelo_select_value "Banco do Brasil", from: "Institution (optional)"
-    choose_caramelo_option "Sell", from: "Side *"
+    find("label", text: /^Sell/).click
     fill_in "Quantity", with: "1"
     fill_in "Unit price", with: "620"
     fill_in "Fees", with: "1.50"
     fill_in "Notes", with: "Reduced position"
+
+    within "[aria-labelledby='trade-receipt-heading']" do
+      assert_selector "[data-trade-form-target='receiptSide']", text: "SELL"
+      assert_selector "[data-trade-form-target='receiptQuantity']", text: "1"
+    end
+
     click_on "Update Trade"
 
     assert_current_path transactions_path
@@ -252,7 +309,7 @@ class TradesTest < ApplicationSystemTestCase
     visit new_trade_path
 
     choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
-    choose_caramelo_option "Buy", from: "Side *"
+    find("label", text: /^Buy/).click
     fill_in "Trade date", with: "2026-08-20"
     fill_in "Quantity", with: "0"
     fill_in "Unit price", with: "0"
