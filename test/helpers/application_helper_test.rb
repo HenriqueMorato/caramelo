@@ -47,6 +47,28 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "Ready", value_or_not_available("Ready")
   end
 
+  test "adds the shared select controller without replacing existing data attributes" do
+    builder = CarameloFormBuilder.new("user", users(:owner), self, {})
+
+    rendered = builder.custom_select(:reporting_currency, [ [ "Brazilian real", "BRL" ] ], {},
+      class: "ui-field", data: { controller: "settings-form", action: "change->settings-form#sync" }, searchable: true)
+
+    assert_includes rendered, 'data-controller="settings-form caramelo-select"'
+    assert_includes rendered, 'data-action="change-&gt;settings-form#sync"'
+    assert_includes rendered, "data-caramelo-select-empty-label=\"No options available\""
+    assert_includes rendered, "data-caramelo-select-search=\"true\""
+    assert_includes rendered, "data-caramelo-select-search-label=\"Search options…\""
+  end
+
+  test "uses the shared select controller for collection selects" do
+    builder = CarameloFormBuilder.new("trade", trades(:owner_voo_buy), self, {})
+
+    rendered = builder.custom_collection_select(:institution_id, [ institutions(:owner_xp) ], :id, :name)
+
+    assert_includes rendered, 'data-controller="caramelo-select"'
+    assert_includes rendered, institutions(:owner_xp).name
+  end
+
   private
 
   def money_values_hidden?

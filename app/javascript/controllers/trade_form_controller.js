@@ -32,6 +32,7 @@ export default class extends Controller {
 
     if (event && this.hasInstitutionTarget) {
       this.institutionTarget.value = option?.dataset.lastInstitutionId || ""
+      this.institutionTarget.dispatchEvent(new Event("change", { bubbles: true }))
     }
 
     this.syncSettlement()

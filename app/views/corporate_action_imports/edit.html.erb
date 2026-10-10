@@ -58,12 +58,12 @@
       <% end %>
       <div>
         <%= form.label :kind, t("corporate_action_imports.edit.Event type"), class: "block text-sm font-semibold text-coffee" %>
-        <%= form.select :kind, @edit.kind_options.map { |kind| [t("corporate_actions.kinds.#{kind}"), kind] }, { selected: @edit.review_kind }, class: "ui-field" %>
+        <%= form.custom_select(:kind, @edit.kind_options.map { |kind| [t("corporate_actions.kinds.#{kind}"), kind] }, { selected: @edit.review_kind }, class: "ui-field") %>
       </div>
       <% if @edit.institution_select? %>
         <div>
           <%= form.label :institution_id, t("corporate_action_imports.edit.Institution"), class: "block text-sm font-semibold text-coffee" %>
-          <%= form.select :institution_id, options_from_collection_for_select(@edit.institutions, :id, :name, @edit.institution_id), { include_blank: t("corporate_action_imports.edit.Select institution") }, class: "ui-field", required: true %>
+          <%= form.custom_select(:institution_id, options_from_collection_for_select(@edit.institutions, :id, :name, @edit.institution_id), { include_blank: t("corporate_action_imports.edit.Select institution") }, class: "ui-field", required: true, searchable: true) %>
           <p class="mt-2 text-sm leading-6 text-muted"><%= t("corporate_action_imports.edit.Institution help") %></p>
         </div>
       <% elsif @edit.hidden_institution? %>

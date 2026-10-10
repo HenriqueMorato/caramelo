@@ -26,13 +26,13 @@
       </div>
       <div>
         <%= form.label :source, t("corporate_action_imports.index.Source"), class: "block text-sm font-semibold text-coffee" %>
-        <%= form.select :source, [[t("corporate_action_imports.sources.yahoo_finance"), CorporateActionImports::Providers::YAHOO_FINANCE]], {}, class: "ui-field" %>
+        <%= form.custom_select(:source, [[t("corporate_action_imports.sources.yahoo_finance"), CorporateActionImports::Providers::YAHOO_FINANCE]], {}, class: "ui-field") %>
       </div>
       <div>
         <%= form.label :instrument_id, t("corporate_action_imports.index.Instrument"), class: "block text-sm font-semibold text-coffee" %>
-        <%= form.select :instrument_id,
+        <%= form.custom_select(:instrument_id,
           options_from_collection_for_select(@instruments, :id, ->(instrument) { "#{instrument.ticker} · #{instrument.exchange}" }, @scan_instrument_id),
-          { include_blank: t("corporate_action_imports.index.All instruments") }, class: "ui-field" %>
+          { include_blank: t("corporate_action_imports.index.All instruments") }, class: "ui-field", searchable: true) %>
       </div>
       <div class="flex items-end">
         <%= form.button t("corporate_action_imports.actions.Scan"), class: "ui-button ui-button-primary min-h-[3.125rem] w-full", data: { turbo_submits_with: t("corporate_action_imports.actions.Scanning") } %>

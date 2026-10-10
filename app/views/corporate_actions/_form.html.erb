@@ -48,13 +48,14 @@
     <div>
       <%= form.label :instrument_id, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:instrument)), class: "block text-sm font-semibold text-coffee" %>
       <% instrument_options = instruments.map { |instrument| [ "#{instrument.ticker} · #{instrument.exchange} — #{instrument.name}", instrument.id, { data: { currency: instrument.currency, subunit: Money::Currency.find(instrument.currency).subunit_to_unit } } ] } %>
-      <%= form.select :instrument_id,
+      <%= form.custom_select(:instrument_id,
                       options_for_select(instrument_options, corporate_action.instrument_id),
                       { include_blank: t("forms.Select an instrument") },
                       required: true,
                       autofocus: true,
                       class: [ "ui-field", { "ui-field-invalid": corporate_action.errors[:instrument].any? } ],
-                      data: { income_form_target: "instrument", action: "change->income-form#syncInstrument" } %>
+                      data: { income_form_target: "instrument", action: "change->income-form#syncInstrument" },
+                      searchable: true) %>
     </div>
   <% end %>
 
@@ -62,8 +63,8 @@
     data: { income_form_target: "hiddenKind" } %>
   <%= tag.div hidden: currency != "BRL", data: { income_form_target: "kindField" } do %>
     <%= form.label :kind, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:kind)), class: "block text-sm font-semibold text-coffee" %>
-    <%= form.select :kind, [ [ t("corporate_actions.kinds.dividend"), "dividend" ], [ t("corporate_actions.kinds.jcp"), "jcp" ] ], {},
-      required: true, disabled: currency != "BRL", class: "ui-field sm:max-w-xs", data: { income_form_target: "kind" } %>
+    <%= form.custom_select(:kind, [ [ t("corporate_actions.kinds.dividend"), "dividend" ], [ t("corporate_actions.kinds.jcp"), "jcp" ] ], {},
+      required: true, disabled: currency != "BRL", class: "ui-field sm:max-w-xs", data: { income_form_target: "kind" }) %>
   <% end %>
 
   <div class="grid gap-6 sm:grid-cols-2">
@@ -101,11 +102,11 @@
   <%= tag.div hidden: !available_institutions.many?, data: { income_form_target: "institutionField" } do %>
     <%= form.label :institution_id, t(".Institution optional"), for: "corporate_action_institution_choice",
       class: "block text-sm font-semibold text-coffee" %>
-    <%= form.select :institution_id,
+    <%= form.custom_select(:institution_id,
       options_from_collection_for_select(available_institutions, :id, :name, corporate_action.institution_id),
       { include_blank: t("forms.No institution") },
       disabled: !available_institutions.many?, id: "corporate_action_institution_choice", class: "ui-field",
-      data: { income_form_target: "institution" } %>
+      data: { income_form_target: "institution" }, searchable: true) %>
   <% end %>
 
   <div>

@@ -30,6 +30,7 @@ module Caramelo
     config.time_zone = "America/Sao_Paulo"
     config.i18n.default_locale = :en
     config.i18n.load_path += Dir[Rails.root.join("config", "locales", "**", "*.yml")]
+    config.action_view.default_form_builder = "CarameloFormBuilder"
     owner_email = Caramelo::Environment.fetch("OWNER_EMAIL", default: Caramelo::Environment::DEFAULT_OWNER_EMAIL)
     config.x.caramelo.owner_email = owner_email.strip.downcase
     config.x.caramelo.reporting_currency = "BRL"

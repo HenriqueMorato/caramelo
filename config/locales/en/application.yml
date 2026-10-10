@@ -124,9 +124,13 @@ en:
       one: '1 error prevented this %{model} from being saved:'
       other: "%{count} errors prevented this %{model} from being saved:"
     No institution: No institution
+    No matching options: No matching options
+    No options: No options available
     Required attribute: "%{attribute} *"
     Required fields: Required fields
+    Search options: Search options…
     Select an instrument: Select an instrument
+    Select an option: Please select an option.
   market_data_health:
     import_review:
       Eyebrow: Review queue
