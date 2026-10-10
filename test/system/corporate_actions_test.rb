@@ -68,6 +68,17 @@ class CorporateActionsTest < ApplicationSystemTestCase
     assert_no_selector "#corporate_action_#{corporate_action_id}"
   end
 
+  test "refreshes the visible income type after switching away from a BRL instrument" do
+    visit new_corporate_action_path
+
+    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+    choose_caramelo_option "JCP", from: "Action type"
+    choose_caramelo_option "VOO · ARCX — Vanguard S&P 500 ETF", from: "Instrument"
+    choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
+
+    assert_caramelo_select_value "Dividend", from: "Action type"
+  end
+
   test "keeps income private across navigation" do
     create_action
     visit transactions_path(activity: "income")
@@ -93,6 +104,21 @@ class CorporateActionsTest < ApplicationSystemTestCase
     accept_confirm "Discard your unsaved income changes?" do
       click_on "Cancel"
     end
+    assert_current_path transactions_path, wait: 10
+  end
+
+  test "does not treat income picker search as an unsaved change" do
+    visit new_corporate_action_path
+    find("#corporate_action_instrument_id-button").click
+    fill_in "corporate_action_instrument_id-search", with: "PETR"
+    page.execute_script(<<~JS)
+      document.getElementById("corporate_action_instrument_id-search")
+        .dispatchEvent(new Event("change", { bubbles: true }))
+    JS
+    find("#corporate_action_instrument_id-search").send_keys(:escape)
+
+    click_on "Cancel"
+
     assert_current_path transactions_path, wait: 10
   end
 

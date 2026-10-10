@@ -54,7 +54,8 @@
                       required: true,
                       autofocus: true,
                       class: [ "ui-field", { "ui-field-invalid": corporate_action.errors[:instrument].any? } ],
-                      data: { income_form_target: "instrument", action: "change->income-form#syncInstrument" }) %>
+                      data: { income_form_target: "instrument", action: "change->income-form#syncInstrument" },
+                      searchable: true) %>
     </div>
   <% end %>
 
@@ -105,7 +106,7 @@
       options_from_collection_for_select(available_institutions, :id, :name, corporate_action.institution_id),
       { include_blank: t("forms.No institution") },
       disabled: !available_institutions.many?, id: "corporate_action_institution_choice", class: "ui-field",
-      data: { income_form_target: "institution" }) %>
+      data: { income_form_target: "institution" }, searchable: true) %>
   <% end %>
 
   <div>

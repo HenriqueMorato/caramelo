@@ -53,7 +53,7 @@ class TradesTest < ApplicationSystemTestCase
   end
 
   test "prefills imported dividend review details for verification" do
-    CorporateActionImport.create!(
+    import = CorporateActionImport.create!(
       user: User.owner, instrument: instruments(:voo_arcx), source: "yahoo_finance",
       source_reference: "system-dividend-review", status: :pending, kind: :dividend,
       event_on: Date.new(2026, 8, 20), ex_date: Date.new(2026, 8, 20),
@@ -62,7 +62,10 @@ class TradesTest < ApplicationSystemTestCase
 
     visit transactions_path
     click_on "Review imports"
-    click_on "Edit"
+    assert_current_path corporate_action_imports_path
+    within "#corporate_action_import_#{import.id}" do
+      click_on "Edit"
+    end
 
     assert_field "Payment date", with: "2026-08-20"
     assert_field "Gross amount", with: "0.63"

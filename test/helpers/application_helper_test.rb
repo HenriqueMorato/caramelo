@@ -51,11 +51,13 @@ class ApplicationHelperTest < ActionView::TestCase
     builder = CarameloFormBuilder.new("user", users(:owner), self, {})
 
     rendered = builder.custom_select(:reporting_currency, [ [ "Brazilian real", "BRL" ] ], {},
-      class: "ui-field", data: { controller: "settings-form", action: "change->settings-form#sync" })
+      class: "ui-field", data: { controller: "settings-form", action: "change->settings-form#sync" }, searchable: true)
 
     assert_includes rendered, 'data-controller="settings-form caramelo-select"'
     assert_includes rendered, 'data-action="change-&gt;settings-form#sync"'
     assert_includes rendered, "data-caramelo-select-empty-label=\"No options available\""
+    assert_includes rendered, "data-caramelo-select-search=\"true\""
+    assert_includes rendered, "data-caramelo-select-search-label=\"Search options…\""
   end
 
   test "uses the shared select controller for collection selects" do

@@ -32,7 +32,7 @@
         <%= form.label :instrument_id, t("corporate_action_imports.index.Instrument"), class: "block text-sm font-semibold text-coffee" %>
         <%= form.custom_select(:instrument_id,
           options_from_collection_for_select(@instruments, :id, ->(instrument) { "#{instrument.ticker} · #{instrument.exchange}" }, @scan_instrument_id),
-          { include_blank: t("corporate_action_imports.index.All instruments") }, class: "ui-field") %>
+          { include_blank: t("corporate_action_imports.index.All instruments") }, class: "ui-field", searchable: true) %>
       </div>
       <div class="flex items-end">
         <%= form.button t("corporate_action_imports.actions.Scan"), class: "ui-button ui-button-primary min-h-[3.125rem] w-full", data: { turbo_submits_with: t("corporate_action_imports.actions.Scanning") } %>

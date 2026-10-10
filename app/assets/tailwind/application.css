@@ -333,6 +333,14 @@ html[data-theme="dark"] {
     box-shadow: 0 12px 30px -14px rgb(46 33 28 / 45%);
   }
 
+  .caramelo-select[data-searchable="true"] .caramelo-select-listbox {
+    @apply pt-14;
+  }
+
+  .caramelo-select-search {
+    @apply absolute inset-x-3 top-[calc(100%+1.25rem)] z-50 min-h-11 rounded-lg border border-coffee/15 bg-oat-2 px-3 py-2 text-base text-coffee shadow-sm placeholder:text-muted focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20;
+  }
+
   .caramelo-select-option {
     @apply flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-coffee;
     cursor: pointer;
@@ -362,14 +370,20 @@ html[data-theme="dark"] {
   }
 
   .caramelo-select-empty {
-    @apply px-3 py-3 text-sm text-muted;
+    @apply absolute inset-x-0 top-[calc(100%+0.5rem)] z-40 max-h-64 overflow-y-auto overscroll-contain rounded-xl border border-coffee/10 bg-paper p-4 text-sm text-muted;
+    box-shadow: 0 12px 30px -14px rgb(46 33 28 / 45%);
+  }
+
+  .caramelo-select[data-searchable="true"] .caramelo-select-empty {
+    @apply pt-14;
   }
 
   .caramelo-select-error {
     @apply mt-2 text-sm text-guava;
   }
 
-  html[data-theme="dark"] .caramelo-select-listbox {
+  html[data-theme="dark"] .caramelo-select-listbox,
+  html[data-theme="dark"] .caramelo-select-empty {
     box-shadow: 0 0 0 1px rgb(255 255 255 / 8%);
   }
 

@@ -64,7 +64,7 @@ export default class extends Controller {
     this.hiddenKindTarget.disabled = supportsJcp
     if (!supportsJcp && this.kindTarget.value !== "dividend") {
       this.kindTarget.value = "dividend"
-      if (event) this.kindTarget.dispatchEvent(new Event("change", { bubbles: true }))
+      this.kindTarget.dispatchEvent(new Event("change", { bubbles: Boolean(event) }))
     }
   }
 
