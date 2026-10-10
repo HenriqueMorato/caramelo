@@ -1,6 +1,10 @@
 require "test_helper"
+require "axe-capybara"
+require_relative "support/accessibility_test_helper"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
+  include AccessibilityTestHelper
+
   # Coverage instrumentation and eight parallel browsers can make otherwise
   # completed Turbo navigations exceed Capybara's two-second default.
   Capybara.default_max_wait_time = 5
