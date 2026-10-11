@@ -30,6 +30,7 @@ class NavigationTest < ApplicationSystemTestCase
   end
 
   test "collapses the desktop navigation into an icon rail" do
+    page.current_window.resize_to(1400, 1400)
     visit root_path
     page.execute_script("localStorage.removeItem('caramelo.navigation.collapsed')")
     visit root_path
