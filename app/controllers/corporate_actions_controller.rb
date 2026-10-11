@@ -257,7 +257,7 @@ class CorporateActionsController < ApplicationController
 
     effective_through = if @corporate_action&.persisted? && @corporate_action.instrument_id == instrument.id &&
       @corporate_action.effective_on.present?
-      @corporate_action.effective_on&.-(1.day)
+      @corporate_action.effective_on - 1.day
     else
       Date.current
     end

@@ -56,14 +56,14 @@
       <label class="trade-side-option">
         <%= form.radio_button :side, "buy", required: true, class: "trade-side-radio", data: { trade_form_target: "side" } %>
         <span>
-          <%= t("Buy") %>
+          <strong><%= t("Buy") %></strong>
           <small><%= t("trades.form.Buy helper") %></small>
         </span>
       </label>
       <label class="trade-side-option trade-side-option--sell">
         <%= form.radio_button :side, "sell", required: true, class: "trade-side-radio", data: { trade_form_target: "side" } %>
         <span>
-          <%= t("Sell") %>
+          <strong><%= t("Sell") %></strong>
           <small><%= t("trades.form.Sell helper") %></small>
         </span>
       </label>

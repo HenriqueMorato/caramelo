@@ -2,6 +2,7 @@
 
 CI.run do
   step "Setup", "bin/setup --skip-server"
+  step "Setup: Test database", "bin/rails db:test:prepare"
 
   step "Style: Ruby", "bin/rubocop"
   step "Style: HTML+ERB", "bin/herb"

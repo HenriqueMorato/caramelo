@@ -232,6 +232,36 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".action-preview-quantity-after", text: "… shares"
   end
 
+  test "quantity preview handles empty selections and invalid position data" do
+    instrument = instruments(:voo_arcx)
+    trades = [ trades(:owner_voo_buy) ]
+    controller = CorporateActionsController.new
+
+    assert_nil controller.send(:preview_quantity_for, nil, trades:, corporate_actions: [])
+    controller.instance_variable_set(:@corporate_action, nil)
+    assert_equal "2.5", controller.send(
+      :preview_quantity_for, instrument, trades:, corporate_actions: []
+    )
+
+    preview_action = Struct.new(:instrument_id, :effective_on) do
+      def persisted? = true
+    end.new(instrument.id, nil)
+    controller.instance_variable_set(:@corporate_action, preview_action)
+    assert_equal "2.5", controller.send(
+      :preview_quantity_for, instrument, trades:, corporate_actions: []
+    )
+
+    invalid_action = CorporateAction.new(
+      instrument_id: instrument.id, kind: :stock_split, effective_on: Date.current,
+      ratio_numerator: 1, ratio_denominator: 1, cash_in_lieu_quantity: 3,
+      cash_in_lieu_amount_cents: 100, currency: instrument.currency
+    )
+    controller.instance_variable_set(:@corporate_action, nil)
+    assert_nil controller.send(
+      :preview_quantity_for, instrument, trades:, corporate_actions: [ invalid_action ]
+    )
+  end
+
   test "creates and edits a share bonus using percentage rather than ratio inputs" do
     assert_difference("CorporateAction.quantity_actions.count") do
       post quantity_actions_url, params: {

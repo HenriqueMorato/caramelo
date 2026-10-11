@@ -494,7 +494,7 @@ html[data-theme="dark"] {
   }
 
   .trade-side-options {
-    @apply grid grid-cols-2 gap-1 rounded-xl bg-oat p-1;
+    @apply grid grid-cols-1 gap-2 sm:grid-cols-2;
   }
 
   .trade-side-option {
@@ -506,21 +506,35 @@ html[data-theme="dark"] {
   }
 
   .trade-side-option > span {
-    @apply flex min-h-11 flex-col items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold text-muted;
-    transition-property: background-color, box-shadow, color;
-    transition-duration: 150ms;
+    @apply flex min-h-20 flex-col justify-center rounded-xl border border-coffee/15 bg-paper px-4 py-3 text-left text-sm font-semibold text-coffee transition-[background-color,border-color,box-shadow,color] duration-150;
+  }
+
+  .trade-side-option > span strong {
+    @apply text-sm font-semibold text-coffee;
   }
 
   .trade-side-option > span small {
-    @apply mt-0.5 text-xs font-normal;
+    @apply mt-1 text-xs font-normal text-muted;
+  }
+
+  .trade-side-option:hover > span {
+    @apply border-caramel bg-oat;
   }
 
   .trade-side-option input:checked + span {
-    @apply bg-paper text-leaf shadow-sm;
+    @apply border-caramel-deep bg-caramel/15 shadow-sm ring-1 ring-inset ring-caramel/40;
   }
 
-  .trade-side-option--sell input:checked + span {
+  .trade-side-option input:checked + span strong {
+    @apply text-leaf;
+  }
+
+  .trade-side-option--sell input:checked + span strong {
     @apply text-guava;
+  }
+
+  .trade-side-option input:checked + span small {
+    @apply text-caramel-deep;
   }
 
   .trade-side-option input:focus-visible + span {
