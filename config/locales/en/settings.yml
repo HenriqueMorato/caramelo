@@ -13,6 +13,14 @@ en:
         Your trades keep their original currencies.
       Discard changes: Discard your unsaved currency preference?
       Introduction: Make your portfolio feel at home.
+      Navigation collapsed: Collapsed by default
+      Navigation collapsed help: Keep the sidebar compact and show only its icons.
+      Navigation heading: Desktop navigation
+      Navigation help: Choose whether the sidebar starts open or collapsed on desktop.
+        Mobile uses its own menu.
+      Navigation open: Open by default
+      Navigation open help: Show the sidebar labels when you arrive.
+      Navigation state: Default sidebar state
       Page title: Settings | %{application}
       Preparation help: Missing exchange rates may take a moment to prepare. Until
         then, affected values are shown as unavailable. Save again to retry preparation

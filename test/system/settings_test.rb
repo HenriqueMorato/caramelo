@@ -139,8 +139,27 @@ class SettingsTest < ApplicationSystemTestCase
     page.current_window.resize_to(390, 844)
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
+    assert_selector "header button[aria-label='Hide monetary values'], header button[aria-label='Show monetary values']", visible: true
     find("summary", text: "Menu").click
     within("header nav") { assert_link "Settings", href: settings_path }
+  end
+
+  test "sets the default desktop navigation state" do
+    visit settings_path
+    page.execute_script("localStorage.removeItem('caramelo.navigation.collapsed')")
+    visit settings_path
+
+    assert_selector "#navigation-default-open:checked"
+    find("label", text: "Collapsed by default").click
+    assert_selector "#navigation-default-collapsed:checked"
+    assert_selector "aside.w-20"
+
+    visit positions_path
+
+    assert_selector "aside.w-20"
+    visit settings_path
+    find("label", text: "Open by default").click
+    assert_selector "aside.w-52"
   end
 
   test "unsaved preference cancels native unloading" do

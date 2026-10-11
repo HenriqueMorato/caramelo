@@ -15,6 +15,41 @@
     <%= render "layouts/appearance_options" %>
   </section>
 
+  <section class="ui-card p-6 sm:p-8" aria-labelledby="navigation-heading">
+    <div class="mb-5">
+      <h2 id="navigation-heading" class="text-lg font-semibold text-coffee"><%= t(".Navigation heading") %></h2>
+      <p id="navigation-help" class="mt-2 text-sm leading-6 text-muted"><%= t(".Navigation help") %></p>
+    </div>
+    <div
+      data-controller="navigation-preference"
+      data-navigation-preference-storage-key-value="caramelo.navigation.collapsed"
+    >
+      <fieldset class="grid gap-3 sm:grid-cols-2" aria-describedby="navigation-help">
+        <legend class="sr-only"><%= t(".Navigation state") %></legend>
+        <label class="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-coffee/15 bg-oat px-4 py-3 transition-colors hover:border-caramel/60 focus-within:ring-2 focus-within:ring-caramel">
+          <%= radio_button_tag "navigation_default", "open", true,
+            id: "navigation-default-open", class: "peer sr-only",
+            data: { navigation_preference_target: "option", action: "change->navigation-preference#change" } %>
+          <span class="flex size-5 shrink-0 items-center justify-center rounded-full border border-coffee/25 bg-oat-2 peer-checked:border-caramel peer-checked:bg-caramel/15" aria-hidden="true"></span>
+          <span class="min-w-0">
+            <span class="block text-sm font-semibold text-coffee"><%= t(".Navigation open") %></span>
+            <span class="mt-1 block text-xs leading-5 text-muted"><%= t(".Navigation open help") %></span>
+          </span>
+        </label>
+        <label class="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-coffee/15 bg-oat px-4 py-3 transition-colors hover:border-caramel/60 focus-within:ring-2 focus-within:ring-caramel">
+          <%= radio_button_tag "navigation_default", "collapsed", false,
+            id: "navigation-default-collapsed", class: "peer sr-only",
+            data: { navigation_preference_target: "option", action: "change->navigation-preference#change" } %>
+          <span class="flex size-5 shrink-0 items-center justify-center rounded-full border border-coffee/25 bg-oat-2 peer-checked:border-caramel peer-checked:bg-caramel/15" aria-hidden="true"></span>
+          <span class="min-w-0">
+            <span class="block text-sm font-semibold text-coffee"><%= t(".Navigation collapsed") %></span>
+            <span class="mt-1 block text-xs leading-5 text-muted"><%= t(".Navigation collapsed help") %></span>
+          </span>
+        </label>
+      </fieldset>
+    </div>
+  </section>
+
   <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
     <%= form_with model: @owner, url: settings_path, method: :patch, class: "space-y-6",
       data: { controller: "settings-form", settings_form_discard_value: t(".Discard changes"),
