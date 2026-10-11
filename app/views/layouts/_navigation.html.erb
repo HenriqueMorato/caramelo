@@ -1,14 +1,20 @@
 <%# locals: () %>
 
-<aside class="hidden w-52 shrink-0 flex-col border-r border-coffee/10 bg-oat px-4 py-6 md:flex lg:w-56 lg:px-5 lg:py-7">
-  <%= link_to root_path, class: "flex items-center gap-2 px-2", translate: "no" do %>
-    <%= image_tag "caramelo-logo.svg", class: "size-10", alt: "", aria: { hidden: true } %>
-    <span class="font-display text-2xl font-semibold tracking-tight text-coffee">caramelo</span>
+<aside
+  class="hidden w-52 shrink-0 flex-col border-r border-coffee/10 bg-oat px-4 py-6 md:flex lg:w-56 lg:px-5 lg:py-7"
+  data-controller="navigation"
+  data-navigation-storage-key-value="caramelo.navigation.collapsed"
+  data-navigation-collapse-label="<%= t("Collapse navigation") %>"
+  data-navigation-expand-label="<%= t("Expand navigation") %>"
+>
+  <%= link_to root_path, class: "flex min-w-0 items-center justify-start gap-2", translate: "no", data: { navigation_target: "brand" } do %>
+    <%= image_tag "caramelo-logo.svg", class: "size-10 shrink-0", alt: "", aria: { hidden: true }, data: { navigation_target: "logo" } %>
+    <span class="font-display text-2xl font-semibold tracking-tight text-coffee" data-navigation-target="label">caramelo</span>
   <% end %>
 
-  <nav aria-label="<%= t("Primary navigation") %>" class="mt-8 flex-1 lg:mt-12">
+  <nav id="desktop-primary-navigation" aria-label="<%= t("Primary navigation") %>" class="mt-8 flex-1 lg:mt-12">
     <div class="flex min-h-8 items-center justify-between pl-3 pr-1">
-      <p class="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Portfolio") %></p>
+      <p class="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted" data-navigation-target="label"><%= t("Portfolio") %></p>
       <%= render "layouts/money_visibility" %>
     </div>
     <div class="mt-4 space-y-1">
@@ -16,28 +22,46 @@
         <% active = current_page?(path) || (path == transactions_path && %w[transactions trades corporate_actions].include?(controller_name)) %>
         <%= link_to path, class: class_names("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } do %>
           <span class="flex size-8 items-center justify-center text-lg <%= active ? "text-caramel-deep" : "text-coffee/70" %>" aria-hidden="true"><%= icon %></span>
-          <span translate="no"><%= label %></span>
+          <span translate="no" data-navigation-target="label"><%= label %></span>
         <% end %>
       <% end %>
     </div>
-    <p class="mt-10 px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted"><%= t("Manage") %></p>
+    <p class="mt-10 px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted" data-navigation-target="label"><%= t("Manage") %></p>
     <div class="mt-4 space-y-1">
       <% [[t("Institutions"), institutions_path, "¤"], [t("Data health"), market_data_health_path, "♥"], [t("Settings"), settings_path, "⚙"]].each do |label, path, icon| %>
         <% active = current_page?(path) %>
         <%= link_to path, class: class_names("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel", "bg-caramel/15 font-bold text-caramel-deep": active, "text-muted hover:bg-caramel/10 hover:text-coffee": !active), aria: { current: ("page" if active) } do %>
           <span class="flex size-8 items-center justify-center text-lg text-coffee/70" aria-hidden="true"><%= icon %></span>
-          <span translate="no"><%= label %></span>
+          <span translate="no" data-navigation-target="label"><%= label %></span>
         <% end %>
       <% end %>
     </div>
   </nav>
 
-  <details class="group relative mb-3" data-appearance-target="menu">
+  <button
+    type="button"
+    class="mb-3 mt-3 flex min-h-11 w-full shrink-0 items-center justify-start gap-3 rounded-xl px-3 text-sm font-semibold text-muted transition-colors hover:bg-caramel/10 hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel"
+    data-navigation-target="toggle"
+    data-action="navigation#toggle"
+    aria-controls="desktop-primary-navigation"
+    aria-expanded="true"
+    aria-label="<%= t("Collapse navigation") %>"
+  >
+    <span class="flex size-8 shrink-0 items-center justify-center">
+      <svg viewBox="0 0 24 24" class="size-5 transition-transform" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-navigation-target="toggleIcon" aria-hidden="true">
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+    </span>
+    <span data-navigation-target="label"><%= t("Close") %></span>
+  </button>
+
+  <details class="group relative mb-3" data-appearance-target="menu" data-navigation-target="optionalPanel">
     <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl px-3 text-sm font-semibold text-muted transition-colors hover:bg-caramel/10 hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel [&::-webkit-details-marker]:hidden">
-      <span><%= t("appearance.Appearance") %></span>
+      <span data-navigation-target="label"><%= t("appearance.Appearance") %></span>
       <span
         class="text-xs font-medium text-caramel-deep"
         data-appearance-target="label"
+        data-navigation-target="label"
         data-light="<%= t("appearance.Light") %>"
         data-dark="<%= t("appearance.Dark") %>"
         data-system="<%= t("appearance.System") %>"
@@ -48,9 +72,9 @@
     </div>
   </details>
 
-  <div class="relative overflow-hidden rounded-2xl bg-caramel/15 p-4">
-    <p class="relative z-10 font-display text-lg leading-tight text-coffee"><span class="block"><%= t("Small steps") %></span><span class="block"><%= t("Long walks") %></span></p>
-    <p class="relative z-10 mt-3 text-xs leading-5 text-caramel-deep"><%= t("Your portfolio is out for a stroll") %></p>
+  <div class="relative overflow-hidden rounded-2xl bg-caramel/15 p-4" data-navigation-target="optionalPanel">
+    <p class="relative z-10 font-display text-lg leading-tight text-coffee" data-navigation-target="label"><span class="block"><%= t("Small steps") %></span><span class="block"><%= t("Long walks") %></span></p>
+    <p class="relative z-10 mt-3 text-xs leading-5 text-caramel-deep" data-navigation-target="label"><%= t("Your portfolio is out for a stroll") %></p>
     <span class="absolute -bottom-8 -right-7 size-[90px] rounded-full bg-paper/30" aria-hidden="true"></span>
   </div>
 </aside>
