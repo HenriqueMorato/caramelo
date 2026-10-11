@@ -28,6 +28,7 @@ class InstitutionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", /institution/i
     assert_select "form[action=?]", institutions_path
+    assert_select "input[type='checkbox'][name='institution[active]'].accent-caramel-deep"
   end
 
   test "does not expose another owner's institution" do
