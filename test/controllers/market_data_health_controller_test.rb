@@ -14,6 +14,7 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     assert_select "turbo-cable-stream-source[signed-stream-name]"
     assert_select "##{RefreshStatus::Broadcaster::ACTIVITY_TARGET}"
     assert_select "##{MarketData::HealthReportBroadcaster::TARGET}"
+    assert_select "a[href=?]", instruments_path, text: "Manage instruments"
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
