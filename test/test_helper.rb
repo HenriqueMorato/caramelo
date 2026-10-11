@@ -16,8 +16,17 @@ require_relative "test_helpers/session_test_helper"
 
 module ActiveSupport
   class TestCase
-    # Run tests in parallel with specified workers
-    parallelize(workers: :number_of_processors)
+    # The devcontainer's standalone Selenium node exposes one browser slot. Running
+    # several remote sessions at once makes later sessions wait for the node timeout.
+    requested_workers = ENV["PARALLEL_WORKERS"].to_i
+    parallel_workers = if requested_workers.positive?
+      requested_workers
+    elsif ENV["CAPYBARA_SERVER_PORT"]
+      1
+    else
+      :number_of_processors
+    end
+    parallelize(workers: parallel_workers)
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all

@@ -7,6 +7,7 @@
 <% selected_instrument_id = context_instrument&.id || corporate_action.instrument_id %>
 <% available_institutions = institutions_by_instrument.fetch(selected_instrument_id, []) %>
 <% single_institution = available_institutions.one? ? available_institutions.first : nil %>
+<% supports_jcp = currency == "BRL" %>
 
 <%= form_with model: corporate_action,
               url: corporate_action.persisted? ? corporate_action_path(corporate_action) : (context_instrument ? instrument_corporate_actions_path(context_instrument) : corporate_actions_path),
@@ -59,19 +60,36 @@
     </div>
   <% end %>
 
-  <%= form.hidden_field :kind, value: "dividend", disabled: currency == "BRL", id: nil,
+  <%= form.hidden_field :kind, value: "dividend", disabled: supports_jcp, id: nil,
     data: { income_form_target: "hiddenKind" } %>
-  <%= tag.div hidden: currency != "BRL", data: { income_form_target: "kindField" } do %>
-    <%= form.label :kind, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:kind)), class: "block text-sm font-semibold text-coffee" %>
-    <%= form.custom_select(:kind, [ [ t("corporate_actions.kinds.dividend"), "dividend" ], [ t("corporate_actions.kinds.jcp"), "jcp" ] ], {},
-      required: true, disabled: currency != "BRL", class: "ui-field sm:max-w-xs", data: { income_form_target: "kind" }) %>
+  <%= tag.div hidden: !supports_jcp, data: { income_form_target: "kindField" } do %>
+    <fieldset>
+      <legend class="text-sm font-semibold text-coffee"><%= t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:kind)) %></legend>
+      <div class="action-type-options income-action-type-options mt-2">
+        <% [
+          [ :dividend, t("corporate_actions.kinds.dividend"), t("corporate_actions.form.Dividend helper") ],
+          [ :jcp, t("corporate_actions.kinds.jcp"), t("corporate_actions.form.JCP helper") ]
+        ].each do |kind, label, helper| %>
+          <label class="action-type-option">
+            <%= form.radio_button :kind, kind, required: true, disabled: !supports_jcp,
+              data: { income_form_target: "kind" } %>
+            <span>
+              <strong><%= label %></strong>
+              <small><%= helper %></small>
+            </span>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
   <% end %>
 
   <div class="grid gap-6 sm:grid-cols-2">
     <div>
       <%= form.label :paid_on, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:paid_on)), class: "block text-sm font-semibold text-coffee" %>
       <%= form.date_field :paid_on, required: true, class: "ui-field" %>
-      <p class="mt-1 text-xs text-muted"><%= t(".Payment date help") %></p>
+      <p class="mt-1 text-xs text-muted" data-income-form-target="paymentDateHelp"
+        data-income-form-dividend-help="<%= t('.Payment date dividend help') %>"
+        data-income-form-jcp-help="<%= t('.Payment date help') %>"><%= t(supports_jcp ? ".Payment date help" : ".Payment date dividend help") %></p>
     </div>
     <div>
       <%= form.label :ex_date, class: "block text-sm font-semibold text-coffee" %>

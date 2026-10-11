@@ -1,4 +1,4 @@
-<%# locals: (corporate_action:, context_instrument:, instruments:, institutions_by_instrument:, return_to: nil) %>
+<%# locals: (corporate_action:, context_instrument:, instruments:, institutions_by_instrument:, preview_quantity: nil, preview_quantities_by_instrument: {}, return_to: nil) %>
 
 <% selected_instrument_id = context_instrument&.id || corporate_action.instrument_id %>
 <% available_institutions = institutions_by_instrument.fetch(selected_instrument_id, []) %>
@@ -9,9 +9,9 @@
 
 <%= form_with model: corporate_action,
               url: corporate_action.persisted? ? quantity_action_path(corporate_action) : (context_instrument ? instrument_quantity_actions_path(context_instrument) : quantity_actions_path),
-              class: "space-y-6",
+              class: "action-form-panel ui-panel",
               data: {
-                controller: "form-state institution-picker quantity-action-form",
+                controller: "form-state institution-picker",
                 institution_picker_institutions_value: institution_options.to_json,
                 institution_picker_institution_value: corporate_action.institution_id,
                 institution_picker_no_institution_value: t("forms.No institution"),
@@ -36,7 +36,10 @@
 
   <% if context_instrument %>
     <%= form.hidden_field :instrument_id, value: context_instrument.id,
-      data: { institution_picker_target: "instrument" } %>
+      data: { institution_picker_target: "instrument", quantity_action_form_target: "instrument",
+        preview_asset: "#{context_instrument.ticker} · #{context_instrument.exchange}",
+        preview_instrument: context_instrument.name, currency: context_instrument.currency,
+        preview_quantity: preview_quantity } %>
     <div class="rounded-xl border border-coffee/10 bg-oat p-4">
       <p class="text-sm font-semibold text-coffee"><%= t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:instrument)) %></p>
       <p class="mt-1 font-mono text-lg font-bold"><%= context_instrument.ticker %> · <%= context_instrument.exchange %></p>
@@ -45,22 +48,42 @@
   <% else %>
     <div>
       <%= form.label :instrument_id, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:instrument)), class: "block text-sm font-semibold text-coffee" %>
-      <%= form.custom_collection_select(:instrument_id, instruments, :id, ->(instrument) { "#{instrument.ticker} · #{instrument.exchange} — #{instrument.name}" },
+      <% instrument_options_for_select = instruments.map do |instrument|
+        [ "#{instrument.ticker} · #{instrument.exchange} — #{instrument.name}", instrument.id, { data: {
+          preview_asset: "#{instrument.ticker} · #{instrument.exchange}",
+          preview_instrument: instrument.name,
+          currency: instrument.currency,
+          preview_quantity: preview_quantities_by_instrument[instrument.id]
+        } } ]
+      end %>
+      <%= form.custom_select(:instrument_id, options_for_select(instrument_options_for_select, corporate_action.instrument_id),
         { include_blank: t("forms.Select an instrument") }, required: true, autofocus: true, class: "ui-field",
-        data: { institution_picker_target: "instrument", action: "change->institution-picker#sync" }, searchable: true) %>
+        data: { institution_picker_target: "instrument", quantity_action_form_target: "instrument", action: "change->institution-picker#sync" }, searchable: true) %>
     </div>
   <% end %>
 
-  <div class="grid gap-6 sm:grid-cols-2">
-    <div>
-      <%= form.label :kind, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:kind)), class: "block text-sm font-semibold text-coffee" %>
-      <%= form.custom_select(:kind, %i[stock_split reverse_split share_bonus].map { |kind| [ t("corporate_actions.kinds.#{kind}"), kind ] }, {}, required: true, class: "ui-field",
-        data: { quantity_action_form_target: "kind", action: "change->quantity-action-form#sync" }) %>
+  <fieldset>
+    <legend class="text-sm font-semibold text-coffee"><%= t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:kind)) %></legend>
+    <div class="action-type-options mt-2">
+      <% [
+        [ :stock_split, t("corporate_actions.kinds.stock_split"), t("corporate_actions.quantity_form.Stock split helper") ],
+        [ :reverse_split, t("corporate_actions.kinds.reverse_split"), t("corporate_actions.quantity_form.Reverse split helper") ],
+        [ :share_bonus, t("corporate_actions.kinds.share_bonus"), t("corporate_actions.quantity_form.Share bonus helper") ]
+      ].each do |kind, label, helper| %>
+        <label class="action-type-option">
+          <%= form.radio_button :kind, kind, required: true, data: { quantity_action_form_target: "kind" } %>
+          <span>
+            <strong><%= label %></strong>
+            <small><%= helper %></small>
+          </span>
+        </label>
+      <% end %>
     </div>
-    <div>
-      <%= form.label :effective_on, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:effective_on)), class: "block text-sm font-semibold text-coffee" %>
-      <%= form.date_field :effective_on, required: true, max: Date.current, class: "ui-field" %>
-    </div>
+  </fieldset>
+
+  <div>
+    <%= form.label :effective_on, t("forms.Required attribute", attribute: CorporateAction.human_attribute_name(:effective_on)), class: "block text-sm font-semibold text-coffee" %>
+    <%= form.date_field :effective_on, required: true, max: Date.current, class: "ui-field", data: { quantity_action_form_target: "effectiveOn" } %>
   </div>
 
   <fieldset class="rounded-xl border border-coffee/10 bg-oat p-4 sm:p-5 <%= "hidden" if corporate_action.share_bonus? %>"
@@ -70,12 +93,12 @@
     <div class="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
       <div>
         <%= form.label :ratio_numerator, class: "block text-sm font-semibold text-coffee" %>
-        <%= form.number_field :ratio_numerator, required: !corporate_action.share_bonus?, disabled: corporate_action.share_bonus?, min: 1, step: 1, inputmode: "numeric", class: "ui-field font-mono tabular-nums" %>
+        <%= form.number_field :ratio_numerator, required: !corporate_action.share_bonus?, disabled: corporate_action.share_bonus?, min: 1, step: 1, inputmode: "numeric", class: "ui-field font-mono tabular-nums", data: { quantity_action_form_target: "ratioNumerator" } %>
       </div>
       <span class="hidden pb-3 text-sm font-semibold text-muted sm:block" aria-hidden="true"><%= t(".for") %></span>
       <div>
         <%= form.label :ratio_denominator, class: "block text-sm font-semibold text-coffee" %>
-        <%= form.number_field :ratio_denominator, required: !corporate_action.share_bonus?, disabled: corporate_action.share_bonus?, min: 1, step: 1, inputmode: "numeric", class: "ui-field font-mono tabular-nums" %>
+        <%= form.number_field :ratio_denominator, required: !corporate_action.share_bonus?, disabled: corporate_action.share_bonus?, min: 1, step: 1, inputmode: "numeric", class: "ui-field font-mono tabular-nums", data: { quantity_action_form_target: "ratioDenominator" } %>
       </div>
     </div>
   </fieldset>
@@ -89,7 +112,8 @@
       <%= form.number_field :bonus_percentage, value: corporate_action.bonus_percentage, required: corporate_action.share_bonus?,
         disabled: !corporate_action.share_bonus?, min: 0, step: "any", inputmode: "decimal",
         class: "ui-field font-mono tabular-nums", aria: { invalid: corporate_action.errors[:bonus_percentage].any?,
-          describedby: ("bonus-percentage-error" if corporate_action.errors[:bonus_percentage].any?) } %>
+          describedby: ("bonus-percentage-error" if corporate_action.errors[:bonus_percentage].any?) },
+        data: { quantity_action_form_target: "bonusPercentage" } %>
       <% if corporate_action.errors[:bonus_percentage].any? %>
         <p id="bonus-percentage-error" class="mt-2 text-sm text-guava"><%= corporate_action.errors[:bonus_percentage].to_sentence %></p>
       <% end %>
@@ -102,14 +126,14 @@
     <div class="grid gap-6 sm:grid-cols-2">
       <div>
         <%= form.label :cash_in_lieu_quantity, class: "block text-sm font-semibold text-coffee" %>
-        <%= form.number_field :cash_in_lieu_quantity, min: 0, step: 0.1, inputmode: "decimal", class: "ui-field font-mono tabular-nums" %>
+        <%= form.number_field :cash_in_lieu_quantity, min: 0, step: 0.1, inputmode: "decimal", class: "ui-field font-mono tabular-nums", data: { quantity_action_form_target: "cashInLieuQuantity" } %>
       </div>
       <div>
         <%= form.label :cash_in_lieu_amount, class: "block text-sm font-semibold text-coffee" %>
         <%= form.text_field :cash_in_lieu_amount,
           value: corporate_action.cash_in_lieu_amount_input.presence || corporate_action.cash_in_lieu_amount&.to_d,
           inputmode: "decimal", autocomplete: "off", class: "ui-field font-mono tabular-nums",
-          data: { money_step: money_step } %>
+          data: { money_step: money_step, quantity_action_form_target: "cashInLieuAmount" } %>
       </div>
     </div>
   </fieldset>

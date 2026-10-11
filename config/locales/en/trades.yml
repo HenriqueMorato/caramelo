@@ -2,15 +2,28 @@
 en:
   trades:
     edit:
+      Introduction: Keep the record accurate as your portfolio changes.
       Page title: Edit trade · %{application}
     form:
+      Buy helper: Add to your holdings
       Derived currency: Derived from the selected instrument.
       Institution optional: Institution (optional)
+      Notes placeholder: What do you want to remember about this trade…
+      Receipt asset placeholder: Your asset
+      Receipt date placeholder: Trade date
+      Receipt heading: Trade receipt
+      Receipt helper: For a sell, fees reduce total proceeds. Nothing is saved until
+        you submit the form.
+      Receipt instrument placeholder: Select an instrument to preview it here.
+      Receipt intro: Your entry will look like this when it joins the trail.
+      Receipt total: Total value
+      Receipt unavailable: "—"
+      Sell helper: Trim or close a position
       Settlement exchange rate help: Leave blank to use the market rate for the trade
         date.
       Settlement exchange rate optional: Exchange rate paid or received (optional)
     new:
-      Introduction: Record an executed purchase or sale.
+      Introduction: A clean little record for the next step in your journey.
       Page title: New trade · %{application}
     trade:
       Currency value: 'Currency: %{currency}'

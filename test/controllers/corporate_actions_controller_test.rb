@@ -21,7 +21,9 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "option", text: /VOO/
     assert_not_includes response.body, institutions(:owner_xp).name
     assert_not_includes response.body, institutions(:other_owner).name
-    assert_select "option[value='dividend'][selected]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='dividend'][checked][disabled]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='jcp'][disabled]"
+    assert_select ".income-action-type-options .action-type-option", count: 2
     assert_select "input[name='corporate_action[currency]']", count: 0
     assert_select "[data-controller='income-form']"
   end
@@ -39,7 +41,9 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type='hidden'][name='corporate_action[instrument_id]'][value='#{instrument.id}']"
     assert_select "input[type='hidden'][name='corporate_action[institution_id]'][value='#{institutions(:owner_xp).id}']:not([disabled])"
     assert_select "select[name='corporate_action[institution_id]']:not([disabled])", count: 0
-    assert_select "select[name='corporate_action[kind]']:not([disabled])", count: 0
+    assert_select "[data-income-form-target='kindField'][hidden]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='jcp'][disabled]"
+    assert_select "p[data-income-form-target='paymentDateHelp']", text: "The day the dividend reached your account."
   end
 
   test "creates owner income and derives currency net amount and provenance" do
@@ -208,9 +212,13 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     get new_quantity_action_url
 
     assert_response :success
-    assert_select "option[value='stock_split'][selected]"
-    assert_select "option[value='reverse_split']"
-    assert_select "option[value='share_bonus']"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='stock_split'][checked]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='reverse_split']"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='share_bonus']"
+    assert_select ".action-type-option", count: 3
+    assert_select "#quantity-action-preview-title", text: "Action preview"
+    assert_select "[data-quantity-action-form-target='previewFractionalNote'][hidden]"
+    assert_select "option[data-preview-quantity='2.5']"
     assert_select "input[name='corporate_action[ratio_numerator]'][value='2']"
     assert_select "input[name='corporate_action[ratio_denominator]'][value='1']"
     assert_select "input[name='corporate_action[cash_in_lieu_quantity]'][step='0.1']"
@@ -218,6 +226,44 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-controller~='form-state']"
     assert_select "[data-controller~='institution-picker']"
     assert_select "[data-controller~='quantity-action-form']"
+  end
+
+  test "colors the current and resulting quantities in the contextual preview" do
+    get instrument_new_quantity_action_url(instruments(:voo_arcx))
+
+    assert_response :success
+    assert_select ".action-preview-quantity-before", text: "2.5 shares"
+    assert_select ".action-preview-quantity-after", text: "… shares"
+  end
+
+  test "quantity preview handles empty selections and invalid position data" do
+    instrument = instruments(:voo_arcx)
+    trades = [ trades(:owner_voo_buy) ]
+    controller = CorporateActionsController.new
+
+    assert_nil controller.send(:preview_quantity_for, nil, trades:, corporate_actions: [])
+    controller.instance_variable_set(:@corporate_action, nil)
+    assert_equal "2.5", controller.send(
+      :preview_quantity_for, instrument, trades:, corporate_actions: []
+    )
+
+    preview_action = Struct.new(:instrument_id, :effective_on) do
+      def persisted? = true
+    end.new(instrument.id, nil)
+    controller.instance_variable_set(:@corporate_action, preview_action)
+    assert_equal "2.5", controller.send(
+      :preview_quantity_for, instrument, trades:, corporate_actions: []
+    )
+
+    invalid_action = CorporateAction.new(
+      instrument_id: instrument.id, kind: :stock_split, effective_on: Date.current,
+      ratio_numerator: 1, ratio_denominator: 1, cash_in_lieu_quantity: 3,
+      cash_in_lieu_amount_cents: 100, currency: instrument.currency
+    )
+    controller.instance_variable_set(:@corporate_action, nil)
+    assert_nil controller.send(
+      :preview_quantity_for, instrument, trades:, corporate_actions: [ invalid_action ]
+    )
   end
 
   test "creates and edits a share bonus using percentage rather than ratio inputs" do

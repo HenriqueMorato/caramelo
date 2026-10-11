@@ -1,6 +1,11 @@
 <% content_for :title, t(".Page title", application: t("caramelo")) %>
 
-<section class="mx-auto max-w-3xl space-y-8">
+<section
+  class="mx-auto max-w-6xl space-y-8"
+  data-controller="trade-form"
+  data-action="input->trade-form#refreshReceipt change->trade-form#refreshReceipt reset->trade-form#resetReceipt"
+  data-trade-form-reporting-currency-value="<%= @trade.user.reporting_currency %>"
+>
   <div>
     <%= link_to t("Back"), @context_instrument || transactions_path, class: "text-sm font-semibold text-caramel-deep hover:text-coffee" %>
   </div>
@@ -11,12 +16,13 @@
     <p class="ui-page-intro"><%= t(".Introduction") %></p>
   </div>
 
-  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
+  <div class="trade-entry-layout">
     <%= render "form",
                trade: @trade,
                context_instrument: @context_instrument,
                instruments: @instruments,
                institutions: @institutions,
                last_institution_id_by_instrument: @last_institution_id_by_instrument %>
+    <%= render "receipt", trade: @trade, context_instrument: @context_instrument %>
   </div>
 </section>

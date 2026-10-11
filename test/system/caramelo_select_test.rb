@@ -5,21 +5,16 @@ class CarameloSelectTest < ApplicationSystemTestCase
     visit new_trade_path
   end
 
-  test "opens, navigates, and commits with the keyboard" do
-    trigger = find("#trade_side-button")
+  test "toggles the trade side with accessible radio controls" do
+    assert_selector "fieldset legend", text: "Side *"
+    assert find("#trade_side_buy", visible: :all).checked?
+    assert_selector ".trade-receipt-side", text: "BUY"
 
-    assert_selector "#trade_side-button[role='combobox'][aria-autocomplete='none']"
-    assert_includes trigger["aria-labelledby"], "trade_side-label"
-    assert_includes trigger["aria-labelledby"], "trade_side-value"
+    find("#trade_side_sell", visible: :all).send_keys(:space)
 
-    trigger.send_keys(:space)
-    assert_selector "#trade_side-listbox[aria-hidden='false']", visible: true
-
-    trigger.send_keys(:arrow_down, :enter)
-
-    assert_caramelo_select_value "Sell", from: "Side *"
-    assert_selector "#trade_side-button[aria-expanded='false']"
-    assert_selector "#trade_side-button:focus"
+    assert find("#trade_side_sell", visible: :all).checked?
+    refute find("#trade_side_buy", visible: :all).checked?
+    assert_selector ".trade-receipt-side.trade-receipt-side--sell", text: "SELL"
   end
 
   test "filters searchable options with a debounced query" do
@@ -187,21 +182,12 @@ class CarameloSelectTest < ApplicationSystemTestCase
     refute_equal "trade_instrument_id-button", page.evaluate_script("document.activeElement ? document.activeElement.id : null")
   end
 
-  test "dismisses on Escape and outside clicks without changing the value" do
-    trigger = find("#trade_side-button")
-
-    trigger.click
-    assert_selector "#trade_side-listbox[aria-hidden='false']", visible: true
-    trigger.send_keys(:escape)
-
-    assert_caramelo_select_value "Buy", from: "Side *"
-    assert_selector "#trade_side-button[aria-expanded='false']"
-
-    trigger.click
+  test "keeps the selected trade side when focus moves away" do
+    find("label", text: /^Sell/).click
     find("h1").click
 
-    assert_caramelo_select_value "Buy", from: "Side *"
-    assert_selector "#trade_side-button[aria-expanded='false']"
+    assert find("#trade_side_sell", visible: :all).checked?
+    assert_selector ".trade-receipt-side.trade-receipt-side--sell", text: "SELL"
   end
 
   test "shows a visible validation message when a required select is blank" do
@@ -211,13 +197,13 @@ class CarameloSelectTest < ApplicationSystemTestCase
     assert_selector "#trade_instrument_id-error:not([hidden])", text: "Please select an option."
   end
 
-  test "focuses the first invalid custom select" do
-    page.execute_script("document.getElementById('trade_side').selectedIndex = -1")
+  test "focuses the first invalid custom select when the radio group is also invalid" do
+    page.execute_script("document.querySelectorAll(\"input[name='trade[side]']\").forEach((input) => { input.checked = false })")
 
     click_on "Create Trade"
 
     assert_selector "#trade_instrument_id-button[aria-invalid='true']:focus"
     assert_selector "#trade_instrument_id-error:not([hidden])", text: "Please select an option."
-    assert_selector "#trade_side-error:not([hidden])", text: "Please select an option."
+    assert_selector "input[name='trade[side]'][required]", count: 2, visible: :all
   end
 end

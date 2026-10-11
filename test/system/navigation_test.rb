@@ -6,6 +6,7 @@ class NavigationTest < ApplicationSystemTestCase
 
     open_menu
     assert_text "Dashboard"
+    refute_link "Instruments"
 
     click_on "Positions"
 
