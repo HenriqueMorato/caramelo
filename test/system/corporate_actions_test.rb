@@ -25,8 +25,9 @@ class CorporateActionsTest < ApplicationSystemTestCase
       end
     end
 
-    choose_caramelo_option "JCP", from: "Action type"
+    choose_income_action "JCP"
     assert_no_field "Institution (optional)"
+    assert_text "The day the dividend or JCP reached your account."
     assert_text "If blank, payment date is used instead."
     set_date("corporate_action_paid_on", "2026-08-25")
     set_date("corporate_action_ex_date", "2026-08-20")
@@ -72,11 +73,16 @@ class CorporateActionsTest < ApplicationSystemTestCase
     visit new_corporate_action_path
 
     choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
-    choose_caramelo_option "JCP", from: "Action type"
+    choose_income_action "JCP"
     choose_caramelo_option "VOO · ARCX — Vanguard S&P 500 ETF", from: "Instrument"
+    assert_text "The day the dividend reached your account."
+    assert_no_text "The day the dividend or JCP reached your account."
+    assert_no_selector "label.action-type-option", text: /JCP/, visible: true
     choose_caramelo_option "PETR4 · BVMF — Petrobras PN", from: "Instrument"
 
-    assert_caramelo_select_value "Dividend", from: "Action type"
+    assert_selector "label.action-type-option", text: /Dividend/, visible: true
+    assert_selector "label.action-type-option", text: /JCP/, visible: true
+    assert find("#corporate_action_kind_dividend", visible: :all).checked?
   end
 
   test "keeps income private across navigation" do
@@ -206,6 +212,10 @@ class CorporateActionsTest < ApplicationSystemTestCase
 
   def choose_quantity_action(label)
     find("label.action-type-option", text: /#{Regexp.escape(label)}/).click
+  end
+
+  def choose_income_action(label)
+    find("label.action-type-option", text: /#{Regexp.escape(label)}/, visible: true).click
   end
 
   def set_date(id, value)

@@ -14,11 +14,14 @@ en:
       Page title: Edit quantity action · %{application}
     form:
       Discard changes: Discard your unsaved income changes?
+      Dividend helper: Cash payment from the issuer
       Ex-date help: Optional. Using the date the instrument began trading without
         this payment keeps daily performance accurate. If blank, payment date is used
         instead.
       Institution optional: Institution (optional)
+      JCP helper: Brazilian interest on equity payment
       Net amount help: Gross amount minus withholding.
+      Payment date dividend help: The day the dividend reached your account.
       Payment date help: The day the dividend or JCP reached your account.
     kinds:
       dividend: Dividend

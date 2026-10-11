@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = [
-    "instrument", "kindField", "kind", "hiddenKind", "gross", "tax", "net",
+    "instrument", "kindField", "kind", "hiddenKind", "paymentDateHelp", "gross", "tax", "net",
     "institutionField", "institution", "hiddenInstitution"
   ]
   static values = {
@@ -58,14 +58,21 @@ export default class extends Controller {
   }
 
   syncKind(event) {
-    const supportsJcp = this.currencyValue === "BRL"
+    const supportsJcp = this.currencyValue.toUpperCase() === "BRL"
     this.kindFieldTarget.hidden = !supportsJcp
-    this.kindTarget.disabled = !supportsJcp
+    this.kindTargets.forEach((input) => { input.disabled = !supportsJcp })
     this.hiddenKindTarget.disabled = supportsJcp
-    if (!supportsJcp && this.kindTarget.value !== "dividend") {
-      this.kindTarget.value = "dividend"
-      this.kindTarget.dispatchEvent(new Event("change", { bubbles: Boolean(event) }))
+    if (!supportsJcp) {
+      const selected = this.kindTargets.find((input) => input.checked)
+      const dividend = this.kindTargets.find((input) => input.value === "dividend")
+      if (dividend && !dividend.checked) {
+        dividend.checked = true
+        selected?.dispatchEvent(new Event("change", { bubbles: Boolean(event) }))
+      }
     }
+    this.paymentDateHelpTarget.textContent = supportsJcp
+      ? this.paymentDateHelpTarget.dataset.incomeFormJcpHelp
+      : this.paymentDateHelpTarget.dataset.incomeFormDividendHelp
   }
 
   syncInstitution() {

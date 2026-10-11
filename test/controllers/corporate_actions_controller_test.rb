@@ -21,7 +21,9 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "option", text: /VOO/
     assert_not_includes response.body, institutions(:owner_xp).name
     assert_not_includes response.body, institutions(:other_owner).name
-    assert_select "option[value='dividend'][selected]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='dividend'][checked][disabled]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='jcp'][disabled]"
+    assert_select ".income-action-type-options .action-type-option", count: 2
     assert_select "input[name='corporate_action[currency]']", count: 0
     assert_select "[data-controller='income-form']"
   end
@@ -39,7 +41,9 @@ class CorporateActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type='hidden'][name='corporate_action[instrument_id]'][value='#{instrument.id}']"
     assert_select "input[type='hidden'][name='corporate_action[institution_id]'][value='#{institutions(:owner_xp).id}']:not([disabled])"
     assert_select "select[name='corporate_action[institution_id]']:not([disabled])", count: 0
-    assert_select "select[name='corporate_action[kind]']:not([disabled])", count: 0
+    assert_select "[data-income-form-target='kindField'][hidden]"
+    assert_select "input[type='radio'][name='corporate_action[kind]'][value='jcp'][disabled]"
+    assert_select "p[data-income-form-target='paymentDateHelp']", text: "The day the dividend reached your account."
   end
 
   test "creates owner income and derives currency net amount and provenance" do
