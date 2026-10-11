@@ -139,6 +139,7 @@ class SettingsTest < ApplicationSystemTestCase
     page.current_window.resize_to(390, 844)
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
+    assert_selector "header button[aria-label='Hide monetary values'], header button[aria-label='Show monetary values']", visible: true
     find("summary", text: "Menu").click
     within("header nav") { assert_link "Settings", href: settings_path }
   end
