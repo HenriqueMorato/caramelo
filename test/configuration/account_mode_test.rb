@@ -48,6 +48,21 @@ class AccountModeTest < ActiveSupport::TestCase
     ENV["CARAMELO_AUTHENTICATION_MODE"] = previous
   end
 
+  test "reports the configured authentication mode" do
+    previous = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.authentication_mode = "public"
+
+    assert_predicate Caramelo::AuthenticationMode, :public?
+    assert_not_predicate Caramelo::AuthenticationMode, :password?
+
+    Rails.application.config.x.caramelo.authentication_mode = "password"
+
+    assert_not_predicate Caramelo::AuthenticationMode, :public?
+    assert_predicate Caramelo::AuthenticationMode, :password?
+  ensure
+    Rails.application.config.x.caramelo.authentication_mode = previous
+  end
+
   test "rejects an unsupported authentication mode" do
     previous = ENV["CARAMELO_AUTHENTICATION_MODE"]
     ENV["CARAMELO_AUTHENTICATION_MODE"] = "token"

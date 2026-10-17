@@ -35,7 +35,7 @@ module Authentication
     end
 
     def public_access?
-      Caramelo::AccountMode.single? && !authentication_required?
+      Caramelo::AccountMode.single? && Caramelo::AuthenticationMode.public?
     end
 
     def require_authentication
@@ -53,7 +53,7 @@ module Authentication
 
     def authentication_required?
       Caramelo::AccountMode.multi? ||
-        Rails.application.config.x.caramelo.authentication_mode == "password"
+        Caramelo::AuthenticationMode.password?
     end
 
     def resume_session

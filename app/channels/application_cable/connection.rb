@@ -25,7 +25,7 @@ module ApplicationCable
 
       def public_single_access?
         Caramelo::AccountMode.single? &&
-          Rails.application.config.x.caramelo.authentication_mode == "public"
+          Caramelo::AuthenticationMode.public?
       end
 
       def public_owner

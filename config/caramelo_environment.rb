@@ -79,4 +79,18 @@ module Caramelo
       current == "multi"
     end
   end
+
+  module AuthenticationMode
+    def self.current
+      Rails.application.config.x.caramelo.authentication_mode
+    end
+
+    def self.public?
+      current == "public"
+    end
+
+    def self.password?
+      current == "password"
+    end
+  end
 end
