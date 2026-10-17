@@ -10,7 +10,7 @@ module MarketData
       def already_running? = status == :already_running
     end
 
-    def self.call(target:, preview_token: nil, owner: User.owner, cache: Rails.cache)
+    def self.call(target:, preview_token: nil, owner: User.default_owner, cache: Rails.cache)
       new(target:, preview_token:, owner:, cache:).call
     end
 

@@ -1,6 +1,4 @@
 class CorporateActionsController < ApplicationController
-  allow_unauthenticated_access
-
   before_action :set_corporate_action, only: %i[ edit update edit_quantity update_quantity destroy ]
   before_action :set_return_to, only: %i[ edit update edit_quantity update_quantity destroy ]
   before_action :set_context_instrument, only: %i[ new create new_quantity create_quantity ]
@@ -107,7 +105,7 @@ class CorporateActionsController < ApplicationController
   private
 
   def owner
-    @owner ||= User.owner
+    @owner ||= current_account
   end
 
   def set_corporate_action

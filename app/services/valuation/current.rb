@@ -8,7 +8,7 @@ module Valuation
     end
 
     def self.for(position:, market_price:, exchange_rate_service: ExchangeRate::Service.default,
-      reporting_currency: User.owner.reporting_currency)
+      reporting_currency: User.default_owner.reporting_currency)
       new(position:, market_price:, exchange_rate_service:, reporting_currency:).calculate
     end
 

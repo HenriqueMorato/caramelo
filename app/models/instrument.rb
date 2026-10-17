@@ -3,6 +3,8 @@ class Instrument < ApplicationRecord
 
   friendly_id :slug_candidates, use: :slugged
 
+  before_destroy :prevent_destroy_when_referenced
+
   has_many :instrument_performance_observations, dependent: :delete_all
   has_many :instrument_performance_materializations, dependent: :delete_all
   has_many :trades, dependent: :restrict_with_error
@@ -30,9 +32,15 @@ class Instrument < ApplicationRecord
   validates :exchange, presence: true, format: { with: /\A[A-Z0-9]{4}\z/ }
   validates :name, presence: true
   validates :currency, presence: true, iso_currency: true
-  validate :currency_unchanged_when_referenced, if: :will_save_change_to_currency?
+  validate :identity_unchanged_when_referenced, if: :identity_changed?
 
   scope :alphabetical, -> { order(:ticker, :exchange) }
+
+  def deletion_blocked?
+    trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
+      corporate_action_import_scans.exists? || daily_closing_prices.exists? ||
+      HistoricalDataBackfill.where(instrument: self).exists?
+  end
 
   private
 
@@ -40,9 +48,32 @@ class Instrument < ApplicationRecord
     [ :ticker, [ :ticker, :exchange ] ]
   end
 
-  def currency_unchanged_when_referenced
-    return unless persisted? && (trades.exists? || corporate_actions.exists?)
+  def identity_changed?
+    %w[ticker exchange currency].any? { |attribute| will_save_change_to_attribute?(attribute) }
+  end
 
-    errors.add(:currency, :cannot_change_with_activity)
+  def identity_unchanged_when_referenced
+    return unless persisted? && referenced?
+
+    %w[ticker exchange currency].each do |attribute|
+      next unless will_save_change_to_attribute?(attribute)
+
+      errors.add(attribute, :cannot_change_with_activity)
+    end
+  end
+
+  def prevent_destroy_when_referenced
+    return if trades.exists? || corporate_actions.exists? || daily_closing_prices.exists?
+    return unless deletion_blocked?
+
+    errors.add(:base, :cannot_destroy_with_activity)
+    throw(:abort)
+  end
+
+  def referenced?
+    trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
+      corporate_action_import_scans.exists? || daily_closing_prices.exists? ||
+      instrument_performance_observations.exists? || instrument_performance_materializations.exists? ||
+      position_materializations.exists? || HistoricalDataBackfill.where(instrument: self).exists?
   end
 end

@@ -19,7 +19,7 @@ module Performance
       end
     end
 
-    def self.for(from:, to:, portfolio: Portfolio, owner: User.owner, instrument: nil)
+    def self.for(from:, to:, portfolio: Portfolio, owner: User.default_owner, instrument: nil)
       new(from:, to:, portfolio:, owner:, instrument:).calculate
     end
 

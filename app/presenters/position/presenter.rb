@@ -5,7 +5,7 @@ class Position
     delegate :instrument, :position, :error, :invalid?, to: :position_result
 
     def self.for(position_result:, market_price_service: MarketPrice::Service.default,
-      exchange_rate_service: ExchangeRate::Service.default, reporting_currency: User.owner.reporting_currency)
+      exchange_rate_service: ExchangeRate::Service.default, reporting_currency: User.default_owner.reporting_currency)
       market_price = MarketPrice::Presenter.for(
         instrument: position_result.instrument,
         service: market_price_service

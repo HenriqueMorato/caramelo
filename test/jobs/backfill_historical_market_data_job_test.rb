@@ -93,6 +93,29 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
     assert_enqueued_jobs 4, only: BuildInstrumentPerformanceObservationsJob
   end
 
+  test "imports FX for every reporting currency used by an instrument in multi mode" do
+    users(:one).update!(reporting_currency: "EUR")
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      with_stubbed_method(Caramelo::AccountMode, :single?, -> { false }) do
+        travel_to(Date.new(2026, 1, 1)) { build_job.perform(@backfill) }
+      end
+    end
+
+    assert_equal %w[BRL EUR], @exchange_rate_imports.map { |call| call.fetch(:quote_currency) }.uniq.sort
+  end
+
+  test "falls back to the configured owner currency when an instrument has no account activity" do
+    instrument = Instrument.create!(ticker: "EMPTY", exchange: "XNAS", name: "Empty instrument", currency: "USD")
+    job = BackfillHistoricalMarketDataJob.new
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      with_stubbed_method(Caramelo::AccountMode, :single?, -> { false }) do
+        assert_equal [ User.owner.reporting_currency ], job.send(:reporting_currencies_for, instrument)
+      end
+    end
+  end
+
   test "reports terminal provider errors and clears the pending request" do
     job = build_job
     error = MarketData::YahooFinance::InvalidResponse.new("malformed response")

@@ -97,7 +97,7 @@ module MarketData
       end
     end
 
-    def self.for(owner: User.owner, current_market_price_service: MarketPrice::Service.default,
+    def self.for(owner: User.default_owner, current_market_price_service: MarketPrice::Service.default,
       current_exchange_rate_service: ExchangeRate::Service.default, today: Date.current)
       new(owner:, current_market_price_service:, current_exchange_rate_service:, today:).call
     end

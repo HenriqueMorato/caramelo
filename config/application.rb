@@ -33,6 +33,9 @@ module Caramelo
     config.action_view.default_form_builder = "CarameloFormBuilder"
     owner_email = Caramelo::Environment.fetch("OWNER_EMAIL", default: Caramelo::Environment::DEFAULT_OWNER_EMAIL)
     config.x.caramelo.owner_email = owner_email.strip.downcase
+    config.x.caramelo.account_mode = Caramelo::Environment.account_mode
+    config.x.caramelo.authentication_mode = Caramelo::Environment.authentication_mode
+    config.x.caramelo.password_policy = Caramelo::Environment.password_policy
     config.x.caramelo.reporting_currency = "BRL"
 
     # config.eager_load_paths << Rails.root.join("extras")

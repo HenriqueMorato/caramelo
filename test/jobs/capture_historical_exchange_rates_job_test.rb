@@ -78,6 +78,32 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
     assert_equal 1, waits
   end
 
+  test "imports foreign rates for every account reporting currency in multi mode" do
+    users(:one).update!(reporting_currency: "EUR")
+    users(:one).corporate_actions.create!(
+      instrument: instruments(:voo_arcx), kind: :dividend, paid_on: Date.new(2026, 8, 27),
+      gross_amount_cents: 1_000, withholding_tax_cents: 0, net_amount_cents: 1_000,
+      currency: "USD", source: "manual"
+    )
+    imports = []
+    importer = Object.new
+    importer.define_singleton_method(:call) { |**arguments| imports << arguments }
+    throttle = Object.new
+    throttle.define_singleton_method(:wait!) { }
+    job = CaptureHistoricalExchangeRatesJob.new
+    job.define_singleton_method(:importer) { importer }
+    job.define_singleton_method(:throttle) { throttle }
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      with_stubbed_method(Caramelo::AccountMode, :single?, -> { false }) do
+        job.perform(rate_date: Date.new(2026, 8, 28))
+      end
+    end
+
+    assert_equal [ "BRL", "EUR" ], imports.map { |call| call.fetch(:quote_currency) }.uniq.sort
+    assert_equal [ "USD" ], imports.map { |call| call.fetch(:base_currency) }.uniq
+  end
+
   test "imports a rate for confirmed income without a trade" do
     owner = User.create!(email_address: "income-fx-capture@example.com", password: "password")
     owner.corporate_actions.create!(

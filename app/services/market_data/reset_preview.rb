@@ -10,7 +10,7 @@ module MarketData
       end
     end
 
-    def self.create(target:, owner: User.owner, range: nil, verifier: default_verifier)
+    def self.create(target:, owner: User.default_owner, range: nil, verifier: default_verifier)
       from, to = normalized_range(range)
       fingerprint = fingerprint_for(target:, owner:, from:, to:)
       payload = { target: target.to_h, from:, to:, fingerprint:, exp: TTL.from_now.to_i }
@@ -18,7 +18,7 @@ module MarketData
       Preview.new(target:, range: from..to, fingerprint:, token:, expires_at: Time.at(payload[:exp]))
     end
 
-    def self.verify(token:, target:, owner: User.owner, verifier: default_verifier)
+    def self.verify(token:, target:, owner: User.default_owner, verifier: default_verifier)
       payload = verifier.verify(token)
       raise ArgumentError, "reset preview expired" if payload.fetch("exp") < Time.current.to_i
 

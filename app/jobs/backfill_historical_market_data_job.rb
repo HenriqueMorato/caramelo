@@ -13,7 +13,7 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
 
   def perform(backfill)
     # A preference change during a long backfill must not mix target currencies.
-    @reporting_currency = User.owner.reporting_currency
+    @reporting_currencies = reporting_currencies_for(backfill.instrument)
     RefreshStatus::Tracker.perform(scope: "historical_backfill:#{backfill.id}") do
       from_date, generation = backfill.with_lock { [ backfill.from_date, backfill.generation ] }
 
@@ -50,7 +50,7 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
     @request_throttle ||= MarketData::YahooFinance::RequestThrottle.new
   end
 
-  attr_reader :reporting_currency
+  attr_reader :reporting_currencies
 
   def date_ranges(from_date, to_date)
     (from_date..to_date).each_slice(BATCH_SIZE).map { |dates| [ dates.first, dates.last ] }
@@ -64,13 +64,23 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
   end
 
   def import_historical_exchange_rates(currency, from:, to:)
-    return if currency == reporting_currency
+    reporting_currencies.each do |reporting_currency|
+      next if currency == reporting_currency
 
-    request_throttle.wait!
-    historical_exchange_rate_importer.call(
-      base_currency: currency, quote_currency: reporting_currency, from:, to:,
-      enqueue_performance_rebuild: false
-    )
+      request_throttle.wait!
+      historical_exchange_rate_importer.call(
+        base_currency: currency, quote_currency: reporting_currency, from:, to:,
+        enqueue_performance_rebuild: false
+      )
+    end
+  end
+
+  def reporting_currencies_for(instrument)
+    return [ User.default_owner.reporting_currency ] if Caramelo::AccountMode.single?
+
+    user_ids = Trade.where(instrument:).pluck(:user_id) + CorporateAction.where(instrument:).pluck(:user_id)
+    currencies = User.where(id: user_ids.uniq).distinct.pluck(:reporting_currency)
+    currencies.presence || User.distinct.pluck(:reporting_currency)
   end
 
   def enqueue_performance_rebuild(backfill, from:)

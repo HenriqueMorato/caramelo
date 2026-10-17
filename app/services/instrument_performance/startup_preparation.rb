@@ -1,6 +1,6 @@
 module InstrumentPerformance
   class StartupPreparation
-    def self.call(user: User.owner)
+    def self.call(user: User.default_owner)
       new(user:).call
     end
 

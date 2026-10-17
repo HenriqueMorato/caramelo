@@ -1,6 +1,4 @@
 class InstitutionsController < ApplicationController
-  allow_unauthenticated_access
-
   before_action :set_institution, only: %i[ show edit update destroy ]
 
   def index
@@ -46,7 +44,7 @@ class InstitutionsController < ApplicationController
   private
 
   def owner
-    @owner ||= User.owner
+    @owner ||= current_account
   end
 
   def set_institution

@@ -9,7 +9,7 @@ module TradeExport
       notes created_at updated_at
     ].freeze
 
-    def self.call(user: User.owner)
+    def self.call(user: User.default_owner)
       new(user:).call
     end
 

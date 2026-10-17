@@ -27,6 +27,17 @@ module ApplicationHelper
     value.nil? ? t("Not available") : value
   end
 
+  def password_policy_hint
+    policy = Caramelo::PasswordPolicy.current
+    requirements = [ t("Password requirement minimum", count: policy.fetch(:minimum_length)) ]
+    requirements << t("Password requirement uppercase") if policy.fetch(:require_uppercase)
+    requirements << t("Password requirement lowercase") if policy.fetch(:require_lowercase)
+    requirements << t("Password requirement number") if policy.fetch(:require_number)
+    requirements << t("Password requirement symbol") if policy.fetch(:require_symbol)
+
+    t("Password policy help", requirements: requirements.to_sentence)
+  end
+
   def format_unit_price_input(unit_price)
     format_decimal(unit_price, minimum_precision: 2, maximum_precision: 8, delimiter: false)
   end

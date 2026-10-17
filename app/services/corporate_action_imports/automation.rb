@@ -6,7 +6,7 @@ module CorporateActionImports
       def failed? = failed_count.positive?
     end
 
-    def self.call(user: User.owner, instrument: nil, source: SOURCE, today: Date.current)
+    def self.call(user: User.default_owner, instrument: nil, source: SOURCE, today: Date.current)
       new(user:, instrument:, source:, today:).call
     end
 

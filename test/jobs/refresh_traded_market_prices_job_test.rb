@@ -126,6 +126,14 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     assert_no_enqueued_jobs only: RefreshCurrentMarketPriceJob
   end
 
+  test "includes every account's instruments in multi mode" do
+    job = RefreshTradedMarketPricesJob.new
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      assert_equal Trade.distinct.pluck(:instrument_id).sort, job.send(:traded_instruments).pluck(:id).sort
+    end
+  end
+
   private
 
   def create_trade(instrument:, side:, quantity:)

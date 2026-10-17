@@ -9,23 +9,32 @@
 
   <h1 class="ui-page-title"><%= t(".Sign in") %></h1>
 
-  <%= form_with url: session_url, class: "contents" do |form| %>
-    <div class="my-5">
-      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", spellcheck: false, placeholder: t(".Email placeholder"), value: params[:email_address], class: "ui-field" %>
+  <% if password_setup_required? %>
+    <div class="ui-form-errors mt-6" role="status">
+      <p><%= t(".Password setup required") %></p>
+      <code class="mt-3 block break-words rounded-lg bg-black/5 px-3 py-2 text-sm dark:bg-white/10">bin/caramelo-password setup</code>
     </div>
-
-    <div class="my-5">
-      <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: t(".Password placeholder"), maxlength: 72, class: "ui-field" %>
-    </div>
-
-    <div class="col-span-6 sm:flex sm:items-center sm:gap-4">
-      <div class="inline">
-        <%= form.submit t(".Sign in"), class: "ui-button ui-button-primary min-h-11 w-full cursor-pointer sm:w-auto" %>
+  <% else %>
+    <%= form_with url: session_url, class: "contents" do |form| %>
+      <div class="my-5">
+        <%= form.label :email_address, t(".Email label"), class: "sr-only" %>
+        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", spellcheck: false, placeholder: t(".Email placeholder"), value: params[:email_address], class: "ui-field" %>
       </div>
 
-      <div class="mt-4 text-sm text-muted sm:mt-0">
-        <%= link_to t(".Forgot password?"), new_password_path, class: "text-caramel-deep underline hover:text-coffee hover:no-underline" %>
+      <div class="my-5">
+        <%= form.label :password, t(".Password label"), class: "sr-only" %>
+        <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: t(".Password placeholder"), maxlength: 72, class: "ui-field" %>
       </div>
-    </div>
+
+      <div class="col-span-6 sm:flex sm:items-center sm:gap-4">
+        <div class="inline">
+          <%= form.submit t(".Sign in"), class: "ui-button ui-button-primary min-h-11 w-full cursor-pointer sm:w-auto" %>
+        </div>
+
+        <div class="mt-4 text-sm text-muted sm:mt-0">
+          <%= link_to t(".Forgot password?"), new_password_path, class: "text-caramel-deep underline hover:text-coffee hover:no-underline" %>
+        </div>
+      </div>
+    <% end %>
   <% end %>
 </div>

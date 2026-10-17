@@ -1,18 +1,26 @@
 ---
 en:
+  Sign out: Sign out
   passwords:
     edit:
+      Confirmation label: Confirm password
       Confirmation placeholder: Repeat new password
+      Password label: New password
       Password placeholder: Enter new password
       Save: Save
       Update your password: Update your password
     new:
+      Email label: Email address
       Email placeholder: Enter your email address
       Email reset instructions: Email reset instructions
       Forgot your password?: Forgot your password?
   sessions:
     new:
+      Email label: Email address
       Email placeholder: Enter your email address
       Forgot password?: Forgot password?
+      Password label: Password
       Password placeholder: Enter your password
+      Password setup required: Set the first password from the terminal before signing
+        in.
       Sign in: Sign in

@@ -22,7 +22,7 @@ module MarketData
       corporate_action_imports: MarketData::Recoveries::CorporateActionImports
     }.freeze
 
-    def self.call(target:, range: nil, owner: User.owner, cache: Rails.cache, handlers: HANDLERS,
+    def self.call(target:, range: nil, owner: User.default_owner, cache: Rails.cache, handlers: HANDLERS,
       replacement: false)
       new(target:, range:, owner:, cache:, handlers:, replacement:).call
     end

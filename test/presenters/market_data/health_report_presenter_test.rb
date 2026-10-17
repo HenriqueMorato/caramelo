@@ -2,8 +2,8 @@ require "test_helper"
 
 class MarketData::HealthReportPresenterTest < ActiveSupport::TestCase
   PreviewFactory = Struct.new(:preview, :calls) do
-    def create(target:, range:)
-      calls << [ target, range ]
+    def create(target:, range:, owner:)
+      calls << [ target, range, owner ]
       preview
     end
   end
@@ -23,13 +23,14 @@ class MarketData::HealthReportPresenterTest < ActiveSupport::TestCase
     preview = Object.new
     factory = PreviewFactory.new(preview, [])
 
+    owner = users(:two)
     presenter = MarketData::HealthReportPresenter.new(
-      report:, status_filter: "attention", preview_factory: factory
+      report:, owner:, status_filter: "attention", preview_factory: factory
     )
 
     assert_equal [ resettable ], presenter.entries
     assert_same preview, presenter.reset_preview_for(resettable)
-    assert_equal [ [ resettable.target, range ] ], factory.calls
+    assert_equal [ [ resettable.target, range, owner ] ], factory.calls
     assert_equal 1, presenter.issue_count
     refute presenter.healthy?
   end

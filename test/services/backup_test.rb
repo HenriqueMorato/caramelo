@@ -36,6 +36,34 @@ class BackupTest < ActiveSupport::TestCase
     assert_equal 0, verification.record_counts.fetch("ledger").fetch("daily_closing_prices")
   end
 
+  test "creates a multi-account ledger without replaceable rows" do
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+      verification = Backup::Verifier.call(directory: result.directory)
+
+      assert_equal 3, verification.record_counts.fetch("ledger").fetch("users")
+      Backup::REPLACEABLE_TABLES.each do |table|
+        assert_equal 0, verification.record_counts.fetch("ledger").fetch(table, 0), table
+      end
+      restored_path = @destination.join("multi-ledger-copy.sqlite3")
+      restored = Backup::Restorer.call(
+        directory: result.directory, artifact: :ledger, destination: restored_path, live_path: @source
+      )
+      assert_equal restored_path, restored.restored_path
+    end
+  end
+
+  test "verifies a multi-account ledger after switching to single mode" do
+    result = nil
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    end
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { false }) do
+      assert Backup::Verifier.call(directory: result.directory)
+    end
+  end
+
   test "keeps corporate actions and import reviews in the durable ledger artifact" do
     action = CorporateAction.create!(
       user: users(:owner), instrument: instruments(:petr4_bvmf), kind: :dividend,
@@ -403,7 +431,7 @@ class BackupTest < ActiveSupport::TestCase
     assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
   end
 
-  test "rejects unrelated users in the ledger" do
+  test "rejects additional accounts in a single-account ledger" do
     result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
     database = SQLite3::Database.new(result.ledger_path.to_s)
     timestamp = Time.current.utc.iso8601
@@ -412,6 +440,85 @@ class BackupTest < ActiveSupport::TestCase
     rewrite_checksums(result.directory)
 
     assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
+  end
+
+  test "accepts additional accounts in a multi-account ledger" do
+    result = nil
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    end
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    timestamp = Time.current.utc.iso8601
+    database.execute("INSERT INTO users (email_address, password_digest, created_at, updated_at) VALUES (?, ?, ?, ?)", [ "unrelated@example.com", "digest", timestamp, timestamp ])
+    database.close
+    rewrite_checksums(result.directory)
+
+    assert Backup::Verifier.call(directory: result.directory)
+  end
+
+  test "accepts a legacy ledger without a scope marker" do
+    result = backup_for("2026-09-05")
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    database.execute("PRAGMA user_version = 0")
+    database.close
+    rewrite_checksums(result.directory)
+
+    assert Backup::Verifier.call(directory: result.directory)
+  end
+
+  test "verifies a markerless multi-account ledger after switching to single mode" do
+    result = nil
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-07 12:00:00"))
+    end
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    database.execute("PRAGMA user_version = 0")
+    database.close
+    rewrite_checksums(result.directory)
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { false }) do
+      assert Backup::Verifier.call(directory: result.directory)
+    end
+  end
+
+  test "rejects an unsupported ledger scope marker" do
+    result = backup_for("2026-09-06")
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    database.execute("PRAGMA user_version = 99")
+    database.close
+    rewrite_checksums(result.directory)
+
+    assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
+  end
+
+  test "rejects a markerless ledger whose manifest user count changed" do
+    result = backup_for("2026-09-08")
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    database.execute("PRAGMA user_version = 0")
+    database.close
+    manifest = JSON.parse(result.manifest_path.read)
+    manifest["record_counts"]["ledger"]["users"] = 2
+    result.manifest_path.write(JSON.generate(manifest))
+    rewrite_checksums(result.directory)
+
+    assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
+  end
+
+  test "rejects trades for missing users in a multi-account ledger" do
+    result = nil
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-06 12:00:00"))
+    end
+
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    database.execute("PRAGMA foreign_keys = OFF")
+    database.execute("UPDATE trades SET user_id = 999999 WHERE id = (SELECT id FROM trades LIMIT 1)")
+    database.close
+    rewrite_checksums(result.directory)
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
+    end
   end
 
   test "scheduler claims a new day and does not claim it twice" do

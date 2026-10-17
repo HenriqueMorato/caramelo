@@ -1,6 +1,4 @@
 class TradesController < ApplicationController
-  allow_unauthenticated_access
-
   before_action :set_trade, only: %i[ edit update destroy ]
   before_action :set_return_to, only: %i[ edit update destroy ]
   before_action :set_context_instrument, only: %i[ new create ]
@@ -54,7 +52,7 @@ class TradesController < ApplicationController
   private
 
   def owner
-    @owner ||= User.owner
+    @owner ||= current_account
   end
 
   def set_trade

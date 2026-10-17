@@ -47,6 +47,28 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "Ready", value_or_not_available("Ready")
   end
 
+  test "describes the configured password policy" do
+    assert_equal(
+      "Use at least 8 characters, an uppercase letter, a lowercase letter, a number, and a symbol.",
+      password_policy_hint
+    )
+  end
+
+  test "omits disabled password requirements from the hint" do
+    previous = Rails.application.config.x.caramelo.password_policy
+    Rails.application.config.x.caramelo.password_policy = {
+      minimum_length: 10,
+      require_uppercase: false,
+      require_lowercase: false,
+      require_number: false,
+      require_symbol: false
+    }
+
+    assert_equal "Use at least 10 characters.", password_policy_hint
+  ensure
+    Rails.application.config.x.caramelo.password_policy = previous
+  end
+
   test "adds the shared select controller without replacing existing data attributes" do
     builder = CarameloFormBuilder.new("user", users(:owner), self, {})
 

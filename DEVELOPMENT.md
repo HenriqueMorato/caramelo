@@ -113,13 +113,75 @@ bin/dev
 ```
 
 An ignored `.envrc` with that export can be used when working with `direnv`.
-Legacy owner records and environment variables from before the rename remain
-supported. Future owner-scoped records should resolve their user through
-`User.owner`.
+Choose the owner address before the first seed. Keep it unchanged for an
+existing database: terminal owner setup refuses to create a replacement when
+another account already exists, preventing wallet data from becoming hidden.
+Request-scoped records should use the authenticated account; jobs that run
+without a request should receive an explicit user. Legacy single-account
+entry points may use `User.default_owner`, which raises instead of falling
+back to the configured owner in multi-account mode.
 
-Login is intentionally inactive during the single-user phase. Authentication
-models, routes, password hashing, and reset behavior remain covered for future
-activation, while application pages stay public.
+Authentication is configurable. `CARAMELO_AUTHENTICATION_MODE=public` is the
+default for a local single-wallet development run. Set it to `password` before
+boot when the single wallet must require login. The configured owner must set
+the first password from a trusted terminal before signing in. The password is
+stored with `has_secure_password`; there is no default password to copy from
+logs or environment files. Multi-account mode always enables password
+authentication.
+
+`CARAMELO_ACCOUNT_MODE=single` is the default and limits access to the
+configured owner. Set `CARAMELO_ACCOUNT_MODE=multi` before boot to enable
+additional accounts created from the terminal and scope each request to its
+signed-in user. Switching back to `single` preserves other users and their
+records but hides those accounts until multi mode is enabled again. Changing
+either setting requires a Rails restart so every web and job process uses the
+same policy.
+
+New and changed passwords default to eight characters with uppercase, lowercase,
+number, and symbol requirements. Configure
+`CARAMELO_PASSWORD_MIN_LENGTH` and the four
+`CARAMELO_PASSWORD_REQUIRE_*` variables when a different local policy is needed.
+Only new or changed passwords are checked after a policy change. In multi mode,
+new accounts are created only by a local administrator running
+`bin/caramelo-account create EMAIL` after the first account has been configured.
+
+Run the first-password command inside the environment that owns the database:
+
+```sh
+# Docker Compose
+docker compose exec web bin/caramelo-password setup
+
+# Dev Container
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/caramelo-password setup
+
+# Native development
+bin/caramelo-password setup
+```
+
+Run the account-creation command inside the environment that owns the database:
+
+```sh
+# Docker Compose
+docker compose exec web bin/caramelo-account create EMAIL
+
+# Dev Container
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/caramelo-account create EMAIL
+
+# Native development
+bin/caramelo-account create EMAIL
+```
+
+The command prompts for the new password. A user can change a password with
+`bin/caramelo-password change EMAIL`, which verifies the current password.
+Recovery uses `bin/caramelo-password reset EMAIL` and an explicit `RESET`
+confirmation, then revokes all existing sessions for that account. The browser
+reset-password flow remains available as an email-based recovery path.
+
+For a multi-account development run, set the variable before starting Rails:
+
+```sh
+CARAMELO_ACCOUNT_MODE=multi CARAMELO_AUTHENTICATION_MODE=password bin/dev
+```
 
 ## Current Market Prices
 
@@ -181,14 +243,15 @@ bin/backup restore backups/2026-09-05T120000.000000Z \
 
 Each run is atomically published under `backups/` with a complete
 `primary.sqlite3`, a filtered `ledger.sqlite3`, `manifest.json`, and
-`SHA256SUMS`. The primary database includes durable and historical records. The
-ledger keeps only the configured owner, that owner's trades, and referenced
-instruments and institutions; cache-like market data, sessions, and derived
-projections are empty. Both files contain sensitive financial data and the
-owner's password digest. The default rotation keeps seven daily, four weekly,
-and twelve monthly representatives. Set `CARAMELO_BACKUP_KEEP_DAILY`,
-`CARAMELO_BACKUP_KEEP_WEEKLY`, and `CARAMELO_BACKUP_KEEP_MONTHLY` to override
-it.
+`SHA256SUMS`. The primary database includes durable and historical records. In
+single-account mode, the ledger keeps only the configured owner, that owner's
+trades, and referenced instruments and institutions. In multi-account mode, it
+keeps every account and its wallet records. In both modes, cache-like market
+data, sessions, and derived projections are empty. Both files contain sensitive
+financial data and password digests. The default rotation keeps seven daily,
+four weekly, and twelve monthly representatives. Set
+`CARAMELO_BACKUP_KEEP_DAILY`, `CARAMELO_BACKUP_KEEP_WEEKLY`, and
+`CARAMELO_BACKUP_KEEP_MONTHLY` to override it.
 
 For explicit age-based cleanup, preview and then run:
 
@@ -470,9 +533,10 @@ store other supported currencies such as USD. Never use floating-point columns
 for financial values, and never imply that equal subunits in different
 currencies have been converted.
 
-Portfolio reporting uses `User.owner.reporting_currency`, not Money's global
-default. Read models accepting a `user:` or `owner:` default to that user's
-preference; explicit `reporting_currency:` arguments remain useful for pinned
+Portfolio reporting uses the selected account's `reporting_currency`, not
+Money's global default. In single-account mode, legacy read models may use
+`User.default_owner`; multi-account callers must pass `user:` or `owner:`
+explicitly. Explicit `reporting_currency:` arguments remain useful for pinned
 background calculations. FX batches snapshot the preference at execution start
 so a later change cannot mix target currencies within one batch.
 
@@ -546,8 +610,8 @@ before reaching jobs or controllers.
 - Institutions are optional on trades. Only active institutions appear for new
   selections, but inactive institutions remain visible on historical trades.
 - Keep trades durable. Restrict deletion of referenced institutions and
-  instruments, and prevent an instrument's currency from changing after its
-  first trade.
+  instruments, and prevent an instrument's ticker, exchange, or currency from
+  changing after it is referenced by activity or historical market data.
 - Keep current market quotes out of the ledger. They are replaceable cache data;
   `DailyClosingPrice` is the separate durable daily-history record used by the
   Performance milestone.

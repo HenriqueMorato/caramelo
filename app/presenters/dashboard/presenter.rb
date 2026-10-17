@@ -2,9 +2,9 @@ module Dashboard
   class Presenter
     include FinancialDisplay
 
-    attr_reader :positions, :recent_trades, :performance
+    attr_reader :positions, :recent_trades, :performance, :reporting_currency
 
-    def self.for(owner: User.owner, today: Date.current)
+    def self.for(owner: User.default_owner, today: Date.current)
       position_results = Position.overview(owner:)
       new(
         owner:,
@@ -21,11 +21,12 @@ module Dashboard
     end
     private_class_method :performance_start
 
-    def initialize(owner: User.owner, positions:, recent_trades:, performance:)
+    def initialize(owner: User.default_owner, positions:, recent_trades:, performance:)
       @owner = owner
       @positions = positions
       @recent_trades = recent_trades
       @performance = performance
+      @reporting_currency = owner.reporting_currency
       freeze
     end
 
@@ -140,10 +141,6 @@ module Dashboard
     private
 
     attr_reader :owner
-
-    def reporting_currency
-      owner.reporting_currency
-    end
 
     def available_positions
       open_positions.select { |position| position.valuation.available? }

@@ -18,10 +18,21 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
+  test "shows the health report in multi-account mode" do
+    previous_mode = Rails.application.config.x.caramelo.account_mode
+    Rails.application.config.x.caramelo.account_mode = "multi"
+
+    get market_data_health_url
+
+    assert_response :success
+  ensure
+    Rails.application.config.x.caramelo.account_mode = previous_mode
+  end
+
   test "shows an explicit empty state when a filter matches no sources" do
     report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [])
 
-    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
+    with_stubbed_method(MarketData::HealthReport, :for, ->(**) { report }) do
       get market_data_health_url(status: "healthy")
     end
 
@@ -47,8 +58,8 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
         code: :missing_current_price, severity: :error, subject: "PETR4", details: "missing"
       ) ]
     )
-    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
-      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { calls += 1 }) do
+    with_stubbed_method(MarketData::HealthReport, :for, ->(**) { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, ->(**) { calls += 1 }) do
         get market_data_health_url
       end
     end
@@ -61,7 +72,7 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     Rails.cache.write(MarketPrice::ManualRefresh::COOLDOWN_KEY, Time.current)
     calls = 0
 
-    with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { calls += 1 }) do
+    with_stubbed_method(MarketPrice::ManualRefresh, :call, ->(**) { calls += 1 }) do
       get market_data_health_url
     end
 
@@ -73,8 +84,8 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     report = MarketData::HealthReport::Result.new(checked_at: Time.current, issues: [])
     calls = 0
 
-    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
-      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { calls += 1 }) do
+    with_stubbed_method(MarketData::HealthReport, :for, ->(**) { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, ->(**) { calls += 1 }) do
         get market_data_health_url
       end
     end
@@ -96,8 +107,8 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     )
     report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [ healthy, missing ])
 
-    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
-      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { }) do
+    with_stubbed_method(MarketData::HealthReport, :for, ->(**) { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, ->(**) { }) do
         with_stubbed_method(MarketPrice::ManualRefresh, :available?, -> { true }) do
           get market_data_health_url(status: "healthy")
         end
@@ -121,8 +132,8 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
       description: "missing", actions: [ :retry ])
     report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [ healthy, missing ])
 
-    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
-      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { }) do
+    with_stubbed_method(MarketData::HealthReport, :for, ->(**) { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, ->(**) { }) do
         with_stubbed_method(MarketPrice::ManualRefresh, :available?, -> { true }) do
           get market_data_health_url(status: "attention")
         end
@@ -144,8 +155,8 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     )
     report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [])
 
-    with_stubbed_method(MarketData::HealthReport, :for, -> { report }) do
-      with_stubbed_method(MarketPrice::ManualRefresh, :call, -> { }) do
+    with_stubbed_method(MarketData::HealthReport, :for, ->(**) { report }) do
+      with_stubbed_method(MarketPrice::ManualRefresh, :call, ->(**) { }) do
         with_stubbed_method(MarketPrice::ManualRefresh, :available?, -> { true }) do
           get market_data_health_url
         end

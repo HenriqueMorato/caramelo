@@ -118,6 +118,15 @@ class InstrumentTest < ActiveSupport::TestCase
     assert_predicate instrument, :invalid?
   end
 
+  test "prevents listing identity changes after activity or history exists" do
+    instrument = instruments(:voo_arcx)
+    instrument.assign_attributes(ticker: "MSFT", exchange: "XNAS", currency: "USD")
+
+    assert_not instrument.valid?
+    assert_includes instrument.errors[:ticker], "cannot change while trades or income records exist"
+    assert_includes instrument.errors[:exchange], "cannot change while trades or income records exist"
+  end
+
   test "sorts instruments by ticker and exchange" do
     assert_equal [ instruments(:petr4_bvmf), instruments(:voo_arcx) ], Instrument.alphabetical.to_a
   end

@@ -1,11 +1,9 @@
 class InstrumentsController < ApplicationController
-  allow_unauthenticated_access
-
   before_action :set_instrument, only: %i[ show edit update destroy ]
 
   def index
     @instruments = Instrument.alphabetical
-    @traded_instrument_ids = Trade.where(instrument_id: @instruments).distinct.pluck(:instrument_id)
+    @traded_instrument_ids = owner.trades.where(instrument_id: @instruments).distinct.pluck(:instrument_id)
   end
 
   def show
@@ -62,7 +60,7 @@ class InstrumentsController < ApplicationController
     activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: @activity)
     @activity_transactions = activity_history.transactions
     @has_activity_history = activity_history.any?
-    @instrument_has_activity = @instrument.trades.exists? || @instrument.corporate_actions.exists?
+    @instrument_has_activity = @instrument.deletion_blocked?
   end
 
   def activity_associations(except_for:)
@@ -97,9 +95,11 @@ class InstrumentsController < ApplicationController
 
   def load_position
     @position = Position.for(
-      instrument: @instrument, trades: @trades, corporate_actions: @corporate_actions
+      instrument: @instrument, trades: @trades, corporate_actions: @corporate_actions, owner:
     )
-    @valuation = Valuation::Current.for(position: @position, market_price: @market_price)
+    @valuation = Valuation::Current.for(
+      position: @position, market_price: @market_price, reporting_currency: owner.reporting_currency
+    )
     @performance_presenters = performance_presenters
   rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData => error
     @position_error = error
@@ -133,7 +133,7 @@ class InstrumentsController < ApplicationController
 
   def performance_presenter(currency)
     performance = Performance::Portfolio.for(
-      valuation_date: Date.current, instrument: @instrument, trades: @trades,
+      valuation_date: Date.current, owner:, instrument: @instrument, trades: @trades,
       corporate_actions: @corporate_actions,
       reporting_currency: currency
     )
@@ -147,7 +147,7 @@ class InstrumentsController < ApplicationController
   end
 
   def owner
-    @owner ||= User.owner
+    @owner ||= current_account
   end
 
   def set_instrument

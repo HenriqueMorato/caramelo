@@ -9,7 +9,7 @@
   </div>
 
   <div class="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
-    <%= render "dashboard/performance_history", series:, series_presenter: %>
+    <%= render "dashboard/performance_history", series:, series_presenter:, reporting_currency: dashboard.reporting_currency %>
     <%= render "dashboard/portfolio_data", dashboard: dashboard %>
   </div>
 </section>

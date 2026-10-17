@@ -7,10 +7,14 @@
 
   <%= form_with url: password_path(params[:token]), method: :put, class: "contents" do |form| %>
     <div class="my-5">
-      <%= form.password_field :password, required: true, autocomplete: "new-password", placeholder: t(".Password placeholder"), maxlength: 72, class: "ui-field" %>
+      <%= form.label :password, t(".Password label"), class: "sr-only" %>
+      <%= form.password_field :password, required: true, autocomplete: "new-password", placeholder: t(".Password placeholder"), maxlength: 72,
+        minlength: Caramelo::PasswordPolicy.minimum_length, class: "ui-field" %>
     </div>
+    <p class="-mt-2 mb-5 text-sm leading-6 text-muted"><%= password_policy_hint %></p>
 
     <div class="my-5">
+      <%= form.label :password_confirmation, t(".Confirmation label"), class: "sr-only" %>
       <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", placeholder: t(".Confirmation placeholder"), maxlength: 72, class: "ui-field" %>
     </div>
 

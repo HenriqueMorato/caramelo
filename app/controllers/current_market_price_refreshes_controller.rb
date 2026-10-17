@@ -1,8 +1,6 @@
 class CurrentMarketPriceRefreshesController < ApplicationController
-  allow_unauthenticated_access
-
   def create
-    unless manual_refresh.call
+    unless manual_refresh
       return respond_with_status_toast(
         t("market_data_health.show.Refresh throttled"),
         status: :too_many_requests,
@@ -32,6 +30,6 @@ class CurrentMarketPriceRefreshesController < ApplicationController
   private
 
   def manual_refresh
-    @manual_refresh ||= MarketPrice::ManualRefresh.new
+    MarketPrice::ManualRefresh.call(user: current_account)
   end
 end

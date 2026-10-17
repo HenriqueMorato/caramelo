@@ -7,6 +7,7 @@
 
   <%= form_with url: passwords_path, class: "contents" do |form| %>
     <div class="my-5">
+      <%= form.label :email_address, t(".Email label"), class: "sr-only" %>
       <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", spellcheck: false, placeholder: t(".Email placeholder"), value: params[:email_address], class: "ui-field" %>
     </div>
 

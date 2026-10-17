@@ -358,7 +358,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tr", text: /Other owner trade/, count: 0
     assert_select "details[data-testid='add-instrument-transaction-menu']"
     assert_select "button[disabled]", "Delete"
-    assert_select "[role='tooltip']", "Delete this instrument's trades and income before deleting the instrument."
+    assert_select "[role='tooltip']", "Delete this instrument's trades, income, imports, or historical data before deleting the instrument."
     assert_select "[aria-describedby='delete_tooltip_instrument_#{instrument.id}']"
     assert_select "#current_market_price_instrument_#{instrument.id}", text: /Price unavailable/
   end
@@ -483,6 +483,19 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "USD", @instrument.currency
   end
 
+  test "does not allow changing the identity of a referenced instrument" do
+    instrument = instruments(:voo_arcx)
+
+    patch instrument_url(instrument), params: {
+      instrument: { ticker: "MSFT", exchange: "XNAS", name: instrument.name, currency: instrument.currency }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /cannot change while trades or income records exist/
+    assert_equal "VOO", instrument.reload.ticker
+    assert_equal "ARCX", instrument.exchange
+  end
+
   test "renders validation errors when updating an instrument fails" do
     patch instrument_url(@instrument), params: {
       instrument: { ticker: "", exchange: "BAD", name: "", currency: "ZZZ" }
@@ -510,6 +523,22 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to instrument_url(instrument)
     assert_match(/dependent trades exist/, flash[:alert])
+  end
+
+  test "does not delete an instrument referenced by another account's import" do
+    instrument = Instrument.create!(ticker: "AAPL", exchange: "XNAS", name: "Apple", currency: "USD")
+    import = users(:one).corporate_action_imports.create!(
+      instrument:, source: "yahoo_finance", source_reference: "delete-guard",
+      status: :pending, kind: :dividend, event_on: Date.current
+    )
+
+    assert_no_difference("Instrument.count") do
+      delete instrument_url(instrument)
+    end
+
+    assert_redirected_to instrument_url(instrument)
+    assert_match(/cannot be deleted while trades, income, imports, or historical data exist/, flash[:alert])
+    assert_predicate import.reload, :persisted?
   end
 
   private

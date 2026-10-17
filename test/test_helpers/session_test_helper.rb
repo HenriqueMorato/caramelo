@@ -16,4 +16,9 @@ end
 
 ActiveSupport.on_load(:action_dispatch_integration_test) do
   include SessionTestHelper
+
+  setup do
+    owner = User.owner_or_initialize
+    sign_in_as(owner) if owner.persisted? && owner.password_configured?
+  end
 end

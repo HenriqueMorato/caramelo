@@ -1,8 +1,17 @@
 module Backup
   FORMAT_VERSION = 1
+  LEDGER_SCOPE_SINGLE = 1
+  LEDGER_SCOPE_MULTI = 2
   ARTIFACTS = %w[primary ledger].freeze
   DURABLE_TABLES = %w[
     users institutions instruments trades corporate_actions corporate_action_imports corporate_action_import_scans
+  ].freeze
+  REPLACEABLE_TABLES = %w[
+    sessions daily_closing_prices historical_exchange_rates current_market_prices market_benchmarks
+    market_benchmark_observations
+    historical_data_backfills market_data_refreshes instrument_performance_materializations
+    instrument_performance_observations portfolio_performance_materializations portfolio_performance_observations
+    position_materializations
   ].freeze
 
   Error = Class.new(StandardError)

@@ -84,9 +84,9 @@ class CorporateActionImport < ApplicationRecord
 
   def estimated_gross_amount_cents
     return if gross_amount_cents.present? || !cash_action? || instrument.blank? || event_on.blank?
-    return if amount_per_share.blank?
+    return if amount_per_share.blank? || user.blank?
 
-    quantity = Position.for(instrument:, as_of: event_on).quantity
+    quantity = Position.for(instrument:, as_of: event_on, owner: user).quantity
     return unless quantity.positive?
 
     amount = BigDecimal(amount_per_share.to_s)

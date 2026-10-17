@@ -57,7 +57,7 @@ module Performance
       def market_data_as_of = market_price_as_of
     end
 
-    def self.for(valuation_date:, owner: User.owner, instrument: nil, trades: nil, corporate_actions: nil,
+    def self.for(valuation_date:, owner: User.default_owner, instrument: nil, trades: nil, corporate_actions: nil,
       exchange_rate_service: HistoricalExchangeRate::Service.new,
       daily_closing_price_provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
       reporting_currency: owner.reporting_currency)

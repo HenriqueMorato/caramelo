@@ -61,6 +61,24 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal [ { base_currency: "USD", quote_currency: "BRL", force: false } ], calls
   end
 
+  test "refreshes FX for every account reporting currency in multi mode" do
+    users(:one).update!(reporting_currency: "EUR")
+    instrument = instruments(:voo_arcx)
+    market_service = Object.new
+    market_service.define_singleton_method(:refresh) { |**| }
+    exchange_service = Object.new
+    calls = []
+    exchange_service.define_singleton_method(:refresh) { |**arguments| calls << arguments }
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      with_stubbed_method(Caramelo::AccountMode, :single?, -> { false }) do
+        build_job(service: market_service, exchange_rate_service: exchange_service).perform(instrument)
+      end
+    end
+
+    assert_equal %w[BRL EUR], calls.map { |call| call.fetch(:quote_currency) }.sort
+  end
+
   test "passes force through to the foreign exchange refresh" do
     instrument = instruments(:voo_arcx)
     market_service = Object.new

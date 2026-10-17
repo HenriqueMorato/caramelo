@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_11_000000) do
   create_table "corporate_action_import_scans", force: :cascade do |t|
     t.datetime "completed_at"
     t.datetime "created_at", null: false
@@ -388,6 +388,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_000000) do
     t.string "password_digest", null: false
     t.string "reporting_currency", limit: 3, default: "BRL", null: false
     t.datetime "updated_at", null: false
+    t.datetime "password_configured_at"
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.check_constraint "reporting_currency GLOB '[A-Z][A-Z][A-Z]'", name: "users_reporting_currency_format"
   end

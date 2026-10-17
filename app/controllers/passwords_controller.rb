@@ -7,7 +7,9 @@ class PasswordsController < ApplicationController
   end
 
   def create
-    if user = User.find_by(email_address: params[:email_address])
+    if user = User.find_by(email_address: params[:email_address].to_s.strip.downcase)
+      return redirect_to new_session_path, notice: t("notices.Password reset instructions sent") unless user.password_configured?
+
       PasswordsMailer.reset(user).deliver_later
     end
 
@@ -18,18 +20,38 @@ class PasswordsController < ApplicationController
   end
 
   def update
-    if @user.update(params.permit(:password, :password_confirmation))
-      @user.sessions.destroy_all
-      redirect_to new_session_path, notice: t("notices.Password was reset")
+    attributes = params.permit(:password, :password_confirmation)
+    if attributes[:password].blank?
+      redirect_to edit_password_path(params[:token]), alert: t("alerts.Password required")
+      return
     else
-      redirect_to edit_password_path(params[:token]), alert: t("alerts.Passwords did not match")
+      Caramelo::PasswordProvisioner.reset(
+        user: @user,
+        password: attributes[:password],
+        password_confirmation: attributes[:password_confirmation]
+      )
     end
+
+    redirect_to new_session_path, notice: t("notices.Password was reset")
+  rescue ActiveRecord::RecordInvalid => error
+    @user = error.record
+    redirect_to edit_password_path(params[:token]), alert: password_update_error
   end
 
   private
-    def set_user_by_token
-      @user = User.find_by_password_reset_token!(params[:token])
-    rescue ActiveSupport::MessageVerifier::InvalidSignature
-      redirect_to new_password_path, alert: t("alerts.Password reset link expired")
-    end
+
+  def set_user_by_token
+    @user = User.find_by_password_reset_token!(params[:token])
+    raise ActiveRecord::RecordNotFound unless @user.password_configured?
+  rescue ActiveSupport::MessageVerifier::InvalidSignature
+    redirect_to new_password_path, alert: t("alerts.Password reset link expired")
+  rescue ActiveRecord::RecordNotFound
+    redirect_to new_password_path, alert: t("alerts.Password reset link expired")
+  end
+
+  def password_update_error
+    return t("alerts.Passwords did not match") if @user.errors.where(:password_confirmation).any?
+
+    @user.errors.full_messages.to_sentence
+  end
 end
