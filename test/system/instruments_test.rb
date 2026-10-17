@@ -108,7 +108,7 @@ class InstrumentsTest < ApplicationSystemTestCase
     page.execute_script("arguments[0].focus()", tooltip_trigger)
 
     assert_selector "[aria-describedby='#{tooltip_id}']:focus"
-    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades and income before deleting the instrument.",
+    assert_selector "##{tooltip_id}", text: "Delete this instrument's trades, income, imports, or historical data before deleting the instrument.",
       visible: true
   end
 
