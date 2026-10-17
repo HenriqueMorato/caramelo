@@ -24,6 +24,7 @@ class PasswordsController < ApplicationController
     elsif @user.update(attributes)
       @user.update_column(:password_configured_at, Time.current)
       @user.sessions.destroy_all
+      ApplicationCable::Connection.disconnect_user(@user)
       redirect_to new_session_path, notice: t("notices.Password was reset")
     else
       redirect_to edit_password_path(params[:token]), alert: t("alerts.Passwords did not match")

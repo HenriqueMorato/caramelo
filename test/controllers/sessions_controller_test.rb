@@ -131,6 +131,35 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_empty cookies[:session_id]
   end
 
+  test "destroy without a session is safe in public single-account mode" do
+    previous = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.authentication_mode = "public"
+    sign_out
+
+    delete session_path
+
+    assert_redirected_to new_session_path
+  ensure
+    Rails.application.config.x.caramelo.authentication_mode = previous
+  end
+
+  test "destroy clears the session when cable disconnect fails" do
+    sign_in_as(@user)
+    session = Current.session
+    original = ApplicationCable::Connection.method(:disconnect_user)
+    ApplicationCable::Connection.define_singleton_method(:disconnect_user) do |user|
+      raise "cable unavailable for #{user.id}"
+    end
+
+    delete session_path
+
+    assert_redirected_to new_session_path
+    assert_not Session.exists?(session.id)
+    assert_empty cookies[:session_id]
+  ensure
+    ApplicationCable::Connection.define_singleton_method(:disconnect_user, original) if original
+  end
+
   test "destroy requires an authenticated session" do
     delete session_path
 

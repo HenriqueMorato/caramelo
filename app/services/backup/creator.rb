@@ -89,6 +89,7 @@ module Backup
     def filter_ledger(path)
       database = SQLite3::Database.new(path.to_s)
       database.execute("PRAGMA foreign_keys = OFF")
+      database.execute("PRAGMA user_version = #{ledger_scope}")
       empty_replaceable_tables(database)
       if Caramelo::AccountMode.multi?
         database.execute("PRAGMA foreign_keys = ON")
@@ -221,6 +222,10 @@ module Backup
 
     def migration_versions
       ActiveRecord::MigrationContext.new(Rails.root.join("db/migrate")).migrations.map { |migration| migration.version.to_s }.sort
+    end
+
+    def ledger_scope
+      Caramelo::AccountMode.multi? ? LEDGER_SCOPE_MULTI : LEDGER_SCOPE_SINGLE
     end
 
     def result(status)

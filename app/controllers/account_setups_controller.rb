@@ -9,21 +9,17 @@ class AccountSetupsController < ApplicationController
   end
 
   def create
-    @owner = User.owner_or_initialize
-    @owner.assign_attributes(account_setup_params)
-    @owner.password_configured_at = Time.current
-
-    if @owner.password.blank?
-      @owner.errors.add(:password, :blank)
+    outcome = with_setup_lock do
+      @owner = User.owner_or_initialize
+      @owner.persisted? ? @owner.with_lock { save_password } : save_password
     end
 
-    if @owner.errors.empty? && @owner.save
-      prepare_account_data
-      start_new_session_for(@owner)
-      redirect_to after_authentication_url, notice: t("account_setup.Password saved")
-    else
-      render :new, status: :unprocessable_content
-    end
+    return redirect_to new_session_path if outcome == :already_configured
+    return render(:new, status: :unprocessable_content) unless outcome
+
+    prepare_account_data
+    start_new_session_for(@owner)
+    redirect_to after_authentication_url, notice: t("account_setup.Password saved")
   end
 
   private
@@ -33,7 +29,25 @@ class AccountSetupsController < ApplicationController
   end
 
   def ensure_password_setup_required
-    redirect_to new_session_path if User.owner_or_initialize.password_configured?
+    return redirect_to root_path unless authentication_required?
+    redirect_to new_session_path unless account_setup_required?
+  end
+
+  def save_password
+    return :already_configured if @owner.password_configured?
+
+    @owner.assign_attributes(account_setup_params)
+    @owner.password_configured_at = Time.current
+    @owner.errors.add(:password, :blank) if @owner.password.blank?
+    @owner.errors.empty? && @owner.save
+  end
+
+  def with_setup_lock
+    # A fresh database has no owner row to lock, so serialize the first claim across web processes.
+    File.open(Rails.root.join("tmp/caramelo-account-setup.lock"), File::RDWR | File::CREAT, 0o600) do |lock|
+      lock.flock(File::LOCK_EX)
+      yield
+    end
   end
 
   def prepare_account_data

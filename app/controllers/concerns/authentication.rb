@@ -5,7 +5,7 @@ module Authentication
 
   included do
     before_action :require_authentication
-    helper_method :authenticated?, :current_user, :current_account
+    helper_method :authenticated?, :current_user, :current_account, :public_access?
   end
 
   class_methods do
@@ -34,16 +34,27 @@ module Authentication
       current_user
     end
 
+    def public_access?
+      Caramelo::AccountMode.single? && !authentication_required?
+    end
+
     def require_authentication
+      return unless authentication_required?
       return request_account_setup if account_setup_required?
 
       resume_session || request_authentication
     end
 
     def account_setup_required?
+      return false unless authentication_required?
       return !User.owner_or_initialize.password_configured? if Caramelo::AccountMode.single?
 
       !User.where.not(password_configured_at: nil).exists?
+    end
+
+    def authentication_required?
+      Caramelo::AccountMode.multi? ||
+        Rails.application.config.x.caramelo.authentication_mode == "password"
     end
 
     def resume_session
@@ -94,7 +105,16 @@ module Authentication
     end
 
     def terminate_session
-      Current.session.destroy
+      session = Current.session
+      disconnect_cable_session(session) if session
+      session&.destroy
+      Current.session = nil
       cookies.delete(:session_id)
+    end
+
+    def disconnect_cable_session(session)
+      ApplicationCable::Connection.disconnect_user(session.user)
+    rescue StandardError => error
+      Rails.logger.warn("Could not disconnect Action Cable session: #{error.class}: #{error.message}")
     end
 end

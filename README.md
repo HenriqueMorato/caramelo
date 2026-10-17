@@ -90,9 +90,10 @@ delete the local application data and backups.
 
 ### Optional Configuration
 
-The built-in owner identifier is `admin@caramelo.local`. On the first visit,
-caramelo asks you to choose a real password for that account. The seed never
-prints or stores a usable default password.
+The built-in owner identifier is `admin@caramelo.local`. When password
+authentication is enabled, caramelo asks you to choose a real password for that
+account on the first visit. The seed never prints or stores a usable default
+password.
 
 To choose another owner address for a fresh install, copy the example before
 the first run:
@@ -119,6 +120,19 @@ records in the database; they simply cannot sign in while single mode is active.
 The mode is read when the application boots, so restart both Compose services
 after changing it.
 
+`CARAMELO_AUTHENTICATION_MODE` controls password protection for a single-wallet
+install:
+
+- `public` (the default) keeps the local single-wallet experience without a
+  login;
+- `password` opens the first-run password setup and requires the configured
+  owner to sign in.
+
+Multi-account mode always requires password authentication. Switching a running
+development or Compose stack between modes only changes access rules; it does
+not delete users or wallet records. Restart the application after changing
+either setting.
+
 To use another host port without editing a file:
 
 ```sh
@@ -133,14 +147,14 @@ connect, opt in explicitly:
 CARAMELO_BIND_ADDRESS=0.0.0.0 docker compose up --build
 ```
 
-Login is required for application pages in both account modes. Keep the default
-localhost binding unless you trust every device on the network. Do not expose
-the `0.0.0.0` binding to an untrusted network.
+Use password authentication before exposing caramelo beyond your own computer.
+Keep the default localhost binding unless you trust every device on the network.
+Do not expose the `0.0.0.0` binding to an untrusted network.
 
 ## First Run
 
-Once you choose the first-run password and the dashboard opens, set up one
-position from the menus:
+When password authentication is enabled, choose the first-run password and
+then set up one position from the menus:
 
 1. Open **Instruments** and choose **Add instrument**. Enter the listing's
    ticker, exchange MIC (the market's short code, such as `BVMF` for B3 or

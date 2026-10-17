@@ -1,6 +1,18 @@
 require "test_helper"
 
 class AccountsControllerTest < ActionDispatch::IntegrationTest
+  setup { Rails.cache.clear }
+
+  teardown do
+    users(:owner).update_columns(
+      password_digest: BCrypt::Password.create("password"),
+      password_configured_at: Time.current
+    )
+    users(:one).update_columns(password_configured_at: Time.current)
+    users(:two).update_columns(password_configured_at: Time.current)
+    Rails.cache.clear
+  end
+
   test "single mode does not expose account registration" do
     get new_account_path
 
@@ -46,6 +58,31 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "multi mode renders a validation error when account creation races" do
+    with_account_mode("multi") do
+      user = User.new
+      user.define_singleton_method(:save) { raise ActiveRecord::RecordNotUnique }
+      original = User.method(:new)
+      User.define_singleton_method(:new) do |attributes = nil, **|
+        user.assign_attributes(attributes || {})
+        user
+      end
+
+      post accounts_path, params: {
+        user: {
+          email_address: "race@example.com",
+          password: "a proper password",
+          password_confirmation: "a proper password"
+        }
+      }
+
+      assert_response :unprocessable_content
+      assert_select "[role=alert]", /Email address has already been taken/
+    ensure
+      User.define_singleton_method(:new, original) if original
+    end
+  end
+
   test "multi mode keeps accounts isolated" do
     with_account_mode("multi") do
       sign_out
@@ -85,6 +122,25 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
       assert_redirected_to new_session_path
       assert users(:one).trades.exists?(instrument: instruments(:voo_arcx))
     end
+  end
+
+  test "switching from public single mode to password protection requires setup" do
+    previous_mode = Rails.application.config.x.caramelo.account_mode
+    previous_authentication = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.account_mode = "single"
+    Rails.application.config.x.caramelo.authentication_mode = "public"
+    User.owner.update!(password_configured_at: nil)
+
+    get root_path
+    assert_response :success
+
+    Rails.application.config.x.caramelo.authentication_mode = "password"
+    get root_path
+
+    assert_redirected_to new_account_setup_path
+  ensure
+    Rails.application.config.x.caramelo.account_mode = previous_mode
+    Rails.application.config.x.caramelo.authentication_mode = previous_authentication
   end
 
   test "multi mode rejects sessions without a configured password" do

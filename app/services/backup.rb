@@ -1,5 +1,7 @@
 module Backup
   FORMAT_VERSION = 1
+  LEDGER_SCOPE_SINGLE = 1
+  LEDGER_SCOPE_MULTI = 2
   ARTIFACTS = %w[primary ledger].freeze
   DURABLE_TABLES = %w[
     users institutions instruments trades corporate_actions corporate_action_imports corporate_action_import_scans

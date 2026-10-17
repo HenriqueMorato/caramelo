@@ -25,4 +25,18 @@ class AuthenticationTest < ActionController::TestCase
     assert_response :success
     assert_equal "true", response.body
   end
+
+  test "public single-account mode does not require a session" do
+    previous = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.authentication_mode = "public"
+
+    get :show
+
+    assert_response :success
+    assert_equal "false", response.body
+    assert_predicate @controller, :public_access?
+    assert_not @controller.send(:account_setup_required?)
+  ensure
+    Rails.application.config.x.caramelo.authentication_mode = previous
+  end
 end

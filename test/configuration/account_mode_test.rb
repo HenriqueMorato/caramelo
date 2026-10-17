@@ -33,4 +33,27 @@ class AccountModeTest < ActiveSupport::TestCase
   ensure
     ENV["CARAMELO_ACCOUNT_MODE"] = previous
   end
+
+  test "defaults to public authentication" do
+    assert_equal "public", Caramelo::Environment::DEFAULT_AUTHENTICATION_MODE
+    assert_equal "public", Caramelo::Environment.authentication_mode
+  end
+
+  test "accepts password authentication" do
+    previous = ENV["CARAMELO_AUTHENTICATION_MODE"]
+    ENV["CARAMELO_AUTHENTICATION_MODE"] = " PASSWORD "
+
+    assert_equal "password", Caramelo::Environment.authentication_mode
+  ensure
+    ENV["CARAMELO_AUTHENTICATION_MODE"] = previous
+  end
+
+  test "rejects an unsupported authentication mode" do
+    previous = ENV["CARAMELO_AUTHENTICATION_MODE"]
+    ENV["CARAMELO_AUTHENTICATION_MODE"] = "token"
+
+    assert_raises(ArgumentError) { Caramelo::Environment.authentication_mode }
+  ensure
+    ENV["CARAMELO_AUTHENTICATION_MODE"] = previous
+  end
 end

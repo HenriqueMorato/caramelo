@@ -20,6 +20,9 @@ class AccountsController < ApplicationController
     else
       render :new, status: :unprocessable_content
     end
+  rescue ActiveRecord::RecordNotUnique
+    @user.errors.add(:email_address, :taken)
+    render :new, status: :unprocessable_content
   end
 
   private

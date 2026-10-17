@@ -32,7 +32,13 @@ module Backup
       raise VerificationError, "backup is not marked verified" unless manifest["verified"] || allow_unverified
 
       verify_checksums!
-      ARTIFACTS.each { |artifact| verify_database!(artifact_path(artifact), ledger: artifact == "ledger") }
+      ARTIFACTS.each do |artifact|
+        verify_database!(
+          artifact_path(artifact),
+          ledger: artifact == "ledger",
+          expected_ledger_user_count: manifest.dig("record_counts", "ledger", "users")
+        )
+      end
       Verification.new(directory:, record_counts: manifest.fetch("record_counts"), verified_at: Time.current)
     rescue SQLite3::Exception => error
       raise VerificationError, "backup cannot be read: #{error.message}"
@@ -70,10 +76,10 @@ module Backup
       raise VerificationError, "backup checksums are missing or invalid"
     end
 
-    def verify_database!(path, ledger:)
+    def verify_database!(path, ledger:, expected_ledger_user_count: nil)
       database = SQLite3::Database.new(path.to_s, readonly: true)
       raise VerificationError, "SQLite integrity check failed" unless database.get_first_value("PRAGMA integrity_check") == "ok"
-      verify_ledger_rows(database) if ledger
+      verify_ledger_rows(database, expected_user_count: expected_ledger_user_count) if ledger
       raise VerificationError, "foreign-key check failed" unless database.execute("PRAGMA foreign_key_check").empty?
 
       versions = database.execute("SELECT version FROM schema_migrations").flatten.map(&:to_s)
@@ -83,7 +89,7 @@ module Backup
       database&.close
     end
 
-    def verify_ledger_rows(database)
+    def verify_ledger_rows(database, expected_user_count: nil)
       owner_id = database.get_first_value("SELECT id FROM users ORDER BY id LIMIT 1")
       raise VerificationError, "ledger has no owner" unless owner_id
       REPLACEABLE_TABLES.each do |table|
@@ -91,7 +97,19 @@ module Backup
         raise VerificationError, "ledger contains replaceable rows: #{table}" unless database.get_first_value("SELECT COUNT(*) FROM #{table}").zero?
       end
       user_count = database.get_first_value("SELECT COUNT(*) FROM users")
-      if user_count > 1 && Caramelo::AccountMode.multi?
+      scope = database.get_first_value("PRAGMA user_version").to_i
+      if scope.zero?
+        # Before the scope marker, the manifest's ledger user count is the only
+        # durable distinction between a single- and multi-account backup.
+        raise VerificationError, "ledger user count does not match the manifest" if expected_user_count.to_i != user_count
+
+        scope = user_count > 1 ? LEDGER_SCOPE_MULTI : LEDGER_SCOPE_SINGLE
+      end
+      unless [ LEDGER_SCOPE_SINGLE, LEDGER_SCOPE_MULTI ].include?(scope)
+        raise VerificationError, "ledger scope marker is invalid"
+      end
+
+      if user_count > 1 && scope == LEDGER_SCOPE_MULTI
         invalid_trade = database.get_first_value(
           "SELECT 1 FROM trades WHERE user_id NOT IN (SELECT id FROM users) LIMIT 1"
         )
@@ -99,9 +117,9 @@ module Backup
         return
       end
 
+      raise VerificationError, "ledger contains unrelated users" if user_count > 1
       invalid_trade = database.get_first_value("SELECT 1 FROM trades WHERE user_id <> ? LIMIT 1", [ owner_id ])
       raise VerificationError, "ledger contains unrelated trades" if invalid_trade
-      raise VerificationError, "ledger contains unrelated users" if user_count > 1
     end
 
     def artifact_path(artifact) = directory.join("#{artifact}.sqlite3")
