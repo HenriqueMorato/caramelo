@@ -113,6 +113,12 @@ Limit the repair to a range when investigating a correction:
 FROM=2026-01-01 TO=2026-06-30 bin/rails performance:observations:rebuild
 ```
 
+In multi-account mode, provide the account explicitly:
+
+```sh
+EMAIL=person@example.com FROM=2026-01-01 TO=2026-06-30 bin/rails performance:observations:rebuild
+```
+
 The command uses the same lease and completion path as background work, and refuses
 to compete with an active build. It prints built versus reused counts. A published
 date keeps its exact value; a source change during calculation schedules a follow-up

@@ -117,8 +117,9 @@ Choose the owner address before the first seed. Keep it unchanged for an
 existing database: terminal owner setup refuses to create a replacement when
 another account already exists, preventing wallet data from becoming hidden.
 Request-scoped records should use the authenticated account; jobs that run
-without a request should receive an explicit user or use `User.owner` only for
-single-account compatibility.
+without a request should receive an explicit user. Legacy single-account
+entry points may use `User.default_owner`, which raises instead of falling
+back to the configured owner in multi-account mode.
 
 Authentication is configurable. `CARAMELO_AUTHENTICATION_MODE=public` is the
 default for a local single-wallet development run. Set it to `password` before
@@ -532,9 +533,10 @@ store other supported currencies such as USD. Never use floating-point columns
 for financial values, and never imply that equal subunits in different
 currencies have been converted.
 
-Portfolio reporting uses `User.owner.reporting_currency`, not Money's global
-default. Read models accepting a `user:` or `owner:` default to that user's
-preference; explicit `reporting_currency:` arguments remain useful for pinned
+Portfolio reporting uses the selected account's `reporting_currency`, not
+Money's global default. In single-account mode, legacy read models may use
+`User.default_owner`; multi-account callers must pass `user:` or `owner:`
+explicitly. Explicit `reporting_currency:` arguments remain useful for pinned
 background calculations. FX batches snapshot the preference at execution start
 so a later change cannot mix target currencies within one batch.
 

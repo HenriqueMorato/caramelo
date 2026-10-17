@@ -109,10 +109,10 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
       user_ids = Trade.where(instrument:).pluck(:user_id) + CorporateAction.where(instrument:).pluck(:user_id)
       User.where(id: user_ids.uniq)
     else
-      User.where(id: User.owner.id)
+      User.where(id: User.default_owner.id)
     end
     currencies = users.distinct.pluck(:reporting_currency)
-    currencies.presence || [ User.owner.reporting_currency ]
+    currencies.presence || User.distinct.pluck(:reporting_currency)
   end
 
   def broadcast_current(instrument)

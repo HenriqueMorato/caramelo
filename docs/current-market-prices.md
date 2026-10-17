@@ -101,10 +101,12 @@ sequenceDiagram
   B-->>V: replace price component over Turbo Streams
 ```
 
-The global refresh action enqueues all instruments traded by `User.owner`; the
-nested instrument action enqueues one instrument. The recurring job runs every
-30 minutes. Scheduled refreshes use normal cache freshness checks, while a user
-action uses `force: true` because it explicitly requests a new quote.
+The global refresh action enqueues all instruments traded by the configured
+owner in single-account mode, or all instruments traded by every account in
+multi-account mode; the nested instrument action enqueues one instrument. The
+recurring job runs every 30 minutes. Scheduled refreshes use normal cache
+freshness checks, while a user action uses `force: true` because it explicitly
+requests a new quote.
 
 ### Refresh Coordination, Throttling, and Retries
 

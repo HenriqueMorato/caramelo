@@ -4,7 +4,7 @@ module MarketData
 
     attr_reader :report, :status_filter, :owner
 
-    def initialize(report:, owner: User.owner, status_filter: "all", preview_factory: ResetPreview)
+    def initialize(report:, owner: User.default_owner, status_filter: "all", preview_factory: ResetPreview)
       @report = report
       @owner = owner
       @status_filter = FILTERS.include?(status_filter) ? status_filter : "all"

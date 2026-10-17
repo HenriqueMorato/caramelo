@@ -34,7 +34,7 @@ module Performance
       end
     end
 
-    def self.for(from:, to:, user: User.owner, instrument: nil, store: nil, refresher: SeriesRefresh,
+    def self.for(from:, to:, user: User.default_owner, instrument: nil, store: nil, refresher: SeriesRefresh,
       materialization: nil, reporting_currency: user.reporting_currency)
       materialization ||= materialization_for(user:, instrument:, reporting_currency:)
       store ||= store_for(user:, instrument:, reporting_currency: materialization.reporting_currency)

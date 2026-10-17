@@ -12,7 +12,7 @@ module MarketPrice
       new(clock:).available?
     end
 
-    def initialize(user: User.owner, enqueuer: RefreshEnqueuer.new, clock: -> { Time.current })
+    def initialize(user: User.default_owner, enqueuer: RefreshEnqueuer.new, clock: -> { Time.current })
       @user = user
       @enqueuer = enqueuer
       @clock = clock

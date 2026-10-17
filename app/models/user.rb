@@ -37,6 +37,14 @@ class User < ApplicationRecord
     find_or_initialize_by(email_address: configured_email)
   end
 
+  # Legacy single-account entry points may omit their account argument. Never
+  # resolve that omission to the configured owner once account isolation is on.
+  def self.default_owner
+    raise ArgumentError, "owner must be provided in multi-account mode" if Caramelo::AccountMode.multi?
+
+    owner
+  end
+
   def self.owner_configuration_conflict?
     owner_or_initialize.new_record? && exists?
   end

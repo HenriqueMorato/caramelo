@@ -5,6 +5,14 @@ class ScheduleCorporateActionImportsJob < ApplicationJob
     duration: 2.minutes, on_conflict: :block
 
   def perform
-    CorporateActionImports::Automation.call
+    users.each { |user| CorporateActionImports::Automation.call(user:) }
+  end
+
+  private
+
+  def users
+    return [ User.default_owner ] unless Caramelo::AccountMode.multi?
+
+    User.all.to_a
   end
 end

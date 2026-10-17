@@ -9,7 +9,7 @@ module Performance
 
     attr_reader :period, :from, :to
 
-    def self.for(period:, owner: User.owner, instrument: nil, today: Date.current)
+    def self.for(period:, owner: User.default_owner, instrument: nil, today: Date.current)
       selected = period.to_s.presence_in(PERIODS.keys) || "month"
       new(period: selected, owner:, instrument:, today:)
     end

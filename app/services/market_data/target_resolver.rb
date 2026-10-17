@@ -1,6 +1,6 @@
 module MarketData
   class TargetResolver
-    def self.call(attributes:, owner: User.owner)
+    def self.call(attributes:, owner: User.default_owner)
       new(attributes:, owner:).call
     end
 

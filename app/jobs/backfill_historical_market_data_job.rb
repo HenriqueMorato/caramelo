@@ -76,11 +76,11 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
   end
 
   def reporting_currencies_for(instrument)
-    return [ User.owner.reporting_currency ] if Caramelo::AccountMode.single?
+    return [ User.default_owner.reporting_currency ] if Caramelo::AccountMode.single?
 
     user_ids = Trade.where(instrument:).pluck(:user_id) + CorporateAction.where(instrument:).pluck(:user_id)
     currencies = User.where(id: user_ids.uniq).distinct.pluck(:reporting_currency)
-    currencies.presence || [ User.owner.reporting_currency ]
+    currencies.presence || User.distinct.pluck(:reporting_currency)
   end
 
   def enqueue_performance_rebuild(backfill, from:)

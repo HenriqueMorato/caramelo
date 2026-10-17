@@ -9,7 +9,7 @@ module MarketData
         return
       end
 
-      owner ||= User.owner
+      owner ||= User.default_owner
       report ||= HealthReport.for(owner:)
       HealthReportPresenter::FILTERS.each do |status_filter|
         presenter = HealthReportPresenter.new(report:, owner:, status_filter:)

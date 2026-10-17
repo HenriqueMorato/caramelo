@@ -99,7 +99,7 @@ module Backup
 
       owner_id = database.get_first_value(
         "SELECT id FROM users WHERE email_address = ?",
-        [ User.owner.email_address ]
+        [ User.default_owner.email_address ]
       )
       raise Error, "configured owner is missing from the primary database" unless owner_id
 

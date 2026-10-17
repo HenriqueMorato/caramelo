@@ -43,7 +43,7 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
 
   def performance_targets
     if Caramelo::AccountMode.single?
-      @reporting_currency = User.owner.reporting_currency
+      @reporting_currency = User.default_owner.reporting_currency
       return performance_currencies.map { |currency| [ currency, reporting_currency ] }
     end
 
@@ -53,9 +53,9 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
   end
 
   def performance_currencies
-    trade_currencies = Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id)).pluck(:currency)
+    trade_currencies = Instrument.where(id: Trade.where(user: User.default_owner).select(:instrument_id)).pluck(:currency)
     income_currencies = CorporateAction.effective_on_or_before(Date.current)
-      .where(user: User.owner).includes(:instrument).map { |action| action.currency || action.instrument.currency }
+      .where(user: User.default_owner).includes(:instrument).map { |action| action.currency || action.instrument.currency }
     benchmark_currencies = MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS).distinct.pluck(:currency)
     (trade_currencies | income_currencies | benchmark_currencies).excluding(reporting_currency)
   end

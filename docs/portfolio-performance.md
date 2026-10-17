@@ -4,9 +4,10 @@
 historical date. `Performance::Period.for(from:, to:)` compares two such
 valuations and produces the report shown at `/performance`.
 
-Calculations default to the owner's persisted `reporting_currency` (initially
-BRL). An explicit `owner:` keeps another owner's period and valuations scoped
-together. Changing the preference does not convert or rewrite stored trades,
+In single-account mode, calculations default to the configured owner's persisted
+`reporting_currency` (initially BRL). Multi-account callers must provide an
+explicit `owner:` so a request or job cannot accidentally read another account.
+That owner keeps the period and valuations scoped together. Changing the preference does not convert or rewrite stored trades,
 instrument currencies, closing prices, or FX history. Missing rates for the
 selected currency remain unavailable rather than falling back to BRL values.
 

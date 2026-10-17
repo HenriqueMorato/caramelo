@@ -160,7 +160,7 @@ class Position
     :average_unit_cost, :analytical_realized_gain_amount, :realized_gain,
     :first_trade_date, :last_trade_date
 
-  def self.for(instrument:, as_of: nil, trades: nil, corporate_actions: nil, owner: User.owner)
+  def self.for(instrument:, as_of: nil, trades: nil, corporate_actions: nil, owner: User.default_owner)
     if trades.nil? && corporate_actions.nil? && as_of.nil?
       materialization = PositionMaterialization.where.not(calculated_at: nil)
         .find_by(user: owner, instrument:)
@@ -191,7 +191,7 @@ class Position
     ))
   end
 
-  def self.overview(owner: User.owner, include_institutions: false)
+  def self.overview(owner: User.default_owner, include_institutions: false)
     return replay_overview(owner:) if !include_institutions && owner.position_materializations.none?
     return materialized_overview(owner:) unless include_institutions
 

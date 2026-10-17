@@ -11,6 +11,21 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "admin@caramelo.local", User.owner.email_address
   end
 
+  test "allows the implicit owner only in single-account mode" do
+    assert_equal users(:owner), User.default_owner
+  end
+
+  test "requires an explicit account in multi-account mode" do
+    previous = Rails.application.config.x.caramelo.account_mode
+    Rails.application.config.x.caramelo.account_mode = "multi"
+
+    error = assert_raises(ArgumentError) { User.default_owner }
+
+    assert_equal "owner must be provided in multi-account mode", error.message
+  ensure
+    Rails.application.config.x.caramelo.account_mode = previous
+  end
+
   test "tracks whether a real password has been configured" do
     user = users(:owner)
 

@@ -1,6 +1,6 @@
 module PositionMaterializations
   class Rebuild
-    def self.call(user: User.owner, instrument: nil)
+    def self.call(user: User.default_owner, instrument: nil)
       new(user:, instrument:).call
     end
 

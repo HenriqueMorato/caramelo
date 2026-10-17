@@ -35,7 +35,7 @@ module MarketData
     end
 
     def self.account_users
-      return [ User.owner ] if Caramelo::AccountMode.single?
+      return [ User.default_owner ] if Caramelo::AccountMode.single?
 
       User.all.to_a
     end
