@@ -95,17 +95,19 @@ module Authentication
 
     def create_session_with_retry(user)
       attempts = 0
-      user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip)
-    rescue ActiveRecord::StatementTimeout => error
-      raise unless error.message.include?("database is locked") && attempts < SESSION_CREATION_RETRIES
+      begin
+        attempts += 1
+        user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip)
+      rescue ActiveRecord::StatementTimeout => error
+        raise unless error.message.include?("database is locked") && attempts <= SESSION_CREATION_RETRIES
 
-      attempts += 1
-      sleep(attempts * 0.1)
-      retry
+        sleep(attempts * 0.1)
+        retry
+      end
     end
 
     def terminate_session
-      session = Current.session
+      session = Current.session || resume_session
       disconnect_cable_session(session) if session
       session&.destroy
       Current.session = nil

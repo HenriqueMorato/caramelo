@@ -89,6 +89,12 @@ en:
             currency:
               cannot_change_with_activity: cannot change while trades or income records
                 exist
+            exchange:
+              cannot_change_with_activity: cannot change while trades or income records
+                exist
+            ticker:
+              cannot_change_with_activity: cannot change while trades or income records
+                exist
         trade:
           attributes:
             currency:

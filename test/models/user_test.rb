@@ -49,6 +49,18 @@ class UserTest < ActiveSupport::TestCase
     assert_includes user.errors.full_messages_for(:password), "Password must include a symbol"
   end
 
+  test "rejects whitespace-only configured passwords" do
+    user = User.new(
+      email_address: "blank-password@example.com",
+      password: " ",
+      password_confirmation: " ",
+      password_configured_at: Time.current
+    )
+
+    assert_not user.valid?
+    assert user.errors.of_kind?(:password, :blank)
+  end
+
   test "accepts a password that meets the configured policy" do
     user = User.new(
       email_address: "policy@example.com",

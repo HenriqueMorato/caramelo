@@ -483,6 +483,19 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "USD", @instrument.currency
   end
 
+  test "does not allow changing the identity of a referenced instrument" do
+    instrument = instruments(:voo_arcx)
+
+    patch instrument_url(instrument), params: {
+      instrument: { ticker: "MSFT", exchange: "XNAS", name: instrument.name, currency: instrument.currency }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /cannot change while trades or income records exist/
+    assert_equal "VOO", instrument.reload.ticker
+    assert_equal "ARCX", instrument.exchange
+  end
+
   test "renders validation errors when updating an instrument fails" do
     patch instrument_url(@instrument), params: {
       instrument: { ticker: "", exchange: "BAD", name: "", currency: "ZZZ" }

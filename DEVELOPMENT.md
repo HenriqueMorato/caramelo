@@ -610,8 +610,8 @@ before reaching jobs or controllers.
 - Institutions are optional on trades. Only active institutions appear for new
   selections, but inactive institutions remain visible on historical trades.
 - Keep trades durable. Restrict deletion of referenced institutions and
-  instruments, and prevent an instrument's currency from changing after its
-  first trade.
+  instruments, and prevent an instrument's ticker, exchange, or currency from
+  changing after it is referenced by activity or historical market data.
 - Keep current market quotes out of the ledger. They are replaceable cache data;
   `DailyClosingPrice` is the separate durable daily-history record used by the
   Performance milestone.

@@ -19,7 +19,7 @@ class User < ApplicationRecord
     uniqueness: { case_sensitive: false }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :reporting_currency, presence: true
   validates :reporting_currency, inclusion: { in: ReportingCurrency::SUPPORTED_CODES, message: :invalid }
-  validate :password_meets_policy, if: -> { password.present? && password_configured_at.present? }
+  validate :password_meets_policy, if: -> { password_configured_at.present? }
 
   def password_configured?
     password_configured_at.present?
@@ -52,6 +52,15 @@ class User < ApplicationRecord
   private
 
     def password_meets_policy
+      if password.nil? && password_digest.present?
+        return
+      end
+
+      if password.blank?
+        errors.add(:password, :blank)
+        return
+      end
+
       Caramelo::PasswordPolicy.validate(password, errors: errors)
     end
 end

@@ -116,6 +116,26 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     @user.singleton_class.define_method(:sessions, sessions_method) if sessions_method
   end
 
+  test "stops retrying after the configured SQLite lock attempts" do
+    attempts = 0
+    sessions = Object.new
+    sessions.define_singleton_method(:create!) do |**|
+      attempts += 1
+      raise ActiveRecord::StatementTimeout, "database is locked"
+    end
+    sessions_method = @user.method(:sessions)
+    @user.singleton_class.define_method(:sessions, -> { sessions })
+    controller = SessionsController.new
+    controller.set_request!(ActionDispatch::TestRequest.create)
+
+    assert_raises(ActiveRecord::StatementTimeout) do
+      controller.send(:create_session_with_retry, @user)
+    end
+    assert_equal 3, attempts
+  ensure
+    @user.singleton_class.define_method(:sessions, sessions_method) if sessions_method
+  end
+
   test "protected pages redirect to sign in when the owner is configured" do
     get root_path
 
@@ -170,6 +190,41 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
   ensure
     Rails.application.config.x.caramelo.authentication_mode = previous
+  end
+
+  test "destroy revokes a public-mode session from the incoming cookie" do
+    previous = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.authentication_mode = "public"
+
+    post session_path, params: { email_address: @user.email_address, password: "password" }
+    session = @user.sessions.order(:id).last
+    assert_predicate cookies[:session_id], :present?
+    assert_predicate session, :present?
+
+    delete session_path
+
+    assert_not Session.exists?(session.id)
+    assert_empty cookies[:session_id]
+  ensure
+    Rails.application.config.x.caramelo.authentication_mode = previous
+  end
+
+  test "does not create a session when the password changes after initial authentication" do
+    original = User.method(:authenticate_by)
+    User.define_singleton_method(:authenticate_by) do |credentials|
+      user = original.call(credentials)
+      user&.update!(password: "Changedpass1!", password_confirmation: "Changedpass1!")
+      user
+    end
+
+    post session_path, params: { email_address: @user.email_address, password: "password" }
+
+    assert_redirected_to new_session_path
+    assert_nil cookies[:session_id]
+    assert_not @user.reload.authenticate("password")
+    assert @user.authenticate("Changedpass1!")
+  ensure
+    User.define_singleton_method(:authenticate_by, original) if original
   end
 
   test "destroy clears the session when cable disconnect fails" do

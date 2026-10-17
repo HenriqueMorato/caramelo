@@ -14,6 +14,20 @@ class Caramelo::PasswordProvisionerTest < ActiveSupport::TestCase
     assert owner.authenticate("Strongpass1!")
   end
 
+  test "rejects a blank first password without configuring the owner" do
+    owner = users(:owner)
+    owner.update!(password_configured_at: nil)
+    original_digest = owner.password_digest
+
+    error = assert_raises(Caramelo::PasswordProvisioner::NotReady) do
+      Caramelo::PasswordProvisioner.setup_owner(password: "", password_confirmation: "")
+    end
+
+    assert_equal "Password cannot be blank.", error.message
+    assert_not owner.reload.password_configured?
+    assert_equal original_digest, owner.password_digest
+  end
+
   test "creates and configures a missing owner" do
     email = "terminal-owner@example.com"
     previous_email = Rails.application.config.x.caramelo.owner_email
@@ -99,6 +113,21 @@ class Caramelo::PasswordProvisionerTest < ActiveSupport::TestCase
     assert_equal [ user ], disconnected
   end
 
+  test "rejects a whitespace password change without revoking the session" do
+    user = users(:owner)
+    session = user.sessions.create!
+    original_digest = user.password_digest
+
+    assert_raises(Caramelo::PasswordProvisioner::NotReady) do
+      Caramelo::PasswordProvisioner.change(
+        user:, current_password: "password", password: " ", password_confirmation: " "
+      )
+    end
+
+    assert_equal original_digest, user.reload.password_digest
+    assert Session.exists?(session.id)
+  end
+
   test "rejects a change when the current password is wrong" do
     user = users(:owner)
     original_digest = user.password_digest
@@ -139,6 +168,19 @@ class Caramelo::PasswordProvisionerTest < ActiveSupport::TestCase
     assert user.reload.authenticate("Recoveredpass1!")
     assert_not Session.exists?(session.id)
     assert_equal [ user ], disconnected
+  end
+
+  test "rejects an empty reset without changing the password or revoking sessions" do
+    user = users(:owner)
+    session = user.sessions.create!
+    original_digest = user.password_digest
+
+    assert_raises(Caramelo::PasswordProvisioner::NotReady) do
+      Caramelo::PasswordProvisioner.reset(user:, password: "", password_confirmation: "")
+    end
+
+    assert_equal original_digest, user.reload.password_digest
+    assert Session.exists?(session.id)
   end
 
   test "keeps a password change successful when cable disconnection fails" do

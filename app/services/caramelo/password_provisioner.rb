@@ -59,6 +59,8 @@ module Caramelo
     private_class_method :provision
 
     def self.provision_locked(user, password:, password_confirmation:)
+      raise NotReady, "Password cannot be blank." if password.blank?
+
       user.assign_attributes(password:, password_confirmation:, password_configured_at: Time.current)
       user.save!
       user.sessions.destroy_all

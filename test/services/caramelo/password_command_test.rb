@@ -97,6 +97,21 @@ class Caramelo::PasswordCommandTest < ActiveSupport::TestCase
     assert_includes error.string, "too short"
   end
 
+  test "rejects empty and whitespace-only first passwords" do
+    [ [ "", "" ], [ " ", " " ] ].each do |password, confirmation|
+      User.owner.update!(password_configured_at: nil)
+      error = StringIO.new
+
+      status = Caramelo::PasswordCommand.run(
+        [ "setup" ], input: terminal_input(password, confirmation), output: StringIO.new, error:
+      )
+
+      assert_equal 1, status
+      assert_includes error.string, "Password cannot be blank"
+      assert_not User.owner.reload.password_configured?
+    end
+  end
+
   test "reports a duplicate setup write" do
     original = Caramelo::PasswordProvisioner.method(:setup_owner)
     Caramelo::PasswordProvisioner.define_singleton_method(:setup_owner) do |**|
