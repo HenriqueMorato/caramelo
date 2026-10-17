@@ -8,8 +8,8 @@ module MarketPrice
       new(**arguments).call
     end
 
-    def self.available?(clock: -> { Time.current })
-      new(clock:).available?
+    def self.available?
+      !Rails.cache.exist?(COOLDOWN_KEY)
     end
 
     def initialize(user: User.default_owner, enqueuer: RefreshEnqueuer.new, clock: -> { Time.current })

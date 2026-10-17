@@ -3,6 +3,8 @@ class Instrument < ApplicationRecord
 
   friendly_id :slug_candidates, use: :slugged
 
+  before_destroy :prevent_destroy_when_referenced
+
   has_many :instrument_performance_observations, dependent: :delete_all
   has_many :instrument_performance_materializations, dependent: :delete_all
   has_many :trades, dependent: :restrict_with_error
@@ -34,6 +36,12 @@ class Instrument < ApplicationRecord
 
   scope :alphabetical, -> { order(:ticker, :exchange) }
 
+  def deletion_blocked?
+    trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
+      corporate_action_import_scans.exists? || daily_closing_prices.exists? ||
+      HistoricalDataBackfill.where(instrument: self).exists?
+  end
+
   private
 
   def slug_candidates
@@ -54,9 +62,18 @@ class Instrument < ApplicationRecord
     end
   end
 
+  def prevent_destroy_when_referenced
+    return if trades.exists? || corporate_actions.exists? || daily_closing_prices.exists?
+    return unless deletion_blocked?
+
+    errors.add(:base, :cannot_destroy_with_activity)
+    throw(:abort)
+  end
+
   def referenced?
     trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
       corporate_action_import_scans.exists? || daily_closing_prices.exists? ||
-      instrument_performance_observations.exists? || instrument_performance_materializations.exists?
+      instrument_performance_observations.exists? || instrument_performance_materializations.exists? ||
+      position_materializations.exists? || HistoricalDataBackfill.where(instrument: self).exists?
   end
 end

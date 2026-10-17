@@ -18,6 +18,17 @@ class MarketDataHealthControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", current_market_price_refresh_path
   end
 
+  test "shows the health report in multi-account mode" do
+    previous_mode = Rails.application.config.x.caramelo.account_mode
+    Rails.application.config.x.caramelo.account_mode = "multi"
+
+    get market_data_health_url
+
+    assert_response :success
+  ensure
+    Rails.application.config.x.caramelo.account_mode = previous_mode
+  end
+
   test "shows an explicit empty state when a filter matches no sources" do
     report = MarketData::HealthReport::Result.new(checked_at: Time.current, entries: [])
 

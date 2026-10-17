@@ -86,6 +86,9 @@ en:
               instrument_mismatch: must match the instrument currency
         instrument:
           attributes:
+            base:
+              cannot_destroy_with_activity: cannot be deleted while trades, income,
+                imports, or historical data exist
             currency:
               cannot_change_with_activity: cannot change while trades or income records
                 exist

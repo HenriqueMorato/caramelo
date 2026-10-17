@@ -244,6 +244,22 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     ApplicationCable::Connection.define_singleton_method(:disconnect_user, original) if original
   end
 
+  test "destroys the session before disconnecting cable connections" do
+    sign_in_as(@user)
+    session = Current.session
+    session_exists_during_disconnect = nil
+    original = ApplicationCable::Connection.method(:disconnect_user)
+    ApplicationCable::Connection.define_singleton_method(:disconnect_user) do |_user|
+      session_exists_during_disconnect = Session.exists?(session.id)
+    end
+
+    delete session_path
+
+    assert_equal false, session_exists_during_disconnect
+  ensure
+    ApplicationCable::Connection.define_singleton_method(:disconnect_user, original) if original
+  end
+
   test "destroy requires an authenticated session" do
     delete session_path
 

@@ -60,8 +60,7 @@ class InstrumentsController < ApplicationController
     activity_history = ActivityHistory.new(trades: @trades, income: @corporate_actions, activity: @activity)
     @activity_transactions = activity_history.transactions
     @has_activity_history = activity_history.any?
-    @instrument_has_activity = owner.trades.exists?(instrument: @instrument) ||
-      owner.corporate_actions.exists?(instrument: @instrument)
+    @instrument_has_activity = @instrument.deletion_blocked?
   end
 
   def activity_associations(except_for:)

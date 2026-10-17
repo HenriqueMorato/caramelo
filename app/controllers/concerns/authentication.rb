@@ -108,8 +108,8 @@ module Authentication
 
     def terminate_session
       session = Current.session || resume_session
-      disconnect_cable_session(session) if session
       session&.destroy
+      disconnect_cable_session(session) if session
       Current.session = nil
       cookies.delete(:session_id)
     end

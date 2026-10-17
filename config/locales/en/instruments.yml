@@ -37,8 +37,8 @@ en:
       Cost basis: Cost basis
       Currency view: Position currency
       Date: Date
-      Delete blocked: Delete this instrument's trades and income before deleting the
-        instrument.
+      Delete blocked: Delete this instrument's trades, income, imports, or historical
+        data before deleting the instrument.
       Empty activity history: Add a trade or income payment to begin this instrument's
         activity history.
       Gain on cost: Gain on cost
