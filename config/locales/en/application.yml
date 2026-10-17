@@ -71,6 +71,7 @@ en:
     View details: View details
   alerts:
     Invalid credentials: Try another email address or password.
+    Password required: Enter a password before saving.
     Password reset link expired: Password reset link is invalid or has expired.
     Passwords did not match: Passwords did not match.
     Try again later: Try again later.

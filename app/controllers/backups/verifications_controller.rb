@@ -1,7 +1,5 @@
 module Backups
   class VerificationsController < ApplicationController
-    allow_unauthenticated_access
-
     def create
       directory = Backup::Locator.resolve(params.expect(:identifier))
       Backup::Verifier.call(directory:)

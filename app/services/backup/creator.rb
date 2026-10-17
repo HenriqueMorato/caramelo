@@ -89,13 +89,19 @@ module Backup
     def filter_ledger(path)
       database = SQLite3::Database.new(path.to_s)
       database.execute("PRAGMA foreign_keys = OFF")
+      empty_replaceable_tables(database)
+      if Caramelo::AccountMode.multi?
+        database.execute("PRAGMA foreign_keys = ON")
+        database.execute("VACUUM")
+        return
+      end
+
       owner_id = database.get_first_value(
         "SELECT id FROM users WHERE email_address = ?",
         [ User.owner.email_address ]
       )
       raise Error, "configured owner is missing from the primary database" unless owner_id
 
-      empty_replaceable_tables(database)
       database.execute("DELETE FROM corporate_action_imports WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM corporate_action_import_scans WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM corporate_actions WHERE user_id <> ?", [ owner_id ])

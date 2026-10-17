@@ -1,10 +1,8 @@
 module MarketData
   class RecoveriesController < ApplicationController
-    allow_unauthenticated_access
-
     def create
-      target = TargetResolver.call(attributes: target_params)
-      result = Recovery.call(target:, range: recovery_range)
+      target = TargetResolver.call(attributes: target_params, owner: current_account)
+      result = Recovery.call(target:, range: recovery_range, owner: current_account)
 
       if result.throttled?
         respond_with_status_toast("This data target was refreshed recently. Try again shortly.",
@@ -24,10 +22,10 @@ module MarketData
     end
 
     def destroy
-      target = TargetResolver.call(attributes: target_params)
+      target = TargetResolver.call(attributes: target_params, owner: current_account)
       raise ArgumentError, "reset preview is required" if params[:preview_token].blank?
 
-      result = Reset.call(target:, preview_token: params[:preview_token])
+      result = Reset.call(target:, preview_token: params[:preview_token], owner: current_account)
 
       if result.queued?
         respond_with_toast("Data replacement started.", redirect_to: market_data_health_path)

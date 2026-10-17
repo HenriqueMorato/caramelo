@@ -16,9 +16,9 @@
 </p>
 
 <p align="center">
-  A local-first portfolio tracker for one owner. Record trades, follow
-  positions, compare currencies, and explore historical performance while
-  keeping the primary ledger on your own machine.
+  A local-first portfolio tracker for one owner by default. Record trades,
+  follow positions, compare currencies, and explore historical performance
+  while keeping the primary ledger on your own machine.
 </p>
 
 <p align="center">
@@ -90,8 +90,12 @@ delete the local application data and backups.
 
 ### Optional Configuration
 
-The built-in owner identifier is `admin@caramelo.local`. To choose another
-address for a fresh install, copy the example before the first run:
+The built-in owner identifier is `admin@caramelo.local`. On the first visit,
+caramelo asks you to choose a real password for that account. The seed never
+prints or stores a usable default password.
+
+To choose another owner address for a fresh install, copy the example before
+the first run:
 
 ```sh
 cp .env.docker.example .env.docker
@@ -103,27 +107,40 @@ environment variables remain supported during the rename. The ignored
 environment file may also hold a manually managed `SECRET_KEY_BASE`, but
 caramelo normally creates and retains one inside its private storage volume.
 
+`CARAMELO_ACCOUNT_MODE` controls account scope:
+
+- `single` (the default) allows only the configured owner to sign in and keeps
+  the existing single-wallet behavior;
+- `multi` enables browser account creation and scopes trades, income, positions,
+  performance, and exports to the signed-in account.
+
+Switching from `multi` back to `single` keeps the other users and their wallet
+records in the database; they simply cannot sign in while single mode is active.
+The mode is read when the application boots, so restart both Compose services
+after changing it.
+
 To use another host port without editing a file:
 
 ```sh
 CARAMELO_PORT=8080 docker compose up --build
 ```
 
-The default bind address is `127.0.0.1`, so the unauthenticated application is
-reachable only from the Docker host. To allow another trusted device on your
-network to connect, opt in explicitly:
+The default bind address is `127.0.0.1`, so the application is reachable only
+from the Docker host. To allow another trusted device on your network to
+connect, opt in explicitly:
 
 ```sh
 CARAMELO_BIND_ADDRESS=0.0.0.0 docker compose up --build
 ```
 
-caramelo is currently a single-user app and login is not active. Keep the
-default localhost binding unless you trust every device on the network. Do not
-expose the `0.0.0.0` binding to an untrusted network.
+Login is required for application pages in both account modes. Keep the default
+localhost binding unless you trust every device on the network. Do not expose
+the `0.0.0.0` binding to an untrusted network.
 
 ## First Run
 
-Once the dashboard opens, set up one position from the menus:
+Once you choose the first-run password and the dashboard opens, set up one
+position from the menus:
 
 1. Open **Instruments** and choose **Add instrument**. Enter the listing's
    ticker, exchange MIC (the market's short code, such as `BVMF` for B3 or

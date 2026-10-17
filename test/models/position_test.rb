@@ -90,7 +90,7 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("2"), result.position.quantity
   end
 
-  test "does not use a materialization for another owner" do
+  test "returns no materialization when the requested owner has none" do
     instrument = create_instrument
 
     assert_nil Position.materialized_position(instrument, owner: users(:one))
@@ -143,6 +143,28 @@ class PositionTest < ActiveSupport::TestCase
     assert_equal sell.traded_on, position.last_trade_date
     assert_predicate position, :open?
     assert_not_predicate position, :closed?
+  end
+
+  test "calculates one instrument for the requested owner" do
+    instrument = create_instrument
+    create_trade(instrument:, user: users(:owner), quantity: 10)
+    create_trade(instrument:, user: users(:one), quantity: 3)
+
+    position = Position.for(instrument:, owner: users(:one))
+
+    assert_equal BigDecimal("3"), position.quantity
+  end
+
+  test "reads a completed materialization for the requested owner" do
+    instrument = create_instrument
+    materialization = PositionMaterialization.create!(user: users(:one), instrument:)
+    materialization.update!(status: "complete", calculated_at: Time.current, quantity: 3,
+      cost_basis_amount: 30, average_unit_cost: 10, realized_gain_amount: 4)
+
+    position = Position.for(instrument:, owner: users(:one))
+
+    assert_equal BigDecimal("3"), position.quantity
+    assert_equal BigDecimal("30"), position.analytical_cost_basis_amount
   end
 
   test "filters supplied trades by the historical cutoff" do

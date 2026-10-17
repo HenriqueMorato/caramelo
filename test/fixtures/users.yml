@@ -3,11 +3,14 @@
 owner:
   email_address: admin@caramelo.local
   password_digest: <%= password_digest %>
+  password_configured_at: <%= Time.current %>
 
 one:
   email_address: one@example.com
   password_digest: <%= password_digest %>
+  password_configured_at: <%= Time.current %>
 
 two:
   email_address: two@example.com
   password_digest: <%= password_digest %>
+  password_configured_at: <%= Time.current %>

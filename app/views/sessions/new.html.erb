@@ -11,10 +11,12 @@
 
   <%= form_with url: session_url, class: "contents" do |form| %>
     <div class="my-5">
+      <%= form.label :email_address, t(".Email label"), class: "sr-only" %>
       <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", spellcheck: false, placeholder: t(".Email placeholder"), value: params[:email_address], class: "ui-field" %>
     </div>
 
     <div class="my-5">
+      <%= form.label :password, t(".Password label"), class: "sr-only" %>
       <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: t(".Password placeholder"), maxlength: 72, class: "ui-field" %>
     </div>
 
@@ -26,6 +28,11 @@
       <div class="mt-4 text-sm text-muted sm:mt-0">
         <%= link_to t(".Forgot password?"), new_password_path, class: "text-caramel-deep underline hover:text-coffee hover:no-underline" %>
       </div>
+      <% if Caramelo::AccountMode.multi? %>
+        <div class="mt-4 text-sm text-muted sm:mt-0">
+          <%= link_to t("accounts.Create an account"), new_account_path, class: "text-caramel-deep underline hover:text-coffee hover:no-underline" %>
+        </div>
+      <% end %>
     </div>
   <% end %>
 </div>

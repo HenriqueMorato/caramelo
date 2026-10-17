@@ -1,18 +1,48 @@
 ---
 en:
+  Sign out: Sign out
+  account_setup:
+    Confirmation label: Confirm password
+    Eyebrow: First run
+    Introduction: Choose the password for %{email}. You will use it to sign in to
+      caramelo.
+    Page title: Set up your account
+    Password help: Use a password you can keep private. It is stored as a one-way
+      hash.
+    Password label: Password
+    Password saved: Password saved. You are signed in.
+    Save: Save password and continue
+    Title: Set up your account
+  accounts:
+    Account created: Account created. You are signed in.
+    Confirmation label: Confirm password
+    Create: Create account
+    Create an account: Create an account
+    Email label: Email address
+    Eyebrow: New account
+    Introduction: Create a separate wallet. You will only see your own trades, income,
+      positions, and performance.
+    Page title: Create an account
+    Password label: Password
+    Title: Create an account
   passwords:
     edit:
+      Confirmation label: Confirm password
       Confirmation placeholder: Repeat new password
+      Password label: New password
       Password placeholder: Enter new password
       Save: Save
       Update your password: Update your password
     new:
+      Email label: Email address
       Email placeholder: Enter your email address
       Email reset instructions: Email reset instructions
       Forgot your password?: Forgot your password?
   sessions:
     new:
+      Email label: Email address
       Email placeholder: Enter your email address
       Forgot password?: Forgot password?
+      Password label: Password
       Password placeholder: Enter your password
       Sign in: Sign in

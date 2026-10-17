@@ -86,15 +86,22 @@ module Backup
     def verify_ledger_rows(database)
       owner_id = database.get_first_value("SELECT id FROM users ORDER BY id LIMIT 1")
       raise VerificationError, "ledger has no owner" unless owner_id
-      %w[sessions daily_closing_prices historical_exchange_rates current_market_prices market_benchmark_observations].each do |table|
+      REPLACEABLE_TABLES.each do |table|
         next unless database.table_info(table).any?
         raise VerificationError, "ledger contains replaceable rows: #{table}" unless database.get_first_value("SELECT COUNT(*) FROM #{table}").zero?
       end
+      user_count = database.get_first_value("SELECT COUNT(*) FROM users")
+      if user_count > 1 && Caramelo::AccountMode.multi?
+        invalid_trade = database.get_first_value(
+          "SELECT 1 FROM trades WHERE user_id NOT IN (SELECT id FROM users) LIMIT 1"
+        )
+        raise VerificationError, "ledger contains trades for missing users" if invalid_trade
+        return
+      end
+
       invalid_trade = database.get_first_value("SELECT 1 FROM trades WHERE user_id <> ? LIMIT 1", [ owner_id ])
       raise VerificationError, "ledger contains unrelated trades" if invalid_trade
-      return if database.get_first_value("SELECT COUNT(*) FROM users") == 1
-
-      raise VerificationError, "ledger contains unrelated users"
+      raise VerificationError, "ledger contains unrelated users" if user_count > 1
     end
 
     def artifact_path(artifact) = directory.join("#{artifact}.sqlite3")

@@ -96,6 +96,14 @@ class CaptureDailyClosingPricesJobTest < ActiveJob::TestCase
     assert_equal Trade.where(user: User.owner).distinct.count(:instrument_id), state.processed_count
   end
 
+  test "includes every account's instruments in multi mode" do
+    job = CaptureDailyClosingPricesJob.new
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      assert_equal Trade.distinct.pluck(:instrument_id).sort, job.send(:traded_instruments).pluck(:id).sort
+    end
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

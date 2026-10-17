@@ -58,8 +58,9 @@ class RefreshTradedMarketPricesJob < ApplicationJob
   end
 
   def traded_instruments
+    trades = Caramelo::AccountMode.multi? ? Trade.all : Trade.where(user: User.owner)
     Instrument.where(
-      id: Trade.where(user: User.owner).select(:instrument_id)
+      id: trades.distinct.select(:instrument_id)
     )
   end
 

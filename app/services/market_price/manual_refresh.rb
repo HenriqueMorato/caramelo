@@ -12,7 +12,8 @@ module MarketPrice
       new(clock:).available?
     end
 
-    def initialize(enqueuer: RefreshEnqueuer.new, clock: -> { Time.current })
+    def initialize(user: User.owner, enqueuer: RefreshEnqueuer.new, clock: -> { Time.current })
+      @user = user
       @enqueuer = enqueuer
       @clock = clock
     end
@@ -46,7 +47,7 @@ module MarketPrice
 
     private
 
-    attr_reader :enqueuer, :clock
+    attr_reader :user, :enqueuer, :clock
 
     def acquire_lease
       token = SecureRandom.uuid
@@ -59,7 +60,7 @@ module MarketPrice
     end
 
     def traded_instruments
-      Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
+      Instrument.where(id: Trade.where(user:).select(:instrument_id))
     end
 
     def advance_batch

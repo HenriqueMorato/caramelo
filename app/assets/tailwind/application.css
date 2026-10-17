@@ -449,7 +449,8 @@ html[data-theme="dark"] {
     @apply relative before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''];
   }
 
-  .currency-view-option[data-active="true"] {
+  .currency-view-option[data-active="true"],
+  .currency-view-option[aria-pressed="true"] {
     @apply bg-caramel-deep text-on-accent shadow-sm;
   }
 

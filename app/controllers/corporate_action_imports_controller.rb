@@ -1,6 +1,4 @@
 class CorporateActionImportsController < ApplicationController
-  allow_unauthenticated_access
-
   SUPPORTED_SOURCES = CorporateActionImports::Providers::SUPPORTED_SOURCES
 
   before_action :set_import, only: %i[ edit update confirm ignore ]
@@ -87,7 +85,7 @@ class CorporateActionImportsController < ApplicationController
   private
 
   def owner
-    @owner ||= User.owner
+    @owner ||= current_account
   end
 
   def set_import

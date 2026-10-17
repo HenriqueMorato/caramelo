@@ -1,9 +1,9 @@
-<%# locals: (status:, broadcast: false) %>
+<%# locals: (status:, owner: nil, broadcast: false) %>
 
 <%# i18n-tasks-use t("Market data updating") %>
 
 <% unless broadcast %>
-  <%= turbo_stream_from RefreshStatus::Broadcaster::STREAM_NAME %>
+  <%= turbo_stream_from RefreshStatus::Broadcaster.stream_name(owner:) if owner %>
 <% end %>
 
 <div id="<%= RefreshStatus::Broadcaster::TARGET %>" aria-live="polite">

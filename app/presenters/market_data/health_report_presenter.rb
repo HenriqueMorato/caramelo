@@ -2,10 +2,11 @@ module MarketData
   class HealthReportPresenter
     FILTERS = %w[all attention healthy].freeze
 
-    attr_reader :report, :status_filter
+    attr_reader :report, :status_filter, :owner
 
-    def initialize(report:, status_filter: "all", preview_factory: ResetPreview)
+    def initialize(report:, owner: User.owner, status_filter: "all", preview_factory: ResetPreview)
       @report = report
+      @owner = owner
       @status_filter = FILTERS.include?(status_filter) ? status_filter : "all"
       @reset_previews = build_reset_previews(preview_factory)
     end
@@ -43,7 +44,7 @@ module MarketData
         next unless entry.resettable?
 
         range = entry.covered_range || entry.missing_range
-        [ entry.target.scope, preview_factory.create(target: entry.target, range:) ]
+        [ entry.target.scope, preview_factory.create(target: entry.target, range:, owner:) ]
       end.to_h
     end
   end

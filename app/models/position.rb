@@ -160,25 +160,25 @@ class Position
     :average_unit_cost, :analytical_realized_gain_amount, :realized_gain,
     :first_trade_date, :last_trade_date
 
-  def self.for(instrument:, as_of: nil, trades: nil, corporate_actions: nil)
+  def self.for(instrument:, as_of: nil, trades: nil, corporate_actions: nil, owner: User.owner)
     if trades.nil? && corporate_actions.nil? && as_of.nil?
       materialization = PositionMaterialization.where.not(calculated_at: nil)
-        .find_by(user: User.owner, instrument:)
+        .find_by(user: owner, instrument:)
       return from_materialization(materialization) if materialization
     end
 
     if trades
-      trades = trades.select { |trade| trade.user_id == User.owner.id && trade.instrument == instrument }
+      trades = trades.select { |trade| trade.user_id == owner.id && trade.instrument == instrument }
       trades = trades.select { |trade| trade.traded_on <= as_of } if as_of
       trades.sort_by! { |trade| [ trade.traded_on, trade.id ] }
     else
-      trades = User.owner.trades.where(instrument:)
+      trades = owner.trades.where(instrument:)
       trades = trades.where(traded_on: ..as_of) if as_of
       trades = trades.order(:traded_on, :id).to_a
     end
 
     corporate_actions = quantity_actions_for(
-      instrument:, as_of:, supplied_actions: corporate_actions
+      instrument:, as_of:, supplied_actions: corporate_actions, owner:
     )
     new(instrument:, trades:, corporate_actions:)
   end
@@ -247,22 +247,20 @@ class Position
   end
 
   def self.materialized_position(instrument, owner:)
-    return if owner != User.owner
-
     materialization = PositionMaterialization.find_by(user: owner, instrument:)
     return unless materialization&.calculated_at
 
     from_materialization(materialization)
   end
 
-  def self.quantity_actions_for(instrument:, as_of:, supplied_actions:)
+  def self.quantity_actions_for(instrument:, as_of:, supplied_actions:, owner:)
     actions = if supplied_actions
       supplied_actions.select do |action|
-        action.user_id == User.owner.id && action.instrument == instrument &&
+        action.user_id == owner.id && action.instrument == instrument &&
           action.confirmed? && action.quantity_action?
       end
     else
-      User.owner.corporate_actions.effective.where(instrument:).where.not(effective_on: nil).to_a
+      owner.corporate_actions.effective.where(instrument:).where.not(effective_on: nil).to_a
     end
     effective_through = as_of || Date.current
     actions = actions.select { |action| action.effective_on <= effective_through }

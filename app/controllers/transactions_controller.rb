@@ -1,6 +1,4 @@
 class TransactionsController < ApplicationController
-  allow_unauthenticated_access
-
   def index
     @activity = params[:activity].presence_in(ActivityHistory::FILTERS)
     history = ActivityHistory.new(trades:, income:, activity: params[:activity])
@@ -12,7 +10,7 @@ class TransactionsController < ApplicationController
   private
 
   def owner
-    @owner ||= User.owner
+    @owner ||= current_account
   end
 
   def trades

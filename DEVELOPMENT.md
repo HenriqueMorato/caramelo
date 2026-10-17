@@ -114,12 +114,26 @@ bin/dev
 
 An ignored `.envrc` with that export can be used when working with `direnv`.
 Legacy owner records and environment variables from before the rename remain
-supported. Future owner-scoped records should resolve their user through
-`User.owner`.
+supported. Request-scoped records should use the authenticated account; jobs
+that run without a request should receive an explicit user or use
+`User.owner` only for single-account compatibility.
 
-Login is intentionally inactive during the single-user phase. Authentication
-models, routes, password hashing, and reset behavior remain covered for future
-activation, while application pages stay public.
+Authentication is active. The first browser visit after a fresh seed opens a
+one-time password setup for the configured owner. The password is stored with
+`has_secure_password`; there is no default password to copy from logs or
+environment files.
+
+`CARAMELO_ACCOUNT_MODE=single` is the default and limits sign-in to the
+configured owner. Set `CARAMELO_ACCOUNT_MODE=multi` before boot to enable
+account creation and scope each request to its signed-in user. Switching back
+to `single` preserves other users and their records but hides those accounts
+until multi mode is enabled again.
+
+For a multi-account development run, set the variable before starting Rails:
+
+```sh
+CARAMELO_ACCOUNT_MODE=multi bin/dev
+```
 
 ## Current Market Prices
 
@@ -181,14 +195,15 @@ bin/backup restore backups/2026-09-05T120000.000000Z \
 
 Each run is atomically published under `backups/` with a complete
 `primary.sqlite3`, a filtered `ledger.sqlite3`, `manifest.json`, and
-`SHA256SUMS`. The primary database includes durable and historical records. The
-ledger keeps only the configured owner, that owner's trades, and referenced
-instruments and institutions; cache-like market data, sessions, and derived
-projections are empty. Both files contain sensitive financial data and the
-owner's password digest. The default rotation keeps seven daily, four weekly,
-and twelve monthly representatives. Set `CARAMELO_BACKUP_KEEP_DAILY`,
-`CARAMELO_BACKUP_KEEP_WEEKLY`, and `CARAMELO_BACKUP_KEEP_MONTHLY` to override
-it.
+`SHA256SUMS`. The primary database includes durable and historical records. In
+single-account mode, the ledger keeps only the configured owner, that owner's
+trades, and referenced instruments and institutions. In multi-account mode, it
+keeps every account and its wallet records. In both modes, cache-like market
+data, sessions, and derived projections are empty. Both files contain sensitive
+financial data and password digests. The default rotation keeps seven daily,
+four weekly, and twelve monthly representatives. Set
+`CARAMELO_BACKUP_KEEP_DAILY`, `CARAMELO_BACKUP_KEEP_WEEKLY`, and
+`CARAMELO_BACKUP_KEEP_MONTHLY` to override it.
 
 For explicit age-based cleanup, preview and then run:
 

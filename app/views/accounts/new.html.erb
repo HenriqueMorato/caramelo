@@ -1,0 +1,35 @@
+<% content_for :title, t("accounts.Page title") %>
+
+<div class="mx-auto w-full max-w-lg">
+  <p class="ui-eyebrow"><%= t("accounts.Eyebrow") %></p>
+  <h1 class="ui-page-title mt-3"><%= t("accounts.Title") %></h1>
+  <p class="ui-page-intro mt-3"><%= t("accounts.Introduction") %></p>
+
+  <%= form_with model: @user, url: accounts_path, class: "mt-8 space-y-5" do |form| %>
+    <% if @user.errors.any? %>
+      <div class="ui-form-errors" role="alert">
+        <%= @user.errors.full_messages.to_sentence %>
+      </div>
+    <% end %>
+
+    <div>
+      <%= form.label :email_address, t("accounts.Email label"), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.email_field :email_address, required: true, autocomplete: "username", spellcheck: false,
+        class: "ui-field mt-2", autofocus: true %>
+    </div>
+
+    <div>
+      <%= form.label :password, t("accounts.Password label"), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.password_field :password, required: true, autocomplete: "new-password", maxlength: 72,
+        class: "ui-field mt-2" %>
+    </div>
+
+    <div>
+      <%= form.label :password_confirmation, t("accounts.Confirmation label"), class: "block text-sm font-semibold text-coffee" %>
+      <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72,
+        class: "ui-field mt-2" %>
+    </div>
+
+    <%= form.submit t("accounts.Create"), class: "ui-button ui-button-primary min-h-11 w-full cursor-pointer" %>
+  <% end %>
+</div>

@@ -29,7 +29,8 @@ class CaptureDailyClosingPricesJob < ApplicationJob
   end
 
   def traded_instruments
-    Instrument.where(id: Trade.where(user: User.owner).select(:instrument_id))
+    trades = Caramelo::AccountMode.multi? ? Trade.all : Trade.where(user: User.owner)
+    Instrument.where(id: trades.distinct.select(:instrument_id))
   end
 
   def publication_fence(instrument:)

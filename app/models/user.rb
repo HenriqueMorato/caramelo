@@ -15,8 +15,14 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(e) { e.strip.downcase }
   normalizes :reporting_currency, with: ->(currency) { currency.strip.upcase }
 
+  validates :email_address, presence: true, length: { maximum: 320 },
+    uniqueness: { case_sensitive: false }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :reporting_currency, presence: true
   validates :reporting_currency, inclusion: { in: ReportingCurrency::SUPPORTED_CODES, message: :invalid }
+
+  def password_configured?
+    password_configured_at.present?
+  end
 
   def self.owner
     owner = owner_or_initialize

@@ -52,6 +52,52 @@ class MarketData::StartupRefreshTest < ActiveSupport::TestCase
       MarketData::StartupRefresh.send(:benchmark_history_start)
   end
 
+  test "keeps wallets without configured passwords in multi-account startup work" do
+    previous = Rails.application.config.x.caramelo.account_mode
+    Rails.application.config.x.caramelo.account_mode = "multi"
+    users(:one).update!(password_configured_at: nil)
+
+    assert_includes MarketData::StartupRefresh.send(:account_users), users(:one)
+  ensure
+    Rails.application.config.x.caramelo.account_mode = previous
+  end
+
+  test "prepares market data independently for every account in multi mode" do
+    events = []
+    previous = Rails.application.config.x.caramelo.account_mode
+    Rails.application.config.x.caramelo.account_mode = "multi"
+
+    with_stubbed_method(MarketBenchmark, :ensure_defaults!, -> { }) do
+      with_stubbed_method(RefreshStatus::Tracker, :enqueue, ->(**) { }) do
+        with_stubbed_method(RefreshTradedMarketPricesJob, :enqueue_for, -> { }) do
+          with_stubbed_method(CaptureDailyClosingPricesJob, :perform_later, -> { }) do
+            with_stubbed_method(CaptureHistoricalExchangeRatesJob, :perform_later, -> { }) do
+              with_stubbed_method(PrepareReportingCurrencyJob, :enqueue_for, ->(**) { }) do
+                with_stubbed_method(CaptureMarketBenchmarkObservationsJob, :perform_later, ->(**) { }) do
+                  with_stubbed_method(InstrumentPerformance::StartupPreparation, :call, ->(**args) {
+                    events << [ :instrument, args.fetch(:user) ]
+                  }) do
+                    with_stubbed_method(CorporateActionImports::Automation, :call, ->(**args) {
+                      events << [ :income, args.fetch(:user) ]
+                    }) do
+                      MarketData::StartupRefresh.call
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+
+    assert_equal User.count * 2, events.size
+    assert_equal User.all.to_a, events.select { |kind, _| kind == :instrument }.map(&:last)
+    assert_equal User.all.to_a, events.select { |kind, _| kind == :income }.map(&:last)
+  ensure
+    Rails.application.config.x.caramelo.account_mode = previous
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

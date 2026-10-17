@@ -91,16 +91,28 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   end
 
   def refresh_exchange_rate(instrument:, force:)
-    reporting_currency = User.owner.reporting_currency
-    return if instrument.currency == reporting_currency
+    reporting_currencies_for(instrument:).each do |reporting_currency|
+      next if instrument.currency == reporting_currency
 
-    exchange_rate_service.refresh(
-      base_currency: instrument.currency,
-      quote_currency: reporting_currency,
-      force:
-    )
+      exchange_rate_service.refresh(
+        base_currency: instrument.currency,
+        quote_currency: reporting_currency,
+        force:
+      )
+    end
   rescue ExchangeRate::InvalidValue => error
     report(error, instrument:)
+  end
+
+  def reporting_currencies_for(instrument:)
+    users = if Caramelo::AccountMode.multi?
+      user_ids = Trade.where(instrument:).pluck(:user_id) + CorporateAction.where(instrument:).pluck(:user_id)
+      User.where(id: user_ids.uniq)
+    else
+      User.where(id: User.owner.id)
+    end
+    currencies = users.distinct.pluck(:reporting_currency)
+    currencies.presence || [ User.owner.reporting_currency ]
   end
 
   def broadcast_current(instrument)

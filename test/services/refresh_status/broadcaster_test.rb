@@ -95,6 +95,26 @@ class RefreshStatus::BroadcasterTest < ActiveSupport::TestCase
     assert_equal 0, calls
   end
 
+  test "broadcasts scoped status to every configured account in multi mode" do
+    health_calls = []
+    presenter = Object.new
+    configured_users = User.where.not(password_configured_at: nil).to_a
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      with_stubbed_method(RefreshStatus::Presenter, :for, -> { presenter }) do
+        with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, ->(**attributes) {
+          health_calls << attributes
+        }) do
+          with_stubbed_method(Turbo::StreamsChannel, :broadcast_update_to, ->(*, **) { }) do
+            RefreshStatus::Broadcaster.refresh
+          end
+        end
+      end
+    end
+
+    assert_equal configured_users, health_calls.map { |attributes| attributes.fetch(:owner) }
+  end
+
   private
 
   def with_stubbed_method(object, method_name, replacement)

@@ -33,7 +33,7 @@ module MarketData
 
       def foreign_currencies
         @foreign_currencies ||= instruments.filter_map do |instrument|
-          next unless instrument.currency != owner.reporting_currency && Position.for(instrument:).open?
+          next unless instrument.currency != owner.reporting_currency && Position.for(instrument:, owner:).open?
 
           instrument.currency
         end.uniq

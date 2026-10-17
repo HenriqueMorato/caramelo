@@ -36,6 +36,23 @@ class BackupTest < ActiveSupport::TestCase
     assert_equal 0, verification.record_counts.fetch("ledger").fetch("daily_closing_prices")
   end
 
+  test "creates a multi-account ledger without replaceable rows" do
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+      verification = Backup::Verifier.call(directory: result.directory)
+
+      assert_equal 3, verification.record_counts.fetch("ledger").fetch("users")
+      Backup::REPLACEABLE_TABLES.each do |table|
+        assert_equal 0, verification.record_counts.fetch("ledger").fetch(table, 0), table
+      end
+      restored_path = @destination.join("multi-ledger-copy.sqlite3")
+      restored = Backup::Restorer.call(
+        directory: result.directory, artifact: :ledger, destination: restored_path, live_path: @source
+      )
+      assert_equal restored_path, restored.restored_path
+    end
+  end
+
   test "keeps corporate actions and import reviews in the durable ledger artifact" do
     action = CorporateAction.create!(
       user: users(:owner), instrument: instruments(:petr4_bvmf), kind: :dividend,
@@ -412,6 +429,23 @@ class BackupTest < ActiveSupport::TestCase
     rewrite_checksums(result.directory)
 
     assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
+  end
+
+  test "rejects trades for missing users in a multi-account ledger" do
+    result = nil
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-06 12:00:00"))
+    end
+
+    database = SQLite3::Database.new(result.ledger_path.to_s)
+    database.execute("PRAGMA foreign_keys = OFF")
+    database.execute("UPDATE trades SET user_id = 999999 WHERE id = (SELECT id FROM trades LIMIT 1)")
+    database.close
+    rewrite_checksums(result.directory)
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      assert_raises(Backup::VerificationError) { Backup::Verifier.call(directory: result.directory) }
+    end
   end
 
   test "scheduler claims a new day and does not claim it twice" do

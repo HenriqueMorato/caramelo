@@ -11,6 +11,14 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "admin@caramelo.local", User.owner.email_address
   end
 
+  test "tracks whether a real password has been configured" do
+    user = users(:owner)
+
+    assert_predicate user, :password_configured?
+    user.update!(password_configured_at: nil)
+    assert_not user.password_configured?
+  end
+
   test "raises when a custom configured owner does not exist" do
     configured_email = Rails.application.config.x.caramelo.owner_email
     Rails.application.config.x.caramelo.owner_email = "missing@example.com"

@@ -1,13 +1,13 @@
 class PerformancesController < ApplicationController
-  allow_unauthenticated_access
-
   def show
-    @period_selection = Performance::PeriodSelection.for(period: params[:period])
+    @period_selection = Performance::PeriodSelection.for(period: params[:period], owner: current_account)
     @selected_period = @period_selection.period
-    @performance = Performance::Period.for(from: period_start, to: period_end)
+    @performance = Performance::Period.for(from: period_start, to: period_end, owner: current_account)
     if @performance.available?
       @period_presenter = Performance::PeriodPresenter.new(@performance)
-      @series = Performance::Series.for(from: period_start, to: period_end)
+      @series = Performance::Series.for(
+        from: period_start, to: period_end, user: current_account
+      )
       @series_presenter = Performance::SeriesPresenter.new(@series)
       @benchmark_results = benchmark_results(reporting_currency: @performance.closing_valuation.market_value.currency.iso_code)
       @benchmark_chart_data = Performance::BenchmarkChartData.for(series: @series, benchmark_results: @benchmark_results)

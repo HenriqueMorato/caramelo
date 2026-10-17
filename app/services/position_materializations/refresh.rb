@@ -14,7 +14,7 @@ module PositionMaterializations
       source_actions = corporate_actions
       position = Position.for(
         instrument: materialization.instrument, trades: source_trades,
-        corporate_actions: source_actions
+        corporate_actions: source_actions, owner: materialization.user
       )
       publish(position, source_trades, generation)
       materialization

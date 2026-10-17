@@ -9,7 +9,7 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "create" do
-    post passwords_path, params: { email_address: @user.email_address }
+    post passwords_path, params: { email_address: "  #{@user.email_address.upcase} " }
     assert_enqueued_email_with PasswordsMailer, :reset, args: [ @user ]
     assert_redirected_to new_session_path
 
@@ -45,6 +45,8 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
       assert_redirected_to new_session_path
     end
 
+    assert_predicate @user.reload, :password_configured?
+
     follow_redirect!
     assert_notice "Password has been reset"
   end
@@ -58,6 +60,18 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_notice "Passwords did not match"
+  end
+
+  test "update with a blank password keeps the existing password" do
+    token = @user.password_reset_token
+    original_digest = @user.password_digest
+
+    put password_path(token), params: { password: "", password_confirmation: "" }
+
+    assert_redirected_to edit_password_path(token)
+    assert_equal original_digest, @user.reload.password_digest
+    follow_redirect!
+    assert_notice "Enter a password before saving"
   end
 
   private

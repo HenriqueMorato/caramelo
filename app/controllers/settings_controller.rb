@@ -1,5 +1,4 @@
 class SettingsController < ApplicationController
-  allow_unauthenticated_access
   before_action :set_owner
 
   def show
@@ -21,6 +20,6 @@ class SettingsController < ApplicationController
   private
 
   def set_owner
-    @owner = User.owner
+    @owner = current_account
   end
 end

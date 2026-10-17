@@ -1,8 +1,8 @@
-<%# locals: (series:, series_presenter:) %>
+<%# locals: (series:, series_presenter:, reporting_currency:) %>
 
 <article class="flex h-full flex-col rounded-[1.25rem] border border-coffee/10 bg-oat-2 p-5 sm:p-6">
   <% if series&.displayable? %>
-    <% currency = series.observations.find { |observation| observation.market_value&.currency }&.market_value&.currency&.iso_code || User.owner.reporting_currency %>
+    <% currency = series.observations.find { |observation| observation.market_value&.currency }&.market_value&.currency&.iso_code || reporting_currency %>
     <% chart_data = series_presenter.chart_data(
       benchmarks: [], currency:, include_money_values: !money_values_hidden?
     ) %>

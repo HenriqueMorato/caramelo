@@ -7,7 +7,7 @@ class PasswordsController < ApplicationController
   end
 
   def create
-    if user = User.find_by(email_address: params[:email_address])
+    if user = User.find_by(email_address: params[:email_address].to_s.strip.downcase)
       PasswordsMailer.reset(user).deliver_later
     end
 
@@ -18,7 +18,11 @@ class PasswordsController < ApplicationController
   end
 
   def update
-    if @user.update(params.permit(:password, :password_confirmation))
+    attributes = params.permit(:password, :password_confirmation)
+    if attributes[:password].blank?
+      redirect_to edit_password_path(params[:token]), alert: t("alerts.Password required")
+    elsif @user.update(attributes)
+      @user.update_column(:password_configured_at, Time.current)
       @user.sessions.destroy_all
       redirect_to new_session_path, notice: t("notices.Password was reset")
     else
