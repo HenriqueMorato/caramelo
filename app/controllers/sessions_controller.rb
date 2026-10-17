@@ -3,13 +3,12 @@ class SessionsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to new_session_path, alert: I18n.t("alerts.Try again later") }
 
   def new
-    redirect_to new_account_setup_path if account_setup_required?
   end
 
   def create
     if user = User.authenticate_by(params.permit(:email_address, :password))
       user = nil unless user.password_configured?
-      user = nil if Caramelo::AccountMode.single? && user != User.owner
+      user = nil if Caramelo::AccountMode.single? && user != User.owner_or_initialize
     end
 
     if user

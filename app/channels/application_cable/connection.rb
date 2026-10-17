@@ -18,7 +18,7 @@ module ApplicationCable
         user = Session.find_by(id: cookies.signed[:session_id])&.user
         return unless user
         return unless user.password_configured?
-        return user if Caramelo::AccountMode.multi? || user == User.owner
+        return user if Caramelo::AccountMode.multi? || user == User.owner_or_initialize
 
         nil
       end

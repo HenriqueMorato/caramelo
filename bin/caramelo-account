@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require_relative "../config/environment"
+require "io/console"
+
+exit Caramelo::AccountCommand.run(ARGV)

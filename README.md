@@ -91,9 +91,9 @@ delete the local application data and backups.
 ### Optional Configuration
 
 The built-in owner identifier is `admin@caramelo.local`. When password
-authentication is enabled, caramelo asks you to choose a real password for that
-account on the first visit. The seed never prints or stores a usable default
-password.
+authentication is enabled, choose a real password for that account from the
+trusted terminal before signing in. The seed never prints or stores a usable
+default password.
 
 To choose another owner address for a fresh install, copy the example before
 the first run:
@@ -102,18 +102,19 @@ the first run:
 cp .env.docker.example .env.docker
 ```
 
-Edit `CARAMELO_OWNER_EMAIL` in `.env.docker`, then start the stack. Existing
-installations keep resolving the previous owner automatically, and legacy
-environment variables remain supported during the rename. The ignored
-environment file may also hold a manually managed `SECRET_KEY_BASE`, but
-caramelo normally creates and retains one inside its private storage volume.
+Edit `CARAMELO_OWNER_EMAIL` in `.env.docker`, then start the stack. Keep the
+same owner address for an existing database: the terminal setup command refuses
+to create a replacement owner when another account already exists, so changing
+the value cannot silently hide wallet data. The ignored environment file may
+also hold a manually managed `SECRET_KEY_BASE`, but caramelo normally creates
+and retains one inside its private storage volume.
 
 `CARAMELO_ACCOUNT_MODE` controls account scope:
 
 - `single` (the default) allows only the configured owner to sign in and keeps
   the existing single-wallet behavior;
-- `multi` enables browser account creation and scopes trades, income, positions,
-  performance, and exports to the signed-in account.
+- `multi` enables additional accounts created from the terminal and scopes
+  trades, income, positions, performance, and exports to the signed-in account.
 
 Switching from `multi` back to `single` keeps the other users and their wallet
 records in the database; they simply cannot sign in while single mode is active.
@@ -125,13 +126,60 @@ install:
 
 - `public` (the default) keeps the local single-wallet experience without a
   login;
-- `password` opens the first-run password setup and requires the configured
-  owner to sign in.
+- `password` requires the configured owner to set the first password from the
+  terminal before signing in.
 
 Multi-account mode always requires password authentication. Switching a running
 development or Compose stack between modes only changes access rules; it does
 not delete users or wallet records. Restart the application after changing
 either setting.
+
+New and changed passwords use a configurable policy: eight characters minimum,
+an uppercase letter, a lowercase letter, a number, and a symbol by default. Set
+`CARAMELO_PASSWORD_MIN_LENGTH` or any of the
+`CARAMELO_PASSWORD_REQUIRE_UPPERCASE`,
+`CARAMELO_PASSWORD_REQUIRE_LOWERCASE`,
+`CARAMELO_PASSWORD_REQUIRE_NUMBER`, and
+`CARAMELO_PASSWORD_REQUIRE_SYMBOL` variables to change the policy before boot.
+Existing passwords remain valid until they are changed. The terminal change
+command verifies the current password; the terminal recovery command requires
+an explicit `RESET` confirmation. The browser reset-password flow remains
+available when email delivery is configured.
+
+On a fresh install, set the configured owner's first password before starting
+password authentication:
+
+```sh
+# Docker Compose
+docker compose exec web bin/caramelo-password setup
+
+# Dev Container
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/caramelo-password setup
+
+# Native development
+bin/caramelo-password setup
+```
+
+New accounts are created from the terminal so account creation remains an
+explicit local administrative action. Complete the first password setup, enable
+multi-account mode, then run the command that matches your installation:
+
+```sh
+# Docker Compose
+docker compose exec web bin/caramelo-account create new-person@example.com
+
+# Dev Container
+docker compose -f .devcontainer/compose.yaml exec rails-app bin/caramelo-account create new-person@example.com
+
+# Native development
+bin/caramelo-account create new-person@example.com
+```
+
+The command prompts for the new password and uses the same policy. New accounts
+start empty; their market-data preparation begins when the application starts
+or when their first trades are recorded. To change a password from the
+terminal, use `bin/caramelo-password change EMAIL`; to recover a forgotten
+password, use `bin/caramelo-password reset EMAIL` and type `RESET` when asked.
 
 To use another host port without editing a file:
 
@@ -153,8 +201,9 @@ Do not expose the `0.0.0.0` binding to an untrusted network.
 
 ## First Run
 
-When password authentication is enabled, choose the first-run password and
-then set up one position from the menus:
+When password authentication is enabled, set the first password from the
+trusted host with `bin/caramelo-password setup`, then sign in and set up one
+position from the menus:
 
 1. Open **Instruments** and choose **Add instrument**. Enter the listing's
    ticker, exchange MIC (the market's short code, such as `BVMF` for B3 or

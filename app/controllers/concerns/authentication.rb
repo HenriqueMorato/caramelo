@@ -5,7 +5,7 @@ module Authentication
 
   included do
     before_action :require_authentication
-    helper_method :authenticated?, :current_user, :current_account, :public_access?
+    helper_method :authenticated?, :current_user, :current_account, :public_access?, :password_setup_required?
   end
 
   class_methods do
@@ -28,7 +28,7 @@ module Authentication
         owner = User.owner_or_initialize
         return owner unless owner.persisted?
 
-        return User.owner
+        return owner
       end
 
       current_user
@@ -40,16 +40,15 @@ module Authentication
 
     def require_authentication
       return unless authentication_required?
-      return request_account_setup if account_setup_required?
+      return request_password_setup if password_setup_required?
 
       resume_session || request_authentication
     end
 
-    def account_setup_required?
+    def password_setup_required?
       return false unless authentication_required?
-      return !User.owner_or_initialize.password_configured? if Caramelo::AccountMode.single?
 
-      !User.where.not(password_configured_at: nil).exists?
+      !User.owner_or_initialize.password_configured?
     end
 
     def authentication_required?
@@ -61,7 +60,7 @@ module Authentication
       session = Current.session ||= find_session_by_cookie
       return unless session
       return session if session.user.password_configured? &&
-        (Caramelo::AccountMode.multi? || session.user == User.owner)
+        (Caramelo::AccountMode.multi? || session.user == User.owner_or_initialize)
 
       Current.session = nil
       cookies.delete(:session_id)
@@ -77,8 +76,9 @@ module Authentication
       redirect_to new_session_path
     end
 
-    def request_account_setup
-      redirect_to new_account_setup_path
+    def request_password_setup
+      session[:return_to_after_authenticating] = request.url
+      redirect_to new_session_path
     end
 
     def after_authentication_url

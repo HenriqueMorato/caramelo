@@ -56,4 +56,70 @@ class AccountModeTest < ActiveSupport::TestCase
   ensure
     ENV["CARAMELO_AUTHENTICATION_MODE"] = previous
   end
+
+  test "defaults to a strong configurable password policy" do
+    policy = Caramelo::Environment.password_policy
+
+    assert_equal 8, policy.fetch(:minimum_length)
+    assert policy.fetch(:require_uppercase)
+    assert policy.fetch(:require_lowercase)
+    assert policy.fetch(:require_number)
+    assert policy.fetch(:require_symbol)
+  end
+
+  test "accepts password policy overrides" do
+    names = %w[
+      CARAMELO_PASSWORD_MIN_LENGTH
+      CARAMELO_PASSWORD_REQUIRE_UPPERCASE
+      CARAMELO_PASSWORD_REQUIRE_LOWERCASE
+      CARAMELO_PASSWORD_REQUIRE_NUMBER
+      CARAMELO_PASSWORD_REQUIRE_SYMBOL
+    ]
+    previous = names.to_h { |name| [ name, ENV[name] ] }
+    ENV["CARAMELO_PASSWORD_MIN_LENGTH"] = " 12 "
+    ENV["CARAMELO_PASSWORD_REQUIRE_UPPERCASE"] = "false"
+    ENV["CARAMELO_PASSWORD_REQUIRE_LOWERCASE"] = " TRUE "
+    ENV["CARAMELO_PASSWORD_REQUIRE_NUMBER"] = "false"
+    ENV["CARAMELO_PASSWORD_REQUIRE_SYMBOL"] = "true"
+
+    assert_equal(
+      {
+        minimum_length: 12,
+        require_uppercase: false,
+        require_lowercase: true,
+        require_number: false,
+        require_symbol: true
+      },
+      Caramelo::Environment.password_policy
+    )
+  ensure
+    names.each { |name| ENV[name] = previous.fetch(name) }
+  end
+
+  test "rejects malformed password policy settings" do
+    previous = ENV["CARAMELO_PASSWORD_MIN_LENGTH"]
+    ENV["CARAMELO_PASSWORD_MIN_LENGTH"] = "eight"
+
+    assert_raises(ArgumentError) { Caramelo::Environment.password_policy }
+  ensure
+    ENV["CARAMELO_PASSWORD_MIN_LENGTH"] = previous
+  end
+
+  test "rejects password policy lengths outside bcrypt limits" do
+    previous = ENV["CARAMELO_PASSWORD_MIN_LENGTH"]
+    ENV["CARAMELO_PASSWORD_MIN_LENGTH"] = "73"
+
+    assert_raises(ArgumentError) { Caramelo::Environment.password_policy }
+  ensure
+    ENV["CARAMELO_PASSWORD_MIN_LENGTH"] = previous
+  end
+
+  test "rejects password policy values other than true or false" do
+    previous = ENV["CARAMELO_PASSWORD_REQUIRE_SYMBOL"]
+    ENV["CARAMELO_PASSWORD_REQUIRE_SYMBOL"] = "yes"
+
+    assert_raises(ArgumentError) { Caramelo::Environment.password_policy }
+  ensure
+    ENV["CARAMELO_PASSWORD_REQUIRE_SYMBOL"] = previous
+  end
 end

@@ -70,6 +70,17 @@ class ApplicationCable::ConnectionTest < ActionCable::Connection::TestCase
     Rails.application.config.x.caramelo.account_mode = previous
   end
 
+  test "rejects a session safely when the configured owner is missing" do
+    previous = Rails.application.config.x.caramelo.owner_email
+    user = users(:one)
+    cookies.signed[:session_id] = user.sessions.create!.id
+    Rails.application.config.x.caramelo.owner_email = "missing-owner@example.com"
+
+    assert_reject_connection { connect }
+  ensure
+    Rails.application.config.x.caramelo.owner_email = previous
+  end
+
   test "disconnects cable connections for a user" do
     calls = []
     user = users(:one)

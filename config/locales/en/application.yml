@@ -35,6 +35,12 @@ en:
   Not available: Not available
   Open: Open
   Opens in a new tab: Opens in a new tab
+  Password policy help: Use %{requirements}.
+  Password requirement lowercase: a lowercase letter
+  Password requirement minimum: at least %{count} characters
+  Password requirement number: a number
+  Password requirement symbol: a symbol
+  Password requirement uppercase: an uppercase letter
   Performance: Performance
   Personal portfolio tracking: Personal portfolio tracking
   Portfolio: Portfolio

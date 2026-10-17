@@ -1,3 +1,5 @@
+raise ArgumentError, "CARAMELO_OWNER_EMAIL does not match an existing account" if User.owner_configuration_conflict?
+
 User.owner_or_initialize.tap do |user|
   next unless user.new_record?
 

@@ -1,9 +1,6 @@
 Rails.application.routes.draw do
   resource :session, only: %i[ new create destroy ]
   resources :passwords, param: :token, only: %i[ new create edit update ]
-  get "account/setup", to: "account_setups#new", as: :new_account_setup
-  post "account/setup", to: "account_setups#create", as: :account_setup
-  resources :accounts, only: %i[ new create ]
 
   root "dashboard#index"
   resource :performance, only: :show

@@ -11,12 +11,20 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "new redirects to first-run setup when the owner is unconfigured" do
+  test "new explains terminal setup when the owner is unconfigured" do
     @user.update!(password_configured_at: nil)
 
     get new_session_path
 
-    assert_redirected_to new_account_setup_path
+    assert_response :success
+    assert_select "[role=status]", /Set the first password from the terminal/
+    assert_select "code", /bin\/caramelo-password setup/
+  end
+
+  test "does not expose a browser first-run setup route" do
+    get "/account/setup"
+
+    assert_response :not_found
   end
 
   test "create with valid credentials" do
@@ -81,7 +89,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     Current.session = nil
   end
 
-  test "single-account current_account can represent an unpersisted owner during setup" do
+  test "single-account current_account can represent an unpersisted owner before terminal setup" do
     configured_email = Rails.application.config.x.caramelo.owner_email
     Rails.application.config.x.caramelo.owner_email = "new-owner@example.com"
     controller = SessionsController.new
@@ -115,11 +123,32 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal root_url, session[:return_to_after_authenticating]
   end
 
+  test "protected pages redirect to terminal setup instructions when the owner is unconfigured" do
+    @user.update!(password_configured_at: nil)
+
+    get root_path
+
+    assert_redirected_to new_session_path
+    assert_equal root_url, session[:return_to_after_authenticating]
+  end
+
   test "single mode does not allow another user's credentials" do
     post session_path, params: { email_address: users(:one).email_address, password: "password" }
 
     assert_redirected_to new_session_path
     assert_nil cookies[:session_id]
+  end
+
+  test "treats credentials as invalid when the configured owner is missing" do
+    configured_email = Rails.application.config.x.caramelo.owner_email
+    Rails.application.config.x.caramelo.owner_email = "missing-owner@example.com"
+
+    post session_path, params: { email_address: users(:one).email_address, password: "password" }
+
+    assert_redirected_to new_session_path
+    assert_nil cookies[:session_id]
+  ensure
+    Rails.application.config.x.caramelo.owner_email = configured_email
   end
 
   test "destroy" do

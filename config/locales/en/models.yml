@@ -97,6 +97,14 @@ en:
               wrong_owner: must belong to the trade owner
             settlement_currency:
               same_as_instrument: must differ from the instrument currency
+        user:
+          attributes:
+            password:
+              must_include_lowercase: must include a lowercase letter
+              must_include_number: must include a number
+              must_include_symbol: must include a symbol
+              must_include_uppercase: must include an uppercase letter
+              too_short: is too short (minimum is %{count} characters)
     models:
       corporate_action:
         one: Corporate action

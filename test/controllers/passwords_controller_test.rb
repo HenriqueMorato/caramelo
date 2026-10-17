@@ -26,6 +26,15 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
     assert_notice "reset instructions sent"
   end
 
+  test "create for an unconfigured user does not offer browser first-run setup" do
+    @user.update!(password_configured_at: nil)
+
+    post passwords_path, params: { email_address: @user.email_address }
+
+    assert_enqueued_emails 0
+    assert_redirected_to new_session_path
+  end
+
   test "edit" do
     get edit_password_path(@user.password_reset_token)
     assert_response :success
@@ -39,9 +48,19 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
     assert_notice "reset link is invalid"
   end
 
+  test "edit rejects a reset token for an unconfigured user" do
+    @user.update!(password_configured_at: nil)
+
+    get edit_password_path(@user.password_reset_token)
+
+    assert_redirected_to new_password_path
+  end
+
   test "update" do
     assert_changes -> { @user.reload.password_digest } do
-      put password_path(@user.password_reset_token), params: { password: "new", password_confirmation: "new" }
+      put password_path(@user.password_reset_token), params: {
+        password: "A new password1!", password_confirmation: "A new password1!"
+      }
       assert_redirected_to new_session_path
     end
 
@@ -49,6 +68,18 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_notice "Password has been reset"
+  end
+
+  test "update rejects a password that does not meet the policy" do
+    token = @user.password_reset_token
+    original_digest = @user.password_digest
+
+    put password_path(token), params: { password: "new password", password_confirmation: "new password" }
+
+    assert_redirected_to edit_password_path(token)
+    assert_equal original_digest, @user.reload.password_digest
+    follow_redirect!
+    assert_notice "must include an uppercase letter"
   end
 
   test "update with non matching passwords" do
