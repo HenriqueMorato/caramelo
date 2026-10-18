@@ -13,6 +13,9 @@ class PositionsController < ApplicationController
       Position::Presenter.for(position_result:, reporting_currency: current_account.reporting_currency)
     end
     @dashboard = Dashboard::Presenter.for(owner: current_account) unless @positions.any?(&:invalid?)
+    @allocation = Position::Allocation.for(
+      positions: @positions, reporting_currency: current_account.reporting_currency
+    )
     @position_groups = @grouping.group(@positions)
   end
 
