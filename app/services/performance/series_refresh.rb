@@ -27,6 +27,10 @@ module Performance
       def failed?
         status == "failed"
       end
+
+      def interrupted?
+        active? && (!updated_at || updated_at <= LEASE_TTL.ago)
+      end
     end
 
     def self.enqueue(user:, from:, to:, instrument: nil, reporting_currency: user.reporting_currency,

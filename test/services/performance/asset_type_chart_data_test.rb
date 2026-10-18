@@ -43,6 +43,67 @@ class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.1"), values.fetch(2)
   end
 
+  test "keeps a type return available when another instrument starts later" do
+    first = create_instrument(ticker: "ATFIRST", asset_type: :stock)
+    second = create_instrument(ticker: "ATSECOND", asset_type: :stock)
+    create_trade(first, unit_price: "100")
+    create_trade(second, date: @from + 1, unit_price: "50")
+    create_observation(first, @from, market_value: "100", cash_flow: 100)
+    create_observation(first, @from + 1, market_value: "105", cash_flow: 100)
+    create_observation(first, @to, market_value: "110", cash_flow: 100)
+    create_observation(second, @from + 1, market_value: "50", cash_flow: 50, flow_date: @from + 1)
+    create_observation(second, @to, market_value: "55", cash_flow: 50, flow_date: @from + 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal [ BigDecimal("0"), BigDecimal("0.05"), BigDecimal("0.12") ], values
+  end
+
+  test "includes an instrument that has only a confirmed corporate action" do
+    instrument = create_instrument(ticker: "ATINCOME", asset_type: :other)
+    @user.corporate_actions.create!(
+      instrument:, kind: :dividend, status: :confirmed, paid_on: @from,
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "BRL", source: "manual"
+    )
+    create_observation(instrument, @from, market_value: "0", cash_flow: -1)
+    create_observation(instrument, @to, market_value: "0", cash_flow: -1, flow_date: @from)
+
+    data = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    )
+
+    assert_equal [ "other" ], data.map { |item| item.fetch(:identifier) }
+  end
+
+  test "keeps stale last-known values in the asset return series" do
+    instrument = create_instrument(ticker: "ATSTALE", asset_type: :stock)
+    create_trade(instrument, unit_price: "100")
+    create_observation(instrument, @from, market_value: "100", cash_flow: 100)
+    create_observation(instrument, @to, market_value: "110", cash_flow: 100, flow_date: @from, stale: true)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal BigDecimal("0.1"), values.fetch(2)
+  end
+
+  test "does not combine stale and rebuilt generations in an asset return" do
+    instrument = create_instrument(ticker: "ATGEN", asset_type: :stock)
+    create_trade(instrument, unit_price: "100")
+    create_observation(instrument, @from, market_value: "100", cash_flow: 100, stale: true)
+    create_observation(instrument, @to, market_value: "120", cash_flow: 100, source_generation: 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_nil values.fetch(2)
+  end
+
   test "leaves a type return unavailable after a missing observation" do
     instrument = create_instrument(ticker: "ATMISS", asset_type: :fund)
     create_trade(instrument, unit_price: "100")
@@ -79,9 +140,9 @@ class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
 
   test "leaves returns unavailable for unusable aggregate inputs" do
     service = Performance::AssetTypeChartData.new(series:, user: @user, reporting_currency: "BRL")
-    opening = Performance::AssetTypeChartData::Aggregate.new(BigDecimal("100"), 0, 0, :available)
-    missing = Performance::AssetTypeChartData::Aggregate.new(nil, nil, nil, :missing)
-    zero = Performance::AssetTypeChartData::Aggregate.new(BigDecimal("0"), 0, 0, :available)
+    opening = aggregate(market_value: "100")
+    missing = Performance::AssetTypeChartData::Aggregate.new(nil, nil, nil, :missing, {}, [], [])
+    zero = aggregate(market_value: "0")
 
     assert_nil service.send(:return_ratio_for, date: @to, aggregate: nil, opening_date: @from, opening:)
     assert_nil service.send(:return_ratio_for, date: @to, aggregate: missing, opening_date: @from, opening:)
@@ -114,14 +175,22 @@ class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
     )
   end
 
-  def create_observation(instrument, date, market_value:, cash_flow:, flow_date: @from)
+  def aggregate(market_value:)
+    Performance::AssetTypeChartData::Aggregate.new(
+      BigDecimal(market_value), 0, 0, :available, { 1 => 0 }, [], [ 1 ]
+    )
+  end
+
+  def create_observation(instrument, date, market_value:, cash_flow:, flow_date: @from, stale: false,
+    source_generation: 0)
     InstrumentPerformanceObservation.create!(
       user: @user, instrument:, observed_on: date, reporting_currency: "BRL",
       market_value_amount: market_value, cost_basis_amount: cash_flow,
       realized_gain_amount: "0", unrealized_gain_amount: "0", net_cash_flow_amount: cash_flow,
       investment_income_amount: "0", invested_amount: cash_flow,
       cash_flow_total: Rational(cash_flow), dated_cash_flow_total: Rational(cash_flow) * flow_date.jd,
-      status: :available, source_generation: 0, generated_at: Time.current
+      status: :available, source_generation:, generated_at: Time.current,
+      stale_at: (Time.current if stale)
     )
   end
 

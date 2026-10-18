@@ -55,7 +55,7 @@ const assetTypeColorProperties = {
 const themeColor = (property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim()
 
 export default class extends Controller {
-  static targets = ["canvas", "tab"]
+  static targets = ["canvas", "tab", "legend", "panel"]
   static values = { data: Object, defaultMode: String, returnOnly: Boolean }
 
   connect() {
@@ -178,7 +178,7 @@ export default class extends Controller {
         interaction: { mode: "index", intersect: false, axis: "x" },
         plugins: {
           legend: {
-            display: true,
+            display: !this.hasLegendTarget,
             labels: {
               color: this.colors.text,
               boxWidth: 20,
@@ -195,9 +195,7 @@ export default class extends Controller {
             onClick: (event, legendItem, legend) => {
               const chart = legend.chart
               const datasetIndex = legendItem.datasetIndex
-              chart.setDatasetVisibility(datasetIndex, !chart.isDatasetVisible(datasetIndex))
-              this.updateReturnScale()
-              chart.update()
+              this.toggleDataset(datasetIndex)
             }
           },
           tooltip: {
@@ -289,6 +287,8 @@ export default class extends Controller {
     })
     this.updateReturnScale()
     this.updateTabs()
+    this.normalizeUrl()
+    this.renderLegend()
   }
 
   disconnect() {
@@ -303,7 +303,9 @@ export default class extends Controller {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return
 
     event.preventDefault()
-    const modes = this.tabTargets.map((tab) => tab.dataset.performanceChartModeParam)
+    const modes = this.tabTargets
+      .filter((tab) => !tab.disabled)
+      .map((tab) => tab.dataset.performanceChartModeParam)
     if (modes.length < 2) return
 
     const currentIndex = Math.max(0, modes.indexOf(this.mode))
@@ -339,6 +341,7 @@ export default class extends Controller {
       scale.ticks.color = this.colors.invested
     })
     this.chart.update("none")
+    this.updateLegend()
   }
 
   refreshVisibility() {
@@ -350,6 +353,7 @@ export default class extends Controller {
 
   setMode(mode, updateUrl = true) {
     if (!this.chart || !["value", "performance", "asset"].includes(mode)) return
+    if (mode === "asset" && this.assetTypeDatasets.length === 0) return
 
     this.mode = mode
     this.chart.data.datasets.forEach((dataset, index) => {
@@ -360,6 +364,7 @@ export default class extends Controller {
     this.chart.options.scales.return.display = ["performance", "asset"].includes(mode)
     this.updateTabs()
     this.chart.update()
+    this.updateLegend()
     if (updateUrl) this.updateUrl()
   }
 
@@ -376,6 +381,77 @@ export default class extends Controller {
     if (dataset.role === "benchmark" && this.mode === "asset") return false
 
     return dataset.role !== "gain-on-cost-return" && this.datasetVisibleInMode(dataset)
+  }
+
+  toggleLegend(event) {
+    this.toggleDataset(Number(event.currentTarget.dataset.performanceChartLegendIndexParam))
+  }
+
+  toggleDataset(index) {
+    if (!Number.isInteger(index) || !this.chart?.data.datasets[index]) return
+
+    this.chart.setDatasetVisibility(index, !this.chart.isDatasetVisible(index))
+    this.updateReturnScale()
+    this.chart.update()
+    this.updateLegend()
+  }
+
+  renderLegend() {
+    if (!this.hasLegendTarget) return
+
+    this.legendTarget.replaceChildren()
+    this.legendEntries().forEach(({ dataset, index }) => {
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = "inline-flex min-h-11 items-center gap-2 rounded px-1 py-2 font-semibold text-muted transition-colors duration-150 hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel"
+      button.dataset.performanceChartLegendIndexParam = index
+      button.dataset.action = "performance-chart#toggleLegend"
+
+      const swatch = document.createElement("span")
+      swatch.className = "h-1.5 w-5 shrink-0 rounded-full"
+      swatch.style.backgroundColor = dataset.borderColor
+      swatch.setAttribute("aria-hidden", "true")
+
+      const label = document.createElement("span")
+      label.dataset.performanceChartLegendLabel = "true"
+      label.textContent = dataset.label
+      button.append(swatch, label)
+      this.updateLegendButton(button, index)
+      this.legendTarget.append(button)
+    })
+  }
+
+  updateLegend() {
+    if (!this.hasLegendTarget) return
+
+    const entries = this.legendEntries()
+    const buttons = [...this.legendTarget.querySelectorAll("button[data-performance-chart-legend-index-param]")]
+    const matches = buttons.length === entries.length && entries.every(({ index }, position) =>
+      Number(buttons[position].dataset.performanceChartLegendIndexParam) === index
+    )
+    if (!matches) {
+      this.renderLegend()
+      return
+    }
+
+    entries.forEach(({ dataset, index }, position) => {
+      const button = buttons[position]
+      button.querySelector("span").style.backgroundColor = dataset.borderColor
+      this.updateLegendButton(button, index)
+    })
+  }
+
+  updateLegendButton(button, index) {
+    const visible = this.chart.isDatasetVisible(index)
+    button.setAttribute("aria-pressed", visible.toString())
+    button.classList.toggle("opacity-60", !visible)
+    button.querySelector("[data-performance-chart-legend-label]")?.classList.toggle("line-through", !visible)
+  }
+
+  legendEntries() {
+    return this.chart.data.datasets
+      .map((dataset, index) => ({ dataset, index }))
+      .filter(({ dataset }) => this.datasetVisibleInMode(dataset))
   }
 
   updateReturnScale() {
@@ -401,6 +477,11 @@ export default class extends Controller {
       tab.setAttribute("aria-selected", active.toString())
       tab.tabIndex = active ? 0 : -1
     })
+    if (this.hasPanelTarget) {
+      const activeTab = this.tabTargets.find((tab) => tab.dataset.performanceChartModeParam === this.mode)
+      if (activeTab) this.panelTarget.setAttribute("aria-labelledby", activeTab.id)
+      else this.panelTarget.removeAttribute("aria-labelledby")
+    }
   }
 
   updateUrl() {
@@ -417,10 +498,27 @@ export default class extends Controller {
     if (this.returnOnlyValue) return this.defaultModeValue
 
     const requested = new URL(window.location.href).searchParams.get("chart")
-    const supportedModes = this.tabTargets.map((tab) => tab.dataset.performanceChartModeParam)
+    const supportedModes = this.tabTargets
+      .filter((tab) => !tab.disabled)
+      .map((tab) => tab.dataset.performanceChartModeParam)
     if (supportedModes.includes(requested)) return requested
 
     return this.hasDefaultModeValue ? this.defaultModeValue : "value"
+  }
+
+  normalizeUrl() {
+    if (this.returnOnlyValue) return
+
+    const url = new URL(window.location.href)
+    const requested = url.searchParams.get("chart")
+    const supportedModes = this.tabTargets
+      .filter((tab) => !tab.disabled)
+      .map((tab) => tab.dataset.performanceChartModeParam)
+    if (!requested || supportedModes.includes(requested)) return
+
+    if (this.mode === "value") url.searchParams.delete("chart")
+    else url.searchParams.set("chart", this.mode)
+    window.history.replaceState({}, "", url)
   }
 
   datasetColor(dataset, index) {

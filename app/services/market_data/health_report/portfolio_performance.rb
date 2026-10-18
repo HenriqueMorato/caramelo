@@ -32,6 +32,7 @@ module MarketData
 
       def status_for(materialization, coverage, refresh)
         return :failed if materialization.pending? && refresh&.failed?
+        return :interrupted if materialization.pending? && refresh&.interrupted?
         return :updating if materialization.pending?
         return :healthy if coverage.complete?
         return :partial if coverage.partial?
@@ -41,6 +42,7 @@ module MarketData
 
       def build(status:, coverage:)
         severity = :error if status == :failed
+        severity ||= :error if status == :interrupted
         severity ||= :warning if %i[missing partial].include?(status)
         HealthReport::Entry.new(
           code: :portfolio_performance, status:, severity:,
@@ -54,6 +56,7 @@ module MarketData
 
       def description(status:, coverage:)
         return "Portfolio performance failed to rebuild." if status == :failed
+        return "Portfolio performance refresh stopped before completing." if status == :interrupted
         return "Portfolio performance is up to date." if coverage.complete?
 
         "Portfolio performance is missing values for #{format_ranges(coverage.missing_ranges)}."

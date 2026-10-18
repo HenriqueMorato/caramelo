@@ -16,6 +16,8 @@ class PerformancesController < ApplicationController
         series: @series, user: current_account, reporting_currency:
       )
     end
+    @period_chart = params[:chart].presence
+    @period_chart = nil if @period_chart == "asset" && @asset_type_chart_data.blank?
     @historical_data_backfill_pending = HistoricalDataBackfill.pending_for?(instruments: @performance.missing_instruments)
   end
 

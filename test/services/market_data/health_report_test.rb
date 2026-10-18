@@ -734,6 +734,26 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
   end
 
+  test "reports an interrupted portfolio performance rebuild" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, reporting_currency: owner.reporting_currency)
+    Performance::SeriesRefresh.running(
+      user: owner, reporting_currency: owner.reporting_currency, from: first_date, to: first_date, token:
+    )
+    travel 31.minutes
+
+    entry = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: first_date).entries.sole
+
+    assert_equal :interrupted, entry.status
+    assert_equal :error, entry.severity
+    assert_includes entry.description, "stopped before completing"
+  ensure
+    Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
+  end
+
   test "builds performance coverage without a shared context" do
     owner = users(:owner)
     PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
@@ -976,6 +996,24 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     refute_predicate entry, :actionable?
   end
 
+  test "groups income-only instruments in asset type performance" do
+    owner = users(:owner)
+    instrument = Instrument.create!(ticker: "INCOMEHEALTH", exchange: "XNAS", name: "Income-only health",
+      currency: "USD", asset_type: :bond)
+    owner.corporate_actions.create!(
+      instrument:, kind: :dividend, status: :confirmed, paid_on: Date.new(2026, 9, 1),
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "USD", source: "manual"
+    )
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 2))
+
+    entries = MarketData::HealthReport::AssetTypePerformance.new(
+      owner:, today: context.today, context:, instrument_entries: []
+    ).entries
+
+    assert_equal "bond", entries.find { |entry| entry.subject == "bond" }.subject
+  end
+
   test "reports a pending asset type when an instrument series is unavailable" do
     owner = users(:owner)
     first_date = owner.trades.where(instrument: instruments(:voo_arcx)).minimum(:traded_on)
@@ -1050,6 +1088,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       kind: :instrument_performance, record_id: instrument.id, quote_currency: owner.reporting_currency
     )
     failed_entry = build_instrument_health_entry(instrument:, target:, status: :failed)
+    interrupted_entry = build_instrument_health_entry(instrument:, target:, status: :interrupted)
     stale_entry = build_instrument_health_entry(instrument:, target:, status: :stale)
     inspector = ->(entry) do
       MarketData::HealthReport::AssetTypePerformance.new(
@@ -1058,11 +1097,15 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     end
 
     failed = inspector.call(failed_entry)
+    interrupted = inspector.call(interrupted_entry)
     stale = inspector.call(stale_entry)
 
     assert_equal :failed, failed.status
     assert_equal :error, failed.severity
     assert_includes failed.description, "failed to rebuild"
+    assert_equal :interrupted, interrupted.status
+    assert_equal :error, interrupted.severity
+    assert_includes interrupted.description, "stopped before completing"
     assert_equal :stale, stale.status
     assert_equal :warning, stale.severity
     assert_includes stale.description, "stale last-known"
@@ -1107,6 +1150,31 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :failed, entry.status
     assert_equal :error, entry.severity
     assert_includes entry.description, "failed to rebuild"
+  end
+
+  test "reports an interrupted instrument performance rebuild" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+      .request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.running(
+      user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date, token:
+    )
+    travel 31.minutes
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: first_date).entries.find do |candidate|
+      candidate.target.quote_currency == "USD"
+    end
+
+    assert_equal :interrupted, entry.status
+    assert_equal :error, entry.severity
+    assert_includes entry.description, "stopped before completing"
+  ensure
+    Performance::SeriesRefresh.release(
+      user: owner, instrument:, reporting_currency: "USD", token:
+    ) if token
   end
 
   test "includes an existing additional instrument performance currency view" do

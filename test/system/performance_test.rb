@@ -105,16 +105,42 @@ class PerformanceTest < ApplicationSystemTestCase
     assert_includes chart_state.fetch("labels"), "Ibovespa"
     benchmark_state = chart_state.fetch("datasets").find { |dataset| dataset.fetch("label") == "Ibovespa" }
     assert_equal false, benchmark_state.fetch("visible")
+    assert_selector "[data-performance-chart-target='legend'] button[aria-pressed='false']", text: "Ibovespa",
+      visible: true
+    assert_selector "[data-performance-chart-target='legend'] [data-performance-chart-legend-label].line-through",
+      text: "Ibovespa"
+    click_button "Ibovespa"
+    assert_selector "[data-performance-chart-target='legend'] button[aria-pressed='true']", text: "Ibovespa",
+      visible: true
+    assert_no_selector "[data-performance-chart-target='legend'] [data-performance-chart-legend-label].line-through",
+      text: "Ibovespa"
     revealed = page.evaluate_script(<<~JS)
       (() => {
         const element = document.querySelector("[data-controller='performance-chart']")
         const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
-        const item = controller.chart.legend.legendItems.find((candidate) => candidate.text === "Ibovespa")
-        controller.chart.options.plugins.legend.onClick(null, item, controller.chart.legend)
-        return controller.chart.isDatasetVisible(item.datasetIndex)
+        const item = controller.chart.data.datasets.findIndex((dataset) => dataset.label === "Ibovespa")
+        return controller.chart.isDatasetVisible(item)
       })()
     JS
     assert_equal true, revealed
+  end
+
+  test "explains when asset type history is not available yet" do
+    Trade.where(user: User.owner).delete_all
+    from = Date.current - 1.week
+    instrument = Instrument.create!(ticker: "ATWAIT", exchange: "BVMF", name: "Asset type pending", currency: "BRL")
+    create_trade(instrument:, traded_on: from)
+    create_daily_close(instrument:, date: from, close_price: "10")
+    create_daily_close(instrument:, date: Date.current, close_price: "11")
+    Performance::ObservationBuilder.new(user: User.owner).call(from:, to: Date.current)
+
+    visit performance_path(period: "week", chart: "asset")
+
+    assert_selector "button[data-performance-chart-mode-param='asset'][disabled]"
+    assert_selector "button[data-performance-chart-mode-param='value'][aria-selected='true']"
+    assert_nil Rack::Utils.parse_query(URI.parse(page.current_url).query)["chart"]
+    assert_selector "#performance-chart-panel[aria-labelledby='performance-chart-tab-value']"
+    assert_text "Asset type returns will appear after the underlying instrument histories are available."
   end
 
   test "shows a closed portfolio without requiring a current price" do

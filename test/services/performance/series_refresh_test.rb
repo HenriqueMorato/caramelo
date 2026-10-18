@@ -101,6 +101,15 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
   end
 
+  test "marks an active state interrupted after its lease timeout" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+
+    travel 31.minutes
+
+    assert_predicate refresh_state, :interrupted?
+  end
+
   test "reports an enqueue failure and releases its lease" do
     job_class = Class.new do
       def self.perform_later(**)

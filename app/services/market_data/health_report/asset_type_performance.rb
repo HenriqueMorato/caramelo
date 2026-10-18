@@ -1,7 +1,7 @@
 module MarketData
   class HealthReport
     class AssetTypePerformance
-      STATUS_PRIORITY = %i[failed updating missing partial stale healthy].freeze
+      STATUS_PRIORITY = %i[failed interrupted updating missing partial stale healthy].freeze
 
       def initialize(owner:, today:, context:, instrument_entries:)
         @owner = owner
@@ -21,7 +21,7 @@ module MarketData
       attr_reader :owner, :today, :context, :instrument_entries
 
       def instruments_by_type
-        context.instruments.group_by(&:asset_type)
+        context.performance_instruments.group_by(&:asset_type)
       end
 
       def build_entry(asset_type:, instruments:)
@@ -68,7 +68,7 @@ module MarketData
       end
 
       def severity_for(status)
-        return :error if status == :failed
+        return :error if %i[failed interrupted].include?(status)
         return :warning if %i[missing partial stale].include?(status)
 
         nil
@@ -78,6 +78,7 @@ module MarketData
         return "#{label} is ready for Asset mode." if status == :healthy
         return "#{label} is rebuilding for Asset mode." if status == :updating
         return "#{label} failed to rebuild." if status == :failed
+        return "#{label} refresh stopped before completing." if status == :interrupted
         return "#{label} has stale last-known values." if status == :stale
 
         ranges = entries.filter_map { |entry| entry&.missing_range }

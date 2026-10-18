@@ -11,7 +11,7 @@
     <nav aria-label="<%= t(".Period selection") %>" class="inline-flex rounded-md bg-paper/50 p-1">
       <% Performance::PeriodSelection::PERIODS.each_key do |period| %>
         <% selected = @selected_period == period %>
-        <%= link_to t(".#{period.humanize}"), performance_path(period:, chart: params[:chart].presence), class: "period-option",
+        <%= link_to t(".#{period.humanize}"), performance_path(period:, chart: @period_chart), class: "period-option",
           aria: { current: ("page" if selected) } %>
       <% end %>
     </nav>
@@ -121,21 +121,39 @@
         >
           <% unless money_values_hidden? %><div class="mb-4 flex justify-end">
             <div class="inline-flex h-[26px] items-center rounded-md border border-coffee/15 bg-oat" role="tablist" aria-label="<%= t(".Chart view") %>">
-              <% [[ "value", t(".Value") ], [ "performance", t("Performance") ], [ "asset", t(".Asset") ]].each do |mode, label| %>
-                <button
-                  type="button"
-                  role="tab"
-                  data-performance-chart-target="tab"
-                  data-performance-chart-mode-param="<%= mode %>"
-                  data-action="performance-chart#selectMode keydown->performance-chart#selectModeWithKeyboard"
-                  class="relative h-[24px] rounded px-2.5 text-xs font-semibold leading-none text-muted transition-colors duration-150 before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel data-[active=true]:bg-caramel-deep data-[active=true]:text-on-accent"
-                ><%= label %></button>
+              <% asset_mode_available = @asset_type_chart_data.present? %>
+              <% [[ "value", t(".Value"), false ], [ "performance", t("Performance"), false ], [ "asset", t(".Asset"), !asset_mode_available ]].each do |mode, label, disabled| %>
+                <%= tag.button(
+                  type: "button",
+                  role: "tab",
+                  id: "performance-chart-tab-#{mode}",
+                  data: {
+                    performance_chart_target: "tab",
+                    performance_chart_mode_param: mode,
+                    action: "performance-chart#selectMode keydown->performance-chart#selectModeWithKeyboard"
+                  },
+                  aria: { controls: "performance-chart-panel", disabled: ("true" if disabled) },
+                  disabled:,
+                  title: (t(".Asset mode unavailable") if disabled),
+                  class: "relative h-[24px] rounded px-2.5 text-xs font-semibold leading-none text-muted transition-colors duration-150 before:absolute before:-inset-y-[10px] before:inset-x-0 before:content-[''] hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel disabled:cursor-not-allowed disabled:opacity-50 data-[active=true]:bg-caramel-deep data-[active=true]:text-on-accent"
+                ) { label } %>
               <% end %>
             </div>
           </div><% end %>
-          <div class="relative h-56 sm:h-64">
-            <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t(".Portfolio history chart description") %>"></canvas>
-          </div>
+          <%= tag.div(
+            id: "performance-chart-panel",
+            data: { performance_chart_target: "panel" },
+            role: (money_values_hidden? ? "region" : "tabpanel"),
+            aria: { label: t(".Portfolio history") }
+          ) do %>
+            <% if @asset_type_chart_data.blank? %>
+              <p class="mb-3 text-sm text-muted" role="status"><%= t(".Asset mode unavailable") %></p>
+            <% end %>
+            <div data-performance-chart-target="legend" class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted" role="group" aria-label="<%= t(".Chart legend") %>"></div>
+            <div class="relative h-56 sm:h-64">
+              <canvas data-performance-chart-target="canvas" role="img" aria-label="<%= t(".Portfolio history chart description") %>"></canvas>
+            </div>
+          <% end %>
         </div>
         <details class="mt-4 text-sm">
           <summary class="cursor-pointer font-semibold text-coffee"><%= t(".View exact values") %></summary>
