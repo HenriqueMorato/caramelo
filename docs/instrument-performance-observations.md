@@ -76,6 +76,13 @@ This matches the percentage in Position details. It includes realized outcomes a
 
 Both return lines are included in the instrument chart. Modified Dietz is visible by default; Gain on cost is initially hidden and can be revealed from the chart legend. The exact-values table exposes both series regardless of graph visibility.
 
+The portfolio performance page's **Asset types** mode reuses these exact
+instrument observations. It groups instruments by their current registered
+asset type, calculates each group's Modified Dietz return independently, and
+keeps the portfolio and benchmark lines separate. Asset types are currently a
+fixed application registry. Editing or adding registry entries is tracked as a
+separate follow-up.
+
 The public explanation at `/performance/methodology` provides a worked example and describes where caramelo uses each method.
 
 ## Refresh and Generation Fencing
@@ -111,7 +118,12 @@ For every traded instrument, startup preparation maintains the unique set of its
 
 ## Recovery and Health
 
-Data health reports instrument targets that are pending, stale, partial, missing, or failed. Retry preserves source records and resumes the requested range. Safe reset deletes only derived observations, advances the source generation, and rebuilds from authoritative trades and market history.
+Data health reports instrument targets and aggregate asset-type inputs that are
+pending, stale, partial, missing, or failed. Retry preserves source records and
+resumes the requested range. Safe reset deletes only derived observations,
+advances the source generation, and rebuilds from authoritative trades and
+market history. Asset-type rows are informational. Recover their underlying
+instrument rows instead of retrying the aggregate.
 
 Available daily instrument results reconcile to the independently calculated portfolio result using exact analytical amounts before display rounding:
 

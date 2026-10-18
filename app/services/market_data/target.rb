@@ -8,6 +8,7 @@ module MarketData
       benchmark_observations
       portfolio_performance
       instrument_performance
+      asset_type_performance
       corporate_action_imports
     ].freeze
 

@@ -43,6 +43,15 @@ const benchmarkColorProperties = {
   CDI: "--caramelo-benchmark-cdi"
 }
 
+const assetTypeColorProperties = {
+  stock: "--caramelo-asset-stock",
+  etf: "--caramelo-asset-etf",
+  fund: "--caramelo-asset-fund",
+  bond: "--caramelo-asset-bond",
+  crypto: "--caramelo-asset-crypto",
+  other: "--caramelo-asset-other"
+}
+
 const themeColor = (property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim()
 
 export default class extends Controller {
@@ -62,7 +71,7 @@ export default class extends Controller {
       pointHitRadius: 16,
       fill: false,
       tension: 0.25,
-      hidden: this.mode !== "performance",
+      hidden: !["performance", "asset"].includes(this.mode),
       role: "portfolio-return",
       yAxisID: "return"
     }
@@ -80,6 +89,21 @@ export default class extends Controller {
       role: "gain-on-cost-return",
       yAxisID: "return"
     }
+    this.assetTypeDatasets = (this.dataValue.asset_types || []).map((assetType, index) => ({
+      label: assetType.label,
+      data: assetType.values.map((value) => value === null ? null : Number(value) * 100),
+      borderColor: this.assetTypeColor(assetType.identifier, index),
+      borderWidth: 2,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHitRadius: 16,
+      fill: false,
+      tension: 0.25,
+      hidden: this.mode !== "asset",
+      role: "asset-type",
+      assetType,
+      yAxisID: "return"
+    }))
     this.benchmarkDatasets = (this.dataValue.benchmarks || []).map((benchmark, index) => ({
       label: benchmark.label,
       data: benchmark.values,
@@ -97,6 +121,7 @@ export default class extends Controller {
     const returnDatasets = [
       this.portfolioReturnDataset,
       this.gainOnCostReturnDataset,
+      ...this.assetTypeDatasets,
       ...this.benchmarkDatasets
     ].filter(Boolean)
     const returnValues = returnDatasets
@@ -117,7 +142,7 @@ export default class extends Controller {
         pointHitRadius: 16,
         fill: true,
         tension: 0.25,
-        hidden: this.mode === "performance",
+        hidden: this.mode !== "value",
         role: "portfolio-value"
       },
       {
@@ -131,7 +156,7 @@ export default class extends Controller {
         pointHitRadius: 16,
         fill: false,
         tension: 0.25,
-        hidden: this.mode === "performance",
+        hidden: this.mode !== "value",
         role: "invested-value"
       }
     ]
@@ -171,6 +196,7 @@ export default class extends Controller {
               const chart = legend.chart
               const datasetIndex = legendItem.datasetIndex
               chart.setDatasetVisibility(datasetIndex, !chart.isDatasetVisible(datasetIndex))
+              this.updateReturnScale()
               chart.update()
             }
           },
@@ -200,7 +226,7 @@ export default class extends Controller {
                     : `${benchmark.label}: ${value > 0 ? "+" : ""}${value.toFixed(2)}%`
                 }
 
-                if (["portfolio-return", "gain-on-cost-return"].includes(dataset.role)) {
+                if (["portfolio-return", "gain-on-cost-return", "asset-type"].includes(dataset.role)) {
                   const value = dataset.data[item.dataIndex]
                   return value === null || value === undefined
                     ? `${dataset.label}: Not available`
@@ -222,7 +248,7 @@ export default class extends Controller {
               labelTextColor: (item) => {
                 const dataset = item.dataset
                 if (dataset.role === "invested-value") return this.colors.invested
-                if (["benchmark", "portfolio-return", "gain-on-cost-return"].includes(dataset.role)) {
+                if (["benchmark", "portfolio-return", "gain-on-cost-return", "asset-type"].includes(dataset.role)) {
                   return dataset.borderColor
                 }
 
@@ -248,7 +274,7 @@ export default class extends Controller {
             }
           },
           return: {
-            display: this.mode === "performance",
+            display: ["performance", "asset"].includes(this.mode),
             position: "left",
             min: returnMinimum - returnPadding,
             max: returnMaximum + returnPadding,
@@ -261,6 +287,7 @@ export default class extends Controller {
         }
       }
     })
+    this.updateReturnScale()
     this.updateTabs()
   }
 
@@ -276,7 +303,12 @@ export default class extends Controller {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return
 
     event.preventDefault()
-    const mode = this.mode === "value" ? "performance" : "value"
+    const modes = this.tabTargets.map((tab) => tab.dataset.performanceChartModeParam)
+    if (modes.length < 2) return
+
+    const currentIndex = Math.max(0, modes.indexOf(this.mode))
+    const offset = event.key === "ArrowRight" ? 1 : -1
+    const mode = modes[(currentIndex + offset + modes.length) % modes.length]
     this.setMode(mode)
     this.tabTargets.find((tab) => tab.dataset.performanceChartModeParam === mode)?.focus()
   }
@@ -317,14 +349,15 @@ export default class extends Controller {
   }
 
   setMode(mode, updateUrl = true) {
-    if (!this.chart || !["value", "performance"].includes(mode)) return
+    if (!this.chart || !["value", "performance", "asset"].includes(mode)) return
 
     this.mode = mode
     this.chart.data.datasets.forEach((dataset, index) => {
       this.chart.setDatasetVisibility(index, this.datasetDefaultVisibleInMode(dataset))
     })
+    this.updateReturnScale()
     this.chart.options.scales.y.display = mode === "value"
-    this.chart.options.scales.return.display = mode === "performance"
+    this.chart.options.scales.return.display = ["performance", "asset"].includes(mode)
     this.updateTabs()
     this.chart.update()
     if (updateUrl) this.updateUrl()
@@ -332,11 +365,33 @@ export default class extends Controller {
 
   datasetVisibleInMode(dataset) {
     const valueDataset = ["portfolio-value", "invested-value"].includes(dataset.role)
-    return this.mode === "value" ? valueDataset : !valueDataset
+    if (valueDataset) return this.mode === "value"
+    if (dataset.role === "asset-type") return this.mode === "asset"
+    if (dataset.role === "gain-on-cost-return") return this.mode === "performance"
+
+    return ["performance", "asset"].includes(this.mode)
   }
 
   datasetDefaultVisibleInMode(dataset) {
+    if (dataset.role === "benchmark" && this.mode === "asset") return false
+
     return dataset.role !== "gain-on-cost-return" && this.datasetVisibleInMode(dataset)
+  }
+
+  updateReturnScale() {
+    if (!this.chart) return
+
+    const returnValues = this.chart.data.datasets
+      .filter((dataset, index) => dataset.yAxisID === "return" && this.chart.isDatasetVisible(index))
+      .flatMap((dataset) => dataset.data)
+      .filter((value) => value !== null && value !== undefined)
+    if (!returnValues.length) return
+
+    const returnMinimum = Math.min(0, ...returnValues)
+    const returnMaximum = Math.max(0, ...returnValues)
+    const returnPadding = Math.max((returnMaximum - returnMinimum) * 0.1, 1)
+    this.chart.options.scales.return.min = returnMinimum - returnPadding
+    this.chart.options.scales.return.max = returnMaximum + returnPadding
   }
 
   updateTabs() {
@@ -359,13 +414,18 @@ export default class extends Controller {
   }
 
   requestedMode() {
-    if (this.hasDefaultModeValue) return this.defaultModeValue
+    if (this.returnOnlyValue) return this.defaultModeValue
 
-    return new URL(window.location.href).searchParams.get("chart") === "performance" ? "performance" : "value"
+    const requested = new URL(window.location.href).searchParams.get("chart")
+    const supportedModes = this.tabTargets.map((tab) => tab.dataset.performanceChartModeParam)
+    if (supportedModes.includes(requested)) return requested
+
+    return this.hasDefaultModeValue ? this.defaultModeValue : "value"
   }
 
   datasetColor(dataset, index) {
     if (dataset.role === "benchmark") return this.benchmarkColor(dataset.benchmark.identifier, index)
+    if (dataset.role === "asset-type") return this.assetTypeColor(dataset.assetType.identifier, index)
     if (dataset.role === "invested-value") return this.colors.invested
     if (dataset.role === "gain-on-cost-return") return this.colors.comparison
 
@@ -375,6 +435,12 @@ export default class extends Controller {
   benchmarkColor(identifier, index) {
     const properties = Object.values(benchmarkColorProperties)
     const property = benchmarkColorProperties[identifier] || properties[index % properties.length]
+    return themeColor(property)
+  }
+
+  assetTypeColor(identifier, index) {
+    const properties = Object.values(assetTypeColorProperties)
+    const property = assetTypeColorProperties[identifier] || properties[index % properties.length]
     return themeColor(property)
   }
 

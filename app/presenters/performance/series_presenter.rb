@@ -13,7 +13,7 @@ module Performance
       Performance::PeriodSelection.date_range_label(from: series.from, to: series.to)
     end
 
-    def chart_data(benchmarks:, currency:, performance_ratios: nil, include_money_values: true)
+    def chart_data(benchmarks:, currency:, performance_ratios: nil, asset_types: [], include_money_values: true)
       performance_ratios ||= series.observations.map(&:return_ratio)
       {
         labels: series.observations.map { |item| I18n.l(item.date, format: :short) },
@@ -24,6 +24,7 @@ module Performance
         formatted_performances: performance_ratios.map { |ratio| performance_label(ratio) },
         performance_ratios:,
         benchmarks:,
+        asset_types:,
         portfolio_value_label: I18n.t("performances.show.Portfolio value"),
         portfolio_return_label: I18n.t("performances.show.Portfolio return"),
         invested_value_label: I18n.t("performances.show.Net invested"),

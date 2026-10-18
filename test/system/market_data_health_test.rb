@@ -19,6 +19,7 @@ class MarketDataHealthTest < ApplicationSystemTestCase
     assert_selector "form[action='/market-data/recoveries'][data-turbo-stream='true']"
     assert_link "Needs attention", href: market_data_health_path(status: "attention")
     assert_link "Healthy", href: market_data_health_path(status: "healthy")
+    assert_link "View Asset mode", href: performance_path(period: "all", chart: "asset")
 
     click_link "Needs attention", href: market_data_health_path(status: "attention")
 

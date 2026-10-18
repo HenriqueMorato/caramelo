@@ -187,6 +187,7 @@ en:
       Retry: Retry
       Source: Source
       Status: Status
+      View Asset mode: View Asset mode
   notices:
     Created: "%{model} was created."
     Deleted: "%{model} was deleted."

@@ -56,6 +56,67 @@ class PerformanceTest < ApplicationSystemTestCase
     assert_includes labels, "MSCI ACWI IMI (Net Total Return proxy)"
   end
 
+  test "compares registered asset types with the portfolio return" do
+    Trade.where(user: User.owner).delete_all
+    MarketBenchmarkObservation.delete_all
+    MarketBenchmark.delete_all
+    from = Date.current - 1.week
+    stock = Instrument.create!(ticker: "ATST", exchange: "BVMF", name: "Asset type stock", currency: "BRL", asset_type: :stock)
+    bond = Instrument.create!(ticker: "ATBD", exchange: "BVMF", name: "Asset type bond", currency: "BRL", asset_type: :bond)
+    create_trade(instrument: stock, traded_on: from, unit_price: "100")
+    create_trade(instrument: bond, traded_on: from, unit_price: "200")
+    create_daily_close(instrument: stock, date: from, close_price: "100")
+    create_daily_close(instrument: stock, date: Date.current, close_price: "110")
+    create_daily_close(instrument: bond, date: from, close_price: "200")
+    create_daily_close(instrument: bond, date: Date.current, close_price: "210")
+    benchmark = MarketBenchmark.create!(identifier: "IBOV", name: "Ibovespa", kind: :price,
+      currency: "BRL", provider: "bacen", provider_identifier: "IBOV")
+    benchmark.observations.create!(observed_on: from, value: "100", currency: "BRL", provider: "bacen", observed_at: Time.current)
+    benchmark.observations.create!(observed_on: Date.current, value: "105", currency: "BRL", provider: "bacen", observed_at: Time.current)
+    Performance::ObservationBuilder.new(user: User.owner, instrument: stock, reporting_currency: "BRL").call(from:, to: Date.current)
+    Performance::ObservationBuilder.new(user: User.owner, instrument: bond, reporting_currency: "BRL").call(from:, to: Date.current)
+    Performance::ObservationBuilder.new(user: User.owner).call(from:, to: Date.current)
+
+    visit performance_path(period: "week")
+    click_on "Asset types"
+
+    assert_equal(
+      { "period" => "week", "chart" => "asset" },
+      Rack::Utils.parse_query(URI.parse(page.current_url).query)
+    )
+    assert_selector "button[data-performance-chart-mode-param='asset'][aria-selected='true']"
+    chart_state = page.evaluate_script(<<~JS)
+      (() => {
+        const element = document.querySelector("[data-controller='performance-chart']")
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
+        const labels = controller.chart.options.plugins.legend.labels.generateLabels(controller.chart).map((item) => item.text)
+        return {
+          labels,
+          datasets: controller.chart.data.datasets.map((dataset, index) => ({
+            label: dataset.label,
+            visible: controller.chart.isDatasetVisible(index)
+          }))
+        }
+      })()
+    JS
+    assert_includes chart_state.fetch("labels"), "Stock"
+    assert_includes chart_state.fetch("labels"), "Bond"
+    assert_includes chart_state.fetch("labels"), "Portfolio return"
+    assert_includes chart_state.fetch("labels"), "Ibovespa"
+    benchmark_state = chart_state.fetch("datasets").find { |dataset| dataset.fetch("label") == "Ibovespa" }
+    assert_equal false, benchmark_state.fetch("visible")
+    revealed = page.evaluate_script(<<~JS)
+      (() => {
+        const element = document.querySelector("[data-controller='performance-chart']")
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "performance-chart")
+        const item = controller.chart.legend.legendItems.find((candidate) => candidate.text === "Ibovespa")
+        controller.chart.options.plugins.legend.onClick(null, item, controller.chart.legend)
+        return controller.chart.isDatasetVisible(item.datasetIndex)
+      })()
+    JS
+    assert_equal true, revealed
+  end
+
   test "shows a closed portfolio without requiring a current price" do
     Trade.where(user: User.owner).delete_all
     instrument = Instrument.create!(ticker: "SCLP", exchange: "BVMF", name: "Sold performance stock", currency: "BRL")
@@ -119,9 +180,9 @@ class PerformanceTest < ApplicationSystemTestCase
 
   private
 
-  def create_trade(instrument:, traded_on:, side: :buy)
+  def create_trade(instrument:, traded_on:, side: :buy, unit_price: "10")
     User.owner.trades.create!(
-      instrument:, side:, traded_on:, quantity: 1, unit_price: "10", fees_cents: 0, currency: "BRL"
+      instrument:, side:, traded_on:, quantity: 1, unit_price:, fees_cents: 0, currency: "BRL"
     )
   end
 

@@ -155,6 +155,15 @@ including returns, remain in an expandable data table for keyboard and screen
 reader users. A missing observation marks the series incomplete; it is never
 drawn as a zero or replaced with a current quote.
 
+The chart also offers an **Asset types** mode. It groups the independently
+materialized instrument observations by each instrument's registered asset type.
+It then calculates a separate Modified Dietz return from that group's exact
+market-value and cash-flow totals. The portfolio return is calculated
+independently. Asset-type percentages never produce it through summing or
+averaging. Benchmark and index lines remain in the legend, but start hidden in
+Asset types mode so they do not obscure the asset-type comparison. Select a
+legend item to show a line and recalculate the return scale.
+
 Benchmark chart series use the result contract (`available?`, `missing?`, and
 `observations`) and carry each price or total-return benchmark's latest real observation across
 non-trading dates. If a requested range starts during a closure, a prior

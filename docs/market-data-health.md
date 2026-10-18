@@ -9,7 +9,8 @@ performance observations are persisted history.
 ## Coverage
 
 The report inspects current prices, current FX, daily closes, historical FX,
-benchmarks, and portfolio performance. Required dates come from the owner’s
+benchmarks, portfolio performance, and the per-asset-type inputs used by the
+Asset types performance view. Required dates come from the owner’s
 trades and open positions. Historical FX coverage includes both trade settlement
 dates and every valuation date on which a foreign-currency position is open.
 Trades are ordered by `traded_on, id`, so same-day records remain deterministic.
@@ -23,6 +24,12 @@ window. CDI requires an observation on
 each published Brazilian banking day, excludes its fixed and movable banking
 holidays, and allows one banking day for BCB publication. Persisted performance
 rows with `missing` status do not count as covered dates.
+
+Asset-type entries are an aggregate diagnostic over the reporting-currency
+instrument performance rows. They can be healthy, pending, stale, partial, or
+failed, but do not offer an aggregate retry because the underlying instrument
+rows are the recoverable targets. A retry on those rows updates the next Asset
+types health check and chart.
 
 ## Status and Recovery
 

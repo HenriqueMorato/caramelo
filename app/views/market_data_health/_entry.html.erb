@@ -8,6 +8,9 @@
   <td class="break-words py-4 pr-4 align-top text-sm text-muted"><%= entry.description %></td>
   <td class="whitespace-nowrap py-4 align-top text-right">
     <div class="flex justify-end gap-2">
+      <% if entry.target.kind == :asset_type_performance %>
+        <%= link_to t("market_data_health.show.View Asset mode"), performance_path(period: "all", chart: "asset"), class: "ui-button ui-button-secondary shrink-0" %>
+      <% end %>
       <% if entry.actionable? %>
         <% range_params = entry.missing_range ? { from: entry.missing_range.begin.iso8601, to: entry.missing_range.end.iso8601 } : {} %>
         <%= button_to t("market_data_health.show.Retry"), market_data_recoveries_path,

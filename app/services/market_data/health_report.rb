@@ -68,7 +68,7 @@ module MarketData
           fetched_at: nil,
           covered_range: nil,
           missing_range: nil,
-          actions: [ :retry ]
+          actions: issue.code == :asset_type_performance ? [] : [ :retry ]
         )
       end
 
@@ -90,6 +90,7 @@ module MarketData
         when :missing_exchange_rate then :historical_exchange_rates
         when :missing_benchmark_data then :benchmark_observations
         when :corporate_action_imports then :corporate_action_imports
+        when :asset_type_performance then :asset_type_performance
         else :portfolio_performance
         end
 
@@ -116,7 +117,10 @@ module MarketData
       corporate_action_imports = CorporateActionImports.new(owner:, today:).entries
       entries = (instrument_entries + exchange_rates + historical_rates + benchmarks + performance_entries + corporate_action_imports)
         .map { |entry| apply_refresh_state(entry) }
-        .sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
+      entries += AssetTypePerformance.new(
+        owner:, today:, context:, instrument_entries: entries
+      ).entries
+      entries = entries.sort_by { |entry| entry.severity == :error ? 0 : entry.severity == :warning ? 1 : 2 }
       Result.new(checked_at: Time.current, entries: entries)
     end
 
@@ -137,8 +141,9 @@ module MarketData
     end
 
     def performance_entries
+      instrument_performance = InstrumentPerformance.new(owner:, today:, context:).entries
       PortfolioPerformance.new(owner:, today:, context:).entries +
-        InstrumentPerformance.new(owner:, today:, context:).entries
+        instrument_performance
     end
 
     def apply_refresh_state(entry)
