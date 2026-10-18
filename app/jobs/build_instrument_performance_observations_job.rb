@@ -30,7 +30,12 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
       user:, instrument: target_instrument, reporting_currency:
     )
     result = Performance::ObservationBuilder.new(
-      user:, instrument: target_instrument, store:, materialization:
+      user:, instrument: target_instrument, store:, materialization:,
+      progress: -> {
+        Performance::SeriesRefresh.heartbeat!(
+          user:, instrument: target_instrument, reporting_currency:, from:, to:, token: lease_token
+        )
+      }
     ).call(from:, to:)
     materialization.complete!(source_generation: result.source_generation, from:, to:)
     refresh(:succeeded, from:, to:)

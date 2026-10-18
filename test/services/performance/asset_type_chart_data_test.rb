@@ -78,6 +78,27 @@ class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
     assert_equal [ "other" ], data.map { |item| item.fetch(:identifier) }
   end
 
+  test "uses the earliest date when trades and actions share an instrument" do
+    instrument = create_instrument(ticker: "ATBOTH", asset_type: :stock)
+    create_trade(instrument, date: @from + 1, unit_price: "100")
+    @user.corporate_actions.create!(
+      instrument:, kind: :dividend, status: :confirmed, paid_on: @from,
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "BRL", source: "manual"
+    )
+    create_observation(instrument, @from, market_value: "0", cash_flow: 0)
+    create_observation(instrument, @from + 1, market_value: "100", cash_flow: 100, flow_date: @from + 1)
+    create_observation(instrument, @to, market_value: "110", cash_flow: 100, flow_date: @from + 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal BigDecimal("0"), values.fetch(0)
+    assert_nil values.fetch(1)
+    assert_equal BigDecimal("0.2"), values.fetch(2)
+  end
+
   test "keeps stale last-known values in the asset return series" do
     instrument = create_instrument(ticker: "ATSTALE", asset_type: :stock)
     create_trade(instrument, unit_price: "100")
@@ -143,11 +164,20 @@ class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
     opening = aggregate(market_value: "100")
     missing = Performance::AssetTypeChartData::Aggregate.new(nil, nil, nil, :missing, {}, [], [])
     zero = aggregate(market_value: "0")
+    incomplete = Performance::AssetTypeChartData::Aggregate.new(
+      BigDecimal("110"), 0, 0, :available, {}, [], [ 1 ]
+    )
+    newly_active_incomplete = Performance::AssetTypeChartData::Aggregate.new(
+      BigDecimal("160"), 0, 0, :available, { 1 => 0 }, [], [ 1, 2 ]
+    )
 
     assert_nil service.send(:return_ratio_for, date: @to, aggregate: nil, opening_date: @from, opening:)
     assert_nil service.send(:return_ratio_for, date: @to, aggregate: missing, opening_date: @from, opening:)
     assert_nil service.send(:return_ratio_for, date: @from - 1.day, aggregate: opening, opening_date: @from, opening:)
     assert_nil service.send(:return_ratio_for, date: @to, aggregate: zero, opening_date: @from, opening: zero)
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: incomplete, opening_date: @from, opening:)
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: newly_active_incomplete,
+      opening_date: @from, opening:)
   end
 
   private

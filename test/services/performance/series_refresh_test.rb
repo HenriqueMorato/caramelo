@@ -110,6 +110,29 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_predicate refresh_state, :interrupted?
   end
 
+  test "renews an active lease when a build reports progress" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+
+    travel 29.minutes
+    Performance::SeriesRefresh.heartbeat!(user: @user, from: @from, to: @to, token:)
+    travel 2.minutes
+
+    refute_predicate refresh_state, :interrupted?
+    assert_not Performance::SeriesRefresh.acquire(user: @user)
+  end
+
+  test "rejects progress after the refresh lease expires" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+
+    travel 31.minutes
+
+    assert_raises(Performance::SeriesRefresh::LeaseLost) do
+      Performance::SeriesRefresh.heartbeat!(user: @user, from: @from, to: @to, token:)
+    end
+  end
+
   test "reports an enqueue failure and releases its lease" do
     job_class = Class.new do
       def self.perform_later(**)

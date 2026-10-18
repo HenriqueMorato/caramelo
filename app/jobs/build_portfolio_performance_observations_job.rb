@@ -21,7 +21,14 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
   def build(from:, to:)
     Performance::SeriesRefresh.running(user:, from:, to:, reporting_currency:, token: lease_token)
     store = Performance::ObservationStore.new(user:, reporting_currency:)
-    result = Performance::ObservationBuilder.new(user:, store:, materialization:).call(from:, to:)
+    result = Performance::ObservationBuilder.new(
+      user:, store:, materialization:,
+      progress: -> {
+        Performance::SeriesRefresh.heartbeat!(
+          user:, reporting_currency:, from:, to:, token: lease_token
+        )
+      }
+    ).call(from:, to:)
     materialization.complete!(source_generation: result.source_generation, from:, to:)
     Performance::SeriesRefresh.succeeded(user:, from:, to:, reporting_currency:, token: lease_token)
     result

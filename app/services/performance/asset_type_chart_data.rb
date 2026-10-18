@@ -131,12 +131,13 @@ module Performance
     end
 
     def comparable_aggregates?(aggregate, opening)
-      instrument_ids = aggregate.source_generations.keys | opening.source_generations.keys
+      instrument_ids = aggregate.source_generations.keys | opening.source_generations.keys |
+        aggregate.active_instrument_ids | opening.active_instrument_ids
       instrument_ids.all? do |instrument_id|
         opening_generation = opening.source_generations[instrument_id]
         closing_generation = aggregate.source_generations[instrument_id]
-        next true if opening_generation.nil? && !opening.active_instrument_ids.include?(instrument_id)
         next false if closing_generation.nil?
+        next true if opening_generation.nil? && !opening.active_instrument_ids.include?(instrument_id)
         next true if opening_generation == closing_generation
 
         !opening.stale_instrument_ids.include?(instrument_id) &&
