@@ -1,5 +1,8 @@
+require "digest"
+
 class AssetType < ApplicationRecord
   KEY_MAX_LENGTH = 32
+  FALLBACK_KEY_PREFIX = "type_"
   SYSTEM_DEFAULTS = [
     { key: "stock", name: "Stock", system: true },
     { key: "etf", name: "ETF", system: true },
@@ -73,7 +76,13 @@ class AssetType < ApplicationRecord
     return if key.present?
 
     base_key = name.to_s.parameterize(separator: "_")
+    base_key = fallback_key if base_key.blank? && name.present?
     self.key = base_key.present? ? available_key(base_key) : ""
+  end
+
+  def fallback_key
+    digest = Digest::SHA256.hexdigest(name.to_s)
+    "#{FALLBACK_KEY_PREFIX}#{digest.first(KEY_MAX_LENGTH - FALLBACK_KEY_PREFIX.length)}"
   end
 
   def available_key(base_key)

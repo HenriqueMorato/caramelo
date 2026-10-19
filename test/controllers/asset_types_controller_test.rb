@@ -93,4 +93,38 @@ class AssetTypesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_content
     assert_select "[role=alert]", /Name can't be blank/
   end
+
+  test "requires a session when password authentication is enabled" do
+    previous = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.authentication_mode = "password"
+    sign_out
+
+    get asset_types_url
+
+    assert_redirected_to new_session_url
+  ensure
+    Rails.application.config.x.caramelo.authentication_mode = previous
+  end
+
+  test "allows the catalog in public single-account mode" do
+    previous = Rails.application.config.x.caramelo.authentication_mode
+    Rails.application.config.x.caramelo.authentication_mode = "public"
+    sign_out
+
+    get asset_types_url
+
+    assert_response :success
+  ensure
+    Rails.application.config.x.caramelo.authentication_mode = previous
+  end
+
+  test "does not permit key or system changes through request parameters" do
+    post asset_types_url, params: {
+      asset_type: { name: "Private credit", key: "stock", system: true }
+    }
+
+    asset_type = AssetType.find_by!(name: "Private credit")
+    assert_equal "private_credit", asset_type.key
+    assert_not asset_type.system?
+  end
 end

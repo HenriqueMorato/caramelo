@@ -249,7 +249,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_090000) do
     t.index ["asset_type"], name: "index_instruments_on_asset_type"
     t.index ["exchange", "ticker"], name: "index_instruments_on_exchange_and_ticker", unique: true
     t.index ["slug"], name: "index_instruments_on_slug", unique: true
-    t.check_constraint "asset_type IN ('stock', 'etf', 'fund', 'bond', 'crypto', 'other')", name: "instruments_asset_type_check"
   end
 
   create_table "market_benchmark_observations", force: :cascade do |t|

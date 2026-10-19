@@ -34,12 +34,20 @@ class AssetTypeTest < ActiveSupport::TestCase
     assert_equal "Not registered", AssetType.label_for("not_registered")
   end
 
-  test "requires a slugable name when a key is not supplied" do
-    asset_type = AssetType.new(name: "💰")
+  test "requires a nonblank name when a key is not supplied" do
+    asset_type = AssetType.new(name: "")
 
     assert_not asset_type.valid?
     assert_empty asset_type.key
-    assert_includes asset_type.errors[:key], "is invalid"
+    assert_includes asset_type.errors[:name], "can't be blank"
+  end
+
+  test "creates a stable key for a name without a Latin transliteration" do
+    asset_type = AssetType.create!(name: "不動産")
+
+    assert_equal "不動産", asset_type.name
+    assert_match(/\Atype_[a-f0-9]{27}\z/, asset_type.key)
+    assert_operator asset_type.key.length, :<=, AssetType::KEY_MAX_LENGTH
   end
 
   test "keeps generated keys unique when long names share a prefix" do

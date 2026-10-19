@@ -26,8 +26,8 @@ The name is the editable part. When a custom type is created, caramelo derives a
 lowercase key such as `real_estate` from the name. The key never changes when
 the name is renamed. Existing instruments therefore keep their category and
 their historical performance grouping after a rename. Names must be unique,
-and a name that produces an already-used key must be changed before it can be
-saved.
+and names without a Latin transliteration receive a stable opaque ASCII key so
+they can be used without changing the displayed label.
 
 ## Where Labels Appear
 
