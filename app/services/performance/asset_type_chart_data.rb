@@ -24,13 +24,15 @@ module Performance
       return [] if instruments.empty?
 
       records = instrument_observations(instruments)
-      instruments.group_by(&:asset_type).filter_map do |asset_type, grouped_instruments|
+      instruments_by_type = instruments.group_by(&:asset_type)
+      type_labels = AssetType.labels_for(instruments_by_type.keys)
+      instruments_by_type.filter_map do |asset_type, grouped_instruments|
         values = values_for(grouped_instruments, records)
         next if values.none? { |value| !value.nil? }
 
         {
           identifier: asset_type,
-          label: AssetType.label_for(asset_type),
+          label: type_labels.fetch(AssetType.normalize_key(asset_type)),
           values:
         }
       end

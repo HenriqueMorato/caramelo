@@ -61,9 +61,18 @@ class AssetType < ApplicationRecord
 
   def self.label_for(key)
     normalized_key = normalize_key(key)
-    find_by(key: normalized_key)&.name || I18n.t(
-      "instrument_types.#{normalized_key}", default: normalized_key.humanize
-    )
+    labels_for([ normalized_key ]).fetch(normalized_key)
+  end
+
+  def self.labels_for(keys)
+    normalized_keys = keys.map { |key| normalize_key(key) }.uniq
+    names_by_key = where(key: normalized_keys).pluck(:key, :name).to_h
+
+    normalized_keys.index_with do |normalized_key|
+      names_by_key.fetch(normalized_key) do
+        I18n.t("instrument_types.#{normalized_key}", default: normalized_key.humanize)
+      end
+    end
   end
 
   def self.normalize_key(key)

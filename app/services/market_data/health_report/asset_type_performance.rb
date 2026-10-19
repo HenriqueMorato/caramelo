@@ -27,7 +27,7 @@ module MarketData
       def build_entry(asset_type:, instruments:)
         statuses = instruments.map { |instrument| entry_for(instrument) }
         status = aggregate_status(statuses)
-        label = "#{asset_type_label(asset_type)} performance · #{owner.reporting_currency}"
+        label = "#{asset_type_labels.fetch(AssetType.normalize_key(asset_type))} performance · #{owner.reporting_currency}"
 
         HealthReport::Entry.new(
           code: :asset_type_performance,
@@ -105,8 +105,8 @@ module MarketData
         ranges.map { |range| range.begin == range.end ? range.begin.iso8601 : "#{range.begin}–#{range.end}" }.join(", ")
       end
 
-      def asset_type_label(asset_type)
-        AssetType.label_for(asset_type)
+      def asset_type_labels
+        @asset_type_labels ||= AssetType.labels_for(instruments_by_type.keys)
       end
     end
   end

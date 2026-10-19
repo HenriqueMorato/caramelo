@@ -34,6 +34,21 @@ class AssetTypeTest < ActiveSupport::TestCase
     assert_equal "Not registered", AssetType.label_for("not_registered")
   end
 
+  test "loads several labels with one query" do
+    custom = AssetType.create!(name: "Private credit")
+    labels = nil
+
+    assert_queries_count(1) do
+      labels = AssetType.labels_for([ "stock", custom.key, "not_registered" ])
+    end
+
+    assert_equal({
+      "stock" => "Stock",
+      custom.key => "Private credit",
+      "not_registered" => "Not registered"
+    }, labels)
+  end
+
   test "requires a nonblank name when a key is not supplied" do
     asset_type = AssetType.new(name: "")
 
