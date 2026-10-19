@@ -77,6 +77,21 @@ class InstrumentTest < ActiveSupport::TestCase
     end
   end
 
+  test "enforces the registered asset type foreign key in the database" do
+    assert_raises ActiveRecord::InvalidForeignKey do
+      Instrument.insert_all!([ {
+        ticker: "INVALID",
+        slug: "invalid-asset-type",
+        exchange: "XNAS",
+        name: "Invalid asset type",
+        currency: "USD",
+        asset_type: "not_registered",
+        created_at: Time.current,
+        updated_at: Time.current
+      } ])
+    end
+  end
+
   test "allows the same ticker on different exchanges" do
     instrument = Instrument.new(ticker: "PETR4", exchange: "XNAS", name: "Different listing", currency: "USD")
 

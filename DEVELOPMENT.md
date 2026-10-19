@@ -365,6 +365,13 @@ example, `db/queue_migrate/`); do not replace them with a rollback merely to
 make the generated schema look unchanged. Stop Rails and Solid Queue before
 running migrations or resetting a runtime database.
 
+The asset-type catalog migration changes `instruments.asset_type` from the
+legacy six-value check to a foreign key backed by the user-managed catalog. It
+also adds a durable normalized-name index. Stop all web and job processes before
+applying this release, run the migration, and then start the new version. This
+short stop-the-world boundary prevents an older worker (which still has the
+six-value enum) from reading a newly registered custom type during deployment.
+
 ### Rebuilding a Local Solid Queue Database
 
 The development queue database is replaceable runtime state. If SQLite reports

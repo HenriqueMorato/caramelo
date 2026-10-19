@@ -54,14 +54,19 @@ dark mode uses its paired dark palette.
 
 ## Startup and Existing Data
 
-The migration creates the empty catalog and removes the old database check that
-limited instruments to six keys. It does not backfill rows during migration.
-`AssetType.ensure_defaults!` runs from startup refresh and seeds, so an existing
-database gets the built-in rows when the application starts. Existing
-instruments retain their current keys and immediately resolve to the matching
-built-in labels.
+The migration creates the catalog, seeds the six built-in rows needed by the
+foreign key, and replaces the old database check that limited instruments to
+six keys. Existing instruments retain their current keys and immediately
+resolve to the matching built-in labels. The catalog accepts up to 100 custom
+types so public single-user mode cannot grow an unbounded option list.
 
-The catalog is replaceable metadata around durable instruments. Removing a
-custom type is intentionally blocked while it is referenced. This preserves the
-meaning of existing instruments and their derived positions and performance
-history.
+Stop all web and job processes while applying this migration. Older workers
+still use the six-value enum and must not overlap the release that can write a
+custom key.
+
+The catalog is durable metadata around durable instruments and is included in
+ledger backups. Removing a custom type is intentionally blocked while it is
+referenced. This preserves the meaning of existing instruments and their
+derived positions and performance history. Each type's stable key is also used
+as its friendly management-route identifier, so renaming a display label does
+not invalidate existing links.

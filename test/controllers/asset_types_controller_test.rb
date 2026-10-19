@@ -85,6 +85,15 @@ class AssetTypesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Cannot delete an asset type used by instruments", flash[:alert]
   end
 
+  test "handles a concurrent reference during deletion" do
+    asset_type = AssetType.create!(name: "Concurrent deletion")
+    asset_type.define_singleton_method(:destroy) { raise ActiveRecord::InvalidForeignKey }
+    with_stubbed_friendly_find(asset_type) { delete asset_type_url(asset_type) }
+
+    assert_redirected_to asset_types_url
+    assert_equal "Cannot delete an asset type used by instruments", flash[:alert]
+  end
+
   test "renders validation errors when a custom asset type is invalid" do
     assert_no_difference("AssetType.count") do
       post asset_types_url, params: { asset_type: { name: "" } }
@@ -92,6 +101,48 @@ class AssetTypesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_content
     assert_select "[role=alert]", /Name can't be blank/
+    assert_select "input[aria-invalid='true'][aria-describedby='asset-type-name-error']"
+    assert_select "#asset-type-name-error", "Name can't be blank"
+  end
+
+  test "retries a concurrent generated-key collision" do
+    asset_type = AssetType.new(name: "Concurrent type")
+    calls = 0
+    original_save = asset_type.method(:save)
+    asset_type.define_singleton_method(:save) do |*args, **kwargs|
+      calls += 1
+      raise ActiveRecord::RecordNotUnique if calls == 1
+
+      original_save.call(*args, **kwargs)
+    end
+    with_stubbed_method(AssetType, :new, ->(*) { asset_type }) do
+      post asset_types_url, params: { asset_type: { name: "Concurrent type" } }
+    end
+
+    assert_redirected_to asset_types_url
+    assert_equal "concurrent_type", asset_type.reload.key
+  end
+
+  test "renders a duplicate-name race as a validation error" do
+    asset_type = AssetType.new(name: "Concurrent duplicate")
+    asset_type.define_singleton_method(:save) { raise ActiveRecord::RecordNotUnique }
+    with_stubbed_method(AssetType, :new, ->(*) { asset_type }) do
+      post asset_types_url, params: { asset_type: { name: "Concurrent duplicate" } }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "#asset-type-name-error", "Name has already been taken"
+  end
+
+  test "renders a duplicate-name update race as a validation error" do
+    asset_type = AssetType.create!(name: "Concurrent rename")
+    asset_type.define_singleton_method(:update) { |*| raise ActiveRecord::RecordNotUnique }
+    with_stubbed_friendly_find(asset_type) do
+      patch asset_type_url(asset_type), params: { asset_type: { name: "Concurrent duplicate" } }
+    end
+
+    assert_response :unprocessable_content
+    assert_select "#asset-type-name-error", "Name has already been taken"
   end
 
   test "requires a session when password authentication is enabled" do
@@ -126,5 +177,21 @@ class AssetTypesControllerTest < ActionDispatch::IntegrationTest
     asset_type = AssetType.find_by!(name: "Private credit")
     assert_equal "private_credit", asset_type.key
     assert_not asset_type.system?
+  end
+
+  private
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name, &replacement)
+    yield
+  ensure
+    object.define_singleton_method(method_name, original)
+  end
+
+  def with_stubbed_friendly_find(asset_type)
+    scope = Object.new
+    scope.define_singleton_method(:find) { |*| asset_type }
+    with_stubbed_method(AssetType, :friendly, -> { scope }) { yield }
   end
 end

@@ -16,6 +16,7 @@ class PositionsController < ApplicationController
     @allocation = Position::Allocation.for(
       positions: @positions, reporting_currency: current_account.reporting_currency
     )
+    @grouping.prepare_labels(@positions)
     @position_groups = @grouping.group(@positions)
   end
 

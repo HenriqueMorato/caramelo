@@ -15,9 +15,11 @@ en:
         and charts.
       Page title: Edit %{asset_type} · %{application}
     form:
+      Discard changes: Discard your unsaved asset type changes?
       Edit help: The name changes everywhere this category is used. Its stable key
         stays with existing records.
       New help: Use a short category name such as Real estate, Cash, or Commodities.
+      Saving: Saving…
     index:
       Built-in: Built-in
       Built-in cannot be deleted: Built-in categories stay available.
@@ -38,3 +40,4 @@ en:
     messages:
       cannot_destroy_system: Cannot delete a built-in asset type
       cannot_destroy_with_instruments: Cannot delete an asset type used by instruments
+      catalog_limit: You can register up to %{count} custom asset types.

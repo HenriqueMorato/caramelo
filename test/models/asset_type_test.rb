@@ -11,6 +11,15 @@ class AssetTypeTest < ActiveSupport::TestCase
     assert_equal AssetType::SYSTEM_KEYS.sort, AssetType.where(system: true).pluck(:key).sort
   end
 
+  test "recreates a missing built-in catalog row" do
+    AssetType.where(key: "fund").delete_all
+
+    AssetType.ensure_defaults!
+
+    assert_equal "Fund", AssetType.find_by!(key: "fund").name
+    assert_predicate AssetType.find_by!(key: "fund"), :system?
+  end
+
   test "creates a custom type with a stable key derived from its name" do
     asset_type = AssetType.create!(name: "  Real   Estate  ")
 
@@ -85,6 +94,18 @@ class AssetTypeTest < ActiveSupport::TestCase
     assert_equal "Cash reserve", instrument.reload.asset_type_record.name
   end
 
+  test "uses the stable key for friendly routes" do
+    asset_type = AssetType.create!(name: "Private credit")
+
+    assert_equal "private_credit", asset_type.to_param
+    assert_equal asset_type, AssetType.friendly.find("private_credit")
+
+    asset_type.update!(name: "Private lending")
+
+    assert_equal "private_credit", asset_type.reload.to_param
+    assert_equal asset_type, AssetType.friendly.find("private_credit")
+  end
+
   test "does not delete a built-in or used custom type" do
     AssetType.ensure_defaults!
     built_in = AssetType.find_by!(key: "stock")
@@ -101,5 +122,33 @@ class AssetTypeTest < ActiveSupport::TestCase
     asset_type = AssetType.create!(name: "Collectibles")
 
     assert_difference("AssetType.count", -1) { asset_type.destroy! }
+  end
+
+  test "enforces normalized names in the database" do
+    now = Time.current
+    attributes = {
+      key: "private_credit",
+      name: "Private credit",
+      normalized_name: "private credit",
+      system: false,
+      created_at: now,
+      updated_at: now
+    }
+    AssetType.insert_all!([ attributes ])
+
+    assert_raises ActiveRecord::RecordNotUnique do
+      AssetType.insert_all!([ attributes.merge(key: "private_credit_copy") ])
+    end
+  end
+
+  test "limits the custom catalog size" do
+    AssetType::MAX_CUSTOM_TYPES.times do |index|
+      AssetType.create!(name: "Custom type #{index}")
+    end
+
+    asset_type = AssetType.new(name: "One too many")
+
+    assert_not asset_type.valid?
+    assert_includes asset_type.errors.full_messages, "You can register up to 100 custom asset types."
   end
 end

@@ -1,7 +1,12 @@
 require "digest"
 
 class AssetType < ApplicationRecord
+  extend FriendlyId
+
+  friendly_id :key, use: :finders
+
   KEY_MAX_LENGTH = 32
+  MAX_CUSTOM_TYPES = 100
   FALLBACK_KEY_PREFIX = "type_"
   SYSTEM_DEFAULTS = [
     { key: "stock", name: "Stock", system: true },
@@ -12,6 +17,7 @@ class AssetType < ApplicationRecord
     { key: "other", name: "Other", system: true }
   ].map(&:freeze).freeze
   SYSTEM_KEYS = SYSTEM_DEFAULTS.map { |attributes| attributes.fetch(:key) }.freeze
+  MAX_CATALOG_SIZE = SYSTEM_KEYS.length + MAX_CUSTOM_TYPES
 
   has_many :instruments, foreign_key: :asset_type, primary_key: :key,
     inverse_of: :asset_type_record
@@ -22,6 +28,7 @@ class AssetType < ApplicationRecord
   attr_readonly :key, :system
 
   before_validation :assign_key, on: :create
+  before_validation :sync_normalized_name
   before_destroy :prevent_destroy
 
   validates :key, presence: true, length: { maximum: KEY_MAX_LENGTH },
@@ -29,6 +36,7 @@ class AssetType < ApplicationRecord
     uniqueness: { case_sensitive: false }
   validates :name, presence: true, length: { maximum: 64 },
     uniqueness: { case_sensitive: false }
+  validate :custom_catalog_capacity, on: :create
 
   scope :alphabetical, -> { order(:name, :key) }
   scope :with_instrument_counts, -> {
@@ -47,11 +55,15 @@ class AssetType < ApplicationRecord
 
   def self.catalog
     ensure_defaults!
-    alphabetical.to_a
+    alphabetical.limit(MAX_CATALOG_SIZE).to_a
   end
 
   def self.options
     catalog.map { |asset_type| [ asset_type.name, asset_type.key ] }
+  end
+
+  def self.custom_count
+    where(system: false).count
   end
 
   def self.valid_key?(key)
@@ -80,6 +92,16 @@ class AssetType < ApplicationRecord
   end
 
   private
+
+  def sync_normalized_name
+    self.normalized_name = name.to_s.downcase
+  end
+
+  def custom_catalog_capacity
+    return if system? || self.class.custom_count < MAX_CUSTOM_TYPES
+
+    errors.add(:base, :catalog_limit, count: MAX_CUSTOM_TYPES)
+  end
 
   def assign_key
     return if key.present?

@@ -1,6 +1,14 @@
 <%# locals: (asset_type:) %>
 
-<%= form_with(model: asset_type, class: "space-y-6") do |form| %>
+<% name_errors = asset_type.errors.full_messages_for(:name) %>
+
+<%= form_with model: asset_type, class: "space-y-6",
+              data: {
+                controller: "form-state",
+                form_state_discard_value: t("asset_types.form.Discard changes"),
+                form_state_dirty_value: asset_type.errors.any?,
+                action: "input->form-state#markDirty change->form-state#markDirty turbo:submit-start->form-state#submit turbo:submit-end->form-state#submitted turbo:before-visit@window->form-state#confirmNavigation beforeunload@window->form-state#beforeUnload"
+              } do |form| %>
   <% if asset_type.errors.any? %>
     <div class="ui-form-errors" role="alert">
       <p class="font-semibold"><%= t("forms.Could not save", count: asset_type.errors.count, model: AssetType.model_name.human.downcase) %></p>
@@ -16,11 +24,15 @@
     <%= form.label :name, class: "block text-sm font-semibold text-coffee" %>
     <p class="mt-1 text-sm leading-6 text-muted"><%= t(asset_type.persisted? ? "asset_types.form.Edit help" : "asset_types.form.New help") %></p>
     <%= form.text_field :name, required: true, maxlength: 64, autofocus: true,
-      autocomplete: "off", class: [ "ui-field", { "ui-field-invalid": asset_type.errors[:name].any? } ] %>
+      autocomplete: "off", class: [ "ui-field", { "ui-field-invalid": name_errors.any? } ],
+      aria: { invalid: name_errors.any?, describedby: ("asset-type-name-error" if name_errors.any?) } %>
+    <% if name_errors.any? %>
+      <p id="asset-type-name-error" class="mt-2 text-sm text-guava" role="alert"><%= name_errors.to_sentence %></p>
+    <% end %>
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
-    <%= form.submit class: "ui-button ui-button-primary cursor-pointer" %>
+    <%= form.submit class: "ui-button ui-button-primary cursor-pointer", data: { turbo_submits_with: t("asset_types.form.Saving") } %>
     <%= link_to t("actions.Cancel"), asset_types_path, class: "ui-button ui-button-secondary" %>
   </div>
 <% end %>
