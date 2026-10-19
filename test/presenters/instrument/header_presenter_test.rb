@@ -41,6 +41,18 @@ class Instrument::HeaderPresenterTest < ActiveSupport::TestCase
     end
   end
 
+  test "uses the registered name for a custom type" do
+    custom = AssetType.create!(name: "Private credit")
+    @instrument.update!(asset_type: custom.key)
+
+    presenter = Instrument::HeaderPresenter.for(
+      instrument: @instrument,
+      market_price: MarketPrice::Presenter.new(instrument: @instrument, lookup: nil)
+    )
+
+    assert_equal "Private credit", presenter.asset_type_label
+  end
+
   test "omits change when a price or previous close is unavailable" do
     presenter = Instrument::HeaderPresenter.for(
       instrument: @instrument,

@@ -30,6 +30,7 @@ Rails.application.routes.draw do
     end
   end
   resources :institutions
+  resources :asset_types, except: :show
   resources :instruments do
     resources :trades, only: %i[ new create ]
     resources :corporate_actions, only: %i[ new create ]

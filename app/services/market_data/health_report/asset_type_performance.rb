@@ -106,7 +106,7 @@ module MarketData
       end
 
       def asset_type_label(asset_type)
-        I18n.t("instrument_types.#{asset_type}", default: asset_type.humanize)
+        AssetType.label_for(asset_type)
       end
     end
   end

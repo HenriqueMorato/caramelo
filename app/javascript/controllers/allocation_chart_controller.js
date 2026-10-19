@@ -1,46 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 import { ArcElement, Chart, Legend, PieController, Tooltip } from "chart.js"
+import { colorFor, themeColor } from "controllers/chart_colors"
 
 Chart.register(ArcElement, Legend, PieController, Tooltip)
 
-const assetTypeColors = {
-  "type:stock": "--caramelo-asset-stock",
-  "type:etf": "--caramelo-asset-etf",
-  "type:fund": "--caramelo-asset-fund",
-  "type:bond": "--caramelo-asset-bond",
-  "type:crypto": "--caramelo-asset-crypto",
-  "type:other": "--caramelo-asset-other"
-}
-
-// A stable 20-color series keeps position slices distinct without semantic benchmark colors.
-const positionPalette = [
-  "--caramelo-asset-stock",
-  "--caramelo-asset-etf",
-  "--caramelo-asset-fund",
-  "--caramelo-asset-bond",
-  "--caramelo-asset-crypto",
-  "--caramelo-asset-other",
-  "--caramelo-series-rose",
-  "--caramelo-series-olive",
-  "--caramelo-series-indigo",
-  "--caramelo-series-cyan",
-  "--caramelo-series-rust",
-  "--caramelo-series-forest",
-  "--caramelo-series-berry",
-  "--caramelo-series-clay",
-  "--caramelo-series-denim",
-  "--caramelo-series-mustard",
-  "--caramelo-series-mulberry",
-  "--caramelo-series-sea-green",
-  "--caramelo-series-violet",
-  "--caramelo-series-slate"
-]
-
-const themeColor = (property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim()
-
-const stableIndex = (value) => Array.from(value).reduce((hash, character) => ((hash * 31) + character.codePointAt(0)) >>> 0, 0)
-
-const colorFor = (key) => themeColor(assetTypeColors[key] || positionPalette[stableIndex(key) % positionPalette.length])
 const minimumLabelAngle = 0.75
 
 const fitLabel = (context, label, maxWidth) => {

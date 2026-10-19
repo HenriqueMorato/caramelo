@@ -30,7 +30,7 @@ module Performance
 
         {
           identifier: asset_type,
-          label: I18n.t("instrument_types.#{asset_type}", default: asset_type.humanize),
+          label: AssetType.label_for(asset_type),
           values:
         }
       end

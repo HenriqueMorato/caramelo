@@ -28,6 +28,17 @@ class Position::AllocationTest < ActiveSupport::TestCase
     assert_equal [ "position:1", "position:2" ], result.position_entries.map(&:color_key)
   end
 
+  test "uses the registered name for a custom type" do
+    custom = AssetType.create!(name: "Private credit")
+    instrument = Instrument.new(id: 1, ticker: "PRIVATE", exchange: "BVMF", asset_type: custom.key)
+
+    result = Position::Allocation.for(
+      positions: [ presenter(instrument, "100") ], reporting_currency: "BRL"
+    )
+
+    assert_equal [ "Private credit" ], result.type_entries.map(&:label)
+  end
+
   test "omits zero values from both charts and keeps the denominator positive" do
     stock = Instrument.new(id: 1, ticker: "AAA", exchange: "BVMF", asset_type: :stock)
     zero = Instrument.new(id: 2, ticker: "ZERO", exchange: "BVMF", asset_type: :stock)

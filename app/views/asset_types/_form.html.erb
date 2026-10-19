@@ -1,0 +1,26 @@
+<%# locals: (asset_type:) %>
+
+<%= form_with(model: asset_type, class: "space-y-6") do |form| %>
+  <% if asset_type.errors.any? %>
+    <div class="ui-form-errors" role="alert">
+      <p class="font-semibold"><%= t("forms.Could not save", count: asset_type.errors.count, model: AssetType.model_name.human.downcase) %></p>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% asset_type.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :name, class: "block text-sm font-semibold text-coffee" %>
+    <p class="mt-1 text-sm leading-6 text-muted"><%= t(asset_type.persisted? ? "asset_types.form.Edit help" : "asset_types.form.New help") %></p>
+    <%= form.text_field :name, required: true, maxlength: 64, autofocus: true,
+      autocomplete: "off", class: [ "ui-field", { "ui-field-invalid": asset_type.errors[:name].any? } ] %>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <%= form.submit class: "ui-button ui-button-primary cursor-pointer" %>
+    <%= link_to t("actions.Cancel"), asset_types_path, class: "ui-button ui-button-secondary" %>
+  </div>
+<% end %>

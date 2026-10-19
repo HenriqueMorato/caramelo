@@ -10,7 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_11_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_090000) do
+  create_table "asset_types", force: :cascade do |t|
+    t.string "key", limit: 32, null: false
+    t.string "name", limit: 64, null: false
+    t.boolean "system", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_asset_types_on_key", unique: true
+    t.check_constraint "key <> ''", name: "asset_types_key_present"
+    t.check_constraint "name <> ''", name: "asset_types_name_present"
+  end
+
   create_table "corporate_action_import_scans", force: :cascade do |t|
     t.datetime "completed_at"
     t.datetime "created_at", null: false

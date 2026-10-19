@@ -8,6 +8,8 @@ User.owner_or_initialize.tap do |user|
   user.save!
 end
 
+AssetType.ensure_defaults!
+
 MarketBenchmark::DEFAULTS.each do |attributes|
   benchmark = MarketBenchmark.find_or_initialize_by(identifier: attributes.fetch(:identifier))
   benchmark.assign_attributes(attributes)

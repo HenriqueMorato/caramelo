@@ -17,3 +17,9 @@ ignore_unused:
   - activerecord.attributes.*
   - activerecord.errors.*
   - activerecord.models.*
+  - asset_types.form.Edit help
+  - asset_types.form.New help
+  - asset_types.index.Built-in
+  - asset_types.index.Custom
+  - errors.messages.cannot_destroy_system
+  - errors.messages.cannot_destroy_with_instruments

@@ -75,7 +75,7 @@ class Position
     end
 
     def type_label(instrument)
-      I18n.t("instrument_types.#{instrument.asset_type}", default: instrument.asset_type.humanize)
+      AssetType.label_for(instrument.asset_type)
     end
 
     def position_label(instrument)

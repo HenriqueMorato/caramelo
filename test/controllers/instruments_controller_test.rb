@@ -459,6 +459,15 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='instrument[currency]'][value='BRL']"
   end
 
+  test "includes registered custom asset types in the instrument form" do
+    custom = AssetType.create!(name: "Private credit")
+
+    get new_instrument_url
+
+    assert_response :success
+    assert_select "select[name='instrument[asset_type]'] option[value='#{custom.key}']", text: "Private credit"
+  end
+
   test "renders validation errors when creation fails" do
     assert_no_difference("Instrument.count") do
       post instruments_url, params: { instrument: { ticker: "", exchange: "BAD", name: "", currency: "ZZZ" } }

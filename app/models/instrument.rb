@@ -1,12 +1,19 @@
 class Instrument < ApplicationRecord
   extend FriendlyId
 
+  AssetType::SYSTEM_KEYS.each do |key|
+    define_method("#{key}?") { asset_type == key }
+    define_method("#{key}!") { update!(asset_type: key) }
+  end
+
   friendly_id :slug_candidates, use: :slugged
 
   before_destroy :prevent_destroy_when_referenced
 
   has_many :instrument_performance_observations, dependent: :delete_all
   has_many :instrument_performance_materializations, dependent: :delete_all
+  belongs_to :asset_type_record, class_name: "AssetType", foreign_key: :asset_type,
+    primary_key: :key, inverse_of: :instruments, optional: true
   has_many :trades, dependent: :restrict_with_error
   has_many :corporate_actions, dependent: :restrict_with_error
   has_many :corporate_action_imports, dependent: :delete_all
@@ -14,27 +21,25 @@ class Instrument < ApplicationRecord
   has_many :daily_closing_prices, dependent: :restrict_with_error
   has_many :position_materializations, dependent: :delete_all
 
-  enum :asset_type, {
-    stock: "stock",
-    etf: "etf",
-    fund: "fund",
-    bond: "bond",
-    crypto: "crypto",
-    other: "other"
-  }, default: :other, validate: true
-
   normalizes :ticker, with: ->(ticker) { ticker.strip.upcase }
   normalizes :exchange, with: ->(exchange) { exchange.strip.upcase }
   normalizes :name, with: ->(name) { name.strip.squish }
   normalizes :currency, with: ->(currency) { currency.strip.upcase }
+  normalizes :asset_type, with: ->(asset_type) { asset_type.to_s.strip.downcase }
 
   validates :ticker, presence: true, uniqueness: { scope: :exchange, case_sensitive: false }
   validates :exchange, presence: true, format: { with: /\A[A-Z0-9]{4}\z/ }
   validates :name, presence: true
   validates :currency, presence: true, iso_currency: true
+  validates :asset_type, presence: true
+  validate :asset_type_is_registered
   validate :identity_unchanged_when_referenced, if: :identity_changed?
 
   scope :alphabetical, -> { order(:ticker, :exchange) }
+
+  def self.asset_types
+    AssetType.catalog.to_h { |asset_type| [ asset_type.key, asset_type.key ] }
+  end
 
   def deletion_blocked?
     trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
@@ -68,6 +73,12 @@ class Instrument < ApplicationRecord
 
     errors.add(:base, :cannot_destroy_with_activity)
     throw(:abort)
+  end
+
+  def asset_type_is_registered
+    return if AssetType.valid_key?(asset_type)
+
+    errors.add(:asset_type, :inclusion)
   end
 
   def referenced?

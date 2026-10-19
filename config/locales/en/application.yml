@@ -22,6 +22,7 @@ en:
   Long walks: Long walks.
   Made with care: Made with care
   Manage: Manage
+  Manage asset types: Manage asset types
   Manage instruments: Manage instruments
   Market data: Market data
   Market data needs attention: Market data needs attention
@@ -124,6 +125,7 @@ en:
       ready: The backup passed its integrity checks.
   caramelo: caramelo
   confirmations:
+    Delete asset type: Delete %{name}?
     Delete corporate action: Delete this quantity action?
     Delete income: Delete this income event?
     Delete record: Delete %{record}?

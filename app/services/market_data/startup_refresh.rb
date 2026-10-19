@@ -1,6 +1,7 @@
 module MarketData
   class StartupRefresh
     def self.call
+      AssetType.ensure_defaults!
       MarketBenchmark.ensure_defaults!
       RefreshStatus::Tracker.enqueue(scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: traded_instrument_count)
       RefreshTradedMarketPricesJob.enqueue_for

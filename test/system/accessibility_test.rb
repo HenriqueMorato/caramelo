@@ -9,17 +9,21 @@ class AccessibilityTest < ApplicationSystemTestCase
   end
 
   test "core populated pages have no automatically detectable WCAG violations" do
+    AssetType.ensure_defaults!
     pages = {
       positions: positions_path,
       transactions: transactions_path,
       performance: performance_path,
       institutions: institutions_path,
+      asset_types: asset_types_path,
       instruments: instruments_path,
       instrument: instrument_path(instruments(:voo_arcx)),
       settings: settings_path,
       market_data_health: market_data_health_path,
       trade_new: new_trade_path,
+      asset_type_new: new_asset_type_path,
       trade_edit: edit_trade_path(trades(:owner_voo_buy)),
+      asset_type_edit: edit_asset_type_path(AssetType.find_by!(key: "stock")),
       instrument_edit: edit_instrument_path(instruments(:petr4_bvmf)),
       corporate_action_new: new_instrument_corporate_action_path(instruments(:petr4_bvmf)),
       performance_methodology: performance_methodology_path

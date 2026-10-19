@@ -156,7 +156,8 @@ reader users. A missing observation marks the series incomplete; it is never
 drawn as a zero or replaced with a current quote.
 
 The chart also offers an **Asset types** mode. It groups the independently
-materialized instrument observations by each instrument's registered asset type.
+materialized instrument observations by each instrument's registered [asset
+type](asset-types.md).
 It then calculates a separate Modified Dietz return from that group's exact
 market-value and cash-flow totals. The portfolio return is calculated
 independently. Asset-type percentages never produce it through summing or

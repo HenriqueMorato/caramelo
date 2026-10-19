@@ -1,0 +1,40 @@
+---
+en:
+  activerecord:
+    attributes:
+      asset_type:
+        name: Name
+    models:
+      asset_type:
+        one: asset type
+        other: asset types
+  asset_types:
+    edit:
+      Heading: Edit asset type
+      Introduction: Rename this category everywhere it appears in your instruments
+        and charts.
+      Page title: Edit %{asset_type} · %{application}
+    form:
+      Edit help: The name changes everywhere this category is used. Its stable key
+        stays with existing records.
+      New help: Use a short category name such as Real estate, Cash, or Commodities.
+    index:
+      Built-in: Built-in
+      Built-in cannot be deleted: Built-in categories stay available.
+      Custom: Custom
+      Heading: Asset types
+      Instrument count:
+        one: 1 instrument
+        other: "%{count} instruments"
+        zero: No instruments yet
+      Introduction: Keep the categories that make your portfolio easier to understand.
+      Page title: Asset types · %{application}
+      Used cannot be deleted: Reassign its instruments before deleting.
+    new:
+      Heading: Add asset type
+      Introduction: Register a category for instruments that do not fit the defaults.
+      Page title: New asset type · %{application}
+  errors:
+    messages:
+      cannot_destroy_system: Cannot delete a built-in asset type
+      cannot_destroy_with_instruments: Cannot delete an asset type used by instruments

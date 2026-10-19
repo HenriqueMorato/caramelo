@@ -21,6 +21,13 @@ class InstrumentTest < ActiveSupport::TestCase
     assert_includes instrument.errors[:asset_type], "is not included in the list"
   end
 
+  test "exposes registered asset type keys for compatibility" do
+    custom = AssetType.create!(name: "Private credit")
+
+    assert_equal "stock", Instrument.asset_types.fetch("stock")
+    assert_equal custom.key, Instrument.asset_types.fetch(custom.key)
+  end
+
   test "normalizes and requires ticker, exchange, and name" do
     instrument = Instrument.new(
       ticker: "  bova11  ",

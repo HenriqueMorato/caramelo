@@ -30,7 +30,7 @@ class Position
     end
 
     def label(grouping, value)
-      grouping == "asset_type" ? I18n.t("instrument_types.#{value}") : value
+      grouping == "asset_type" ? AssetType.label_for(value) : value
     end
 
     def slot(value)

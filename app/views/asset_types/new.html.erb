@@ -1,0 +1,13 @@
+<% content_for :title, t("asset_types.new.Page title", application: t("caramelo")) %>
+
+<section class="mx-auto max-w-2xl space-y-8">
+  <div class="ui-page-header-copy">
+    <p class="ui-eyebrow"><%= t("Portfolio catalog") %></p>
+    <h1 class="ui-page-title"><%= t("asset_types.new.Heading") %></h1>
+    <p class="ui-page-intro"><%= t("asset_types.new.Introduction") %></p>
+  </div>
+
+  <div class="rounded-2xl border border-coffee/10 bg-oat-2 p-6 shadow-sm sm:p-8">
+    <%= render "form", asset_type: @asset_type %>
+  </div>
+</section>
