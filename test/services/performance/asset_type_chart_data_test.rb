@@ -43,6 +43,20 @@ class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.1"), values.fetch(2)
   end
 
+  test "uses the registered name for a custom type" do
+    custom = AssetType.create!(name: "Private credit")
+    instrument = create_instrument(ticker: "ATCUSTOM", asset_type: custom.key)
+    create_trade(instrument, unit_price: "100")
+    create_observation(instrument, @from, market_value: "100", cash_flow: 100)
+    create_observation(instrument, @to, market_value: "110", cash_flow: 100, flow_date: @from)
+
+    data = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    )
+
+    assert_equal [ "Private credit" ], data.map { |item| item.fetch(:label) }
+  end
+
   test "keeps a type return available when another instrument starts later" do
     first = create_instrument(ticker: "ATFIRST", asset_type: :stock)
     second = create_instrument(ticker: "ATSECOND", asset_type: :stock)

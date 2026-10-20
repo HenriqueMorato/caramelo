@@ -29,7 +29,9 @@ Asset-type entries are an aggregate diagnostic over the reporting-currency
 instrument performance rows. They can be healthy, pending, stale, partial, or
 failed, but do not offer an aggregate retry because the underlying instrument
 rows are the recoverable targets. A retry on those rows updates the next Asset
-types health check and chart.
+types health check and chart. The same page links to [asset type
+management](asset-types.md), where built-in labels can be renamed and custom
+categories can be registered.
 
 ## Status and Recovery
 

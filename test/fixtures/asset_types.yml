@@ -1,0 +1,35 @@
+stock:
+  key: stock
+  name: Stock
+  normalized_name: stock
+  system: true
+
+etf:
+  key: etf
+  name: ETF
+  normalized_name: etf
+  system: true
+
+fund:
+  key: fund
+  name: Fund
+  normalized_name: fund
+  system: true
+
+bond:
+  key: bond
+  name: Bond
+  normalized_name: bond
+  system: true
+
+crypto:
+  key: crypto
+  name: Crypto
+  normalized_name: crypto
+  system: true
+
+other:
+  key: other
+  name: Other
+  normalized_name: other
+  system: true

@@ -33,13 +33,15 @@ class Position
       return empty if holdings.empty?
 
       total_amount = holdings.sum(&:amount)
+      type_groups = holdings.group_by { |holding| holding.instrument.asset_type }
+      type_labels = AssetType.labels_for(type_groups.keys)
       Result.new(
         status: :available,
         currency:,
         type_entries: entries_for(
-          holdings.group_by { |holding| holding.instrument.asset_type }, total_amount:, color_prefix: "type"
+          type_groups, total_amount:, color_prefix: "type"
         ) do |instrument|
-          type_label(instrument)
+          type_labels.fetch(AssetType.normalize_key(instrument.asset_type))
         end,
         position_entries: entries_for(
           holdings.group_by { |holding| holding.instrument.id }, total_amount:, color_prefix: "position"
@@ -72,10 +74,6 @@ class Position
           color_key: "#{color_prefix}:#{identifier}"
         )
       end.sort_by { |entry| [ -entry.amount, entry.label ] }
-    end
-
-    def type_label(instrument)
-      I18n.t("instrument_types.#{instrument.asset_type}", default: instrument.asset_type.humanize)
     end
 
     def position_label(instrument)

@@ -10,6 +10,7 @@ import {
   PointElement,
   Tooltip
 } from "chart.js"
+import { assetTypeColor, themeColor } from "controllers/chart_colors"
 
 Chart.register(CategoryScale, Filler, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip)
 
@@ -42,17 +43,6 @@ const benchmarkColorProperties = {
   ACWI_IMI_NET: "--caramelo-benchmark-acwi",
   CDI: "--caramelo-benchmark-cdi"
 }
-
-const assetTypeColorProperties = {
-  stock: "--caramelo-asset-stock",
-  etf: "--caramelo-asset-etf",
-  fund: "--caramelo-asset-fund",
-  bond: "--caramelo-asset-bond",
-  crypto: "--caramelo-asset-crypto",
-  other: "--caramelo-asset-other"
-}
-
-const themeColor = (property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim()
 
 export default class extends Controller {
   static targets = ["canvas", "tab", "legend", "panel"]
@@ -89,10 +79,10 @@ export default class extends Controller {
       role: "gain-on-cost-return",
       yAxisID: "return"
     }
-    this.assetTypeDatasets = (this.dataValue.asset_types || []).map((assetType, index) => ({
+    this.assetTypeDatasets = (this.dataValue.asset_types || []).map((assetType) => ({
       label: assetType.label,
       data: assetType.values.map((value) => value === null ? null : Number(value) * 100),
-      borderColor: this.assetTypeColor(assetType.identifier, index),
+      borderColor: this.assetTypeColor(assetType.identifier),
       borderWidth: 2,
       pointRadius: 0,
       pointHoverRadius: 4,
@@ -523,7 +513,7 @@ export default class extends Controller {
 
   datasetColor(dataset, index) {
     if (dataset.role === "benchmark") return this.benchmarkColor(dataset.benchmark.identifier, index)
-    if (dataset.role === "asset-type") return this.assetTypeColor(dataset.assetType.identifier, index)
+    if (dataset.role === "asset-type") return this.assetTypeColor(dataset.assetType.identifier)
     if (dataset.role === "invested-value") return this.colors.invested
     if (dataset.role === "gain-on-cost-return") return this.colors.comparison
 
@@ -536,10 +526,8 @@ export default class extends Controller {
     return themeColor(property)
   }
 
-  assetTypeColor(identifier, index) {
-    const properties = Object.values(assetTypeColorProperties)
-    const property = assetTypeColorProperties[identifier] || properties[index % properties.length]
-    return themeColor(property)
+  assetTypeColor(identifier) {
+    return assetTypeColor(identifier)
   }
 
   themeColors() {

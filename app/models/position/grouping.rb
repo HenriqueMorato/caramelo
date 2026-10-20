@@ -29,8 +29,18 @@ class Position
       end
     end
 
+    def prepare_labels(positions)
+      return self unless [ primary, secondary ].include?("asset_type")
+
+      keys = positions.filter_map { |position| position.instrument&.asset_type }.uniq
+      @asset_type_labels = AssetType.labels_for(keys)
+      self
+    end
+
     def label(grouping, value)
-      grouping == "asset_type" ? I18n.t("instrument_types.#{value}") : value
+      return value unless grouping == "asset_type"
+
+      (@asset_type_labels || AssetType.labels_for([ value ])).fetch(AssetType.normalize_key(value))
     end
 
     def slot(value)

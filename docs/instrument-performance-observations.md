@@ -79,9 +79,11 @@ Both return lines are included in the instrument chart. Modified Dietz is visibl
 The portfolio performance page's **Asset types** mode reuses these exact
 instrument observations. It groups instruments by their current registered
 asset type, calculates each group's Modified Dietz return independently, and
-keeps the portfolio and benchmark lines separate. Asset types are currently a
-fixed application registry. Editing or adding registry entries is tracked as a
-separate follow-up.
+keeps the portfolio and benchmark lines separate. The catalog starts with six
+built-in types and can be extended from **Data health → Manage asset types**.
+Custom names keep stable keys, so renaming a category changes labels without
+rewriting instrument history. See [Asset types](asset-types.md) for the catalog
+rules and deployment notes.
 
 The public explanation at `/performance/methodology` provides a worked example and describes where caramelo uses each method.
 

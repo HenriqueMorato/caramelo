@@ -31,7 +31,7 @@ class Instrument::HeaderPresenter
   end
 
   def asset_type_label
-    I18n.t("instrument_types.#{instrument.asset_type}")
+    AssetType.label_for(instrument.asset_type)
   end
 
   def price_label

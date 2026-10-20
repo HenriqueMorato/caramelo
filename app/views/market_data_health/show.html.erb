@@ -12,6 +12,7 @@
     <div class="flex flex-wrap items-center justify-end gap-3">
       <p class="text-sm text-muted"><%= t(".Checked at", time: l(@report.checked_at, format: :short)) %></p>
       <%= link_to t("Manage instruments"), instruments_path, class: "ui-button ui-button-secondary" %>
+      <%= link_to t("Manage asset types"), asset_types_path, class: "ui-button ui-button-secondary" %>
       <% refresh_title = @market_price_refresh_available ? nil : t(".Refresh throttled") %>
       <span class="group relative inline-flex">
         <%= button_to t("Refresh prices"), current_market_price_refresh_path, disabled: !@market_price_refresh_available, class: "ui-button ui-button-primary disabled:cursor-not-allowed disabled:opacity-50", form_class: "inline-flex", aria: { describedby: ("refresh-throttle-tooltip" if refresh_title) }, data: { turbo_submits_with: t("Refreshing") } %>

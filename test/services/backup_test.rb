@@ -87,6 +87,17 @@ class BackupTest < ActiveSupport::TestCase
     assert_equal 1, counts.fetch("corporate_action_imports")
   end
 
+  test "keeps custom asset type labels in the durable ledger artifact" do
+    custom = AssetType.create!(name: "Private credit")
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    database = SQLite3::Database.new(result.ledger_path.to_s, readonly: true)
+    row = database.get_first_row("SELECT key, name FROM asset_types WHERE key = ?", [ custom.key ])
+    database.close
+
+    assert_equal [ "private_credit", "Private credit" ], row
+  end
+
   test "keeps automatic corporate-action scan watermarks in the durable ledger artifact" do
     instrument = Instrument.create!(
       ticker: "BKP#{SecureRandom.hex(4).upcase}", exchange: "BVMF", name: "Backup scan instrument", currency: "BRL"
