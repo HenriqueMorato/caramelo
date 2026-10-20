@@ -58,8 +58,22 @@
   --caramelo-asset-etf: #2f746d;
   --caramelo-asset-fund: #70527d;
   --caramelo-asset-bond: #3f5f86;
-  --caramelo-asset-crypto: #a66c12;
+  --caramelo-asset-crypto: #95600f;
   --caramelo-asset-other: #766b60;
+  --caramelo-series-rose: #a04467;
+  --caramelo-series-olive: #64702e;
+  --caramelo-series-indigo: #5853a0;
+  --caramelo-series-cyan: #23768a;
+  --caramelo-series-rust: #98432f;
+  --caramelo-series-forest: #3f704b;
+  --caramelo-series-berry: #873c82;
+  --caramelo-series-clay: #8b6050;
+  --caramelo-series-denim: #526e9a;
+  --caramelo-series-mustard: #807025;
+  --caramelo-series-mulberry: #85465e;
+  --caramelo-series-sea-green: #397d70;
+  --caramelo-series-violet: #7955a0;
+  --caramelo-series-slate: #626c78;
 }
 
 html[data-theme="dark"] {
@@ -96,10 +110,24 @@ html[data-theme="dark"] {
   --caramelo-benchmark-cdi: #e2ad54;
   --caramelo-asset-stock: #f09b76;
   --caramelo-asset-etf: #6cc7b8;
-  --caramelo-asset-fund: #d58bd0;
+  --caramelo-asset-fund: #bda0d6;
   --caramelo-asset-bond: #78a7dc;
   --caramelo-asset-crypto: #e2ad54;
   --caramelo-asset-other: #b9aaa0;
+  --caramelo-series-rose: #eb94b1;
+  --caramelo-series-olive: #bdc977;
+  --caramelo-series-indigo: #a6a2ef;
+  --caramelo-series-cyan: #70c4dc;
+  --caramelo-series-rust: #df8871;
+  --caramelo-series-forest: #87bc91;
+  --caramelo-series-berry: #d58bd0;
+  --caramelo-series-clay: #cfa38e;
+  --caramelo-series-denim: #95b5e4;
+  --caramelo-series-mustard: #cdbd70;
+  --caramelo-series-mulberry: #d79ab2;
+  --caramelo-series-sea-green: #8cd3bd;
+  --caramelo-series-violet: #c5a1e8;
+  --caramelo-series-slate: #adb8c8;
 }
 
 @theme inline {

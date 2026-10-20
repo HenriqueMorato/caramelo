@@ -24,6 +24,27 @@ class PositionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#current_market_price_instrument_#{instruments(:voo_arcx).id}", text: /Price unavailable/
   end
 
+  test "renders type and position allocation charts for a complete portfolio" do
+    Trade.where(user: User.owner).delete_all
+    stock = instruments(:petr4_bvmf)
+    stock.update!(asset_type: :stock)
+    bond = Instrument.create!(ticker: "ALBD", exchange: "BVMF", name: "Allocation bond", currency: "BRL", asset_type: :bond)
+    create_trade(instrument: stock, side: :buy, quantity: 2)
+    create_trade(instrument: bond, side: :buy, quantity: 1)
+    write_current_market_price(instrument: stock, unit_price: "30")
+    write_current_market_price(instrument: bond, unit_price: "20")
+
+    get positions_url
+
+    assert_response :success
+    assert_select "section[aria-labelledby='positions-allocation-heading']"
+    assert_select "[data-controller='allocation-chart']", count: 2
+    assert_select "h3", text: "By type"
+    assert_select "h3", text: "By position"
+    assert_select "th", text: "Stock"
+    assert_select "th", text: "ALBD"
+  end
+
   test "hides closed positions by default and includes them when requested" do
     instrument = instruments(:petr4_bvmf)
     create_trade(instrument:, side: :buy, quantity: 2)

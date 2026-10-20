@@ -22,6 +22,40 @@ class PositionsTest < ApplicationSystemTestCase
     assert_current_path instrument_path(instruments(:voo_arcx))
   end
 
+  test "shows allocation charts below the positions list" do
+    instrument = Instrument.find_by!(ticker: "VOO")
+    write_current_market_price(instrument:, unit_price: "611.60")
+    write_exchange_rate(base_currency: "USD", quote_currency: "BRL", rate: "5")
+
+    visit positions_path
+
+    assert_text "How the portfolio is divided."
+    assert_text "By type"
+    assert_text "By position"
+    assert_selector "[data-controller='allocation-chart']", count: 2
+    assert_selector "summary", text: "View exact values", count: 2
+
+    page.document.synchronize do
+      ready = page.evaluate_script(<<~JS)
+        [...document.querySelectorAll("[data-controller='allocation-chart']")].every((element) => {
+          const chart = window.Stimulus.getControllerForElementAndIdentifier(element, "allocation-chart")?.chart
+          return Boolean(chart?.data?.datasets?.length)
+        })
+      JS
+      raise Capybara::ElementNotFound, "allocation charts are not ready" unless ready
+    end
+
+    chart_data = page.evaluate_script(<<~JS)
+      (() => [...document.querySelectorAll("[data-controller='allocation-chart']")].map((element) => {
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "allocation-chart")
+        return controller.chart.data
+      }))()
+    JS
+
+    assert_equal [ "Other" ], chart_data.fetch(0).fetch("labels")
+    assert_equal [ "VOO" ], chart_data.fetch(1).fetch("labels")
+  end
+
   test "chooses nested grouping options and can clear grouping" do
     visit positions_path
 
@@ -92,6 +126,25 @@ class PositionsTest < ApplicationSystemTestCase
       unit_price: 10,
       fees_cents: 0,
       currency: instrument.currency
+    )
+  end
+
+  def write_current_market_price(instrument:, unit_price:)
+    CurrentMarketPriceCache.new.write(
+      instrument:,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price:, currency: instrument.currency, provider: "yahoo_finance",
+        quoted_at: Time.current - 1.minute, fetched_at: Time.current
+      )
+    )
+  end
+
+  def write_exchange_rate(base_currency:, quote_currency:, rate:)
+    ExchangeRateCache.new.write(
+      exchange_rate: ExchangeRate::Rate.new(
+        base_currency:, quote_currency:, rate: BigDecimal(rate), provider: "yahoo_finance_fx",
+        observed_at: Time.current - 1.minute, fetched_at: Time.current
+      )
     )
   end
 end

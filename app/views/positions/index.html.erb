@@ -83,4 +83,27 @@
       <% end %>
     <% end %>
   </div>
+
+  <% if @allocation.available? %>
+    <section class="space-y-4" aria-labelledby="positions-allocation-heading">
+      <div>
+        <p class="ui-eyebrow"><%= t("positions.index.Portfolio shape") %></p>
+        <h2 id="positions-allocation-heading" class="font-display text-2xl font-semibold tracking-tight text-coffee"><%= t("positions.index.Allocation heading") %></h2>
+        <p class="mt-1 text-sm leading-5 text-muted"><%= t("positions.index.Allocation explanation") %></p>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <%= render "allocation_chart", allocation: @allocation,
+          entries: @allocation.type_entries, id: "allocation-by-type",
+          title: t("positions.index.By type"), description: t("positions.index.By type explanation") %>
+        <%= render "allocation_chart", allocation: @allocation,
+          entries: @allocation.position_entries, id: "allocation-by-position",
+          title: t("positions.index.By position"), description: t("positions.index.By position explanation") %>
+      </div>
+    </section>
+  <% elsif @allocation.unavailable? %>
+    <div class="rounded-2xl border border-warning-border bg-warning-surface p-5 text-warning-text" role="status">
+      <h2 class="font-semibold"><%= t("positions.index.Allocation unavailable") %></h2>
+      <p class="mt-1 text-sm leading-5"><%= t("positions.index.Allocation unavailable explanation") %></p>
+    </div>
+  <% end %>
 </section>

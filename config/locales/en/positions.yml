@@ -3,6 +3,17 @@ en:
   positions:
     index:
       Add instrument: Add instrument
+      Allocation: Allocation
+      Allocation explanation: 'See the same portfolio value through two lenses: asset
+        type and individual position.'
+      Allocation heading: How the portfolio is divided.
+      Allocation unavailable: Allocation is waiting for complete values.
+      Allocation unavailable explanation: Allocation charts will appear when every
+        open position has a current market value.
+      By position: By position
+      By position explanation: Each non-zero open position's share of the portfolio.
+      By type: By type
+      By type explanation: The portfolio share held by each registered asset type.
       Clear: Clear
       Closed positions hidden: Include closed positions to review the complete trade
         history.
@@ -19,12 +30,15 @@ en:
       Open positions: Open positions
       Organize: Organize
       Page title: Positions · %{application}
+      Portfolio shape: Portfolio shape
       Position: Position
       Position could not be calculated: Position could not be calculated
       Primary grouping: primary grouping
       Sales exceed purchases: Recorded sales exceed purchases on %{date}. Review this
         instrument's trades.
       Secondary grouping: secondary grouping
+      Share: Share
       Show open positions: Show open positions only
       Subheading: Every position, in one calm place.
       Total value: Total value
+      View exact allocation values: View exact values
