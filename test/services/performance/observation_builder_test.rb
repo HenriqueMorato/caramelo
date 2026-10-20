@@ -49,6 +49,21 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
     assert_empty @portfolio.dates
   end
 
+  test "reports progress before each valuation" do
+    progress_count = 0
+    builder = Performance::ObservationBuilder.new(
+      user: @user,
+      store: @store,
+      portfolio: @portfolio,
+      progress: -> { progress_count += 1 }
+    )
+
+    result = builder.call(from: @from, to: @to)
+
+    assert_equal 3, result.built_count
+    assert_equal 3, progress_count
+  end
+
   test "reusing a builder reloads trades and the requested range" do
     first = @builder.call(from: @from, to: @from)
     trades(:owner_voo_buy).update!(quantity: "9")

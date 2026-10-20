@@ -5,12 +5,13 @@ module Performance
     Result = Data.define(:from, :to, :built_count, :skipped_count, :source_generation)
 
     def initialize(user:, instrument: nil, reporting_currency: user.reporting_currency,
-      store: nil, portfolio: Portfolio, materialization: nil)
+      store: nil, portfolio: Portfolio, materialization: nil, progress: nil)
       @user = user
       @instrument = instrument
       @materialization = materialization || default_materialization(reporting_currency:)
       @store = store || default_store
       @portfolio = portfolio
+      @progress = progress || -> { }
     end
 
     def call(from:, to:)
@@ -29,7 +30,7 @@ module Performance
     private
 
     attr_reader :user, :instrument, :store, :portfolio, :materialization, :from, :to,
-      :source_generation, :dates, :dates_to_build
+      :source_generation, :dates, :dates_to_build, :progress
 
     def default_materialization(reporting_currency:)
       if instrument
@@ -83,6 +84,7 @@ module Performance
     def build_dates
       built_count = 0
       dates_to_build.each do |date|
+        progress.call
         attributes = {
           valuation_date: date, owner: user, trades:, corporate_actions:,
           reporting_currency: materialization.reporting_currency

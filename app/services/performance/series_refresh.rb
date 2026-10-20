@@ -6,6 +6,7 @@ module Performance
     FAILURE_COOLDOWN = 30.seconds
 
     class AlreadyRunning < StandardError; end
+    class LeaseLost < StandardError; end
 
     # Disposable UI state for a durable portfolio or instrument request.
     class State
@@ -26,6 +27,10 @@ module Performance
 
       def failed?
         status == "failed"
+      end
+
+      def interrupted?
+        active? && (!updated_at || updated_at <= LEASE_TTL.ago)
       end
     end
 
@@ -56,7 +61,16 @@ module Performance
     end
 
     def self.running(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
-      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "running")
+      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "running", renew_lease: true)
+    end
+
+    def self.heartbeat!(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
+      state = write(
+        user:, instrument:, from:, to:, token:, reporting_currency:, status: "running", renew_lease: true
+      )
+      return state if state
+
+      raise LeaseLost, "performance refresh lease expired before the build completed"
     end
 
     def self.queued(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
@@ -186,15 +200,21 @@ module Performance
     class << self
       private
 
-      def write(user:, instrument:, from:, to:, token:, reporting_currency:, status:, error_message: nil)
+      def write(user:, instrument:, from:, to:, token:, reporting_currency:, status:, error_message: nil,
+        renew_lease: false)
+        written = false
         with_current_lease(user:, instrument:, token:, reporting_currency:) do
+          Rails.cache.write(
+            lease_key(user:, instrument:, reporting_currency:), token, expires_in: LEASE_TTL
+          ) if renew_lease
           Rails.cache.write(
             state_key(user:, instrument:, reporting_currency:),
             state_payload(from:, to:, status:, error_message:),
             expires_in: STATE_TTL
           )
+          written = true
         end
-        read(user:, instrument:, reporting_currency:)
+        read(user:, instrument:, reporting_currency:) if written
       end
 
       def state_payload(from:, to:, status:, error_message:)

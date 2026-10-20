@@ -44,6 +44,7 @@ module MarketData
 
       def status_for(materialization:, observations:, coverage:, refresh:)
         return :failed if materialization.pending? && refresh&.failed?
+        return :interrupted if materialization.pending? && refresh&.interrupted?
         return :updating if materialization.pending?
         return :stale if observations.any?(&:stale?)
         return :healthy if coverage.complete?
@@ -54,6 +55,7 @@ module MarketData
 
       def build(instrument:, currency:, status:, coverage:)
         severity = :error if status == :failed
+        severity ||= :error if status == :interrupted
         severity ||= :warning if %i[missing partial stale].include?(status)
         HealthReport::Entry.new(
           code: :instrument_performance,
@@ -75,6 +77,7 @@ module MarketData
         return "#{instrument.ticker} performance in #{currency} is up to date." if status == :healthy
         return "#{instrument.ticker} performance in #{currency} is rebuilding." if status == :updating
         return "#{instrument.ticker} performance in #{currency} failed to rebuild." if status == :failed
+        return "#{instrument.ticker} performance in #{currency} refresh stopped before completing." if status == :interrupted
         return "#{instrument.ticker} performance in #{currency} has stale last-known values." if status == :stale
 
         "#{instrument.ticker} performance in #{currency} is missing values for #{format_ranges(coverage.missing_ranges)}."

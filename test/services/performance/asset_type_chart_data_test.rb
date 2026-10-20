@@ -1,0 +1,234 @@
+require "test_helper"
+
+class Performance::AssetTypeChartDataTest < ActiveSupport::TestCase
+  setup do
+    @user = users(:owner)
+    Trade.where(user: @user).delete_all
+    InstrumentPerformanceObservation.where(user: @user).delete_all
+    @from = Date.new(2026, 9, 1)
+    @to = Date.new(2026, 9, 3)
+  end
+
+  test "calculates an independent Modified Dietz return for every asset type" do
+    stock = create_instrument(ticker: "ATST", asset_type: :stock)
+    bond = create_instrument(ticker: "ATBD", asset_type: :bond)
+    create_trade(stock, unit_price: "100")
+    create_trade(bond, unit_price: "200")
+    create_observation(stock, @from, market_value: "100", cash_flow: 100)
+    create_observation(stock, @to, market_value: "130", cash_flow: 100, flow_date: @from)
+    create_observation(bond, @from, market_value: "200", cash_flow: 200)
+    create_observation(bond, @to, market_value: "210", cash_flow: 200, flow_date: @from)
+
+    data = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    )
+
+    assert_equal [ "Bond", "Stock" ], data.map { |item| item.fetch(:label) }
+    assert_equal [ BigDecimal("0"), nil, BigDecimal("0.05") ], data.fetch(0).fetch(:values)
+    assert_equal [ BigDecimal("0"), nil, BigDecimal("0.3") ], data.fetch(1).fetch(:values)
+  end
+
+  test "starts a type when its first complete observation becomes available" do
+    instrument = create_instrument(ticker: "ATLATE", asset_type: :etf)
+    create_trade(instrument, date: @from + 1, unit_price: "100")
+    create_observation(instrument, @from + 1, market_value: "100", cash_flow: 100, flow_date: @from + 1)
+    create_observation(instrument, @to, market_value: "110", cash_flow: 100, flow_date: @from + 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_nil values.fetch(0)
+    assert_equal BigDecimal("0"), values.fetch(1)
+    assert_equal BigDecimal("0.1"), values.fetch(2)
+  end
+
+  test "keeps a type return available when another instrument starts later" do
+    first = create_instrument(ticker: "ATFIRST", asset_type: :stock)
+    second = create_instrument(ticker: "ATSECOND", asset_type: :stock)
+    create_trade(first, unit_price: "100")
+    create_trade(second, date: @from + 1, unit_price: "50")
+    create_observation(first, @from, market_value: "100", cash_flow: 100)
+    create_observation(first, @from + 1, market_value: "105", cash_flow: 100)
+    create_observation(first, @to, market_value: "110", cash_flow: 100)
+    create_observation(second, @from + 1, market_value: "50", cash_flow: 50, flow_date: @from + 1)
+    create_observation(second, @to, market_value: "55", cash_flow: 50, flow_date: @from + 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal [ BigDecimal("0"), BigDecimal("0.05"), BigDecimal("0.12") ], values
+  end
+
+  test "includes an instrument that has only a confirmed corporate action" do
+    instrument = create_instrument(ticker: "ATINCOME", asset_type: :other)
+    @user.corporate_actions.create!(
+      instrument:, kind: :dividend, status: :confirmed, paid_on: @from,
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "BRL", source: "manual"
+    )
+    create_observation(instrument, @from, market_value: "0", cash_flow: -1)
+    create_observation(instrument, @to, market_value: "0", cash_flow: -1, flow_date: @from)
+
+    data = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    )
+
+    assert_equal [ "other" ], data.map { |item| item.fetch(:identifier) }
+  end
+
+  test "uses the earliest date when trades and actions share an instrument" do
+    instrument = create_instrument(ticker: "ATBOTH", asset_type: :stock)
+    create_trade(instrument, date: @from + 1, unit_price: "100")
+    @user.corporate_actions.create!(
+      instrument:, kind: :dividend, status: :confirmed, paid_on: @from,
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "BRL", source: "manual"
+    )
+    create_observation(instrument, @from, market_value: "0", cash_flow: 0)
+    create_observation(instrument, @from + 1, market_value: "100", cash_flow: 100, flow_date: @from + 1)
+    create_observation(instrument, @to, market_value: "110", cash_flow: 100, flow_date: @from + 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal BigDecimal("0"), values.fetch(0)
+    assert_nil values.fetch(1)
+    assert_equal BigDecimal("0.2"), values.fetch(2)
+  end
+
+  test "keeps stale last-known values in the asset return series" do
+    instrument = create_instrument(ticker: "ATSTALE", asset_type: :stock)
+    create_trade(instrument, unit_price: "100")
+    create_observation(instrument, @from, market_value: "100", cash_flow: 100)
+    create_observation(instrument, @to, market_value: "110", cash_flow: 100, flow_date: @from, stale: true)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal BigDecimal("0.1"), values.fetch(2)
+  end
+
+  test "does not combine stale and rebuilt generations in an asset return" do
+    instrument = create_instrument(ticker: "ATGEN", asset_type: :stock)
+    create_trade(instrument, unit_price: "100")
+    create_observation(instrument, @from, market_value: "100", cash_flow: 100, stale: true)
+    create_observation(instrument, @to, market_value: "120", cash_flow: 100, source_generation: 1)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_nil values.fetch(2)
+  end
+
+  test "leaves a type return unavailable after a missing observation" do
+    instrument = create_instrument(ticker: "ATMISS", asset_type: :fund)
+    create_trade(instrument, unit_price: "100")
+    create_observation(instrument, @from, market_value: "100", cash_flow: 100)
+    create_missing_observation(instrument, @to)
+
+    values = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    ).sole.fetch(:values)
+
+    assert_equal BigDecimal("0"), values.fetch(0)
+    assert_nil values.fetch(1)
+  end
+
+  test "omits a type without a complete opening observation" do
+    instrument = create_instrument(ticker: "ATEMPTY", asset_type: :other)
+    create_trade(instrument, unit_price: "100")
+    create_missing_observation(instrument, @from)
+
+    data = Performance::AssetTypeChartData.for(
+      series: series, user: @user, reporting_currency: "BRL"
+    )
+
+    assert_empty data
+  end
+
+  test "returns no data for an empty series" do
+    empty = Performance::Series::Result.new(
+      from: @from, to: @to, observations: [], status: :empty, refresh_status: nil
+    )
+
+    assert_empty Performance::AssetTypeChartData.for(series: empty, user: @user, reporting_currency: "BRL")
+  end
+
+  test "leaves returns unavailable for unusable aggregate inputs" do
+    service = Performance::AssetTypeChartData.new(series:, user: @user, reporting_currency: "BRL")
+    opening = aggregate(market_value: "100")
+    missing = Performance::AssetTypeChartData::Aggregate.new(nil, nil, nil, :missing, {}, [], [])
+    zero = aggregate(market_value: "0")
+    incomplete = Performance::AssetTypeChartData::Aggregate.new(
+      BigDecimal("110"), 0, 0, :available, {}, [], [ 1 ]
+    )
+    newly_active_incomplete = Performance::AssetTypeChartData::Aggregate.new(
+      BigDecimal("160"), 0, 0, :available, { 1 => 0 }, [], [ 1, 2 ]
+    )
+
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: nil, opening_date: @from, opening:)
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: missing, opening_date: @from, opening:)
+    assert_nil service.send(:return_ratio_for, date: @from - 1.day, aggregate: opening, opening_date: @from, opening:)
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: zero, opening_date: @from, opening: zero)
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: incomplete, opening_date: @from, opening:)
+    assert_nil service.send(:return_ratio_for, date: @to, aggregate: newly_active_incomplete,
+      opening_date: @from, opening:)
+  end
+
+  private
+
+  def series
+    observations = (@from..@to).map do |date|
+      Performance::Series::Observation.new(
+        date:, market_value_amount: nil, market_value: nil, invested_amount: nil,
+        invested_value: nil, gain_loss_amount: nil, gain_loss: nil, return_ratio: nil,
+        gain_on_cost_ratio: nil, status: :available
+      )
+    end
+    Performance::Series::Result.new(
+      from: @from, to: @to, observations:, status: :available, refresh_status: nil
+    )
+  end
+
+  def create_instrument(ticker:, asset_type:)
+    Instrument.create!(ticker:, exchange: "BVMF", name: "#{ticker} instrument", currency: "BRL", asset_type:)
+  end
+
+  def create_trade(instrument, date: @from, unit_price:)
+    @user.trades.create!(
+      instrument:, traded_on: date, side: :buy, quantity: 1, unit_price:, fees_cents: 0, currency: "BRL"
+    )
+  end
+
+  def aggregate(market_value:)
+    Performance::AssetTypeChartData::Aggregate.new(
+      BigDecimal(market_value), 0, 0, :available, { 1 => 0 }, [], [ 1 ]
+    )
+  end
+
+  def create_observation(instrument, date, market_value:, cash_flow:, flow_date: @from, stale: false,
+    source_generation: 0)
+    InstrumentPerformanceObservation.create!(
+      user: @user, instrument:, observed_on: date, reporting_currency: "BRL",
+      market_value_amount: market_value, cost_basis_amount: cash_flow,
+      realized_gain_amount: "0", unrealized_gain_amount: "0", net_cash_flow_amount: cash_flow,
+      investment_income_amount: "0", invested_amount: cash_flow,
+      cash_flow_total: Rational(cash_flow), dated_cash_flow_total: Rational(cash_flow) * flow_date.jd,
+      status: :available, source_generation:, generated_at: Time.current,
+      stale_at: (Time.current if stale)
+    )
+  end
+
+  def create_missing_observation(instrument, date)
+    InstrumentPerformanceObservation.create!(
+      user: @user, instrument:, observed_on: date, reporting_currency: "BRL",
+      cash_flow_total: 0, dated_cash_flow_total: 0, status: :missing,
+      source_generation: 0, generated_at: Time.current
+    )
+  end
+end

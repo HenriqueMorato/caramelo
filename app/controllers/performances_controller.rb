@@ -9,9 +9,15 @@ class PerformancesController < ApplicationController
         from: period_start, to: period_end, user: current_account
       )
       @series_presenter = Performance::SeriesPresenter.new(@series)
-      @benchmark_results = benchmark_results(reporting_currency: @performance.closing_valuation.market_value.currency.iso_code)
+      reporting_currency = @performance.closing_valuation.market_value.currency.iso_code
+      @benchmark_results = benchmark_results(reporting_currency:)
       @benchmark_chart_data = Performance::BenchmarkChartData.for(series: @series, benchmark_results: @benchmark_results)
+      @asset_type_chart_data = Performance::AssetTypeChartData.for(
+        series: @series, user: current_account, reporting_currency:
+      )
     end
+    @period_chart = params[:chart].presence
+    @period_chart = nil if @period_chart == "asset" && @asset_type_chart_data.blank?
     @historical_data_backfill_pending = HistoricalDataBackfill.pending_for?(instruments: @performance.missing_instruments)
   end
 

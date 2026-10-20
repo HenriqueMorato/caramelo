@@ -110,7 +110,10 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
 
   def with_builder(builder)
     original = Performance::ObservationBuilder.method(:new)
-    Performance::ObservationBuilder.define_singleton_method(:new, ->(**) { builder })
+    Performance::ObservationBuilder.define_singleton_method(:new, ->(**arguments) {
+      builder.progress = arguments[:progress]
+      builder
+    })
     yield
   ensure
     Performance::ObservationBuilder.define_singleton_method(:new, original)
@@ -126,6 +129,7 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
 
   class RecordingBuilder
     attr_reader :calls
+    attr_writer :progress
 
     def initialize(error: nil, &during_build)
       @error = error
@@ -134,6 +138,7 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
     end
 
     def call(**arguments)
+      @progress&.call
       calls << arguments
       raise @error if @error
 

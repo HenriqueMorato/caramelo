@@ -144,6 +144,7 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     Performance::ObservationBuilder.define_singleton_method(:new, ->(**arguments) {
       raise "instrument target missing" unless arguments[:instrument] == instrument
 
+      builder.progress = arguments[:progress]
       builder
     })
     yield
@@ -161,6 +162,7 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
 
   class RecordingBuilder
     attr_reader :calls
+    attr_writer :progress
 
     def initialize(error: nil, &during_build)
       @error = error
@@ -169,6 +171,7 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     end
 
     def call(**arguments)
+      @progress&.call
       calls << arguments
       raise @error if @error
 

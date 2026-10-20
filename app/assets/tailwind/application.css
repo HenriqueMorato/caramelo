@@ -54,6 +54,12 @@
   --caramelo-benchmark-sp500: #7b3f78;
   --caramelo-benchmark-acwi: #287b72;
   --caramelo-benchmark-cdi: #a66c12;
+  --caramelo-asset-stock: #a24b2a;
+  --caramelo-asset-etf: #2f746d;
+  --caramelo-asset-fund: #70527d;
+  --caramelo-asset-bond: #3f5f86;
+  --caramelo-asset-crypto: #a66c12;
+  --caramelo-asset-other: #766b60;
 }
 
 html[data-theme="dark"] {
@@ -88,6 +94,12 @@ html[data-theme="dark"] {
   --caramelo-benchmark-sp500: #d58bd0;
   --caramelo-benchmark-acwi: #6cc7b8;
   --caramelo-benchmark-cdi: #e2ad54;
+  --caramelo-asset-stock: #f09b76;
+  --caramelo-asset-etf: #6cc7b8;
+  --caramelo-asset-fund: #d58bd0;
+  --caramelo-asset-bond: #78a7dc;
+  --caramelo-asset-crypto: #e2ad54;
+  --caramelo-asset-other: #b9aaa0;
 }
 
 @theme inline {

@@ -43,8 +43,8 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       today: Date.new(2026, 9, 2)
     )
 
-    assert_equal %i[stale_current_price missing_daily_close missing_current_exchange_rate missing_exchange_rate missing_benchmark_data], report.issues.map(&:code)
-    assert_equal 5, report.warnings.size
+    assert_equal %i[stale_current_price missing_daily_close missing_current_exchange_rate missing_exchange_rate missing_benchmark_data asset_type_performance], report.issues.map(&:code)
+    assert_equal 6, report.warnings.size
     refute report.healthy?
   end
 
@@ -584,6 +584,14 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       MarketBenchmarkObservation.create!(market_benchmark: benchmark, observed_on: date, value: 1,
         currency: "USD", provider: "yahoo_finance", observed_at: Time.current)
     end
+    materialization = InstrumentPerformanceMaterialization.for(
+      user: users(:owner), instrument:, reporting_currency: users(:owner).reporting_currency
+    )
+    (Date.new(2026, 8, 12)..Date.new(2026, 9, 2)).each do |date|
+      create_instrument_performance_observation(
+        owner: users(:owner), instrument:, materialization:, observed_on: date
+      )
+    end
 
     report = MarketData::HealthReport.for(
       owner: users(:owner), current_market_price_service: CurrentPriceService.new,
@@ -722,6 +730,26 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :error, entry.severity
     assert_equal "Portfolio performance failed to rebuild.", entry.description
     assert_equal [ :retry ], entry.actions
+  ensure
+    Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
+  end
+
+  test "reports an interrupted portfolio performance rebuild" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, reporting_currency: owner.reporting_currency)
+    Performance::SeriesRefresh.running(
+      user: owner, reporting_currency: owner.reporting_currency, from: first_date, to: first_date, token:
+    )
+    travel 31.minutes
+
+    entry = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: first_date).entries.sole
+
+    assert_equal :interrupted, entry.status
+    assert_equal :error, entry.severity
+    assert_includes entry.description, "stopped before completing"
   ensure
     Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
   end
@@ -938,6 +966,151 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :healthy, inspector.entries.find { |entry| entry.target.quote_currency == "USD" }.status
   end
 
+  test "reports grouped asset type performance for the asset chart" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    instrument.update!(asset_type: :etf)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    final_date = first_date + 1.day
+    materialization = InstrumentPerformanceMaterialization.for(
+      user: owner, instrument:, reporting_currency: owner.reporting_currency
+    )
+    (first_date..final_date).each do |date|
+      create_instrument_performance_observation(
+        owner:, instrument:, materialization:, observed_on: date
+      )
+    end
+    context = MarketData::HealthReport::Context.new(owner:, today: final_date)
+    instrument_entries = MarketData::HealthReport::InstrumentPerformance.new(
+      owner:, today: final_date, context:
+    ).entries
+
+    entries = MarketData::HealthReport::AssetTypePerformance.new(
+      owner:, today: final_date, context:, instrument_entries:
+    ).entries
+    entry = entries.find { |candidate| candidate.subject == "etf" }
+
+    assert_equal :healthy, entry.status
+    assert_equal "ETF performance · BRL", entry.label
+    assert_includes entry.description, "ready for Asset mode"
+    refute_predicate entry, :actionable?
+  end
+
+  test "groups income-only instruments in asset type performance" do
+    owner = users(:owner)
+    instrument = Instrument.create!(ticker: "INCOMEHEALTH", exchange: "XNAS", name: "Income-only health",
+      currency: "USD", asset_type: :bond)
+    owner.corporate_actions.create!(
+      instrument:, kind: :dividend, status: :confirmed, paid_on: Date.new(2026, 9, 1),
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "USD", source: "manual"
+    )
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 2))
+
+    entries = MarketData::HealthReport::AssetTypePerformance.new(
+      owner:, today: context.today, context:, instrument_entries: []
+    ).entries
+
+    assert_equal "bond", entries.find { |entry| entry.subject == "bond" }.subject
+  end
+
+  test "reports a pending asset type when an instrument series is unavailable" do
+    owner = users(:owner)
+    first_date = owner.trades.where(instrument: instruments(:voo_arcx)).minimum(:traded_on)
+    instrument = Instrument.create!(ticker: "ATHEALTH", exchange: "BVMF", name: "Asset health", currency: "BRL",
+      asset_type: :bond)
+    owner.trades.create!(instrument:, side: :buy, traded_on: first_date, quantity: 1, unit_price: 10, currency: "BRL")
+    context = MarketData::HealthReport::Context.new(owner:, today: first_date)
+    instrument_entries = MarketData::HealthReport::InstrumentPerformance.new(
+      owner:, today: first_date, context:
+    ).entries
+
+    entries = MarketData::HealthReport::AssetTypePerformance.new(
+      owner:, today: first_date, context:, instrument_entries:
+    ).entries
+    entry = entries.find { |candidate| candidate.subject == "bond" }
+
+    assert_equal :updating, entry.status
+    assert_nil entry.severity
+    assert_includes entry.description, "rebuilding for Asset mode"
+  end
+
+  test "reports the missing range for an initialized asset type series" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    instrument.update!(asset_type: :fund)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    final_date = first_date + 1.day
+    InstrumentPerformanceMaterialization.for(
+      user: owner, instrument:, reporting_currency: owner.reporting_currency
+    )
+    context = MarketData::HealthReport::Context.new(owner:, today: final_date)
+    instrument_entries = MarketData::HealthReport::InstrumentPerformance.new(
+      owner:, today: final_date, context:
+    ).entries
+
+    entry = MarketData::HealthReport::AssetTypePerformance.new(
+      owner:, today: final_date, context:, instrument_entries:
+    ).entries.find { |candidate| candidate.subject == "fund" }
+
+    assert_equal :missing, entry.status
+    assert_equal first_date..final_date, entry.missing_range
+    assert_includes entry.description, "#{first_date}–#{final_date}"
+  end
+
+  test "formats a single-day missing asset type range" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    instrument.update!(asset_type: :crypto)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    InstrumentPerformanceMaterialization.for(
+      user: owner, instrument:, reporting_currency: owner.reporting_currency
+    )
+    context = MarketData::HealthReport::Context.new(owner:, today: first_date)
+    instrument_entries = MarketData::HealthReport::InstrumentPerformance.new(
+      owner:, today: first_date, context:
+    ).entries
+
+    entry = MarketData::HealthReport::AssetTypePerformance.new(
+      owner:, today: first_date, context:, instrument_entries:
+    ).entries.find { |candidate| candidate.subject == "crypto" }
+
+    assert_equal :missing, entry.status
+    assert_includes entry.description, first_date.iso8601
+  end
+
+  test "reports failed and stale aggregate asset type states" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    instrument.update!(asset_type: :stock)
+    context = MarketData::HealthReport::Context.new(owner:, today: Date.current)
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instrument.id, quote_currency: owner.reporting_currency
+    )
+    failed_entry = build_instrument_health_entry(instrument:, target:, status: :failed)
+    interrupted_entry = build_instrument_health_entry(instrument:, target:, status: :interrupted)
+    stale_entry = build_instrument_health_entry(instrument:, target:, status: :stale)
+    inspector = ->(entry) do
+      MarketData::HealthReport::AssetTypePerformance.new(
+        owner:, today: Date.current, context:, instrument_entries: [ entry ]
+      ).entries.sole
+    end
+
+    failed = inspector.call(failed_entry)
+    interrupted = inspector.call(interrupted_entry)
+    stale = inspector.call(stale_entry)
+
+    assert_equal :failed, failed.status
+    assert_equal :error, failed.severity
+    assert_includes failed.description, "failed to rebuild"
+    assert_equal :interrupted, interrupted.status
+    assert_equal :error, interrupted.severity
+    assert_includes interrupted.description, "stopped before completing"
+    assert_equal :stale, stale.status
+    assert_equal :warning, stale.severity
+    assert_includes stale.description, "stale last-known"
+  end
+
   test "does not count missing instrument observations as covered" do
     owner = users(:owner)
     instrument = instruments(:voo_arcx)
@@ -977,6 +1150,31 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :failed, entry.status
     assert_equal :error, entry.severity
     assert_includes entry.description, "failed to rebuild"
+  end
+
+  test "reports an interrupted instrument performance rebuild" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    InstrumentPerformanceMaterialization.for(user: owner, instrument:, reporting_currency: "USD")
+      .request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.running(
+      user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date, token:
+    )
+    travel 31.minutes
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: first_date).entries.find do |candidate|
+      candidate.target.quote_currency == "USD"
+    end
+
+    assert_equal :interrupted, entry.status
+    assert_equal :error, entry.severity
+    assert_includes entry.description, "stopped before completing"
+  ensure
+    Performance::SeriesRefresh.release(
+      user: owner, instrument:, reporting_currency: "USD", token:
+    ) if token
   end
 
   test "includes an existing additional instrument performance currency view" do
@@ -1158,6 +1356,14 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     )
   end
 
+  def build_instrument_health_entry(instrument:, target:, status:)
+    MarketData::HealthReport::Entry.new(
+      code: :instrument_performance, target:, subject: instrument, status:, severity: :warning,
+      label: "#{instrument.ticker} performance", description: "#{status} performance", observed_on: nil,
+      fetched_at: nil, covered_range: nil, missing_range: nil, actions: []
+    )
+  end
+
   def with_stubbed_method(object, method_name, replacement)
     original = object.method(method_name)
     object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
@@ -1198,6 +1404,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
       missing_daily_close: "VOO",
       missing_exchange_rate: "USD",
       missing_benchmark_data: "S&P",
+      asset_type_performance: "ETF",
       unknown_issue: "Portfolio"
     }
     issues = subjects.map do |code, subject|
@@ -1206,7 +1413,7 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
 
     result = MarketData::HealthReport::Result.new(checked_at: Time.current, issues:)
 
-    assert_equal %i[daily_closing_prices historical_exchange_rates benchmark_observations portfolio_performance],
+    assert_equal %i[daily_closing_prices historical_exchange_rates benchmark_observations asset_type_performance portfolio_performance],
       result.entries.map { |entry| entry.target.kind }
   end
 

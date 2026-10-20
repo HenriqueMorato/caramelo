@@ -35,6 +35,7 @@ class Performance::SeriesPresenterTest < ActiveSupport::TestCase
     assert_equal "Portfolio return", data[:portfolio_return_label]
     assert_equal "BRL", data[:currency]
     assert_equal [ "Aug 15" ] * 4, data[:labels]
+    assert_empty data[:asset_types]
   end
 
   test "describes queued running and idle stale history" do
