@@ -98,6 +98,9 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_equal date..date, materialization.requested_range
     assert_equal @instrument, enqueued[:instrument]
     assert_equal "USD", enqueued[:reporting_currency]
+    assert_equal true, enqueued[:refetch_dependencies]
+    assert_equal true, enqueued[:refetch_full_range]
+    assert_equal true, enqueued[:force]
   end
 
   test "rejects an instrument performance reset outside the owner scope" do
@@ -138,6 +141,9 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_equal date..date, materialization.requested_range
     assert_not enqueued.key?(:instrument)
     assert_equal "BRL", enqueued[:reporting_currency]
+    assert_equal true, enqueued[:refetch_dependencies]
+    assert_equal true, enqueued[:refetch_full_range]
+    assert_equal true, enqueued[:force]
   end
 
   test "reuses the verified preview range for historical recovery targets" do

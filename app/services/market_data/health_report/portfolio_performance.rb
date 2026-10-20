@@ -23,7 +23,7 @@ module MarketData
         coverage = CoverageCalculator.for(required_dates:, observations:)
         refresh = Performance::SeriesRefresh.read(user: owner, reporting_currency: owner.reporting_currency)
         status = status_for(materialization, coverage, refresh)
-        [ build(status:, coverage:) ]
+        [ build(status:, coverage:, refresh:) ]
       end
 
       private
@@ -40,22 +40,32 @@ module MarketData
         :missing
       end
 
-      def build(status:, coverage:)
+      def build(status:, coverage:, refresh:)
         severity = :error if status == :failed
         severity ||= :error if status == :interrupted
         severity ||= :warning if %i[missing partial].include?(status)
         HealthReport::Entry.new(
           code: :portfolio_performance, status:, severity:,
           subject: "Portfolio performance", label: "Portfolio performance",
-          description: description(status:, coverage:),
+          description: description(status:, coverage:, refresh:),
           target: Target.new(kind: :portfolio_performance, quote_currency: owner.reporting_currency),
           actions: status == :healthy ? [] : [ :retry ], observed_on: nil, fetched_at: nil,
           covered_range: coverage.covered_range, missing_range: coverage.missing_range
         )
       end
 
-      def description(status:, coverage:)
-        return "Portfolio performance failed to rebuild." if status == :failed
+      def description(status:, coverage:, refresh:)
+        if status == :updating
+          return "Portfolio performance is fetching historical prices and exchange rates." if refresh&.phase == "fetching"
+
+          return "Portfolio performance is rebuilding."
+        end
+        if status == :failed
+          message = refresh.error_message
+          return "Portfolio performance could not rebuild: #{message}" if message.to_s.start_with?("Historical data remains unavailable:")
+
+          return "Portfolio performance failed to rebuild."
+        end
         return "Portfolio performance refresh stopped before completing." if status == :interrupted
         return "Portfolio performance is up to date." if coverage.complete?
 

@@ -63,8 +63,9 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
 
   test "exposes running successful and failed states" do
     token = Performance::SeriesRefresh.acquire(user: @user)
-    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:, phase: "fetching")
     assert_equal "running", refresh_state.status
+    assert_equal "fetching", refresh_state.phase
 
     Performance::SeriesRefresh.succeeded(user: @user, from: @from, to: @to, token:)
     assert_equal "succeeded", refresh_state.status
@@ -75,6 +76,7 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     )
     assert_equal "failed", refresh_state.status
     assert_equal "provider history unavailable", refresh_state.error_message
+    assert_nil refresh_state.phase
   end
 
   test "holds a recent failure before allowing a retry" do
@@ -90,6 +92,23 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     travel 31.seconds
 
     assert_equal :queued, enqueue
+  end
+
+  test "a forced retry bypasses the recent failure cooldown and carries dependency flags" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.failed(
+      user: @user, from: @from, to: @to, token:, error: RuntimeError.new("failed")
+    )
+    Performance::SeriesRefresh.release(user: @user, token:)
+
+    assert_equal :queued, Performance::SeriesRefresh.enqueue(
+      user: @user, from: @from, to: @to, refetch_dependencies: true, refetch_full_range: true, force: true
+    )
+
+    job = enqueued_jobs.find { |item| item[:job] == BuildPortfolioPerformanceObservationsJob }
+    arguments = job.fetch(:args).sole.symbolize_keys
+    assert_equal true, arguments[:refetch_dependencies]
+    assert_equal true, arguments[:refetch_full_range]
   end
 
   test "recovers when active cache state outlives its lease" do

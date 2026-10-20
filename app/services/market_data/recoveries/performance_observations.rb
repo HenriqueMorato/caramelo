@@ -10,7 +10,9 @@ module MarketData
           reporting_currency: target.quote_currency || owner.reporting_currency
         }
         attributes[:instrument] = Instrument.find(target.record_id) if target.kind == :instrument_performance
-        result = Performance::SeriesRefresh.enqueue(**attributes)
+        result = Performance::SeriesRefresh.enqueue(
+          **attributes, refetch_dependencies: true, force: true
+        )
         raise ActiveJob::EnqueueError, "performance recovery could not be enqueued" if result == :failed
 
         RefreshCurrentMarketPriceJob::COALESCED

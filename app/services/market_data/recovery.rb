@@ -71,7 +71,7 @@ module MarketData
         RefreshStatus::Tracker.advance(batch)
         release_cooldown(token)
         RecoveryLease.release(target:, token: lease.token, cache:)
-        broadcast_health if handler_result == RefreshCurrentMarketPriceJob::COALESCED
+        broadcast_health if handler_result == RefreshCurrentMarketPriceJob::COALESCED && broadcast_after_enqueue?
         return result(handler_result.nil? ? :unsupported : :queued, batch:)
       end
 
@@ -113,6 +113,10 @@ module MarketData
     def release_cooldown(token)
       key = self.class.cooldown_key(target)
       cache.delete(key) if token && cache.read(key) == token
+    end
+
+    def broadcast_after_enqueue?
+      !%i[portfolio_performance instrument_performance].include?(target.kind)
     end
 
     def broadcast_health

@@ -713,6 +713,24 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :updating, entry.status
   end
 
+  test "explains when performance is fetching historical dependencies" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: first_date, to: Date.current)
+    token = Performance::SeriesRefresh.acquire(user: owner, reporting_currency: owner.reporting_currency)
+    Performance::SeriesRefresh.running(
+      user: owner, reporting_currency: owner.reporting_currency, from: first_date, to: Date.current,
+      token:, phase: "fetching"
+    )
+
+    entry = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: Date.current).entries.sole
+
+    assert_equal "Portfolio performance is fetching historical prices and exchange rates.", entry.description
+  ensure
+    Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
+  end
+
   test "reports a failed portfolio performance rebuild" do
     owner = users(:owner)
     first_date = owner.trades.minimum(:traded_on)
@@ -730,6 +748,24 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :error, entry.severity
     assert_equal "Portfolio performance failed to rebuild.", entry.description
     assert_equal [ :retry ], entry.actions
+  ensure
+    Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
+  end
+
+  test "explains unavailable historical dependencies for a failed portfolio rebuild" do
+    owner = users(:owner)
+    first_date = owner.trades.minimum(:traded_on)
+    materialization = PortfolioPerformanceMaterialization.for(user: owner, reporting_currency: owner.reporting_currency)
+    materialization.request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, reporting_currency: owner.reporting_currency)
+    Performance::SeriesRefresh.failed(
+      user: owner, reporting_currency: owner.reporting_currency, from: first_date, to: first_date,
+      token:, error: RuntimeError.new("Historical data remains unavailable: IWDA historical closing prices missing for 2026-09-19")
+    )
+
+    entry = MarketData::HealthReport::PortfolioPerformance.new(owner:, today: first_date).entries.sole
+
+    assert_includes entry.description, "IWDA historical closing prices"
   ensure
     Performance::SeriesRefresh.release(user: owner, reporting_currency: owner.reporting_currency, token:) if token
   end
@@ -1150,6 +1186,31 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_equal :failed, entry.status
     assert_equal :error, entry.severity
     assert_includes entry.description, "failed to rebuild"
+  end
+
+  test "explains unavailable historical dependencies for a failed instrument rebuild" do
+    owner = users(:owner)
+    instrument = instruments(:voo_arcx)
+    first_date = owner.trades.where(instrument:).minimum(:traded_on)
+    materialization = InstrumentPerformanceMaterialization.for(
+      user: owner, instrument:, reporting_currency: "USD"
+    )
+    materialization.request!(from: first_date, to: first_date)
+    token = Performance::SeriesRefresh.acquire(user: owner, instrument:, reporting_currency: "USD")
+    Performance::SeriesRefresh.failed(
+      user: owner, instrument:, reporting_currency: "USD", from: first_date, to: first_date,
+      token:, error: RuntimeError.new("Historical data remains unavailable: IWDA historical closing prices missing for 2026-09-19")
+    )
+
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner:, today: first_date).entries.find do |candidate|
+      candidate.subject == instrument && candidate.target.quote_currency == "USD"
+    end
+
+    assert_includes entry.description, "IWDA historical closing prices"
+  ensure
+    Performance::SeriesRefresh.release(
+      user: owner, instrument:, reporting_currency: "USD", token:
+    ) if token
   end
 
   test "reports an interrupted instrument performance rebuild" do

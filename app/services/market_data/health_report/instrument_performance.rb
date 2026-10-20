@@ -39,7 +39,7 @@ module MarketData
         coverage = CoverageCalculator.for(required_dates: (first_date..today).to_a, observations:)
         refresh = Performance::SeriesRefresh.read(user: owner, instrument:, reporting_currency: currency)
         status = status_for(materialization:, observations:, coverage:, refresh:)
-        build(instrument:, currency:, status:, coverage:)
+        build(instrument:, currency:, status:, coverage:, refresh:)
       end
 
       def status_for(materialization:, observations:, coverage:, refresh:)
@@ -53,7 +53,7 @@ module MarketData
         :missing
       end
 
-      def build(instrument:, currency:, status:, coverage:)
+      def build(instrument:, currency:, status:, coverage:, refresh:)
         severity = :error if status == :failed
         severity ||= :error if status == :interrupted
         severity ||= :warning if %i[missing partial stale].include?(status)
@@ -63,7 +63,7 @@ module MarketData
           severity:,
           subject: instrument,
           label: "#{instrument.ticker} performance · #{currency}",
-          description: description(instrument:, currency:, status:, coverage:),
+          description: description(instrument:, currency:, status:, coverage:, refresh:),
           target: Target.new(kind: :instrument_performance, record_id: instrument.id, quote_currency: currency),
           actions: %i[healthy updating].include?(status) ? [] : [ :retry ],
           observed_on: nil,
@@ -73,14 +73,27 @@ module MarketData
         )
       end
 
-      def description(instrument:, currency:, status:, coverage:)
+      def description(instrument:, currency:, status:, coverage:, refresh:)
         return "#{instrument.ticker} performance in #{currency} is up to date." if status == :healthy
-        return "#{instrument.ticker} performance in #{currency} is rebuilding." if status == :updating
-        return "#{instrument.ticker} performance in #{currency} failed to rebuild." if status == :failed
+        if status == :updating
+          return "#{instrument.ticker} performance in #{currency} is fetching historical prices and exchange rates." if refresh&.phase == "fetching"
+
+          return "#{instrument.ticker} performance in #{currency} is rebuilding."
+        end
+        if status == :failed
+          message = refresh.error_message
+          return "#{instrument.ticker} performance in #{currency} could not rebuild: #{message}" if dependency_error?(message)
+
+          return "#{instrument.ticker} performance in #{currency} failed to rebuild."
+        end
         return "#{instrument.ticker} performance in #{currency} refresh stopped before completing." if status == :interrupted
         return "#{instrument.ticker} performance in #{currency} has stale last-known values." if status == :stale
 
         "#{instrument.ticker} performance in #{currency} is missing values for #{format_ranges(coverage.missing_ranges)}."
+      end
+
+      def dependency_error?(message)
+        message.to_s.start_with?("Historical data remains unavailable:")
       end
 
       def format_ranges(ranges)

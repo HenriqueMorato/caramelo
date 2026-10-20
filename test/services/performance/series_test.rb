@@ -236,7 +236,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     result = calculate
 
     assert_predicate result, :partial?
-    assert_empty @refresher.ranges
+    assert_equal [ [ @from + 1, @from + 1 ] ], @refresher.ranges
     assert_equal BigDecimal("0"), result.observations.last.return_ratio
   end
 
@@ -302,7 +302,7 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     end
 
     assert_predicate calculate, :missing?
-    assert_empty @refresher.ranges
+    assert_equal [ [ @from, @to ] ], @refresher.ranges
   end
 
   test "reports an empty range when all daily values are zero" do

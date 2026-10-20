@@ -175,6 +175,8 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
     assert_equal "USD", enqueued[:reporting_currency]
     assert_equal range.begin, enqueued[:from]
     assert_equal range.end, enqueued[:to]
+    assert_equal true, enqueued[:refetch_dependencies]
+    assert_equal true, enqueued[:force]
   end
 
   test "defaults instrument performance recovery to first trade through today" do
@@ -238,6 +240,8 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
 
     assert_equal @owner.trades.minimum(:traded_on), enqueued[:from]
     assert_equal Date.current, enqueued[:to]
+    assert_equal true, enqueued[:refetch_dependencies]
+    assert_equal true, enqueued[:force]
     assert_not enqueued.key?(:instrument)
   end
 

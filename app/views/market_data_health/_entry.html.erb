@@ -21,7 +21,7 @@
             quote_currency: entry.target.quote_currency,
             provider: entry.target.provider
           }, **range_params }, class: "ui-button ui-button-secondary shrink-0", form_class: "shrink-0",
-          form: { data: { turbo_stream: true } } %>
+          data: { turbo_submits_with: t("Refreshing") }, form: { data: { turbo_stream: true } } %>
       <% end %>
       <% if entry.resettable? && (preview = health.reset_preview_for(entry)) %>
         <details class="relative" data-controller="details" data-action="keydown.esc@window->details#close">
@@ -38,7 +38,7 @@
                 quote_currency: entry.target.quote_currency,
                 provider: entry.target.provider
               }, preview_token: preview.token }, class: "ui-button ui-button-primary mt-3 w-full", form_class: "w-full",
-              form: { data: { turbo_stream: true } } %>
+              data: { turbo_submits_with: t("Refreshing") }, form: { data: { turbo_stream: true } } %>
             <button type="button" class="ui-button ui-button-secondary mt-2 w-full" data-action="details#close"><%= t("actions.Cancel") %></button>
           </div>
         </details>

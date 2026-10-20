@@ -89,7 +89,9 @@ module MarketData
         store.delete_all
         materialization.request!(from: attributes[:from], to: attributes[:to], source_changed: true)
       end
-      result(Performance::SeriesRefresh.enqueue(**attributes))
+      result(Performance::SeriesRefresh.enqueue(
+        **attributes, refetch_dependencies: true, refetch_full_range: true, force: true
+      ))
     end
 
     attr_reader :target, :preview_token, :owner, :cache

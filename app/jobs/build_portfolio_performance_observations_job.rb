@@ -3,10 +3,12 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
 
   limits_concurrency key: ->(*) { "portfolio_performance" }, duration: 30.minutes, on_conflict: :block
 
-  def perform(user_id:, reporting_currency:, lease_token:)
+  def perform(user_id:, reporting_currency:, lease_token:, refetch_dependencies: false, refetch_full_range: false)
     @user = User.find(user_id)
     @reporting_currency = reporting_currency
     @lease_token = lease_token
+    @refetch_dependencies = refetch_dependencies
+    @refetch_full_range = refetch_full_range
     @materialization = PortfolioPerformanceMaterialization.for(user:, reporting_currency:)
     requested_range = materialization.requested_range
     return finish_obsolete_refresh unless requested_range
@@ -16,16 +18,25 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
 
   private
 
-  attr_reader :user, :reporting_currency, :lease_token, :materialization
+  attr_reader :user, :reporting_currency, :lease_token, :materialization,
+    :refetch_dependencies, :refetch_full_range
 
   def build(from:, to:)
-    Performance::SeriesRefresh.running(user:, from:, to:, reporting_currency:, token: lease_token)
+    Performance::SeriesRefresh.running(
+      user:, from:, to:, reporting_currency:, token: lease_token,
+      phase: refetch_dependencies ? "fetching" : "rebuilding"
+    )
+    broadcast_health if refetch_dependencies
+    fetch_dependencies(from:, to:) if refetch_dependencies
+    Performance::SeriesRefresh.running(user:, from:, to:, reporting_currency:, token: lease_token,
+      phase: "rebuilding") if refetch_dependencies
+    broadcast_health if refetch_dependencies
     store = Performance::ObservationStore.new(user:, reporting_currency:)
     result = Performance::ObservationBuilder.new(
       user:, store:, materialization:,
       progress: -> {
         Performance::SeriesRefresh.heartbeat!(
-          user:, reporting_currency:, from:, to:, token: lease_token
+          user:, reporting_currency:, from:, to:, token: lease_token, phase: "rebuilding"
         )
       }
     ).call(from:, to:)
@@ -39,6 +50,17 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
     release_lease
     resume_pending_materialization
     broadcast_health
+  end
+
+  def fetch_dependencies(from:, to:)
+    Performance::HistoricalDependencyFetcher.new(
+      user:, reporting_currency:,
+      progress: ->(_message) {
+        Performance::SeriesRefresh.heartbeat!(
+          user:, reporting_currency:, from:, to:, token: lease_token, phase: "fetching"
+        )
+      }
+    ).call(from:, to:, refetch_full_range:)
   end
 
   def release_lease

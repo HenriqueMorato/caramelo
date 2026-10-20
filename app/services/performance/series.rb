@@ -89,7 +89,7 @@ module Performance
     def enqueue_refresh
       dirty_dates = dates.select do |date|
         record = records[date]
-        record.nil? || stale_record?(record)
+        record.nil? || record.missing? || stale_record?(record)
       end
       return if dirty_dates.empty?
 

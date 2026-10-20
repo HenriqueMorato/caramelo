@@ -48,6 +48,22 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_equal 1, broadcasts
   end
 
+  test "waits for performance work to start before broadcasting health" do
+    broadcasts = 0
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instruments(:voo_arcx).id, quote_currency: "USD"
+    )
+    handler = ->(**) { RefreshCurrentMarketPriceJob::COALESCED }
+
+    with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { broadcasts += 1 }) do
+      result = MarketData::Recovery.call(target:, cache: @cache, handlers: { instrument_performance: handler })
+
+      assert_predicate result, :queued?
+    end
+
+    assert_equal 0, broadcasts
+  end
+
   test "keeps recovery successful when the health broadcast fails" do
     broadcast_error = RuntimeError.new("broadcast unavailable")
     reported = []
