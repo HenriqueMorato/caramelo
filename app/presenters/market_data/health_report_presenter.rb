@@ -43,7 +43,8 @@ module MarketData
       report.entries.filter_map do |entry|
         next unless entry.resettable?
 
-        range = entry.covered_range || entry.missing_range
+        ranges = [ entry.covered_range, entry.missing_range ].compact
+        range = ranges.map(&:begin).min..ranges.map(&:end).max if ranges.any?
         [ entry.target.scope, preview_factory.create(target: entry.target, range:, owner:) ]
       end.to_h
     end

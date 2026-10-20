@@ -60,6 +60,22 @@ class Performance::ObservationInvalidatorTest < ActiveJob::TestCase
     assert_equal "queue unavailable", reported.first.message
   end
 
+  test "reports instrument enqueue failures with the instrument context" do
+    @refresher.error = RuntimeError.new("queue unavailable")
+    reported = []
+    instrument = instruments(:voo_arcx)
+    instrument_invalidator = Performance::ObservationInvalidator.new(
+      user: @user, instrument:, from: @from, store: @store, refresher: @refresher
+    )
+
+    with_stubbed_method(Rails.error, :report, ->(error, **arguments) { reported << [ error, arguments ] }) do
+      assert_equal :failed, instrument_invalidator.enqueue
+    end
+
+    assert_equal "queue unavailable", reported.first.first.message
+    assert_equal instrument.id, reported.first.last.fetch(:context).fetch(:instrument_id)
+  end
+
   test "maintains native reporting and existing instrument currency views" do
     instrument = instruments(:voo_arcx)
     InstrumentPerformanceMaterialization.for(user: @user, instrument:, reporting_currency: "EUR")

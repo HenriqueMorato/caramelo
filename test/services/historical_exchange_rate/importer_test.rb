@@ -1,6 +1,6 @@
 require "test_helper"
 
-class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
+class HistoricalExchangeRate::ImporterTest < ActiveJob::TestCase
   setup do
     Rails.cache.clear
     @provider = FakeProvider.new
@@ -130,6 +130,94 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     ), :pending?
   end
 
+  test "a repaired EUR reporting pair enqueues the instrument view" do
+    user = users(:owner)
+    user.update!(reporting_currency: "BRL")
+    instrument = Instrument.create!(ticker: "VWCE", exchange: "XETR", name: "Global ETF", currency: "EUR")
+    user.trades.create!(instrument:, side: :buy, traded_on: Date.new(2026, 8, 24),
+      quantity: 1, unit_price: 100, currency: "EUR")
+    Rails.cache.clear
+    clear_enqueued_jobs
+
+    @importer.call(base_currency: "EUR", quote_currency: "BRL",
+      from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+
+    instrument_jobs = enqueued_jobs.select do |job|
+      job[:job] == BuildInstrumentPerformanceObservationsJob && job[:args].first["user_id"] == user.id
+    end
+    assert_equal [ instrument.id ], instrument_jobs.map { |job| job[:args].first["instrument_id"] }
+    assert_equal [ "BRL" ], instrument_jobs.map { |job| job[:args].first["reporting_currency"] }
+  end
+
+  test "a repaired settlement currency pair enqueues the dependent instrument view" do
+    user = users(:owner)
+    user.update!(reporting_currency: "EUR")
+    trade = user.trades.create!(instrument: instruments(:voo_arcx), side: :buy,
+      traded_on: Date.new(2026, 8, 24), quantity: 1, unit_price: 100,
+      currency: "USD", settlement_exchange_rate: "5")
+    user.update!(reporting_currency: "BRL")
+    Rails.cache.clear
+    clear_enqueued_jobs
+
+    assert_equal "EUR", trade.reload.settlement_currency
+    @importer.call(base_currency: "EUR", quote_currency: "BRL",
+      from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+
+    instrument_jobs = enqueued_jobs.select { |job| job[:job] == BuildInstrumentPerformanceObservationsJob }
+    assert_equal [ instruments(:voo_arcx).id ], instrument_jobs.map { |job| job[:args].first["instrument_id"] }
+    assert_equal [ "BRL" ], instrument_jobs.map { |job| job[:args].first["reporting_currency"] }
+  end
+
+  test "a repaired pair enqueues quantity-only corporate-action instrument views" do
+    user = User.create!(email_address: "quantity-fx-importer@example.com", password: "password")
+    user.corporate_actions.create!(instrument: instruments(:voo_arcx), kind: :stock_split,
+      effective_on: Date.new(2026, 8, 24), ratio_numerator: 2, ratio_denominator: 1, source: "manual")
+    Rails.cache.clear
+    clear_enqueued_jobs
+
+    @importer.call(base_currency: "USD", quote_currency: "BRL",
+      from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+
+    instrument_jobs = enqueued_jobs.select do |job|
+      job[:job] == BuildInstrumentPerformanceObservationsJob && job[:args].first["user_id"] == user.id
+    end
+    assert_equal [ instruments(:voo_arcx).id ], instrument_jobs.map { |job| job[:args].first["instrument_id"] }
+    assert_equal [ "BRL" ], instrument_jobs.map { |job| job[:args].first["reporting_currency"] }
+  end
+
+  test "attempts every performance target when one enqueue fails" do
+    user = User.create!(email_address: "enqueue-recovery@example.com", password: "password")
+    first_instrument = Instrument.create!(ticker: "FIRST", exchange: "XNAS", name: "First ETF", currency: "USD")
+    second_instrument = Instrument.create!(ticker: "SECOND", exchange: "XNAS", name: "Second ETF", currency: "USD")
+    [ first_instrument, second_instrument ].each do |instrument|
+      user.trades.create!(instrument:, side: :buy, traded_on: Date.new(2026, 8, 24),
+        quantity: 1, unit_price: 100, currency: "USD")
+    end
+    Rails.cache.clear
+    clear_enqueued_jobs
+    calls = []
+    attempts = Hash.new(0)
+
+    with_stubbed_class_method(Performance::SeriesRefresh, :enqueue, ->(**arguments) {
+      calls << arguments
+      attempts[arguments.fetch(:user).id] += 1
+      attempts[arguments.fetch(:user).id] == 1 ? :failed : :queued
+    }) do
+      error = assert_raises(ActiveJob::EnqueueError) do
+        @importer.call(base_currency: "USD", quote_currency: "BRL",
+          from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+      end
+
+      assert_equal "performance rebuild could not be enqueued", error.message
+    end
+
+    user_calls = calls.select { |arguments| arguments.fetch(:user).id == user.id }
+    assert_equal 3, user_calls.length
+    assert_nil user_calls.first[:instrument]
+    assert_equal [ first_instrument.id, second_instrument.id ].sort,
+      user_calls.drop(1).map { |arguments| arguments.fetch(:instrument).id }.sort
+  end
+
   test "returns missing weekdays without invalidating performance when the provider has no observations" do
     date = Date.new(2026, 8, 25)
 
@@ -201,6 +289,20 @@ class HistoricalExchangeRate::ImporterTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) do
       @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
     end
+  end
+
+  test "rejects observations from another provider" do
+    fetch = @provider.method(:fetch)
+    @provider.define_singleton_method(:fetch) do |**arguments|
+      fetch.call(**arguments).map { |observation| observation.with(provider: "other_provider") }
+    end
+
+    assert_raises(ArgumentError) do
+      @importer.call(base_currency: "USD", quote_currency: "BRL",
+        from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+    end
+
+    assert_empty HistoricalExchangeRate.all
   end
 
   test "rejects non-date ranges and mismatched observations" do
