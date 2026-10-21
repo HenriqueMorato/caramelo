@@ -118,6 +118,18 @@ class Performance::ObservationInvalidatorTest < ActiveJob::TestCase
     assert_equal [ "BRL" ], materializations.pluck(:reporting_currency)
   end
 
+  test "reports a failed result when any instrument currency enqueue fails" do
+    instrument = instruments(:voo_arcx)
+    failed_invalidator = Object.new
+    failed_invalidator.define_singleton_method(:enqueue) { :failed }
+
+    with_stubbed_method(Performance::ObservationInvalidator, :new, ->(**) { failed_invalidator }) do
+      assert_equal :failed, Performance::ObservationInvalidator.enqueue_instrument(
+        user: @user, instrument:, from: @from
+      )
+    end
+  end
+
   private
 
   def invalidator(from: @from)

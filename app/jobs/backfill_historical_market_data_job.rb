@@ -13,7 +13,8 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
 
   def perform(backfill)
     # A preference change during a long backfill must not mix target currencies.
-    @reporting_currencies = reporting_currencies_for(backfill.instrument)
+    @reporting_currencies = reporting_currencies_for(backfill.instrument, backfill:)
+    @publication_contexts = {}
     RefreshStatus::Tracker.perform(scope: "historical_backfill:#{backfill.id}") do
       from_date, generation = backfill.with_lock { [ backfill.from_date, backfill.generation ] }
 
@@ -58,8 +59,10 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
 
   def import_daily_closing_prices(instrument, from:, to:)
     request_throttle.wait!(instrument:)
+    fence, generation = publication_context_for(instrument:)
     daily_closing_price_importer.call(
-      instrument:, from:, to:, enqueue_performance_rebuild: false
+      instrument:, from:, to:, enqueue_performance_rebuild: false,
+      fence:, generation:
     )
   end
 
@@ -68,15 +71,45 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
       next if currency == reporting_currency
 
       request_throttle.wait!
+      fence, generation = publication_context_for(base_currency: currency, quote_currency: reporting_currency)
       historical_exchange_rate_importer.call(
         base_currency: currency, quote_currency: reporting_currency, from:, to:,
-        enqueue_performance_rebuild: false
+        enqueue_performance_rebuild: false, fence:, generation:
       )
     end
   end
 
-  def reporting_currencies_for(instrument)
+  def publication_fence_for(instrument: nil, base_currency: nil, quote_currency: nil)
+    target = if instrument
+      MarketData::Target.new(kind: :daily_closing_prices, record_id: instrument.id,
+        provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier)
+    else
+      MarketData::Target.new(kind: :historical_exchange_rates, base_currency:, quote_currency:,
+        provider: MarketData::YahooFinance::FX_CONFIGURATION.identifier)
+    end
+    MarketData::PublicationFence.new(target:)
+  end
+
+  def publication_context_for(instrument: nil, base_currency: nil, quote_currency: nil)
+    key = if instrument
+      [ :instrument, instrument.id ]
+    else
+      [ :exchange_rate, base_currency, quote_currency ]
+    end
+    @publication_contexts[key] ||= begin
+      fence = publication_fence_for(instrument:, base_currency:, quote_currency:)
+      [ fence, fence.capture ]
+    end
+  end
+
+  def reporting_currencies_for(instrument, backfill: nil)
     return [ User.default_owner.reporting_currency ] if Caramelo::AccountMode.single?
+
+    if backfill
+      currencies = affected_users(backfill).distinct.pluck(:reporting_currency)
+      currencies.concat(affected_instrument_targets(backfill).map(&:last))
+      return currencies.uniq.presence || User.distinct.pluck(:reporting_currency)
+    end
 
     user_ids = Trade.where(instrument:).pluck(:user_id) + CorporateAction.where(instrument:).pluck(:user_id)
     currencies = User.where(id: user_ids.uniq).distinct.pluck(:reporting_currency)
@@ -84,18 +117,62 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
   end
 
   def enqueue_performance_rebuild(backfill, from:)
-    affected_trades = Trade.where(instrument: backfill.instrument)
-      .or(Trade.where(currency: backfill.currency))
-    action_users = CorporateAction.effective.where(instrument: backfill.instrument).select(:user_id)
-    User.where(id: affected_trades.select(:user_id)).or(User.where(id: action_users)).find_each do |user|
+    affected_users(backfill).find_each do |user|
       Performance::ObservationInvalidator.enqueue(user:, from:)
     end
-    instrument_trade_users = Trade.where(instrument: backfill.instrument).select(:user_id)
-    User.where(id: instrument_trade_users).or(User.where(id: action_users)).find_each do |user|
+
+    affected_instrument_targets(backfill).each do |user, instrument, reporting_currency|
       Performance::ObservationInvalidator.enqueue_instrument(
-        user:, instrument: backfill.instrument, from:
+        user:, instrument:, reporting_currency:, from:
       )
     end
+  end
+
+  def affected_users(backfill)
+    trade_user_ids = Trade.where(instrument: backfill.instrument).or(
+      Trade.where(currency: backfill.currency)
+    ).or(
+      Trade.where(settlement_currency: backfill.currency)
+    ).distinct.pluck(:user_id)
+    action_user_ids = CorporateAction.effective_on_or_before(Date.current).joins(:instrument)
+      .where(
+        "corporate_actions.instrument_id = :instrument_id OR corporate_actions.currency = :currency " \
+          "OR instruments.currency = :currency",
+        instrument_id: backfill.instrument_id, currency: backfill.currency
+      ).distinct.pluck(:user_id)
+
+    User.where(id: (trade_user_ids + action_user_ids).uniq)
+  end
+
+  def affected_instrument_targets(backfill)
+    affected_users(backfill).flat_map do |user|
+      trades = user.trades.where(traded_on: ..Date.current).includes(:instrument).to_a
+      actions = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
+      activity_by_instrument = (trades + actions).group_by(&:instrument)
+
+      activity_by_instrument.filter_map do |instrument, activity|
+        trade_currencies = activity.filter_map { |record| record.settlement_currency if record.is_a?(Trade) }
+        action_currencies = activity.filter_map do |record|
+          record.currency || record.instrument.currency if record.is_a?(CorporateAction)
+        end
+        price_affected = instrument.id == backfill.instrument_id
+        dependency_affected = ([ instrument.currency ] + trade_currencies + action_currencies)
+          .include?(backfill.currency)
+        next unless price_affected || dependency_affected
+
+        reporting_currencies_for_instrument(user:, instrument:).filter_map do |reporting_currency|
+          next if !price_affected && reporting_currency == backfill.currency
+
+          [ user, instrument, reporting_currency ]
+        end
+      end
+    end.flatten(1).uniq { |user, instrument, currency| [ user.id, instrument.id, currency ] }
+  end
+
+  def reporting_currencies_for_instrument(user:, instrument:)
+    materialized_currencies = user.instrument_performance_materializations
+      .where(instrument:).distinct.pluck(:reporting_currency)
+    (materialized_currencies + [ instrument.currency, user.reporting_currency ]).uniq
   end
 
   def complete(backfill, generation:)

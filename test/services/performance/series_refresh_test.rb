@@ -63,8 +63,9 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
 
   test "exposes running successful and failed states" do
     token = Performance::SeriesRefresh.acquire(user: @user)
-    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:, phase: "fetching")
     assert_equal "running", refresh_state.status
+    assert_equal "fetching", refresh_state.phase
 
     Performance::SeriesRefresh.succeeded(user: @user, from: @from, to: @to, token:)
     assert_equal "succeeded", refresh_state.status
@@ -75,6 +76,7 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     )
     assert_equal "failed", refresh_state.status
     assert_equal "provider history unavailable", refresh_state.error_message
+    assert_nil refresh_state.phase
   end
 
   test "holds a recent failure before allowing a retry" do
@@ -90,6 +92,47 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     travel 31.seconds
 
     assert_equal :queued, enqueue
+  end
+
+  test "retains disjoint pending work when a recent failure blocks a retry" do
+    first_from = @from
+    first_to = @from + 1.day
+    second_from = @to
+    second_to = @to + 1.day
+    first_token = Performance::SeriesRefresh.acquire(user: @user)
+    @materialization.request!(from: first_from, to: first_to)
+    Performance::SeriesRefresh.failed(
+      user: @user, from: first_from, to: first_to, token: first_token, error: RuntimeError.new("failed")
+    )
+    Performance::SeriesRefresh.release(user: @user, token: first_token)
+
+    assert_equal :failed, Performance::SeriesRefresh.enqueue(
+      user: @user, from: second_from, to: second_to
+    )
+    assert_equal first_from..second_to, @materialization.reload.requested_range
+
+    travel 31.seconds do
+      assert_equal :queued, Performance::SeriesRefresh.enqueue(
+        user: @user, from: first_from, to: second_to
+      )
+    end
+  end
+
+  test "a forced retry bypasses the recent failure cooldown and carries dependency flags" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.failed(
+      user: @user, from: @from, to: @to, token:, error: RuntimeError.new("failed")
+    )
+    Performance::SeriesRefresh.release(user: @user, token:)
+
+    assert_equal :queued, Performance::SeriesRefresh.enqueue(
+      user: @user, from: @from, to: @to, refetch_dependencies: true, refetch_full_range: true, force: true
+    )
+
+    job = enqueued_jobs.find { |item| item[:job] == BuildPortfolioPerformanceObservationsJob }
+    arguments = job.fetch(:args).sole.symbolize_keys
+    assert_equal true, arguments[:refetch_dependencies]
+    assert_equal true, arguments[:refetch_full_range]
   end
 
   test "recovers when active cache state outlives its lease" do

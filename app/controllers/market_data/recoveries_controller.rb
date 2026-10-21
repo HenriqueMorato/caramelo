@@ -14,7 +14,7 @@ module MarketData
         respond_with_status_toast("A refresh for this data target is already running.",
           status: :conflict, redirect_to: market_data_health_path)
       else
-        respond_with_toast("Market data recovery started.", redirect_to: market_data_health_path)
+        respond_with_started("Market data recovery started.", target: result.target)
       end
     rescue ActionController::ParameterMissing, ActiveRecord::RecordNotFound, ArgumentError
       respond_with_status_toast("This data target is no longer available.",
@@ -28,7 +28,7 @@ module MarketData
       result = Reset.call(target:, preview_token: params[:preview_token], owner: current_account)
 
       if result.queued?
-        respond_with_toast("Data replacement started.", redirect_to: market_data_health_path)
+        respond_with_started("Data replacement started.", target: result.target)
       elsif result.busy?
         respond_with_status_toast("A refresh for this data target is already running.",
           status: :conflict, redirect_to: market_data_health_path)
@@ -57,6 +57,24 @@ module MarketData
       raise ArgumentError, "recovery range must be chronological and in the past" unless from <= to && to <= Date.current
 
       from..to
+    end
+
+    def respond_with_started(message, target:)
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.remove(target.dom_id),
+            turbo_stream.update(
+              "toast-feedback",
+              partial: "layouts/toast",
+              locals: { message:, alert: false }
+            )
+          ]
+        end
+        format.html do
+          redirect_to market_data_health_path, flash: { notice: message }
+        end
+      end
     end
   end
 end

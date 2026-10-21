@@ -60,7 +60,7 @@ module Performance
       records = store.read(from:, to:)
       @dates_to_build = dates.select do |date|
         record = records[date]
-        record.nil? || record.stale? || record.source_generation != source_generation
+        record.nil? || record.missing? || record.stale? || record.source_generation != source_generation
       end
     end
 

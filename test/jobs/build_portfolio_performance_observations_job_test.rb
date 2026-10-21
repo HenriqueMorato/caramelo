@@ -20,6 +20,20 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
     assert_not_predicate @materialization.reload, :pending?
   end
 
+  test "fetches historical dependencies before rebuilding when retry requested" do
+    events = []
+    builder = RecordingBuilder.new { events << :build }
+    fetcher = RecordingFetcher.new { events << :fetch }
+
+    with_fetcher(fetcher) do
+      with_builder(builder) { perform_job(refetch_dependencies: true, refetch_full_range: true) }
+    end
+
+    assert_equal [ :fetch, :build ], events
+    assert_equal [ { from: @from, to: @to, refetch_full_range: true, allow_long_range: true } ], fetcher.calls
+    assert_equal "succeeded", refresh_state.status
+  end
+
   test "records failure while retaining the durable request for retry" do
     builder = RecordingBuilder.new(error: RuntimeError.new("calculation failed"))
 
@@ -95,12 +109,25 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
     end
   end
 
+  test "limits concurrent work per owner and reporting currency" do
+    job = BuildPortfolioPerformanceObservationsJob.new(
+      user_id: @user.id, reporting_currency: "BRL", lease_token: "lease"
+    )
+
+    assert_equal :block, BuildPortfolioPerformanceObservationsJob.concurrency_on_conflict
+    assert_equal 1, BuildPortfolioPerformanceObservationsJob.concurrency_limit
+    assert_equal 30.minutes, BuildPortfolioPerformanceObservationsJob.concurrency_duration
+    assert_equal "BuildPortfolioPerformanceObservationsJob/portfolio_performance:#{@user.id}:BRL",
+      job.concurrency_key
+  end
+
   private
 
-  def perform_job
+  def perform_job(refetch_dependencies: false, refetch_full_range: false)
     @lease_token ||= Performance::SeriesRefresh.acquire(user: @user)
     BuildPortfolioPerformanceObservationsJob.perform_now(
-      user_id: @user.id, reporting_currency: "BRL", lease_token: @lease_token
+      user_id: @user.id, reporting_currency: "BRL", lease_token: @lease_token,
+      refetch_dependencies:, refetch_full_range:
     )
   end
 
@@ -117,6 +144,17 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
     yield
   ensure
     Performance::ObservationBuilder.define_singleton_method(:new, original)
+  end
+
+  def with_fetcher(fetcher)
+    original = Performance::HistoricalDependencyFetcher.method(:new)
+    Performance::HistoricalDependencyFetcher.define_singleton_method(:new) do |**arguments|
+      fetcher.progress = arguments[:progress]
+      fetcher
+    end
+    yield
+  ensure
+    Performance::HistoricalDependencyFetcher.define_singleton_method(:new, original)
   end
 
   def with_stubbed_method(object, method_name, replacement)
@@ -146,6 +184,24 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
       Performance::ObservationBuilder::Result.new(
         **arguments, built_count: 2, skipped_count: 0, source_generation: 0
       )
+    end
+  end
+
+  class RecordingFetcher
+    attr_reader :calls
+    attr_writer :progress
+
+    def initialize(error: nil, &during_fetch)
+      @error = error
+      @during_fetch = during_fetch
+      @calls = []
+    end
+
+    def call(**arguments)
+      calls << arguments
+      @progress&.call("fetching")
+      @during_fetch&.call
+      raise @error if @error
     end
   end
 end

@@ -12,14 +12,15 @@ module MarketData
       end
     end
 
-    def self.acquire(target:, cache: Rails.cache)
+    def self.acquire(target:, owner: nil, cache: Rails.cache)
       token = SecureRandom.uuid
-      acquired = cache.write(key(target), { token:, expires_at: TTL.from_now.iso8601 }, expires_in: TTL, unless_exist: true)
+      acquired = cache.write(key(target, owner:), { token:, expires_at: TTL.from_now.iso8601 }, expires_in: TTL,
+        unless_exist: true)
       acquired ? Lease.new(target:, token:, expires_at: TTL.from_now) : nil
     end
 
-    def self.current(target:, cache: Rails.cache)
-      payload = cache.read(key(target))
+    def self.current(target:, owner: nil, cache: Rails.cache)
+      payload = cache.read(key(target, owner:))
       return unless payload.is_a?(Hash) && payload[:token]
 
       Lease.new(target:, token: payload[:token], expires_at: Time.iso8601(payload[:expires_at].to_s))
@@ -27,13 +28,16 @@ module MarketData
       nil
     end
 
-    def self.release(target:, token:, cache: Rails.cache)
-      lease = current(target:, cache:)
-      cache.delete(key(target)) if lease&.token == token
+    def self.release(target:, token:, owner: nil, cache: Rails.cache)
+      lease = current(target:, owner:, cache:)
+      cache.delete(key(target, owner:)) if lease&.token == token
     end
 
-    def self.key(target)
-      "#{PREFIX}:#{target.publication_scope}"
+    def self.key(target, owner: nil)
+      owner_scope = if owner && %i[portfolio_performance instrument_performance].include?(target.kind)
+        ":owner:#{owner.id}"
+      end
+      "#{PREFIX}:#{target.publication_scope}#{owner_scope}"
     end
 
     private_class_method :key

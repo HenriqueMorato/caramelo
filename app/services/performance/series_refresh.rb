@@ -10,14 +10,15 @@ module Performance
 
     # Disposable UI state for a durable portfolio or instrument request.
     class State
-      attr_reader :status, :from, :to, :updated_at, :error_message
+      attr_reader :status, :from, :to, :updated_at, :error_message, :phase
 
-      def initialize(status:, from:, to:, updated_at:, error_message: nil)
+      def initialize(status:, from:, to:, updated_at:, error_message: nil, phase: nil)
         @status = status
         @from = from
         @to = to
         @updated_at = updated_at
         @error_message = error_message
+        @phase = phase
         freeze
       end
 
@@ -35,13 +36,15 @@ module Performance
     end
 
     def self.enqueue(user:, from:, to:, instrument: nil, reporting_currency: user.reporting_currency,
-      job_class: nil)
-      new(user:, instrument:, from:, to:, reporting_currency:, job_class:).enqueue
+      refetch_dependencies: false, refetch_full_range: false, force: false, job_class: nil)
+      new(user:, instrument:, from:, to:, reporting_currency:, refetch_dependencies:, refetch_full_range:,
+        force:, job_class:).enqueue
     end
 
     def self.rebuild_now(user:, from:, to:, instrument: nil, reporting_currency: user.reporting_currency,
-      job_class: nil)
-      new(user:, instrument:, from:, to:, reporting_currency:, job_class:).rebuild_now
+      refetch_dependencies: false, refetch_full_range: false, job_class: nil)
+      new(user:, instrument:, from:, to:, reporting_currency:, refetch_dependencies:, refetch_full_range:,
+        force: false, job_class:).rebuild_now
     end
 
     def self.read(user:, instrument: nil, reporting_currency: user.reporting_currency)
@@ -54,19 +57,23 @@ module Performance
         from: Date.iso8601(values.fetch(:from)),
         to: Date.iso8601(values.fetch(:to)),
         updated_at: Time.iso8601(values.fetch(:updated_at)),
-        error_message: values[:error_message]
+        error_message: values[:error_message], phase: values[:phase]
       )
     rescue ArgumentError, KeyError, TypeError
       nil
     end
 
-    def self.running(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
-      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "running", renew_lease: true)
+    def self.running(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency,
+      phase: nil)
+      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "running", phase:,
+        renew_lease: true)
     end
 
-    def self.heartbeat!(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
+    def self.heartbeat!(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency,
+      phase: nil)
       state = write(
-        user:, instrument:, from:, to:, token:, reporting_currency:, status: "running", renew_lease: true
+        user:, instrument:, from:, to:, token:, reporting_currency:, status: "running", phase:,
+        renew_lease: true
       )
       return state if state
 
@@ -74,17 +81,17 @@ module Performance
     end
 
     def self.queued(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
-      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "queued")
+      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "queued", phase: nil)
     end
 
     def self.succeeded(user:, from:, to:, token:, instrument: nil, reporting_currency: user.reporting_currency)
-      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "succeeded")
+      write(user:, instrument:, from:, to:, token:, reporting_currency:, status: "succeeded", phase: nil)
     end
 
     def self.failed(user:, from:, to:, error:, token:, instrument: nil, reporting_currency: user.reporting_currency)
       write(
         user:, instrument:, from:, to:, token:, reporting_currency:, status: "failed",
-        error_message: error.message.truncate(500)
+        error_message: error.message.truncate(500), phase: nil
       )
     end
 
@@ -105,12 +112,16 @@ module Performance
       end
     end
 
-    def initialize(user:, instrument:, from:, to:, reporting_currency:, job_class:, materialization: nil)
+    def initialize(user:, instrument:, from:, to:, reporting_currency:, refetch_dependencies:, refetch_full_range:,
+      force:, job_class:, materialization: nil)
       @user = user
       @instrument = instrument
       @from = from
       @to = to
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
+      @refetch_dependencies = refetch_dependencies
+      @refetch_full_range = refetch_full_range
+      @force = force
       @job_class = job_class || default_job_class
       @materialization = materialization || self.class.send(
         :materialization_for, user:, instrument:, reporting_currency: @reporting_currency
@@ -119,7 +130,7 @@ module Performance
 
     def enqueue
       materialization.request!(from:, to:)
-      return :failed if recent_failure?(self.class.read(user:, instrument:, reporting_currency:))
+      return :failed if !force && recent_failure?(self.class.read(user:, instrument:, reporting_currency:))
       token = acquire_lease
       return existing_refresh_status unless token
 
@@ -142,7 +153,8 @@ module Performance
 
     private
 
-    attr_reader :user, :instrument, :from, :to, :reporting_currency, :job_class, :materialization
+    attr_reader :user, :instrument, :from, :to, :reporting_currency, :job_class, :materialization,
+      :refetch_dependencies, :refetch_full_range, :force
 
     def default_job_class
       instrument ? BuildInstrumentPerformanceObservationsJob : BuildPortfolioPerformanceObservationsJob
@@ -194,6 +206,8 @@ module Performance
     def job_arguments(token)
       arguments = { user_id: user.id, reporting_currency:, lease_token: token }
       arguments[:instrument_id] = instrument.id if instrument
+      arguments[:refetch_dependencies] = true if refetch_dependencies
+      arguments[:refetch_full_range] = true if refetch_full_range
       arguments
     end
 
@@ -201,7 +215,7 @@ module Performance
       private
 
       def write(user:, instrument:, from:, to:, token:, reporting_currency:, status:, error_message: nil,
-        renew_lease: false)
+        phase: nil, renew_lease: false)
         written = false
         with_current_lease(user:, instrument:, token:, reporting_currency:) do
           Rails.cache.write(
@@ -209,7 +223,7 @@ module Performance
           ) if renew_lease
           Rails.cache.write(
             state_key(user:, instrument:, reporting_currency:),
-            state_payload(from:, to:, status:, error_message:),
+            state_payload(from:, to:, status:, error_message:, phase:),
             expires_in: STATE_TTL
           )
           written = true
@@ -217,13 +231,14 @@ module Performance
         read(user:, instrument:, reporting_currency:) if written
       end
 
-      def state_payload(from:, to:, status:, error_message:)
+      def state_payload(from:, to:, status:, error_message:, phase:)
         {
           status:,
           from: from.iso8601,
           to: to.iso8601,
           updated_at: Time.current.iso8601(6),
-          error_message:
+          error_message:,
+          phase:
         }
       end
 

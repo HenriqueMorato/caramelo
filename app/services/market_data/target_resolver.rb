@@ -54,7 +54,10 @@ module MarketData
     def ensure_performance_currency!(target)
       valid_pair = target.quote_currency == owner.reporting_currency && (
         owner.trades.where(currency: target.base_currency).exists? ||
-        owner.corporate_actions.effective_on_or_before(Date.current).where(currency: target.base_currency).exists?
+        owner.trades.where(settlement_currency: target.base_currency).exists? ||
+        owner.corporate_actions.effective_on_or_before(Date.current).where(currency: target.base_currency).exists? ||
+        owner.corporate_actions.effective_on_or_before(Date.current).joins(:instrument)
+          .where(instruments: { currency: target.base_currency }).exists?
       )
       raise ActiveRecord::RecordNotFound unless valid_pair
     end

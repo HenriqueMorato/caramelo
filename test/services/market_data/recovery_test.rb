@@ -48,6 +48,56 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_equal 1, broadcasts
   end
 
+  test "waits for performance work to start before broadcasting health" do
+    broadcasts = 0
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instruments(:voo_arcx).id, quote_currency: "USD"
+    )
+    handler = ->(**) { RefreshCurrentMarketPriceJob::COALESCED }
+
+    with_stubbed_method(MarketData::HealthReportBroadcaster, :refresh, -> { broadcasts += 1 }) do
+      result = MarketData::Recovery.call(target:, cache: @cache, handlers: { instrument_performance: handler })
+
+      assert_predicate result, :queued?
+    end
+
+    assert_equal 0, broadcasts
+  end
+
+  test "keeps the recovery cooldown while asynchronous performance work runs" do
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instruments(:voo_arcx).id, quote_currency: "USD"
+    )
+
+    result = MarketData::Recovery.call(
+      target:, cache: @cache, handlers: { instrument_performance: ->(**) { MarketData::Recovery::ASYNC } }
+    )
+
+    assert_predicate result, :queued?
+    refute MarketData::Recovery.available?(target:, owner: users(:owner), cache: @cache)
+    assert_equal "succeeded", RefreshStatus::State.read(result.batch_scope).status
+    assert_nil MarketData::RecoveryLease.current(target:, cache: @cache)
+  end
+
+  test "scopes asynchronous performance cooldowns and leases by owner" do
+    target = MarketData::Target.new(
+      kind: :portfolio_performance, quote_currency: "USD"
+    )
+    handler = ->(**) { MarketData::Recovery::ASYNC }
+
+    first = MarketData::Recovery.call(
+      target:, owner: users(:owner), cache: @cache, handlers: { portfolio_performance: handler }
+    )
+    second = MarketData::Recovery.call(
+      target:, owner: users(:two), cache: @cache, handlers: { portfolio_performance: handler }
+    )
+
+    assert_predicate first, :queued?
+    assert_predicate second, :queued?
+    refute MarketData::Recovery.available?(target:, owner: users(:owner), cache: @cache)
+    refute MarketData::Recovery.available?(target:, owner: users(:two), cache: @cache)
+  end
+
   test "keeps recovery successful when the health broadcast fails" do
     broadcast_error = RuntimeError.new("broadcast unavailable")
     reported = []
@@ -113,6 +163,28 @@ class MarketData::RecoveryTest < ActiveSupport::TestCase
     assert_predicate result, :unsupported?
     assert_equal "succeeded", RefreshStatus::State.read(result.batch_scope).status
     assert MarketData::Recovery.available?(target: @target, cache: @cache)
+  end
+
+  test "rejects an oversized recovery range before acquiring a lease" do
+    range = Date.new(1900, 1, 1)..Date.current
+
+    assert_raises(ArgumentError) do
+      MarketData::Recovery.call(
+        target: @target, range:, cache: @cache, handlers: { current_price: @handler }
+      )
+    end
+
+    assert_nil MarketData::RecoveryLease.current(target: @target, cache: @cache)
+  end
+
+  test "accepts a bounded recovery range" do
+    range = (Date.current - 1.day)..Date.current
+
+    result = MarketData::Recovery.call(
+      target: @target, range:, cache: @cache, handlers: { current_price: @handler }
+    )
+
+    assert_predicate result, :queued?
   end
 
   test "returns throttled and releases its lease when cooldown is taken" do

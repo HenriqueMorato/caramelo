@@ -6,11 +6,14 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
     "instrument_performance:#{values[:user_id]}:#{values[:instrument_id]}:#{values[:reporting_currency]}"
   }, duration: 30.minutes, on_conflict: :block
 
-  def perform(user_id:, instrument_id:, reporting_currency:, lease_token:)
+  def perform(user_id:, instrument_id:, reporting_currency:, lease_token:, refetch_dependencies: false,
+    refetch_full_range: false)
     @user = User.find(user_id)
     @target_instrument = Instrument.find(instrument_id)
     @reporting_currency = reporting_currency
     @lease_token = lease_token
+    @refetch_dependencies = refetch_dependencies
+    @refetch_full_range = refetch_full_range
     @materialization = InstrumentPerformanceMaterialization.for(
       user:, instrument: target_instrument, reporting_currency:
     )
@@ -22,10 +25,15 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
 
   private
 
-  attr_reader :user, :target_instrument, :reporting_currency, :lease_token, :materialization
+  attr_reader :user, :target_instrument, :reporting_currency, :lease_token, :materialization,
+    :refetch_dependencies, :refetch_full_range
 
   def build(from:, to:)
-    refresh(:running, from:, to:)
+    refresh(:running, from:, to:, phase: refetch_dependencies ? "fetching" : "rebuilding")
+    broadcast_health if refetch_dependencies
+    fetch_dependencies(from:, to:) if refetch_dependencies
+    refresh(:running, from:, to:, phase: "rebuilding") if refetch_dependencies
+    broadcast_health if refetch_dependencies
     store = InstrumentPerformance::ObservationStore.new(
       user:, instrument: target_instrument, reporting_currency:
     )
@@ -33,7 +41,8 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
       user:, instrument: target_instrument, store:, materialization:,
       progress: -> {
         Performance::SeriesRefresh.heartbeat!(
-          user:, instrument: target_instrument, reporting_currency:, from:, to:, token: lease_token
+          user:, instrument: target_instrument, reporting_currency:, from:, to:, token: lease_token,
+          phase: "rebuilding"
         )
       }
     ).call(from:, to:)
@@ -53,6 +62,19 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
     Performance::SeriesRefresh.public_send(
       status, user:, instrument: target_instrument, reporting_currency:, token: lease_token, **arguments
     )
+  end
+
+  def fetch_dependencies(from:, to:)
+    Performance::HistoricalDependencyFetcher.new(
+      user:, instrument: target_instrument, reporting_currency:,
+      throttle: MarketData::YahooFinance::RequestThrottle.new,
+      progress: ->(_message) {
+        Performance::SeriesRefresh.heartbeat!(
+          user:, instrument: target_instrument, reporting_currency:, from:, to:, token: lease_token,
+          phase: "fetching"
+        )
+      }
+    ).call(from:, to:, refetch_full_range:, allow_long_range: true)
   end
 
   def release_lease

@@ -22,7 +22,9 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
   test "saves supported currencies and enqueues preparation scoped to the owner" do
     %w[BRL USD EUR].each do |currency|
-      assert_enqueued_with(job: PrepareReportingCurrencyJob, args: [ users(:owner), { currency: } ]) do
+      assert_enqueued_with(job: PrepareReportingCurrencyJob, args: ->(args) {
+        args.first == users(:owner) && args.last[:currency] == currency && args.last[:run_id].present?
+      }) do
         patch settings_path, params: { user: { reporting_currency: currency, id: users(:two).id } }
       end
 

@@ -238,6 +238,21 @@ class Performance::SeriesTest < ActiveSupport::TestCase
     assert_predicate result, :partial?
     assert_empty @refresher.ranges
     assert_equal BigDecimal("0"), result.observations.last.return_ratio
+
+    calculate
+
+    assert_empty @refresher.ranges
+  end
+
+  test "retries missing observations after an explicit pending request" do
+    dates.each { |date| @store.add(snapshot(date)) }
+    @store.add(snapshot(@from + 1, status: :missing, market_value: nil, net_cash_flow: nil))
+    materialization = PortfolioPerformanceMaterialization.for(user: @user)
+    materialization.request!(from: @from + 1, to: @from + 1)
+
+    calculate
+
+    assert_equal [ [ @from + 1, @from + 1 ] ], @refresher.ranges
   end
 
   test "returns recover after a missing close even with trades during the gap" do

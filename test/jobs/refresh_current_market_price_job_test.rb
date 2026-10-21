@@ -165,6 +165,52 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     refute released
   end
 
+  test "preserves the target run when retrying through a batch" do
+    instrument = instruments(:petr4_bvmf)
+    failure = MarketPrice::ProviderFailure.new(
+      provider_identifier: "yahoo_finance", message: "rate limited",
+      cause: MarketData::YahooFinance::RateLimited.new(status: 429, headers: { "retry-after" => "60" })
+    )
+    calls = 0
+    service = Object.new
+    service.define_singleton_method(:refresh) do |**|
+      calls += 1
+      raise failure if calls == 1
+    end
+    batch = RefreshStatus::Tracker.enqueue(scope: "batch_retry", total_count: 1)
+    RefreshStatus::Tracker.enqueue(scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument),
+      run_id: batch.run_id)
+    job = build_job(service:)
+    job.define_singleton_method(:retry_job) { |**| }
+    job.define_singleton_method(:retry_random) { 0 }
+
+    job.perform(instrument, batch_scope: "batch_retry", batch_run_id: batch.run_id)
+
+    target = RefreshStatus::State.read(RefreshCurrentMarketPriceJob.refresh_scope(instrument))
+    assert_equal batch.run_id, target.run_id
+    assert_equal "queued", target.status
+    assert_equal 0, RefreshStatus::State.read("batch_retry").processed_count
+
+    job.perform(instrument, batch_scope: "batch_retry", batch_run_id: batch.run_id)
+
+    assert_equal "succeeded", RefreshStatus::State.read(target.scope).status
+    assert_equal "succeeded", RefreshStatus::State.read("batch_retry").status
+    assert_equal 2, calls
+  end
+
+  test "does not advance a parent batch for a duplicate succeeded child delivery" do
+    instrument = instruments(:petr4_bvmf)
+    batch = RefreshStatus::Tracker.enqueue(scope: "duplicate_child_batch", total_count: 2)
+    target_scope = RefreshCurrentMarketPriceJob.refresh_scope(instrument)
+    target = RefreshStatus::Tracker.enqueue(scope: target_scope, total_count: 1, run_id: batch.run_id)
+    RefreshStatus::Tracker.advance(target)
+
+    build_job(service: Object.new).perform(instrument, batch_scope: batch.scope, batch_run_id: batch.run_id)
+
+    assert_equal 0, RefreshStatus::State.read(batch.scope).processed_count
+    assert_equal "succeeded", RefreshStatus::State.read(target_scope).status
+  end
+
   test "releases a supplied recovery lease after a successful refresh" do
     instrument = instruments(:petr4_bvmf)
     service = Object.new

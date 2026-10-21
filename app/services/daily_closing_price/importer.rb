@@ -8,10 +8,10 @@ class DailyClosingPrice
       @provider = provider
     end
 
-    def call(instrument:, from:, to:, enqueue_performance_rebuild: true, fence: nil)
+    def call(instrument:, from:, to:, enqueue_performance_rebuild: true, fence: nil, generation: nil)
       raise ArgumentError, "from must be on or before to" if from > to
 
-      generation = fence&.capture
+      generation ||= fence&.capture
       @instrument = instrument
       @from = from
       @to = to

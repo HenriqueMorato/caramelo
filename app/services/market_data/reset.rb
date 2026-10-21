@@ -68,7 +68,7 @@ module MarketData
       }
       if target.kind == :instrument_performance
         instrument = Instrument.find(target.record_id)
-        raise ActiveRecord::RecordNotFound unless owner.trades.exists?(instrument:)
+        raise ActiveRecord::RecordNotFound unless performance_activity_exists?(instrument)
 
         attributes[:instrument] = instrument
         store = InstrumentPerformance::ObservationStore.new(
@@ -89,7 +89,14 @@ module MarketData
         store.delete_all
         materialization.request!(from: attributes[:from], to: attributes[:to], source_changed: true)
       end
-      result(Performance::SeriesRefresh.enqueue(**attributes))
+      result(Performance::SeriesRefresh.enqueue(
+        **attributes, refetch_dependencies: true, refetch_full_range: true, force: true
+      ))
+    end
+
+    def performance_activity_exists?(instrument)
+      owner.trades.exists?(instrument:) ||
+        owner.corporate_actions.effective_on_or_before(Date.current).exists?(instrument:)
     end
 
     attr_reader :target, :preview_token, :owner, :cache

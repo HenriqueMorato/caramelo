@@ -153,6 +153,15 @@ class PerformancesControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", new_trade_path
   end
 
+  test "does not select asset chart without asset performance data" do
+    Trade.where(user: User.owner).delete_all
+
+    get performance_url(chart: "asset")
+
+    assert_response :success
+    assert_select "p", "No performance yet"
+  end
+
   private
 
   def create_trade(instrument:, traded_on:)

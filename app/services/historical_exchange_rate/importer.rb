@@ -8,9 +8,9 @@ class HistoricalExchangeRate
       @provider = provider
     end
 
-    def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true, fence: nil)
+    def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true, fence: nil, generation: nil)
       validate_range!(from:, to:)
-      generation = fence&.capture
+      generation ||= fence&.capture
       @base_currency = normalize_currency(base_currency)
       @quote_currency = normalize_currency(quote_currency)
       raise ArgumentError, "currencies must differ" if @base_currency == @quote_currency

@@ -24,9 +24,31 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Market data recovery started.", flash[:notice]
   end
 
+  test "removes a queued recovery row immediately for Turbo requests" do
+    instrument = instruments(:voo_arcx)
+    target = MarketData::Target.new(kind: :current_price, record_id: instrument.id,
+      provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier)
+
+    with_stubbed_method(MarketData::Recovery, :call, ->(**) {
+      MarketData::Recovery::Result.new(
+        status: :queued, target:, batch_scope: "batch", batch_run_id: "run"
+      )
+    }) do
+      post market_data_recoveries_path,
+        params: { target: { kind: "current_price", record_id: instrument.id } },
+        as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_includes response.body, 'action="remove"'
+    assert_includes response.body, target.dom_id
+    assert_includes response.body, "Market data recovery started."
+  end
+
   test "queues a CDI retry with browser-shaped blank optional fields" do
-    benchmark = MarketBenchmark.create!(
-      identifier: "CDI", name: "CDI", kind: :rate, currency: "BRL", provider: "bcb", provider_identifier: "CDI"
+    benchmark = MarketBenchmark.find_or_initialize_by(identifier: "CDI")
+    benchmark.update!(
+      name: "CDI", kind: :rate, currency: "BRL", provider: "bcb", provider_identifier: "CDI"
     )
     captured = nil
 
@@ -208,6 +230,25 @@ class MarketData::RecoveriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to market_data_health_path
     assert_equal "Data replacement started.", flash[:notice]
+  end
+
+  test "removes a queued replacement row immediately for Turbo requests" do
+    target = MarketData::Target.new(kind: :current_price, record_id: instruments(:voo_arcx).id,
+      provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier)
+    result = MarketData::Reset::Result.new(status: :queued, target:)
+
+    with_stubbed_method(MarketData::Reset, :call, ->(**) { result }) do
+      delete market_data_recovery_path(instruments(:voo_arcx).id),
+        params: {
+          target: { kind: "current_price", record_id: instruments(:voo_arcx).id },
+          preview_token: reset_preview_token
+        }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_includes response.body, 'action="remove"'
+    assert_includes response.body, target.dom_id
+    assert_includes response.body, "Data replacement started."
   end
 
   private

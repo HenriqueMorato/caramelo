@@ -67,6 +67,40 @@ class MarketData::PublicationFenceTest < ActiveSupport::TestCase
     assert_equal "other-worker", @cache.read(lock_key)
   end
 
+  test "renews an owned lock" do
+    @cache.write(lock_key, "this-worker")
+
+    assert @fence.send(:renew_lock, "this-worker")
+    assert_equal "this-worker", @cache.read(lock_key)
+  end
+
+  test "does not renew a lock owned by another worker" do
+    @cache.write(lock_key, "other-worker")
+
+    refute @fence.send(:renew_lock, "this-worker")
+    assert_equal "other-worker", @cache.read(lock_key)
+  end
+
+  test "stops its heartbeat when the lock is lost" do
+    calls = 0
+    @fence.define_singleton_method(:renew_lock) do |_token|
+      calls += 1
+      calls < 2
+    end
+
+    heartbeat = @fence.send(:start_heartbeat, "this-worker", interval: 0)
+    heartbeat.join
+
+    assert_equal 2, calls
+  end
+
+  test "releases no lock when acquisition fails before the heartbeat starts" do
+    @fence.define_singleton_method(:acquire_lock) { |_token| raise "lock unavailable" }
+
+    assert_raises(RuntimeError) { @fence.send(:with_lock) { flunk "lock should not be held" } }
+    refute @cache.exist?(lock_key)
+  end
+
   private
 
   def generation_key

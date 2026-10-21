@@ -44,9 +44,27 @@ module MarketData
     def with_lock
       token = SecureRandom.uuid
       acquire_lock(token)
+      heartbeat = start_heartbeat(token)
       yield
     ensure
+      heartbeat&.kill
+      heartbeat&.join
       release_lock(token)
+    end
+
+    def start_heartbeat(token, interval: LOCK_EXPIRY / 3)
+      Thread.new do
+        loop do
+          Kernel.sleep(interval)
+          break unless renew_lock(token)
+        end
+      end
+    end
+
+    def renew_lock(token)
+      return false unless cache.read(lock_key) == token
+
+      cache.write(lock_key, token, expires_in: LOCK_EXPIRY)
     end
 
     def acquire_lock(token)

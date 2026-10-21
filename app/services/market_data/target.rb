@@ -10,6 +10,7 @@ module MarketData
       instrument_performance
       asset_type_performance
       corporate_action_imports
+      reporting_currency_preparation
     ].freeze
 
     def initialize(kind:, record_id: nil, base_currency: nil, quote_currency: nil, provider: nil)
@@ -36,6 +37,10 @@ module MarketData
       return "historical_exchange_rate:#{[ base_currency, quote_currency ].sort.join(":")}" if kind == :historical_exchange_rates
 
       scope
+    end
+
+    def dom_id
+      "health-entry-#{scope.gsub(/[^a-zA-Z0-9_-]/, "-")}"
     end
   end
 end

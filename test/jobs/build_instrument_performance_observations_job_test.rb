@@ -23,6 +23,41 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     assert_not_predicate @materialization.reload, :pending?
   end
 
+  test "fetches historical dependencies before rebuilding when retry requested" do
+    events = []
+    builder = RecordingBuilder.new { events << :build }
+    fetcher = RecordingFetcher.new { events << :fetch }
+
+    with_fetcher(fetcher) do
+      with_builder(builder) { perform_job(refetch_dependencies: true) }
+    end
+
+    assert_equal [ :fetch, :build ], events
+    assert_equal [ { from: @from, to: @to, refetch_full_range: false, allow_long_range: true } ], fetcher.calls
+    assert_equal "succeeded", refresh_state.status
+  end
+
+  test "keeps the dependency failure visible for retry" do
+    error = Performance::HistoricalDependencyFetcher::Unavailable.new([
+      Performance::HistoricalDependencyFetcher::MissingDependency.new(
+        label: "IWDA historical closing prices", dates: [ @from ]
+      )
+    ])
+
+    with_fetcher(RecordingFetcher.new(error:)) do
+      assert_raises(Performance::HistoricalDependencyFetcher::Unavailable) do
+        perform_job(refetch_dependencies: true)
+      end
+    end
+
+    assert_equal "failed", refresh_state.status
+    assert_includes refresh_state.error_message, "IWDA historical closing prices"
+    entry = MarketData::HealthReport::InstrumentPerformance.new(owner: @user, today: @to).entries.find do |candidate|
+      candidate.subject == @instrument && candidate.target.quote_currency == "USD"
+    end
+    assert_includes entry.description, "IWDA historical closing prices"
+  end
+
   test "records failure and resumes only after a later request" do
     builder = RecordingBuilder.new(error: RuntimeError.new("instrument calculation failed"))
 
@@ -124,13 +159,15 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     Performance::SeriesRefresh.acquire(user: @user, instrument: @instrument, reporting_currency: "USD")
   end
 
-  def perform_job
+  def perform_job(refetch_dependencies: false, refetch_full_range: false)
     @lease_token ||= acquire
     BuildInstrumentPerformanceObservationsJob.perform_now(
       user_id: @user.id,
       instrument_id: @instrument.id,
       reporting_currency: "USD",
-      lease_token: @lease_token
+      lease_token: @lease_token,
+      refetch_dependencies:,
+      refetch_full_range:
     )
   end
 
@@ -150,6 +187,17 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     yield
   ensure
     Performance::ObservationBuilder.define_singleton_method(:new, original)
+  end
+
+  def with_fetcher(fetcher)
+    original = Performance::HistoricalDependencyFetcher.method(:new)
+    Performance::HistoricalDependencyFetcher.define_singleton_method(:new) do |**arguments|
+      fetcher.progress = arguments[:progress]
+      fetcher
+    end
+    yield
+  ensure
+    Performance::HistoricalDependencyFetcher.define_singleton_method(:new, original)
   end
 
   def with_stubbed_method(object, method_name, replacement)
@@ -179,6 +227,24 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
       Performance::ObservationBuilder::Result.new(
         **arguments, built_count: 2, skipped_count: 0, source_generation: 0
       )
+    end
+  end
+
+  class RecordingFetcher
+    attr_reader :calls
+    attr_writer :progress
+
+    def initialize(error: nil, &during_fetch)
+      @error = error
+      @during_fetch = during_fetch
+      @calls = []
+    end
+
+    def call(**arguments)
+      calls << arguments
+      @progress&.call("fetching")
+      @during_fetch&.call
+      raise @error if @error
     end
   end
 end

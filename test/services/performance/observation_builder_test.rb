@@ -37,6 +37,20 @@ class Performance::ObservationBuilderTest < ActiveSupport::TestCase
     assert_empty @store.read(from: @from, to: @to).values.select(&:stale?)
   end
 
+  test "rebuilds a source-missing observation at the current generation" do
+    PortfolioPerformanceObservation.create!(
+      user: @user, reporting_currency: "BRL", observed_on: @from,
+      status: :missing, source_generation: PortfolioPerformanceMaterialization.for(user: @user).source_generation,
+      generated_at: Time.current
+    )
+
+    result = @builder.call(from: @from, to: @from)
+
+    assert_equal 1, result.built_count
+    assert_equal [ @from ], @portfolio.dates
+    assert_predicate @store.read(from: @from, to: @from).fetch(@from), :available?
+  end
+
   test "returns without loading trades when every observation is fresh" do
     (@from..@to).each do |date|
       @store.write(@portfolio.valuation(date), generated_at: Time.current)

@@ -27,7 +27,7 @@ module MarketData
       end
 
       def dom_id
-        "health-entry-#{target.scope.gsub(/[^a-zA-Z0-9_-]/, "-")}"
+        target.dom_id
       end
     end
 

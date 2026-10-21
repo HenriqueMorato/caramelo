@@ -3,23 +3,29 @@ module ReportingCurrency
     HISTORY_BATCH_SIZE = 60
 
     def initialize(user:, currency:, exchange_rates: ExchangeRate::Service.default,
-      history: HistoricalExchangeRate::Importer.default, throttle: MarketData::YahooFinance::RequestThrottle.new)
+      history: HistoricalExchangeRate::Importer.default, throttle: MarketData::YahooFinance::RequestThrottle.new,
+      run_id: SecureRandom.uuid)
       @user = user
       @currency = CurrencyCode.normalize(currency)
       @exchange_rates = exchange_rates
       @history = history
       @throttle = throttle
+      @run_id = run_id
     end
 
     def call
+      scope = "reporting_currency:#{user.id}:#{currency}"
       starts = currency_starts
-      return if starts.empty?
+      if starts.empty?
+        complete_without_work(scope)
+        return
+      end
 
       pairs = starts.except(currency)
       instruments = instrument_starts
-      scope = "reporting_currency:#{user.id}:#{currency}"
       failures = []
-      RefreshStatus::Tracker.perform(scope:, total_count: pairs.size + instruments.size + 1) do |refresh|
+      RefreshStatus::Tracker.perform(scope:, run_id:, total_count: pairs.size + instruments.size + 1) do |refresh|
+        prepare_run_fence
         pairs.sort_by { |base_currency, _| base_currency }.each do |base_currency, first_trade|
           perform_step(refresh, failures, base_currency:) do
             prepare_pair(base_currency, first_trade)
@@ -39,9 +45,30 @@ module ReportingCurrency
 
     private
 
-    attr_reader :user, :currency, :exchange_rates, :history, :throttle
+    attr_reader :user, :currency, :exchange_rates, :history, :throttle, :run_id, :run_fence, :run_generation
+
+    def prepare_run_fence
+      @run_fence = MarketData::PublicationFence.new(
+        target: MarketData::Target.new(kind: :reporting_currency_preparation,
+          record_id: user.id, quote_currency: currency)
+      )
+      @run_generation = run_fence.advance { |generation| generation }
+    end
+
+    def fenced_side_effect
+      run_fence.publish(run_generation) { yield } == :published
+    end
+
+    def complete_without_work(scope)
+      state = RefreshStatus::State.read(scope)
+      return unless state&.run_id == run_id
+
+      RefreshStatus::Tracker.perform(scope:, run_id:, total_count: 0) { }
+    end
 
     def perform_step(refresh, failures, **context)
+      return unless RefreshStatus::Tracker.current?(refresh)
+
       yield
     rescue StandardError => error
       failures << error if failures.empty?
@@ -70,16 +97,24 @@ module ReportingCurrency
     end
 
     def enqueue_portfolio_rebuild(first_trade)
-      result = Performance::SeriesRefresh.enqueue(
-        user:, from: first_trade, to: Date.current, reporting_currency: currency
-      )
+      result = nil
+      return unless fenced_side_effect do
+        result = Performance::SeriesRefresh.enqueue(
+          user:, from: first_trade, to: Date.current, reporting_currency: currency
+        )
+      end
+
       raise ActiveJob::EnqueueError, "performance rebuild could not be enqueued" if result == :failed
     end
 
     def enqueue_instrument_rebuild(instrument, first_trade)
-      result = Performance::SeriesRefresh.enqueue(
-        user:, instrument:, from: first_trade, to: Date.current, reporting_currency: currency
-      )
+      result = nil
+      return unless fenced_side_effect do
+        result = Performance::SeriesRefresh.enqueue(
+          user:, instrument:, from: first_trade, to: Date.current, reporting_currency: currency
+        )
+      end
+
       raise ActiveJob::EnqueueError, "instrument performance rebuild could not be enqueued" if result == :failed
     end
 
@@ -130,16 +165,38 @@ module ReportingCurrency
 
     def prepare_pair(base_currency, first_trade)
       if exchange_rates.read(base_currency:, quote_currency: currency).refresh_needed?
-        throttle.wait!
-        exchange_rates.refresh(base_currency:, quote_currency: currency)
+        return unless fenced_side_effect do
+          throttle.wait!
+          exchange_rates.refresh(base_currency:, quote_currency: currency)
+        end
       end
       # Include the existing valuation lookback for a first trade on a holiday.
       from = MarketData::HistoricalObservationWindow.for(first_trade).begin
+      fence, generation = historical_context(base_currency:)
       missing_ranges(base_currency, from:).each do |range|
-        throttle.wait!
-        history.call(base_currency:, quote_currency: currency, from: range.begin, to: range.end,
-          enqueue_performance_rebuild: false)
+        return unless fenced_side_effect do
+          throttle.wait!
+          history.call(base_currency:, quote_currency: currency, from: range.begin, to: range.end,
+            enqueue_performance_rebuild: false, fence:, generation:)
+        end
       end
+    end
+
+    def historical_context(base_currency:)
+      @historical_contexts ||= {}
+      @historical_contexts[base_currency] ||= begin
+        fence = historical_fence(base_currency:)
+        [ fence, fence.capture ]
+      end
+    end
+
+    def historical_fence(base_currency:)
+      @historical_fences ||= {}
+      @historical_fences[base_currency] ||= MarketData::PublicationFence.new(
+        target: MarketData::Target.new(kind: :historical_exchange_rates,
+          base_currency:, quote_currency: currency,
+          provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER)
+      )
     end
 
     def missing_ranges(base_currency, from:)
