@@ -167,7 +167,7 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
       result = MarketData::Recoveries::PerformanceObservations.call(
         target:, range:, batch_scope: "outer", batch_run_id: "run", owner: @owner
       )
-      assert_equal RefreshCurrentMarketPriceJob::COALESCED, result
+      assert_equal MarketData::Recovery::ASYNC, result
     end
 
     assert_equal @owner, enqueued[:user]
@@ -290,6 +290,17 @@ class MarketDataRecoveriesHandlersTest < ActiveSupport::TestCase
           target:, range: Date.current..Date.current, batch_scope: "outer", batch_run_id: "run", owner: @owner
         )
       end
+    end
+  end
+
+  test "rejects a performance recovery range beyond the bounded history span" do
+    target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "BRL")
+    range = Date.new(1900, 1, 1)..Date.current
+
+    assert_raises(ArgumentError) do
+      MarketData::Recoveries::PerformanceObservations.call(
+        target:, range:, batch_scope: "outer", batch_run_id: "run", owner: @owner
+      )
     end
   end
 

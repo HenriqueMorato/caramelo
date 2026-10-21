@@ -67,13 +67,14 @@ class BuildInstrumentPerformanceObservationsJob < ApplicationJob
   def fetch_dependencies(from:, to:)
     Performance::HistoricalDependencyFetcher.new(
       user:, instrument: target_instrument, reporting_currency:,
+      throttle: MarketData::YahooFinance::RequestThrottle.new,
       progress: ->(_message) {
         Performance::SeriesRefresh.heartbeat!(
           user:, instrument: target_instrument, reporting_currency:, from:, to:, token: lease_token,
           phase: "fetching"
         )
       }
-    ).call(from:, to:, refetch_full_range:)
+    ).call(from:, to:, refetch_full_range:, allow_long_range: true)
   end
 
   def release_lease

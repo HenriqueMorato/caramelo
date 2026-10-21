@@ -8,10 +8,10 @@ module MarketData
 
       def entries
         currencies = (
-          trades.flat_map { |trade| [ trade.currency, trade.instrument.currency ] } +
+          trades.flat_map { |trade| [ trade.currency, trade.settlement_currency, trade.instrument.currency ] } +
           corporate_actions.map { |action| action.currency || action.instrument.currency } +
           benchmark_currencies
-        ).uniq
+        ).compact.uniq
         currencies.map { |currency| entry_for(currency) }
       end
 
@@ -57,7 +57,9 @@ module MarketData
       end
 
       def historical_rate_dates(currency)
-        settlement_dates = trades.select { |trade| trade.currency == currency }.map(&:traded_on)
+        settlement_dates = trades.filter_map do |trade|
+          trade.traded_on if [ trade.currency, trade.settlement_currency ].include?(currency)
+        end
         income_dates = corporate_actions.filter_map do |action|
           action.performance_on if (action.currency || action.instrument.currency) == currency
         end

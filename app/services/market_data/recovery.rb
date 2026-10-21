@@ -3,6 +3,7 @@ module MarketData
     COOLDOWN = 5.minutes
     COOLDOWN_PREFIX = "caramelo:market_data:recovery:cooldown"
     BATCH_SCOPE_PREFIX = "market_data_recovery"
+    ASYNC = :async
 
     Result = Data.define(:status, :target, :batch_scope, :batch_run_id) do
       def queued? = status == :queued
@@ -27,12 +28,15 @@ module MarketData
       new(target:, range:, owner:, cache:, handlers:, replacement:).call
     end
 
-    def self.available?(target:, cache: Rails.cache)
-      !cache.exist?(cooldown_key(target))
+    def self.available?(target:, owner: nil, cache: Rails.cache)
+      !cache.exist?(cooldown_key(target, owner:))
     end
 
-    def self.cooldown_key(target)
-      "#{COOLDOWN_PREFIX}:#{target.scope}"
+    def self.cooldown_key(target, owner: nil)
+      owner_scope = if owner && performance_target?(target)
+        ":owner:#{owner.id}"
+      end
+      "#{COOLDOWN_PREFIX}:#{target.scope}#{owner_scope}"
     end
 
     def initialize(target:, range:, owner:, cache:, handlers:, replacement: false)
@@ -47,13 +51,14 @@ module MarketData
     def call
       handler = handlers[target.kind]
       return result(:unsupported) unless handler
+      validate_range!
 
-      lease = RecoveryLease.acquire(target:, cache:)
+      lease = RecoveryLease.acquire(target:, owner:, cache:)
       return result(:already_running) unless lease
 
       token = acquire_cooldown
       unless token
-        RecoveryLease.release(target:, token: lease.token, cache:)
+        RecoveryLease.release(target:, owner:, token: lease.token, cache:)
         return result(:throttled)
       end
 
@@ -67,10 +72,10 @@ module MarketData
         handler.call(**arguments)
       end
 
-      if handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED
+      if handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED || handler_result == ASYNC
         RefreshStatus::Tracker.advance(batch)
-        release_cooldown(token)
-        RecoveryLease.release(target:, token: lease.token, cache:)
+        release_cooldown(token) unless handler_result == ASYNC
+        RecoveryLease.release(target:, owner:, token: lease.token, cache:)
         broadcast_health if handler_result == RefreshCurrentMarketPriceJob::COALESCED && broadcast_after_enqueue?
         return result(handler_result.nil? ? :unsupported : :queued, batch:)
       end
@@ -79,7 +84,7 @@ module MarketData
       result(:queued, batch:)
     rescue StandardError => error
       release_cooldown(token)
-      RecoveryLease.release(target:, token: lease.token, cache:) if lease
+      RecoveryLease.release(target:, owner:, token: lease.token, cache:) if lease
       RefreshStatus::Tracker.record_failure(batch, error) if batch
       raise
     end
@@ -104,16 +109,30 @@ module MarketData
     def acquire_cooldown
       token = SecureRandom.uuid
       acquired = cache.write(
-        self.class.cooldown_key(target), token,
+        self.class.cooldown_key(target, owner:), token,
         expires_in: COOLDOWN, unless_exist: true
       )
       token if acquired
     end
 
     def release_cooldown(token)
-      key = self.class.cooldown_key(target)
+      key = self.class.cooldown_key(target, owner:)
       cache.delete(key) if token && cache.read(key) == token
     end
+
+    def validate_range!
+      return unless range
+      return if range.is_a?(Range) && range.begin.is_a?(Date) && range.end.is_a?(Date) &&
+        (range.end - range.begin).to_i <= Performance::HistoricalDependencyFetcher::MAX_RANGE_DAYS
+
+      raise ArgumentError, "recovery range exceeds the maximum supported span"
+    end
+
+    def self.performance_target?(target)
+      %i[portfolio_performance instrument_performance].include?(target.kind)
+    end
+
+    private_class_method :performance_target?
 
     def broadcast_after_enqueue?
       !%i[portfolio_performance instrument_performance].include?(target.kind)

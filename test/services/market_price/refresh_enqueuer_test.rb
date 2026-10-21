@@ -60,6 +60,26 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     assert_equal "failed", RefreshStatus::State.read("test_refresh:#{instruments(:petr4_bvmf).id}").status
   end
 
+  test "does not fail a newer target run when an older enqueue fails" do
+    events = []
+    scope = "test_refresh:#{instruments(:petr4_bvmf).id}"
+    job_class = fake_job_class(events:, result: false)
+    job_class.define_singleton_method(:enqueue_for) do |instrument:, **|
+      events << :enqueue
+      RefreshStatus::Tracker.enqueue(scope: self.refresh_scope(instrument))
+      false
+    end
+
+    assert_raises(MarketPrice::EnqueueFailure) do
+      MarketPrice::RefreshEnqueuer.new(broadcaster: fake_broadcaster(events:), job_class:).enqueue(
+        instrument: instruments(:petr4_bvmf)
+      )
+    end
+
+    assert_equal scope, RefreshStatus::State.read(scope).scope
+    assert_equal "queued", RefreshStatus::State.read(scope).status
+  end
+
   test "does nothing for an unsupported instrument" do
     events = []
     service = Object.new

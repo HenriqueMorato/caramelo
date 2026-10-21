@@ -2,6 +2,10 @@ module RefreshStatus
   class State
     CACHE_PREFIX = "caramelo:refresh_status:v1"
     ACTIVE_TIMEOUT = 10.minutes
+    LOCK_EXPIRY = 30.seconds
+    LOCK_RETRY_INTERVAL = 0.05.seconds
+    EXPECTED_RUN_UNSET = Object.new.freeze
+    NO_RUN = Object.new.freeze
     SCOPES_KEY = "#{CACHE_PREFIX}:scopes"
     DEFAULT_SCOPES = [
       RefreshStatus::MARKET_PRICE_SCOPE, "daily_closing_prices", "historical_exchange_rates", "market_benchmarks"
@@ -75,12 +79,14 @@ module RefreshStatus
     end
 
     def self.prune!
-      retained = scopes.select do |scope|
-        state = read(scope)
-        state && state.updated_at && state.updated_at > ACTIVE_TIMEOUT.ago
+      with_lock(SCOPES_KEY) do
+        retained = scopes.select do |scope|
+          state = read(scope)
+          state && state.updated_at && state.updated_at > ACTIVE_TIMEOUT.ago
+        end
+        Rails.cache.write(SCOPES_KEY, retained)
+        retained
       end
-      Rails.cache.write(SCOPES_KEY, retained)
-      retained
     end
 
     def self.latest_successful
@@ -92,14 +98,22 @@ module RefreshStatus
     end
 
     def self.write(scope:, run_id: nil, status:, started_at: nil, finished_at: nil, error_class: nil,
-      error_message: nil,
-      processed_count: 0, total_count: nil)
-      register(scope)
-      Rails.cache.write(key(scope), {
-        scope:, run_id:, status:, started_at: serialize_time(started_at), finished_at: serialize_time(finished_at),
-        updated_at: serialize_time(Time.current), error_class:, error_message:, processed_count:, total_count:
-      })
-      read(scope)
+      error_message: nil, processed_count: 0, total_count: nil, expected_run_id: EXPECTED_RUN_UNSET)
+      with_lock(scope) do
+        current = read(scope)
+        if expected_run_id != EXPECTED_RUN_UNSET
+          next if expected_run_id == NO_RUN ? current : current&.run_id != expected_run_id
+        end
+
+        register(scope)
+        Rails.cache.write(key(scope), {
+          scope:, run_id:, status:, started_at: serialize_time(started_at), finished_at: serialize_time(finished_at),
+          updated_at: serialize_time(Time.current), error_class:, error_message:, processed_count:, total_count:
+        })
+        state = read(scope)
+        register(scope)
+        state
+      end
     end
 
     def self.key(scope)
@@ -115,8 +129,32 @@ module RefreshStatus
     end
 
     def self.register(scope)
-      scopes = Array(Rails.cache.read(SCOPES_KEY)) | [ scope ]
-      Rails.cache.write(SCOPES_KEY, scopes)
+      with_lock(SCOPES_KEY) do
+        scopes = Array(Rails.cache.read(SCOPES_KEY)) | [ scope ]
+        Rails.cache.write(SCOPES_KEY, scopes)
+      end
+    end
+
+    def self.with_lock(scope)
+      token = SecureRandom.uuid
+      acquire_lock(scope, token)
+      yield
+    ensure
+      release_lock(scope, token)
+    end
+
+    def self.acquire_lock(scope, token)
+      until Rails.cache.write(lock_key(scope), token, expires_in: LOCK_EXPIRY, unless_exist: true)
+        sleep LOCK_RETRY_INTERVAL
+      end
+    end
+
+    def self.release_lock(scope, token)
+      Rails.cache.delete(lock_key(scope)) if token && Rails.cache.read(lock_key(scope)) == token
+    end
+
+    def self.lock_key(scope)
+      "#{key(scope)}:lock"
     end
 
     def self.states_with_finish_time(status)
@@ -135,6 +173,7 @@ module RefreshStatus
         scope.start_with?(CorporateActionImports::ScanStatus::SCOPE_PREFIX)
     end
 
-    private_class_method :register, :serialize_time, :parse_time, :key, :states_with_finish_time, :hidden_activity_scope?
+    private_class_method :register, :serialize_time, :parse_time, :key, :states_with_finish_time,
+      :hidden_activity_scope?, :with_lock, :acquire_lock, :release_lock, :lock_key
   end
 end

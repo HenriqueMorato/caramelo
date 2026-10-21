@@ -89,13 +89,19 @@ module Performance
     def enqueue_refresh
       dirty_dates = dates.select do |date|
         record = records[date]
-        record.nil? || record.missing? || stale_record?(record)
+        record.nil? || retryable_missing_record?(record) || stale_record?(record)
       end
       return if dirty_dates.empty?
 
       attributes = { user:, from: dirty_dates.first, to: dirty_dates.last, reporting_currency: }
       attributes[:instrument] = instrument if instrument
       refresher.enqueue(**attributes)
+    end
+
+    def retryable_missing_record?(record)
+      return false unless record.missing? && materialization.pending?
+
+      materialization.requested_range.cover?(record.observed_on)
     end
 
     def build_observations

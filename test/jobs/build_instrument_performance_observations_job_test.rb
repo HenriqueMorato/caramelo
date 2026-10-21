@@ -33,7 +33,7 @@ class BuildInstrumentPerformanceObservationsJobTest < ActiveJob::TestCase
     end
 
     assert_equal [ :fetch, :build ], events
-    assert_equal [ { from: @from, to: @to, refetch_full_range: false } ], fetcher.calls
+    assert_equal [ { from: @from, to: @to, refetch_full_range: false, allow_long_range: true } ], fetcher.calls
     assert_equal "succeeded", refresh_state.status
   end
 

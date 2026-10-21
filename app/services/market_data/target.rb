@@ -10,6 +10,7 @@ module MarketData
       instrument_performance
       asset_type_performance
       corporate_action_imports
+      reporting_currency_preparation
     ].freeze
 
     def initialize(kind:, record_id: nil, base_currency: nil, quote_currency: nil, provider: nil)

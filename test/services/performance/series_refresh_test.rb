@@ -94,6 +94,30 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_equal :queued, enqueue
   end
 
+  test "retains disjoint pending work when a recent failure blocks a retry" do
+    first_from = @from
+    first_to = @from + 1.day
+    second_from = @to
+    second_to = @to + 1.day
+    first_token = Performance::SeriesRefresh.acquire(user: @user)
+    @materialization.request!(from: first_from, to: first_to)
+    Performance::SeriesRefresh.failed(
+      user: @user, from: first_from, to: first_to, token: first_token, error: RuntimeError.new("failed")
+    )
+    Performance::SeriesRefresh.release(user: @user, token: first_token)
+
+    assert_equal :failed, Performance::SeriesRefresh.enqueue(
+      user: @user, from: second_from, to: second_to
+    )
+    assert_equal first_from..second_to, @materialization.reload.requested_range
+
+    travel 31.seconds do
+      assert_equal :queued, Performance::SeriesRefresh.enqueue(
+        user: @user, from: first_from, to: second_to
+      )
+    end
+  end
+
   test "a forced retry bypasses the recent failure cooldown and carries dependency flags" do
     token = Performance::SeriesRefresh.acquire(user: @user)
     Performance::SeriesRefresh.failed(

@@ -9,7 +9,10 @@ module MarketPrice
     def enqueue(instrument:, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
       return unless service.supports?(instrument:)
 
-      RefreshStatus::Tracker.enqueue(scope: job_class.refresh_scope(instrument)) unless batch_scope
+      target_run_id = batch_run_id
+      unless batch_scope
+        target_run_id = RefreshStatus::Tracker.enqueue(scope: job_class.refresh_scope(instrument)).run_id
+      end
       broadcaster.refreshing(instrument:)
       job = if batch_scope
         enqueue_batch(instrument:, batch_scope:, batch_run_id:, lease_token:, lease_target:)
@@ -20,7 +23,7 @@ module MarketPrice
 
       raise EnqueueFailure, "current market price refresh could not be enqueued"
     rescue => error
-      RefreshStatus::Tracker.fail(scope: job_class.refresh_scope(instrument), error:)
+      RefreshStatus::Tracker.fail(scope: job_class.refresh_scope(instrument), error:, run_id: target_run_id)
       broadcaster.current(instrument:)
       raise
     end

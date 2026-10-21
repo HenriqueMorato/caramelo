@@ -60,6 +60,33 @@ class MarketData::TargetResolverTest < ActiveSupport::TestCase
     assert_equal :instrument_performance, performance_target.kind
   end
 
+  test "resolves historical FX required by a trade settlement currency" do
+    owner = User.create!(email_address: "settlement-targets@example.com", password: "password")
+    owner.update!(reporting_currency: "BRL")
+    trade = owner.trades.create!(instrument: instruments(:voo_arcx), side: :buy, traded_on: Date.current - 1.day,
+      quantity: 1, unit_price: 10, currency: "USD", settlement_exchange_rate: "1.2")
+    trade.update_columns(settlement_currency: "EUR")
+
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "historical_exchange_rates", base_currency: "EUR", quote_currency: "BRL" }, owner:
+    )
+
+    assert_equal :historical_exchange_rates, target.kind
+  end
+
+  test "resolves historical FX required by a foreign quantity action" do
+    owner = User.create!(email_address: "quantity-action-targets@example.com", password: "password")
+    owner.update!(reporting_currency: "BRL")
+    owner.corporate_actions.create!(instrument: instruments(:voo_arcx), kind: :stock_split,
+      effective_on: Date.current - 1.day, ratio_numerator: 2, ratio_denominator: 1, source: "manual")
+
+    target = MarketData::TargetResolver.call(
+      attributes: { kind: "historical_exchange_rates", base_currency: "USD", quote_currency: "BRL" }, owner:
+    )
+
+    assert_equal :historical_exchange_rates, target.kind
+  end
+
   test "does not use income-only instruments for current market targets" do
     owner = User.create!(email_address: "income-current-targets@example.com", password: "password")
     instrument = instruments(:voo_arcx)

@@ -29,6 +29,7 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_equal Date.new(2026, 8, 5), @imports.first[:from]
     assert_equal Date.new(2026, 8, 14), @imports.first[:to]
     assert_equal false, @imports.first[:enqueue_performance_rebuild]
+    assert_instance_of MarketData::PublicationFence, @imports.first[:fence]
     assert_equal 2, @waits.size
     assert_enqueued_with(job: BuildPortfolioPerformanceObservationsJob,
       args: ->(args) { args.first[:reporting_currency] == "EUR" })
@@ -76,6 +77,7 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_empty @refreshes
     assert_equal [ Date.new(2026, 8, 5)..Date.new(2026, 8, 6),
       Date.new(2026, 8, 11)..Date.new(2026, 8, 14) ], @imports.map { |call| call[:from]..call[:to] }
+    assert_equal 1, @imports.map { |call| call.fetch(:generation) }.uniq.size
     assert_equal original, HistoricalExchangeRate.order(:id).map(&:attributes)
   end
 
@@ -213,6 +215,16 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_no_enqueued_jobs only: BuildPortfolioPerformanceObservationsJob
   end
 
+  test "completes a queued run for an empty portfolio" do
+    @user = users(:two)
+    scope = "reporting_currency:#{@user.id}:#{@user.reporting_currency}"
+    RefreshStatus::Tracker.enqueue(scope:, run_id: "empty-run")
+
+    preparation_for(@user.reporting_currency, run_id: "empty-run").call
+
+    assert_equal "succeeded", RefreshStatus::State.read(scope).status
+  end
+
   test "reports failed preparation after scheduling rebuilds" do
     @history.define_singleton_method(:call) { |**| raise ExchangeRate::InvalidValue, "provider unavailable" }
 
@@ -221,6 +233,49 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR"), :failed?
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
     assert_enqueued_jobs 1, only: BuildInstrumentPerformanceObservationsJob
+  end
+
+  test "does not perform later steps after the preparation run is superseded" do
+    clear_enqueued_jobs
+
+    with_stubbed_method(RefreshStatus::Tracker, :current?, ->(_refresh) { false }) do
+      preparation.call
+    end
+
+    assert_empty @refreshes
+    assert_empty @imports
+    assert_no_enqueued_jobs
+  end
+
+  test "does not publish side effects after its run fence is superseded" do
+    clear_enqueued_jobs
+    preparation = preparation_for(@user.reporting_currency)
+    original = MarketData::PublicationFence.instance_method(:publish)
+    calls = 0
+    MarketData::PublicationFence.define_method(:publish) do |generation, &block|
+      calls += 1
+      calls == 1 ? original.bind_call(self, generation, &block) : :superseded
+    end
+
+    assert_nothing_raised { preparation.call }
+    assert_equal 1, @refreshes.size
+    assert_empty @imports
+    assert_no_enqueued_jobs
+  ensure
+    MarketData::PublicationFence.define_method(:publish, original)
+  end
+
+  test "does not start a pair after its run fence is already superseded" do
+    clear_enqueued_jobs
+    original = MarketData::PublicationFence.instance_method(:publish)
+    MarketData::PublicationFence.define_method(:publish) { |_generation| :superseded }
+
+    assert_nothing_raised { preparation.call }
+    assert_empty @refreshes
+    assert_empty @imports
+    assert_no_enqueued_jobs
+  ensure
+    MarketData::PublicationFence.define_method(:publish, original)
   end
 
   test "failed rebuild enqueue leaves preparation failed and retryable" do
@@ -266,9 +321,9 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     preparation_for(@user.reporting_currency)
   end
 
-  def preparation_for(currency)
+  def preparation_for(currency, run_id: SecureRandom.uuid)
     ReportingCurrency::Preparation.new(user: @user, currency:,
-      exchange_rates: @exchange_rates, history: @history, throttle: @throttle)
+      exchange_rates: @exchange_rates, history: @history, throttle: @throttle, run_id:)
   end
 
   def create_rate(date, inverse: false)
@@ -276,5 +331,13 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     HistoricalExchangeRate.create!(base_currency:, quote_currency:, rate_date: date, rate: "1",
       provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER,
       observed_at: Time.current, fetched_at: Time.current)
+  end
+
+  def with_stubbed_method(object, method_name, replacement)
+    original = object.method(method_name)
+    object.define_singleton_method(method_name) { |*args, **kwargs| replacement.call(*args, **kwargs) }
+    yield
+  ensure
+    object.define_singleton_method(method_name, original)
   end
 end

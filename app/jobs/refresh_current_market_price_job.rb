@@ -43,9 +43,11 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
 
   def perform(instrument, force: false, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
     retry_scheduled = false
+    executed = false
     return if batch_scope && !batch_active?(batch_scope, batch_run_id)
 
     RefreshStatus::Tracker.perform(scope: self.class.refresh_scope(instrument), run_id: batch_run_id) do
+      executed = true
       instrument_event(:attempted, instrument:)
       request_throttle.wait!(instrument:)
       market_price_service.refresh(instrument:, force:)
@@ -56,7 +58,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     scheduled_delay = retry_provider_failure(error)
     retry_scheduled = scheduled_delay
     if scheduled_delay
-      RefreshStatus::Tracker.enqueue(scope: self.class.refresh_scope(instrument))
+      RefreshStatus::Tracker.enqueue(scope: self.class.refresh_scope(instrument), run_id: batch_run_id)
       instrument_event(:retried, instrument:, wait_seconds: scheduled_delay.to_i)
     else
       instrument_event(:failed, instrument:, error: error.class.name)
@@ -68,7 +70,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   ensure
     Rails.cache.delete(self.class.deduplication_key(instrument)) unless retry_scheduled
     broadcast_current(instrument)
-    advance_batch(batch_scope, batch_run_id) if batch_scope && !retry_scheduled
+    advance_batch(batch_scope, batch_run_id) if batch_scope && executed && !retry_scheduled
     release_lease(lease_token, lease_target) unless retry_scheduled
   end
 

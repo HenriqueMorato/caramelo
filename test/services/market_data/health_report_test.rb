@@ -147,6 +147,22 @@ class MarketData::HealthReportTest < ActiveSupport::TestCase
     assert_includes issue.details, "USD/EUR"
   end
 
+  test "includes foreign settlement currencies and dates in historical FX health" do
+    owner = User.create!(email_address: "settlement-health@example.com", password: "password")
+    owner.update!(reporting_currency: "BRL")
+    trade_date = Date.new(2026, 9, 8)
+    trade = owner.trades.create!(instrument: instruments(:voo_arcx), side: :buy, traded_on: trade_date,
+      quantity: 1, unit_price: 10, currency: "USD", settlement_exchange_rate: "1.2")
+    trade.update_columns(settlement_currency: "EUR")
+
+    entry = MarketData::HealthReport::HistoricalExchangeRates.new(
+      owner:, context: MarketData::HealthReport::Context.new(owner:, today: Date.new(2026, 9, 12))
+    ).entries.find { |candidate| candidate.subject == "EUR" }
+
+    assert_equal :missing, entry.status
+    assert_equal trade_date..trade_date, entry.missing_range
+  end
+
   test "reports historical FX and performance for income-only instruments" do
     owner = User.create!(email_address: "income-health@example.com", password: "password")
     instrument = instruments(:voo_arcx)

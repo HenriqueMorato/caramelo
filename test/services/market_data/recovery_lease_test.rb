@@ -32,4 +32,15 @@ class MarketData::RecoveryLeaseTest < ActiveSupport::TestCase
 
     assert_nil MarketData::RecoveryLease.current(target: @target, cache:)
   end
+
+  test "scopes performance leases by owner" do
+    target = MarketData::Target.new(kind: :portfolio_performance, quote_currency: "USD")
+    first = MarketData::RecoveryLease.acquire(target:, owner: users(:owner))
+    second = MarketData::RecoveryLease.acquire(target:, owner: users(:two))
+
+    assert_predicate first, :active?
+    assert_predicate second, :active?
+    assert_equal first.token, MarketData::RecoveryLease.current(target:, owner: users(:owner)).token
+    assert_equal second.token, MarketData::RecoveryLease.current(target:, owner: users(:two)).token
+  end
 end

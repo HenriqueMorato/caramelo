@@ -54,6 +54,40 @@ class Performance::HistoricalDependencyFetcherTest < ActiveSupport::TestCase
     assert_equal @from - 7.days, @rate_importer.calls.first.fetch(:from)
   end
 
+  test "throttles provider requests and fences source publication" do
+    throttle = RecordingThrottle.new
+
+    Performance::HistoricalDependencyFetcher.call(
+      user: @user, instrument: @instrument, reporting_currency: "USD",
+      price_importer: @price_importer, rate_importer: @rate_importer, throttle:,
+      from: @from, to: @to
+    )
+
+    assert_equal [ @instrument, nil ], throttle.instruments
+    assert_instance_of MarketData::PublicationFence, @price_importer.calls.first.fetch(:fence)
+    assert_instance_of MarketData::PublicationFence, @rate_importer.calls.first.fetch(:fence)
+  end
+
+  test "keeps one publication generation across provider chunks" do
+    fetcher = Performance::HistoricalDependencyFetcher.new(
+      user: @user, instrument: @instrument, reporting_currency: "USD",
+      price_importer: @price_importer, rate_importer: @rate_importer
+    )
+    fetcher.instance_variable_set(:@from, @from)
+    fetcher.instance_variable_set(:@to, @to)
+    requirement = Performance::HistoricalDependencyFetcher::PriceRequirement.new(
+      instrument: @instrument, dates: [ @from, @to ]
+    )
+    fetcher.define_singleton_method(:bounded_ranges) do |_ranges|
+      [ @from..@from, @to..@to ]
+    end
+
+    fetcher.send(:fetch, requirement, refetch_full_range: false)
+
+    assert_equal 2, @price_importer.calls.size
+    assert_equal 1, @price_importer.calls.map { |call| call.fetch(:generation) }.uniq.size
+  end
+
   test "reports the exact dependencies that remain unavailable" do
     error = assert_raises(Performance::HistoricalDependencyFetcher::Unavailable) do
       Performance::HistoricalDependencyFetcher.call(
@@ -225,6 +259,9 @@ class Performance::HistoricalDependencyFetcherTest < ActiveSupport::TestCase
 
     assert_raises(ArgumentError) { fetcher.call(from: @to, to: @from) }
     assert_raises(ArgumentError) { fetcher.call(from: Date.current + 1.day, to: Date.current + 1.day) }
+    assert_raises(ArgumentError) do
+      fetcher.call(from: Date.new(1900, 1, 1), to: Date.current)
+    end
   end
 
   test "coalesces overlapping fetch ranges" do
@@ -234,6 +271,20 @@ class Performance::HistoricalDependencyFetcherTest < ActiveSupport::TestCase
     ranges = fetcher.send(:ranges_for, [ Date.new(2026, 9, 19), Date.new(2026, 9, 27) ])
 
     assert_equal [ Date.new(2026, 9, 12)..Date.new(2026, 9, 27) ], ranges
+  end
+
+  test "bounds long internal dependency ranges into provider-sized chunks" do
+    fetcher = Performance::HistoricalDependencyFetcher.new(
+      user: @user, reporting_currency: "USD", price_importer: @price_importer, rate_importer: @rate_importer
+    )
+    range = Date.new(1950, 1, 1)..Date.new(2026, 10, 15)
+
+    ranges = fetcher.send(:bounded_ranges, [ range ])
+
+    assert_operator ranges.size, :>, 1
+    assert ranges.all? { |bounded| (bounded.end - bounded.begin).to_i <= Performance::HistoricalDependencyFetcher::MAX_RANGE_DAYS }
+    assert_equal range.begin, ranges.first.begin
+    assert_equal range.end, ranges.last.end
   end
 
   test "ignores blank and native dependency currencies" do
@@ -251,6 +302,19 @@ class Performance::HistoricalDependencyFetcherTest < ActiveSupport::TestCase
     assert_empty dates
   end
 
+  test "does not report dates after a position has closed" do
+    fetcher = Performance::HistoricalDependencyFetcher.new(
+      user: @user, instrument: @instrument, reporting_currency: "USD",
+      price_importer: @price_importer, rate_importer: @rate_importer
+    )
+    fetcher.instance_variable_set(:@from, @from)
+    fetcher.instance_variable_set(:@to, @to)
+
+    dates = fetcher.send(:open_dates_from_timeline, @from, { @from => 0.to_r })
+
+    assert_empty dates
+  end
+
   class RecordingImporter
     attr_reader :calls
 
@@ -262,6 +326,18 @@ class Performance::HistoricalDependencyFetcherTest < ActiveSupport::TestCase
     def call(**arguments)
       calls << arguments
       @block&.call(arguments)
+    end
+  end
+
+  class RecordingThrottle
+    attr_reader :instruments
+
+    def initialize
+      @instruments = []
+    end
+
+    def wait!(instrument: nil)
+      instruments << instrument
     end
   end
 

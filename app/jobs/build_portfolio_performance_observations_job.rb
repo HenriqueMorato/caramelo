@@ -1,7 +1,10 @@
 class BuildPortfolioPerformanceObservationsJob < ApplicationJob
   queue_as :default
 
-  limits_concurrency key: ->(*) { "portfolio_performance" }, duration: 30.minutes, on_conflict: :block
+  limits_concurrency key: ->(arguments) {
+    values = arguments.symbolize_keys
+    "portfolio_performance:#{values[:user_id]}:#{values[:reporting_currency]}"
+  }, duration: 30.minutes, on_conflict: :block
 
   def perform(user_id:, reporting_currency:, lease_token:, refetch_dependencies: false, refetch_full_range: false)
     @user = User.find(user_id)
@@ -55,12 +58,13 @@ class BuildPortfolioPerformanceObservationsJob < ApplicationJob
   def fetch_dependencies(from:, to:)
     Performance::HistoricalDependencyFetcher.new(
       user:, reporting_currency:,
+      throttle: MarketData::YahooFinance::RequestThrottle.new,
       progress: ->(_message) {
         Performance::SeriesRefresh.heartbeat!(
           user:, reporting_currency:, from:, to:, token: lease_token, phase: "fetching"
         )
       }
-    ).call(from:, to:, refetch_full_range:)
+    ).call(from:, to:, refetch_full_range:, allow_long_range: true)
   end
 
   def release_lease

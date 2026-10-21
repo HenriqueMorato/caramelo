@@ -22,6 +22,10 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
     assert_equal @daily_imports.map { |call| [ call[:from], call[:to] ] }, @exchange_rate_imports.map { |call| [ call[:from], call[:to] ] }
     assert_equal 6, @waits.length
     assert_equal [ @instrument, nil, @instrument, nil, @instrument, nil ], @waits
+    assert @daily_imports.all? { |call| call[:fence].is_a?(MarketData::PublicationFence) }
+    assert @exchange_rate_imports.all? { |call| call[:fence].is_a?(MarketData::PublicationFence) }
+    assert_equal 1, @daily_imports.map { |call| call.fetch(:generation) }.uniq.size
+    assert_equal 1, @exchange_rate_imports.map { |call| call.fetch(:generation) }.uniq.size
     assert_not HistoricalDataBackfill.exists?(@backfill.id)
   end
 
@@ -86,11 +90,45 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
       currency: "USD", source: "manual"
     )
     clear_enqueued_jobs
+    Rails.cache.clear
 
     travel_to(Date.new(2026, 1, 1)) { build_job.perform(@backfill) }
 
-    assert_enqueued_jobs 2, only: BuildPortfolioPerformanceObservationsJob
-    assert_enqueued_jobs 4, only: BuildInstrumentPerformanceObservationsJob
+    portfolio_user_ids = enqueued_jobs.filter_map do |job|
+      job[:args].first["user_id"] if job[:job] == BuildPortfolioPerformanceObservationsJob
+    end
+    assert_includes portfolio_user_ids, income_owner.id
+
+    instrument_targets = enqueued_jobs.filter_map do |job|
+      job[:args].first if job[:job] == BuildInstrumentPerformanceObservationsJob
+    end
+    assert instrument_targets.any? { |arguments|
+      arguments["user_id"] == income_owner.id && arguments["instrument_id"] == @instrument.id
+    }
+  end
+
+  test "rebuilds an instrument whose trade settled in the backfill currency" do
+    user = users(:owner)
+    user.update!(reporting_currency: "EUR")
+    settled_instrument = Instrument.create!(ticker: "SETTLED", exchange: "XNAS", name: "Settled ETF", currency: "USD")
+    backfill_instrument = Instrument.create!(ticker: "EURO", exchange: "XETR", name: "Euro ETF", currency: "EUR")
+    unrelated_instrument = Instrument.create!(ticker: "UNRELATED", exchange: "BVMF", name: "Unrelated stock", currency: "BRL")
+    user.trades.create!(instrument: settled_instrument, side: :buy, traded_on: Date.new(2026, 1, 1),
+      quantity: 1, unit_price: 10, currency: "USD", settlement_exchange_rate: "0.92")
+    user.trades.create!(instrument: unrelated_instrument, side: :buy, traded_on: Date.new(2026, 1, 1),
+      quantity: 1, unit_price: 10, currency: "BRL")
+    backfill = HistoricalDataBackfill.create!(instrument: backfill_instrument, currency: "EUR",
+      from_date: Date.new(2026, 1, 1))
+    clear_enqueued_jobs
+    Rails.cache.clear
+
+    travel_to(Date.new(2026, 1, 1)) { build_job.perform(backfill) }
+
+    instrument_jobs = enqueued_jobs.select { |job| job[:job] == BuildInstrumentPerformanceObservationsJob }
+    assert_includes instrument_jobs.map { |job| job[:args].first.slice("instrument_id", "reporting_currency") },
+      { "instrument_id" => settled_instrument.id, "reporting_currency" => "USD" }
+    refute_includes instrument_jobs.map { |job| job[:args].first.slice("instrument_id", "reporting_currency") },
+      { "instrument_id" => settled_instrument.id, "reporting_currency" => "EUR" }
   end
 
   test "imports FX for every reporting currency used by an instrument in multi mode" do
@@ -103,6 +141,25 @@ class BackfillHistoricalMarketDataJobTest < ActiveJob::TestCase
     end
 
     assert_equal %w[BRL EUR], @exchange_rate_imports.map { |call| call.fetch(:quote_currency) }.uniq.sort
+  end
+
+  test "imports FX for a distinct reporting currency used by another affected user" do
+    other_user = users(:two)
+    other_user.update!(reporting_currency: "USD")
+    settled_instrument = Instrument.create!(ticker: "SETTLEDGBP", exchange: "XNAS", name: "Settled GBP ETF", currency: "EUR")
+    other_user.trades.create!(instrument: settled_instrument, side: :buy, traded_on: Date.new(2026, 1, 1),
+      quantity: 1, unit_price: 10, currency: "EUR", settlement_currency: "USD", settlement_exchange_rate: "1.1")
+    other_user.update!(reporting_currency: "GBP")
+    clear_enqueued_jobs
+    Rails.cache.clear
+
+    with_stubbed_method(Caramelo::AccountMode, :multi?, -> { true }) do
+      with_stubbed_method(Caramelo::AccountMode, :single?, -> { false }) do
+        travel_to(Date.new(2026, 1, 1)) { build_job.perform(@backfill) }
+      end
+    end
+
+    assert_includes @exchange_rate_imports.map { |call| call.fetch(:quote_currency) }, "GBP"
   end
 
   test "falls back to the configured owner currency when an instrument has no account activity" do

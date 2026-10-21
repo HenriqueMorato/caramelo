@@ -1,7 +1,7 @@
 module MarketData
   class RequestThrottle
     LOCK_RETRY_INTERVAL = 0.05.seconds
-    LOCK_EXPIRY = 30.seconds
+    LOCK_BUFFER = 30.seconds
 
     def initialize(provider:, interval:, cache: Rails.cache, clock: -> { Time.current }, sleeper: Kernel.method(:sleep))
       @provider = provider.to_s
@@ -49,7 +49,7 @@ module MarketData
     end
 
     def acquire_lock(lock_token)
-      until cache.write(lock_key, lock_token, expires_in: LOCK_EXPIRY, unless_exist: true)
+      until cache.write(lock_key, lock_token, expires_in: interval + LOCK_BUFFER, unless_exist: true)
         sleeper.call(LOCK_RETRY_INTERVAL)
       end
     end

@@ -30,7 +30,7 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
     end
 
     assert_equal [ :fetch, :build ], events
-    assert_equal [ { from: @from, to: @to, refetch_full_range: true } ], fetcher.calls
+    assert_equal [ { from: @from, to: @to, refetch_full_range: true, allow_long_range: true } ], fetcher.calls
     assert_equal "succeeded", refresh_state.status
   end
 
@@ -107,6 +107,18 @@ class BuildPortfolioPerformanceObservationsJobTest < ActiveJob::TestCase
         user_id: -1, reporting_currency: "BRL", lease_token: "missing-user"
       )
     end
+  end
+
+  test "limits concurrent work per owner and reporting currency" do
+    job = BuildPortfolioPerformanceObservationsJob.new(
+      user_id: @user.id, reporting_currency: "BRL", lease_token: "lease"
+    )
+
+    assert_equal :block, BuildPortfolioPerformanceObservationsJob.concurrency_on_conflict
+    assert_equal 1, BuildPortfolioPerformanceObservationsJob.concurrency_limit
+    assert_equal 30.minutes, BuildPortfolioPerformanceObservationsJob.concurrency_duration
+    assert_equal "BuildPortfolioPerformanceObservationsJob/portfolio_performance:#{@user.id}:BRL",
+      job.concurrency_key
   end
 
   private

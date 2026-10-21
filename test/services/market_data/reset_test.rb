@@ -103,6 +103,31 @@ class MarketData::ResetTest < ActiveSupport::TestCase
     assert_equal true, enqueued[:force]
   end
 
+  test "allows an instrument performance reset for an income-only instrument" do
+    owner = users(:owner)
+    instrument = Instrument.create!(ticker: "INCOME", exchange: "XNAS", name: "Income only", currency: "USD")
+    owner.corporate_actions.create!(
+      instrument:, kind: :dividend, paid_on: Date.current - 1.day,
+      gross_amount_cents: 100, withholding_tax_cents: 0, net_amount_cents: 100,
+      currency: "USD", source: "manual"
+    )
+    target = MarketData::Target.new(
+      kind: :instrument_performance, record_id: instrument.id, quote_currency: "USD"
+    )
+    preview = MarketData::ResetPreview.create(target:, owner:, range: Date.current - 1.day..Date.current - 1.day)
+    enqueued = nil
+
+    with_stubbed_method(Performance::SeriesRefresh, :enqueue, ->(**attributes) {
+      enqueued = attributes
+      :queued
+    }) do
+      result = MarketData::Reset.call(target:, preview_token: preview.token, owner:, cache: @cache)
+      assert_predicate result, :queued?
+    end
+
+    assert_equal instrument, enqueued[:instrument]
+  end
+
   test "rejects an instrument performance reset outside the owner scope" do
     instrument = instruments(:petr4_bvmf)
     target = MarketData::Target.new(
