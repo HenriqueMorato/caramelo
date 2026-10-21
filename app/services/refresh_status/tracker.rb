@@ -28,19 +28,22 @@ module RefreshStatus
     def self.advance(refresh)
       latest = State.read(refresh.scope) || refresh
       processed_count = latest.processed_count + 1
-      latest = if latest.total_count && processed_count >= latest.total_count && !latest.failed?
+      failed = latest.failed?
+      latest = if latest.total_count && processed_count >= latest.total_count && !failed
         write(latest, status: "succeeded", finished_at: Time.current, processed_count:)
       else
         write(latest, processed_count:)
       end
-      broadcast(latest, health: latest.finished_at.present?, progress_only: latest.finished_at.nil?)
+      broadcast(latest, health: latest.finished_at.present? && !failed,
+        progress_only: latest.finished_at.nil? || failed)
     end
 
     def self.record_failure(refresh, error)
       latest = State.read(refresh.scope) || refresh
+      already_failed = latest.failed?
       write(latest, status: "failed", finished_at: Time.current, error_class: error.class.name,
         error_message: error.message.truncate(500))
-      broadcast(latest)
+      broadcast(latest, health: !already_failed, progress_only: already_failed)
     end
 
     def self.fail(scope:, error:)
@@ -93,9 +96,11 @@ module RefreshStatus
     end
 
     def self.fail_refresh(refresh, error)
-      write(refresh, status: "failed", finished_at: Time.current, error_class: error.class.name,
+      latest = State.read(refresh.scope) || refresh
+      already_failed = latest.failed?
+      write(latest, status: "failed", finished_at: Time.current, error_class: error.class.name,
         error_message: error.message.truncate(500))
-      broadcast(refresh)
+      broadcast(latest, health: !already_failed)
     end
 
     private_class_method :broadcast, :start, :preserve, :complete, :fail_refresh

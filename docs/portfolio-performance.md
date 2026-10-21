@@ -111,17 +111,31 @@ date is available. See [Yahoo's currency listings](https://finance.yahoo.com/mar
 
 `SettingsController` saves the preference, then enqueues
 `PrepareReportingCurrencyJob` with that exact currency. A request superseded
-before execution is skipped. `ReportingCurrency::Preparation` groups the owner's
-trades by native currency and prepares each foreign-currency pair:
+before execution is skipped. `ReportingCurrency::Preparation` considers the
+owner's native trade currencies, explicit settlement currencies, effective
+corporate-action currencies (falling back to the instrument currency for
+quantity-only actions), and performance benchmark currencies when preparing
+each foreign-currency pair:
 
 1. Reuse fresh current FX, otherwise refresh it through the provider throttle.
 2. Look for missing historical FX from seven calendar days before the first
-   trade through today. The lookback supports weekend and holiday valuation.
+   performance source—trade, settlement activity, effective corporate action,
+   or supported benchmark history—through today. The lookback supports weekend
+   and holiday valuation.
 3. Reuse existing direct or inverse observations. Fetch missing weekdays in
    batches of at most 60, without inserting synthetic weekend observations.
-4. Enqueue a performance-series rebuild in the selected currency. Progress
-   counts each prepared currency pair plus this final enqueue step; completion
-   of preparation does not mean the queued rebuild has finished.
+4. Enqueue the portfolio and each instrument with a trade or effective
+   corporate-action source for the selected currency. The first performance
+   source, rather than only the first trade, determines each requested range.
+   Progress counts each prepared currency pair, the portfolio rebuild, and each
+   instrument rebuild; completion of preparation does not mean the queued
+   rebuilds have finished.
+
+Each pair and rebuild target is attempted independently. A failed pair is
+reported and the job re-raises the first failure for its retry policy after the
+portfolio and instrument targets have been scheduled, so one provider problem
+does not strand the other targets. A target with an unavailable conversion
+remains visibly incomplete and retryable until the dependency is repaired.
 
 For example, changing a portfolio with USD trades to EUR prepares USD/EUR
 current and historical rates. BRL trades also require BRL/EUR. EUR

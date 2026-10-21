@@ -36,6 +36,33 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
       args: ->(args) { args.first[:reporting_currency] == "EUR" && args.first[:instrument_id] == instruments(:voo_arcx).id })
   end
 
+  test "continues preparing pairs and enqueueing targets when one pair fails" do
+    eur_instrument = Instrument.create!(ticker: "VWCE", exchange: "XETR", name: "Global ETF", currency: "EUR")
+    @user.trades.create!(instrument: eur_instrument, side: :buy, traded_on: Date.new(2026, 8, 10),
+      quantity: 1, unit_price: 100, currency: "EUR")
+    failure = MarketData::YahooFinance::InvalidResponse.new("response symbol does not match request")
+    imports = @imports
+    @history.define_singleton_method(:call) do |**arguments|
+      imports << arguments
+      raise failure if arguments[:base_currency] == "USD"
+    end
+    clear_enqueued_jobs
+
+    assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      travel_to(Date.new(2026, 8, 14)) { preparation_for("BRL").call }
+    end
+
+    assert_equal %w[EUR USD], imports.map { |call| call[:base_currency] }
+    assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
+    instrument_jobs = enqueued_jobs.select { |job| job[:job] == BuildInstrumentPerformanceObservationsJob }
+    assert_equal [ eur_instrument.id, instruments(:voo_arcx).id ].sort,
+      instrument_jobs.map { |job| job[:args].first["instrument_id"] }.sort
+    assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:BRL"), :failed?
+    assert_predicate InstrumentPerformanceMaterialization.for(
+      user: @user, instrument: eur_instrument, reporting_currency: "BRL"
+    ), :pending?
+  end
+
   test "does not refetch fresh current FX or overwrite direct and inverse history" do
     @exchange_rates.define_singleton_method(:read) do |**|
       ExchangeRateCache::Lookup.new(exchange_rate: nil, status: :fresh)
@@ -186,13 +213,14 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
     assert_no_enqueued_jobs only: BuildPortfolioPerformanceObservationsJob
   end
 
-  test "reports failed preparation without publishing a successful rebuild" do
+  test "reports failed preparation after scheduling rebuilds" do
     @history.define_singleton_method(:call) { |**| raise ExchangeRate::InvalidValue, "provider unavailable" }
 
     assert_raises(ExchangeRate::InvalidValue) { preparation.call }
 
     assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR"), :failed?
-    assert_no_enqueued_jobs only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
+    assert_enqueued_jobs 1, only: BuildInstrumentPerformanceObservationsJob
   end
 
   test "failed rebuild enqueue leaves preparation failed and retryable" do
@@ -206,17 +234,28 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
   end
 
   test "failed instrument rebuild enqueue leaves preparation failed and retryable" do
+    second_instrument = Instrument.create!(ticker: "BRL2", exchange: "BVMF", name: "Second Brazilian ETF", currency: "BRL")
+    @user.trades.create!(instrument: second_instrument, side: :buy, traded_on: Date.new(2026, 8, 10),
+      quantity: 1, unit_price: 100, currency: "BRL")
+    clear_enqueued_jobs
+
     original = Performance::SeriesRefresh.method(:enqueue)
-    calls = 0
-    Performance::SeriesRefresh.define_singleton_method(:enqueue) do |**|
-      calls += 1
-      calls == 1 ? :queued : :failed
+    calls = []
+    Performance::SeriesRefresh.define_singleton_method(:enqueue) do |**arguments|
+      calls << arguments
+      calls.length > 1 ? :failed : :queued
     end
 
     error = assert_raises(ActiveJob::EnqueueError) { preparation.call }
 
     assert_equal "instrument performance rebuild could not be enqueued", error.message
-    assert_predicate RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR"), :failed?
+    refresh = RefreshStatus::State.read("reporting_currency:#{@user.id}:EUR")
+    assert_predicate refresh, :failed?
+    assert_equal 3, calls.length
+    assert_nil calls.first[:instrument]
+    assert_equal [ instruments(:voo_arcx).id, second_instrument.id ].sort,
+      calls.drop(1).filter_map { |arguments| arguments[:instrument]&.id }.sort
+    assert_equal 5, refresh.processed_count
   ensure
     Performance::SeriesRefresh.define_singleton_method(:enqueue, original)
   end
@@ -224,7 +263,11 @@ class ReportingCurrency::PreparationTest < ActiveJob::TestCase
   private
 
   def preparation
-    ReportingCurrency::Preparation.new(user: @user, currency: @user.reporting_currency,
+    preparation_for(@user.reporting_currency)
+  end
+
+  def preparation_for(currency)
+    ReportingCurrency::Preparation.new(user: @user, currency:,
       exchange_rates: @exchange_rates, history: @history, throttle: @throttle)
   end
 

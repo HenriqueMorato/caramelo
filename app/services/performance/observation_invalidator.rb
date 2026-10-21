@@ -17,9 +17,12 @@ module Performance
     end
 
     def self.enqueue_instrument(user:, instrument:, from:, reporting_currency: nil)
-      instrument_currencies(user:, instrument:, reporting_currency:).sort.each do |currency|
+      results = instrument_currencies(user:, instrument:, reporting_currency:).sort.map do |currency|
         new(user:, instrument:, from:, reporting_currency: currency).enqueue
       end
+      return :failed if results.include?(:failed)
+
+      results.last
     end
 
     def self.instrument_currencies(user:, instrument:, reporting_currency:)

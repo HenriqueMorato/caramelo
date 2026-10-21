@@ -54,10 +54,12 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
 
   def performance_currencies
     trade_currencies = Instrument.where(id: Trade.where(user: User.default_owner).select(:instrument_id)).pluck(:currency)
+    settlement_currencies = Trade.where(user: User.default_owner).where.not(settlement_currency: nil)
+      .distinct.pluck(:settlement_currency)
     income_currencies = CorporateAction.effective_on_or_before(Date.current)
       .where(user: User.default_owner).includes(:instrument).map { |action| action.currency || action.instrument.currency }
     benchmark_currencies = MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS).distinct.pluck(:currency)
-    (trade_currencies | income_currencies | benchmark_currencies).excluding(reporting_currency)
+    (trade_currencies | settlement_currencies | income_currencies | benchmark_currencies).excluding(reporting_currency)
   end
 
   def reporting_currencies
@@ -66,10 +68,11 @@ class CaptureHistoricalExchangeRatesJob < ApplicationJob
 
   def performance_currencies_for(quote_currency)
     trade_currencies = Instrument.where(id: Trade.distinct.select(:instrument_id)).pluck(:currency)
+    settlement_currencies = Trade.where.not(settlement_currency: nil).distinct.pluck(:settlement_currency)
     income_currencies = CorporateAction.effective_on_or_before(Date.current)
       .includes(:instrument).map { |action| action.currency || action.instrument.currency }
     benchmark_currencies = MarketBenchmark.where(kind: MarketBenchmark::PERFORMANCE_KINDS).distinct.pluck(:currency)
-    (trade_currencies | income_currencies | benchmark_currencies).excluding(quote_currency)
+    (trade_currencies | settlement_currencies | income_currencies | benchmark_currencies).excluding(quote_currency)
   end
 
   def publication_fence(currency:, quote_currency: reporting_currency)

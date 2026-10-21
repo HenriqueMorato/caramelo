@@ -18,23 +18,40 @@ module ReportingCurrency
       pairs = starts.except(currency)
       instruments = instrument_starts
       scope = "reporting_currency:#{user.id}:#{currency}"
+      failures = []
       RefreshStatus::Tracker.perform(scope:, total_count: pairs.size + instruments.size + 1) do |refresh|
-        pairs.each do |base_currency, first_trade|
-          prepare_pair(base_currency, first_trade)
-          RefreshStatus::Tracker.advance(refresh)
+        pairs.sort_by { |base_currency, _| base_currency }.each do |base_currency, first_trade|
+          perform_step(refresh, failures, base_currency:) do
+            prepare_pair(base_currency, first_trade)
+          end
         end
-        enqueue_portfolio_rebuild(starts.values.min)
-        RefreshStatus::Tracker.advance(refresh)
+        perform_step(refresh, failures, target: "portfolio") do
+          enqueue_portfolio_rebuild(starts.values.min)
+        end
         instruments.each do |instrument, first_trade|
-          enqueue_instrument_rebuild(instrument, first_trade)
-          RefreshStatus::Tracker.advance(refresh)
+          perform_step(refresh, failures, instrument_id: instrument.id) do
+            enqueue_instrument_rebuild(instrument, first_trade)
+          end
         end
+        raise failures.first if failures.any?
       end
     end
 
     private
 
     attr_reader :user, :currency, :exchange_rates, :history, :throttle
+
+    def perform_step(refresh, failures, **context)
+      yield
+    rescue StandardError => error
+      failures << error if failures.empty?
+      RefreshStatus::Tracker.record_failure(refresh, error)
+      Rails.error.report(
+        error, handled: true, context: { user_id: user.id, reporting_currency: currency, **context }
+      )
+    ensure
+      RefreshStatus::Tracker.advance(refresh)
+    end
 
     def currency_starts
       trades = user.trades.where(traded_on: ..Date.current)

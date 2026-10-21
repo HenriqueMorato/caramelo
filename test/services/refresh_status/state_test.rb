@@ -123,6 +123,22 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_equal "failed", RefreshStatus::State.read("tracked_failure").status
   end
 
+  test "tracker preserves progress when a run fails after advancing" do
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
+      assert_raises RuntimeError do
+        RefreshStatus::Tracker.perform(scope: "tracked_partial_failure", total_count: 3) do |refresh|
+          RefreshStatus::Tracker.advance(refresh)
+          raise "provider unavailable"
+        end
+      end
+    end
+
+    failed = RefreshStatus::State.read("tracked_partial_failure")
+    assert_equal "failed", failed.status
+    assert_equal 1, failed.processed_count
+    assert_equal 3, failed.total_count
+  end
+
   test "tracker preserves an existing batch while a child runs" do
     with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**) { }) do
       RefreshStatus::Tracker.enqueue(scope: "tracked_batch", total_count: 2)
@@ -195,6 +211,22 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_equal "failed", state.status
     assert_equal 1, state.processed_count
     assert_equal 2, state.total_count
+  end
+
+  test "tracker advances a failed batch without rebuilding health" do
+    broadcasts = []
+    with_stubbed_method(RefreshStatus::Broadcaster, :refresh, ->(**arguments) { broadcasts << arguments }) do
+      state = RefreshStatus::Tracker.enqueue(scope: "failed_progress", total_count: 2)
+      RefreshStatus::Tracker.record_failure(state, RuntimeError.new("provider unavailable"))
+      RefreshStatus::Tracker.record_failure(state, RuntimeError.new("provider unavailable again"))
+      RefreshStatus::Tracker.advance(state)
+    end
+
+    state = RefreshStatus::State.read("failed_progress")
+    assert_equal "failed", state.status
+    assert_equal 1, state.processed_count
+    assert_equal [ true, true, false, false ], broadcasts.map { |call| call.fetch(:health) }
+    assert_equal [ false, false, true, true ], broadcasts.map { |call| call.fetch(:progress_only) }
   end
 
   test "tracker rebuilds health only for meaningful lifecycle transitions" do

@@ -27,7 +27,7 @@ class HistoricalExchangeRate
       else
         persist_with_invalidation
       end
-      enqueue_performance_observations if enqueue_performance_rebuild
+      enqueue_performance_observations if enqueue_performance_rebuild && observations.present?
 
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:rate_date),
@@ -123,14 +123,20 @@ class HistoricalExchangeRate
     end
 
     def enqueue_performance_observations
+      failures = []
       performance_users.each do |user|
-        Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
+        result = Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
+        failures << [ :portfolio, user.id ] if result == :failed
       end
       affected_instrument_targets.each do |user, instrument, reporting_currency|
-        Performance::ObservationInvalidator.enqueue_instrument(
+        result = Performance::ObservationInvalidator.enqueue_instrument(
           user:, instrument:, reporting_currency:, from: earliest_observation_date
         )
+        failures << [ :instrument, user.id, instrument.id, reporting_currency ] if result == :failed
       end
+      return if failures.empty?
+
+      raise ActiveJob::EnqueueError, "performance rebuild could not be enqueued"
     end
 
     def earliest_observation_date
@@ -139,20 +145,32 @@ class HistoricalExchangeRate
 
     def affected_users
       # Valuation can resolve either the direct rate or its inverse.
-      trade_user_ids = Trade.where(currency: [ base_currency, quote_currency ]).pluck(:user_id)
-      income_user_ids = CorporateAction.effective_on_or_before(Date.current)
-        .where(currency: [ base_currency, quote_currency ]).pluck(:user_id)
+      currencies = [ base_currency, quote_currency ]
+      trade_user_ids = Trade.where(currency: currencies)
+        .or(Trade.where(settlement_currency: currencies)).distinct.pluck(:user_id)
+      income_user_ids = CorporateAction.effective_on_or_before(Date.current).joins(:instrument)
+        .where(
+          "corporate_actions.currency IN (:currencies) OR instruments.currency IN (:currencies)",
+          currencies: currencies
+        ).distinct.pluck(:user_id)
       User.where(id: trade_user_ids | income_user_ids)
     end
 
     def affected_instrument_targets
       @affected_instrument_targets ||= affected_users.flat_map do |user|
-        trade_instruments = user.trades.includes(:instrument).map(&:instrument)
-        income_instruments = user.corporate_actions.effective_on_or_before(Date.current)
-          .includes(:instrument).map(&:instrument)
-        (trade_instruments + income_instruments).uniq.flat_map do |instrument|
+        trades = user.trades.includes(:instrument).to_a
+        income = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
+        instruments = (trades.map(&:instrument) + income.map(&:instrument)).uniq
+        trades_by_instrument = trades.group_by(&:instrument_id)
+        income_by_instrument = income.group_by(&:instrument_id)
+        instruments.flat_map do |instrument|
+          dependencies = [ instrument.currency,
+            *trades_by_instrument.fetch(instrument.id, []).filter_map(&:settlement_currency),
+            *income_by_instrument.fetch(instrument.id, []).filter_map(&:currency) ].uniq
           instrument_target_currencies(user:, instrument:).filter_map do |reporting_currency|
-            [ user, instrument, reporting_currency ] if affected_pair?(instrument.currency, reporting_currency)
+            [ user, instrument, reporting_currency ] if dependencies.any? do |dependency_currency|
+              affected_pair?(dependency_currency, reporting_currency)
+            end
           end
         end
       end

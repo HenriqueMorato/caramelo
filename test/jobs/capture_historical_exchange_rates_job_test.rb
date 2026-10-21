@@ -60,6 +60,7 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
 
   test "imports one rate for each traded currency outside reporting currency" do
     date = Date.new(2026, 8, 28)
+    trades(:owner_voo_buy).update_columns(settlement_currency: "EUR", settlement_exchange_rate: "5")
     imports = []
     waits = 0
     throttle = Object.new
@@ -72,10 +73,11 @@ class CaptureHistoricalExchangeRatesJobTest < ActiveJob::TestCase
 
     job.perform(rate_date: date)
 
-    assert_equal [ "USD" ], imports.map { |call| call[:base_currency] }
+    assert_equal %w[EUR USD], imports.map { |call| call[:base_currency] }.sort
     assert_equal [ "BRL" ], imports.map { |call| call[:quote_currency] }.uniq
-    assert_equal [ { from: date, to: date } ], imports.map { |call| call.slice(:from, :to) }
-    assert_equal 1, waits
+    assert_equal [ { from: date, to: date }, { from: date, to: date } ],
+      imports.map { |call| call.slice(:from, :to) }
+    assert_equal 2, waits
   end
 
   test "imports foreign rates for every account reporting currency in multi mode" do

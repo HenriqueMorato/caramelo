@@ -35,6 +35,20 @@ class MarketData::HealthReportPresenterTest < ActiveSupport::TestCase
     refute presenter.healthy?
   end
 
+  test "reset preview spans covered and missing ranges" do
+    covered = Date.new(2026, 9, 1)..Date.new(2026, 9, 15)
+    missing = Date.new(2026, 9, 16)..Date.new(2026, 10, 18)
+    entry = Entry.new(false, true, "source:1", covered, missing)
+    factory = PreviewFactory.new(Object.new, [])
+    owner = users(:owner)
+
+    MarketData::HealthReportPresenter.new(
+      report: report_with(entries: [ entry ], issues: [ :issue ]), owner:, preview_factory: factory
+    )
+
+    assert_equal [ [ entry.target, covered.begin..missing.end, owner ] ], factory.calls
+  end
+
   test "falls back to all entries for an unknown filter" do
     entries = [ Entry.new(true, false, "source:1", nil, nil) ]
     presenter = MarketData::HealthReportPresenter.new(report: report_with(entries:, issues: []), status_filter: "other")
