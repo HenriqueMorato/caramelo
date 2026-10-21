@@ -218,6 +218,36 @@ class HistoricalExchangeRate::ImporterTest < ActiveJob::TestCase
       user_calls.drop(1).map { |arguments| arguments.fetch(:instrument).id }.sort
   end
 
+  test "reports instrument performance enqueue failures after trying every target" do
+    user = User.create!(email_address: "instrument-enqueue-recovery@example.com", password: "password")
+    instruments = [
+      Instrument.create!(ticker: "FIRST", exchange: "XNAS", name: "First ETF", currency: "USD"),
+      Instrument.create!(ticker: "SECOND", exchange: "XNAS", name: "Second ETF", currency: "USD")
+    ]
+    instruments.each do |instrument|
+      user.trades.create!(instrument:, side: :buy, traded_on: Date.new(2026, 8, 24),
+        quantity: 1, unit_price: 100, currency: "USD")
+    end
+    calls = []
+
+    with_stubbed_class_method(Performance::ObservationInvalidator, :enqueue, ->(**) { :queued }) do
+      with_stubbed_class_method(Performance::ObservationInvalidator, :enqueue_instrument, ->(**arguments) {
+        calls << arguments
+        :failed
+      }) do
+        error = assert_raises(ActiveJob::EnqueueError) do
+          @importer.call(base_currency: "USD", quote_currency: "BRL",
+            from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
+        end
+
+        assert_equal "performance rebuild could not be enqueued", error.message
+      end
+    end
+
+    user_calls = calls.select { |arguments| arguments.fetch(:user).id == user.id }
+    assert_equal instruments.map(&:id).sort, user_calls.map { |arguments| arguments.fetch(:instrument).id }.sort
+  end
+
   test "returns missing weekdays without invalidating performance when the provider has no observations" do
     date = Date.new(2026, 8, 25)
 

@@ -76,6 +76,24 @@ class Performance::ObservationInvalidatorTest < ActiveJob::TestCase
     assert_equal instrument.id, reported.first.last.fetch(:context).fetch(:instrument_id)
   end
 
+  test "returns failed when any instrument currency enqueue fails" do
+    instrument = instruments(:voo_arcx)
+    reported = []
+
+    with_stubbed_method(Rails.error, :report, ->(error, **) { reported << error }) do
+      with_stubbed_method(Performance::SeriesRefresh, :enqueue,
+        ->(**) { raise RuntimeError, "queue unavailable" }) do
+        assert_equal :failed,
+          Performance::ObservationInvalidator.enqueue_instrument(
+            user: @user, instrument:, from: @from
+          )
+      end
+    end
+
+    assert_equal 2, reported.length
+    assert reported.all? { |error| error.message == "queue unavailable" }
+  end
+
   test "maintains native reporting and existing instrument currency views" do
     instrument = instruments(:voo_arcx)
     InstrumentPerformanceMaterialization.for(user: @user, instrument:, reporting_currency: "EUR")
