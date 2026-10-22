@@ -24,14 +24,26 @@ class Position
       return empty if open_positions.empty?
       return unavailable unless open_positions.all? { |presenter| presenter.valuation.available? }
 
-      holdings = open_positions.filter_map do |presenter|
+      holdings = holdings_for(open_positions)
+      return empty if holdings.empty?
+
+      result_for(holdings)
+    end
+
+    private
+
+    attr_reader :positions, :currency
+
+    def holdings_for(open_positions)
+      open_positions.filter_map do |presenter|
         amount = presenter.valuation.market_value.amount
         next unless amount.positive?
 
         Holding.new(instrument: presenter.instrument, amount:)
       end
-      return empty if holdings.empty?
+    end
 
+    def result_for(holdings)
       total_amount = holdings.sum(&:amount)
       type_groups = holdings.group_by { |holding| holding.instrument.asset_type }
       type_labels = AssetType.labels_for(type_groups.keys)
@@ -50,10 +62,6 @@ class Position
         end
       )
     end
-
-    private
-
-    attr_reader :positions, :currency
 
     def unavailable
       Result.new(status: :unavailable, currency:, type_entries: [], position_entries: [])

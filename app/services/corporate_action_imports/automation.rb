@@ -45,32 +45,19 @@ module CorporateActionImports
     end
 
     def schedule_for(current_instrument, first_trade_on)
+      request = nil
+      scope = nil
       state = CorporateActionImportScan.for(user:, instrument: current_instrument, source:)
       from = scan_start_for(state, first_trade_on)
       return :skipped if from > today
 
-      request = state.claim!(from:, to: today)
+      request = claim_request(state, from)
       return :skipped unless request
 
-      scope = CorporateActionImports::ScanStatus.scope(
-        user:, from: request.from, to: request.to, source:, instrument_id: current_instrument.id
-      )
-      status = state.with_current_run(request.run_id) do
-        CorporateActionImports::ScanStatus.enqueue(scope:, run_id: request.run_id)
-      end
+      scope, status = prepare_scan(state, current_instrument, request)
       return :skipped unless status
-      job = ScanCorporateActionImportsJob.perform_later(
-        user_id: user.id,
-        from: request.from.iso8601,
-        to: request.to.iso8601,
-        source:,
-        instrument_id: current_instrument.id,
-        scope:,
-        scan_run_id: request.run_id,
-        automation_scan_id: state.id,
-        automation_run_id: request.run_id
-      )
-      raise ActiveJob::EnqueueError, "corporate action scan could not be enqueued" if enqueue_failed?(job)
+
+      enqueue_scan(state, current_instrument, request, scope)
 
       :scheduled
     rescue StandardError => error
@@ -84,6 +71,37 @@ module CorporateActionImports
         context: { user_id: user.id, instrument_id: current_instrument.id, source: }
       )
       :failed
+    end
+
+    def claim_request(state, from)
+      state.claim!(from:, to: today)
+    end
+
+    def prepare_scan(state, current_instrument, request)
+      scope = CorporateActionImports::ScanStatus.scope(
+        user:, from: request.from, to: request.to, source:, instrument_id: current_instrument.id
+      )
+      status = state.with_current_run(request.run_id) do
+        CorporateActionImports::ScanStatus.enqueue(scope:, run_id: request.run_id)
+      end
+      [ scope, status ]
+    end
+
+    def enqueue_scan(state, current_instrument, request, scope)
+      job = ScanCorporateActionImportsJob.perform_later(
+        user_id: user.id,
+        from: request.from.iso8601,
+        to: request.to.iso8601,
+        source:,
+        instrument_id: current_instrument.id,
+        scope:,
+        scan_run_id: request.run_id,
+        automation_scan_id: state.id,
+        automation_run_id: request.run_id
+      )
+      return unless enqueue_failed?(job)
+
+      raise ActiveJob::EnqueueError, "corporate action scan could not be enqueued"
     end
 
     def scan_start_for(state, first_trade_on)

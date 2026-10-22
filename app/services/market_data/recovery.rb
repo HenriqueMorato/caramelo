@@ -53,35 +53,15 @@ module MarketData
       return result(:unsupported) unless handler
       validate_range!
 
-      lease = RecoveryLease.acquire(target:, owner:, cache:)
+      lease = acquire_lease
       return result(:already_running) unless lease
 
       token = acquire_cooldown
-      unless token
-        RecoveryLease.release(target:, owner:, token: lease.token, cache:)
-        return result(:throttled)
-      end
+      return throttled_result(lease) unless token
 
       batch = RefreshStatus::Tracker.enqueue(scope: batch_scope, total_count: 1)
-      arguments = {
-        target:, range:, batch_scope:, batch_run_id: batch.run_id, owner:, lease_token: lease.token
-      }
-      handler_result = if replacement
-        PublicationFence.new(target:, cache:).advance { handler.call(**arguments) }
-      else
-        handler.call(**arguments)
-      end
-
-      if handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED || handler_result == ASYNC
-        RefreshStatus::Tracker.advance(batch)
-        release_cooldown(token) unless handler_result == ASYNC
-        RecoveryLease.release(target:, owner:, token: lease.token, cache:)
-        broadcast_health if handler_result == RefreshCurrentMarketPriceJob::COALESCED && broadcast_after_enqueue?
-        return result(handler_result.nil? ? :unsupported : :queued, batch:)
-      end
-
-      broadcast_health
-      result(:queued, batch:)
+      handler_result = call_handler(handler, batch, lease)
+      finalize_handler(handler_result, batch, lease, token)
     rescue StandardError => error
       release_cooldown(token)
       RecoveryLease.release(target:, owner:, token: lease.token, cache:) if lease
@@ -92,6 +72,43 @@ module MarketData
     private
 
     attr_reader :target, :range, :owner, :cache, :handlers, :replacement
+
+    def acquire_lease
+      RecoveryLease.acquire(target:, owner:, cache:)
+    end
+
+    def throttled_result(lease)
+      RecoveryLease.release(target:, owner:, token: lease.token, cache:)
+      result(:throttled)
+    end
+
+    def call_handler(handler, batch, lease)
+      arguments = {
+        target:, range:, batch_scope:, batch_run_id: batch.run_id, owner:, lease_token: lease.token
+      }
+      return handler.call(**arguments) unless replacement
+
+      PublicationFence.new(target:, cache:).advance { handler.call(**arguments) }
+    end
+
+    def finalize_handler(handler_result, batch, lease, token)
+      return finalize_enqueued_handler(handler_result, batch, lease, token) if enqueued_handler_result?(handler_result)
+
+      broadcast_health
+      result(:queued, batch:)
+    end
+
+    def finalize_enqueued_handler(handler_result, batch, lease, token)
+      RefreshStatus::Tracker.advance(batch)
+      release_cooldown(token) unless handler_result == ASYNC
+      RecoveryLease.release(target:, owner:, token: lease.token, cache:)
+      broadcast_health if handler_result == RefreshCurrentMarketPriceJob::COALESCED && broadcast_after_enqueue?
+      result(handler_result.nil? ? :unsupported : :queued, batch:)
+    end
+
+    def enqueued_handler_result?(handler_result)
+      handler_result.nil? || handler_result == RefreshCurrentMarketPriceJob::COALESCED || handler_result == ASYNC
+    end
 
     def batch_scope
       @batch_scope ||= "#{BATCH_SCOPE_PREFIX}:#{owner.id}:#{SecureRandom.uuid}"
