@@ -19,28 +19,11 @@ module CorporateActionImports
 
     def call
       import.with_lock do
-        import.reload
-        import.association(:corporate_action).reset
-        if import.confirmed? && import.corporate_action_id.blank?
-          import.update!(status: :pending, reviewed_at: nil, failure_message: nil)
-        end
-        return result(:duplicate, corporate_action: import.corporate_action) if import.confirmed?
-        return result(:ignored) if import.ignored?
-        return result(:conflict, error: import.failure_message) if import.conflict?
-        if import.ambiguous? && import.institution.blank?
-          return result(:ambiguous, error: "An institution must be selected before confirmation.")
-        end
+        prepare_import
+        early_result = existing_result
+        return early_result if early_result
 
-        action = nil
-        CorporateAction.transaction do
-          action = build_action
-          action.save!
-          import.update!(
-            status: :confirmed, corporate_action: action, reviewed_at: Time.current,
-            failure_message: nil
-          )
-        end
-        result(:confirmed, corporate_action: action)
+        confirm_import
       end
     rescue ActiveRecord::RecordNotUnique => error
       handle_duplicate(error)
@@ -58,6 +41,36 @@ module CorporateActionImports
     private
 
     attr_reader :import, :attributes
+
+    def prepare_import
+      import.reload
+      import.association(:corporate_action).reset
+      return unless import.confirmed? && import.corporate_action_id.blank?
+
+      import.update!(status: :pending, reviewed_at: nil, failure_message: nil)
+    end
+
+    def existing_result
+      return result(:duplicate, corporate_action: import.corporate_action) if import.confirmed?
+      return result(:ignored) if import.ignored?
+      return result(:conflict, error: import.failure_message) if import.conflict?
+      return unless import.ambiguous? && import.institution.blank?
+
+      result(:ambiguous, error: "An institution must be selected before confirmation.")
+    end
+
+    def confirm_import
+      action = nil
+      CorporateAction.transaction do
+        action = build_action
+        action.save!
+        import.update!(
+          status: :confirmed, corporate_action: action, reviewed_at: Time.current,
+          failure_message: nil
+        )
+      end
+      result(:confirmed, corporate_action: action)
+    end
 
     def build_action
       action = import.corporate_action if import.corporate_action_id.present?
