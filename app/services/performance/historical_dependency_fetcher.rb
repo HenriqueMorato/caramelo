@@ -251,28 +251,50 @@ module Performance
     end
 
     def missing_dates(requirement)
-      observed_dates = if requirement.is_a?(PriceRequirement)
-        DailyClosingPrice.where(
-          instrument: requirement.instrument, provider: PRICE_PROVIDER,
-          trading_date: MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max
-        ).pluck(:trading_date)
-      else
-        HistoricalExchangeRate.where(
-          provider: RATE_PROVIDER,
-          rate_date: MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max
-        ).where(
-          base_currency: requirement.base_currency, quote_currency: requirement.quote_currency
-        ).or(
-          HistoricalExchangeRate.where(
-            provider: RATE_PROVIDER, rate_date: MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max,
-            base_currency: requirement.quote_currency, quote_currency: requirement.base_currency
-          )
-        ).pluck(:rate_date)
-      end
+      observed_dates = observed_dates_for(requirement)
       observed_dates.sort!
+      missing_dates_from(observed_dates, requirement.dates)
+    end
+
+    def observed_dates_for(requirement)
+      if requirement.is_a?(PriceRequirement)
+        price_observed_dates(requirement)
+      else
+        rate_observed_dates(requirement)
+      end
+    end
+
+    def price_observed_dates(requirement)
+      DailyClosingPrice.where(
+        instrument: requirement.instrument, provider: PRICE_PROVIDER,
+        trading_date: observation_range_for(requirement)
+      ).pluck(:trading_date)
+    end
+
+    def rate_observed_dates(requirement)
+      rate_scope(requirement).pluck(:rate_date)
+    end
+
+    def rate_scope(requirement)
+      scope = HistoricalExchangeRate.where(
+        provider: RATE_PROVIDER,
+        rate_date: observation_range_for(requirement)
+      )
+      scope.where(
+        base_currency: requirement.base_currency, quote_currency: requirement.quote_currency
+      ).or(scope.where(
+        base_currency: requirement.quote_currency, quote_currency: requirement.base_currency
+      ))
+    end
+
+    def observation_range_for(requirement)
+      MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max
+    end
+
+    def missing_dates_from(observed_dates, dates)
       observation_index = 0
       latest_observation = nil
-      requirement.dates.select do |date|
+      dates.select do |date|
         while observation_index < observed_dates.length && observed_dates[observation_index] <= date
           latest_observation = observed_dates[observation_index]
           observation_index += 1

@@ -145,28 +145,46 @@ class BackfillHistoricalMarketDataJob < ApplicationJob
   end
 
   def affected_instrument_targets(backfill)
-    affected_users(backfill).flat_map do |user|
-      trades = user.trades.where(traded_on: ..Date.current).includes(:instrument).to_a
-      actions = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
-      activity_by_instrument = (trades + actions).group_by(&:instrument)
+    targets = affected_users(backfill).flat_map do |user|
+      targets_for_user(user, backfill)
+    end
+    targets.uniq { |user, instrument, currency| [ user.id, instrument.id, currency ] }
+  end
 
-      activity_by_instrument.filter_map do |instrument, activity|
-        trade_currencies = activity.filter_map { |record| record.settlement_currency if record.is_a?(Trade) }
-        action_currencies = activity.filter_map do |record|
-          record.currency || record.instrument.currency if record.is_a?(CorporateAction)
-        end
-        price_affected = instrument.id == backfill.instrument_id
-        dependency_affected = ([ instrument.currency ] + trade_currencies + action_currencies)
-          .include?(backfill.currency)
-        next unless price_affected || dependency_affected
+  def targets_for_user(user, backfill)
+    activity_by_instrument_for(user).filter_map do |instrument, activity|
+      targets_for_activity(user, instrument, activity, backfill)
+    end.flatten(1)
+  end
 
-        reporting_currencies_for_instrument(user:, instrument:).filter_map do |reporting_currency|
-          next if !price_affected && reporting_currency == backfill.currency
+  def activity_by_instrument_for(user)
+    trades = user.trades.where(traded_on: ..Date.current).includes(:instrument).to_a
+    actions = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
+    (trades + actions).group_by(&:instrument)
+  end
 
-          [ user, instrument, reporting_currency ]
-        end
-      end
-    end.flatten(1).uniq { |user, instrument, currency| [ user.id, instrument.id, currency ] }
+  def targets_for_activity(user, instrument, activity, backfill)
+    price_affected = instrument.id == backfill.instrument_id
+    dependency_affected = dependency_affected?(instrument, activity, backfill.currency)
+    return unless price_affected || dependency_affected
+
+    reporting_currencies_for_instrument(user:, instrument:).filter_map do |reporting_currency|
+      next if !price_affected && reporting_currency == backfill.currency
+
+      [ user, instrument, reporting_currency ]
+    end
+  end
+
+  def dependency_affected?(instrument, activity, currency)
+    ([ instrument.currency ] + activity_currencies(activity)).include?(currency)
+  end
+
+  def activity_currencies(activity)
+    trade_currencies = activity.filter_map { |record| record.settlement_currency if record.is_a?(Trade) }
+    action_currencies = activity.filter_map do |record|
+      record.currency || record.instrument.currency if record.is_a?(CorporateAction)
+    end
+    trade_currencies + action_currencies
   end
 
   def reporting_currencies_for_instrument(user:, instrument:)

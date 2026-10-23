@@ -36,31 +36,46 @@ module CorporateActionImports
     end
 
     def assign_attributes
+      assign_kind
+      assign_institution if attributes.key?(:institution_id)
+      if import.cash_action?
+        assign_cash_attributes
+      else
+        clear_cash_attributes
+        assign_quantity_attributes
+      end
+    end
+
+    def assign_kind
       kind = attributes[:kind].presence || import.kind
       raise ArgumentError, "event type is required" if kind.blank?
 
-      kind = "split" if CorporateActionImport.stock_split_kind?(kind)
-      import.kind = kind
-      assign_institution if attributes.key?(:institution_id)
-      if import.cash_action?
-        import.paid_on = date_value(:paid_on, import.paid_on)
-        import.ex_date = date_value(:ex_date, import.ex_date)
-        import.gross_amount_cents = amount_cents(:gross_amount, :gross_amount_cents, import.gross_amount_cents)
-        import.withholding_tax_cents = amount_cents(
-          :withholding_tax, :withholding_tax_cents, import.withholding_tax_cents || 0, blank_fallback: true
-        )
-        import.net_amount_cents = import.gross_amount_cents &&
-          import.gross_amount_cents - import.withholding_tax_cents
-      else
-        import.event_on = date_value(:effective_on, import.event_on)
-        import.ratio_numerator = integer_value(:ratio_numerator, import.ratio_numerator)
-        import.ratio_denominator = integer_value(:ratio_denominator, import.ratio_denominator)
-        import.paid_on = nil
-        import.ex_date = nil
-        import.gross_amount_cents = nil
-        import.withholding_tax_cents = nil
-        import.net_amount_cents = nil
-      end
+      import.kind = CorporateActionImport.stock_split_kind?(kind) ? "split" : kind
+    end
+
+    def assign_cash_attributes
+      import.paid_on = date_value(:paid_on, import.paid_on)
+      import.ex_date = date_value(:ex_date, import.ex_date)
+      import.gross_amount_cents = amount_cents(:gross_amount, :gross_amount_cents, import.gross_amount_cents)
+      import.withholding_tax_cents = amount_cents(
+        :withholding_tax, :withholding_tax_cents, import.withholding_tax_cents || 0, blank_fallback: true
+      )
+      import.net_amount_cents = import.gross_amount_cents &&
+        import.gross_amount_cents - import.withholding_tax_cents
+    end
+
+    def assign_quantity_attributes
+      import.event_on = date_value(:effective_on, import.event_on)
+      import.ratio_numerator = integer_value(:ratio_numerator, import.ratio_numerator)
+      import.ratio_denominator = integer_value(:ratio_denominator, import.ratio_denominator)
+    end
+
+    def clear_cash_attributes
+      import.paid_on = nil
+      import.ex_date = nil
+      import.gross_amount_cents = nil
+      import.withholding_tax_cents = nil
+      import.net_amount_cents = nil
     end
 
     def assign_institution

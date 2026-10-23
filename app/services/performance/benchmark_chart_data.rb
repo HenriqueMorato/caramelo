@@ -13,40 +13,67 @@ module Performance
       benchmark_results.filter_map do |benchmark, result|
         next unless result.available?
 
-        observations = result.respond_to?(:chart_observations) ? result.chart_observations : chart_observations(benchmark, result)
-
-        cumulative_values = if result.respond_to?(:chart_cumulative_return_values)
-          result.chart_cumulative_return_values
-        elsif result.available? && observations.equal?(result.observations)
-          result.cumulative_return_values
-        else
-          Performance::Benchmark.cumulative_return_values(
-            benchmark:, observations:, baseline: observations.length > result.observations.length
-          )
-        end
-        values_by_date = observations.zip(cumulative_values).to_h do |observation, value|
-          [ observation.observed_on, value.to_f * 100 ]
-        end
-        values = values_by_date.sort
-        index = -1
-        {
-          identifier: benchmark.identifier,
-          label: benchmark.name,
-          values: series.observations.map do |observation|
-            index += 1 while values[index + 1]&.first && values[index + 1].first <= observation.date
-            if index >= 0 && MarketData::HistoricalObservationWindow.for(observation.date).cover?(values[index].first)
-              values[index].last
-            else
-              nil
-            end
-          end
-        }
+        chart_for(benchmark, result)
       end
     end
 
     private
 
     attr_reader :series, :benchmark_results
+
+    def chart_for(benchmark, result)
+      observations = observations_for(benchmark, result)
+      values = values_for(benchmark, result, observations)
+
+      {
+        identifier: benchmark.identifier,
+        label: benchmark.name,
+        values: chart_values(values)
+      }
+    end
+
+    def observations_for(benchmark, result)
+      return result.chart_observations if result.respond_to?(:chart_observations)
+
+      chart_observations(benchmark, result)
+    end
+
+    def values_for(benchmark, result, observations)
+      cumulative_values = cumulative_values_for(benchmark, result, observations)
+
+      observations.zip(cumulative_values).to_h do |observation, value|
+        [ observation.observed_on, value.to_f * 100 ]
+      end.sort
+    end
+
+    def cumulative_values_for(benchmark, result, observations)
+      return result.chart_cumulative_return_values if result.respond_to?(:chart_cumulative_return_values)
+      return result.cumulative_return_values if observations.equal?(result.observations)
+
+      Performance::Benchmark.cumulative_return_values(
+        benchmark:, observations:, baseline: observations.length > result.observations.length
+      )
+    end
+
+    def chart_values(values)
+      index = -1
+      series.observations.map do |observation|
+        index = advance_index(values, index, observation.date)
+        value_for(values, index, observation.date)
+      end
+    end
+
+    def advance_index(values, index, date)
+      index += 1 while values[index + 1]&.first && values[index + 1].first <= date
+      index
+    end
+
+    def value_for(values, index, date)
+      return unless index >= 0
+      return unless MarketData::HistoricalObservationWindow.for(date).cover?(values[index].first)
+
+      values[index].last
+    end
 
     def chart_observations(benchmark, result)
       observations = result.observations
