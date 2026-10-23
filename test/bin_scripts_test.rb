@@ -1,5 +1,6 @@
 require "test_helper"
 require "open3"
+require "tmpdir"
 
 class BinScriptsTest < ActiveSupport::TestCase
   test "account and password scripts are executable and expose help" do
@@ -22,9 +23,21 @@ class BinScriptsTest < ActiveSupport::TestCase
 
     assert_predicate path, :executable?
 
-    stdout, stderr, status = Open3.capture3({ "RAILS_ENV" => "test" }, path.to_s, "HEAD")
+    Dir.mktmpdir("reek-clean") do |directory|
+      _stdout, init_error, init_status = Open3.capture3("git", "init", "--quiet", directory)
+      assert_predicate init_status, :success?, init_error
 
-    assert_predicate status, :success?, stderr
-    assert_includes stdout, "No changed Ruby files under app/ or lib/."
+      empty_tree, hash_error, hash_status = Open3.capture3(
+        "git", "-C", directory, "hash-object", "-t", "tree", "--stdin", stdin_data: ""
+      )
+      assert_predicate hash_status, :success?, hash_error
+
+      stdout, stderr, status = Open3.capture3(
+        { "RAILS_ENV" => "test" }, path.to_s, empty_tree.strip, chdir: directory
+      )
+
+      assert_predicate status, :success?, stderr
+      assert_includes stdout, "No changed Ruby files under app/ or lib/."
+    end
   end
 end

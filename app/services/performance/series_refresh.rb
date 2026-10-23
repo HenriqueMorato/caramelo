@@ -179,11 +179,12 @@ module Performance
 
     def report_enqueue_failure(error, token:)
       requested_range = materialization.requested_range
-      self.class.failed(
+      refresh_class = self.class
+      refresh_class.failed(
         user:, instrument:, from: requested_range.begin, to: requested_range.end,
         reporting_currency:, token:, error:
       )
-      self.class.release(user:, instrument:, token:, reporting_currency:)
+      refresh_class.release(user:, instrument:, token:, reporting_currency:)
       Rails.error.report(
         error, handled: true, context: { user_id: user.id, instrument_id: instrument&.id, from:, to: }
       )
@@ -218,10 +219,11 @@ module Performance
         phase: nil, renew_lease: false)
         written = false
         with_current_lease(user:, instrument:, token:, reporting_currency:) do
-          Rails.cache.write(
+          cache = Rails.cache
+          cache.write(
             lease_key(user:, instrument:, reporting_currency:), token, expires_in: LEASE_TTL
           ) if renew_lease
-          Rails.cache.write(
+          cache.write(
             state_key(user:, instrument:, reporting_currency:),
             state_payload(from:, to:, status:, error_message:, phase:),
             expires_in: STATE_TTL
@@ -257,9 +259,10 @@ module Performance
       end
 
       def target_key(user:, instrument:, reporting_currency:)
-        return "#{user.id}:#{reporting_currency}" unless instrument
+        user_id = user.id
+        return "#{user_id}:#{reporting_currency}" unless instrument
 
-        "#{user.id}:instrument:#{instrument.id}:#{reporting_currency}"
+        "#{user_id}:instrument:#{instrument.id}:#{reporting_currency}"
       end
 
       def materialization_for(user:, instrument:, reporting_currency:)

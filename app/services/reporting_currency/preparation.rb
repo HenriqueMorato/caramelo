@@ -200,13 +200,14 @@ module ReportingCurrency
     end
 
     def missing_ranges(base_currency, from:)
+      today = Date.current
       direct = HistoricalExchangeRate.where(base_currency:, quote_currency: currency)
       inverse = HistoricalExchangeRate.where(base_currency: currency, quote_currency: base_currency)
       existing_dates = direct.or(inverse)
-        .where(provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER, rate_date: from..Date.current)
+        .where(provider: HistoricalExchangeRate::Providers::YahooFinance::IDENTIFIER, rate_date: from..today)
         .pluck(:rate_date).to_set
 
-      TradingCalendar.weekdays_between(from, Date.current)
+      TradingCalendar.weekdays_between(from, today)
         .chunk { |date| existing_dates.include?(date) }
         .flat_map do |present, dates|
           present ? [] : dates.each_slice(HISTORY_BATCH_SIZE).map { |batch| batch.first..batch.last }

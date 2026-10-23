@@ -8,3 +8,8 @@ detectors:
 
   TooManyStatements:
     max_statements: 12
+
+  # A few reads from an immutable value object are usually clearer inline.
+  # Escalate only when the same call is repeated more than three times.
+  DuplicateMethodCall:
+    max_calls: 3

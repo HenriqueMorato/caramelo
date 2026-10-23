@@ -18,7 +18,7 @@ module MarketData
       def entry_for(benchmark)
         importer = MarketBenchmark::Importer.default
         end_date = importer.available_through_for(benchmark:, on: today) || historical_end_date
-        start_date = first_date(benchmark:, end_date:, importer:)
+        start_date = first_date(benchmark:, importer:)
         required_dates = if start_date && start_date <= end_date
           importer.expected_dates_for(benchmark:, from: start_date, to: end_date)
         else
@@ -48,7 +48,7 @@ module MarketData
         )
       end
 
-      def first_date(benchmark:, end_date:, importer:)
+      def first_date(benchmark:, importer:)
         activity_date = context&.first_trade_date || owner.trades.minimum(:traded_on)
         return unless activity_date
 
@@ -68,27 +68,33 @@ module MarketData
         return :healthy if coverage.complete?
 
         latest = coverage.latest_observed_on
-        if benchmark.index? && latest && latest < end_date
+        index = benchmark.index?
+        if index && latest && latest < end_date
           return latest < end_date - HistoricalObservationWindow::MAXIMUM_LOOKBACK_DAYS ? :stale : :delayed
         end
         return :unsupported unless supported
         return :missing unless coverage.partial?
-        return :partial unless benchmark.index?
+        return :partial unless index
         :partial
       end
 
       def description(benchmark, coverage, supported:, status:, end_date:)
-        return "#{benchmark.name} has stored observations." if status == :healthy
-        return "#{benchmark.name} has no configured recovery provider." unless supported
+        name = benchmark.name
+        return "#{name} has stored observations." if status == :healthy
+        return "#{name} has no configured recovery provider." unless supported
+
+        identifier = benchmark.identifier
+        missing_ranges = format_ranges(coverage.missing_ranges)
+        end_date_label = end_date.iso8601
 
         if status == :stale
-          "#{benchmark.name} (#{benchmark.identifier}) is stale; its latest observation is older than the " \
-            "historical safety window before #{end_date.iso8601}. Missing observations: #{format_ranges(coverage.missing_ranges)}."
+          "#{name} (#{identifier}) is stale; its latest observation is older than the " \
+            "historical safety window before #{end_date_label}. Missing observations: #{missing_ranges}."
         elsif status == :delayed
-          "#{benchmark.name} (#{benchmark.identifier}) is delayed; observations are not available through " \
-            "#{end_date.iso8601}. Missing observations: #{format_ranges(coverage.missing_ranges)}."
+          "#{name} (#{identifier}) is delayed; observations are not available through " \
+            "#{end_date_label}. Missing observations: #{missing_ranges}."
         else
-          "#{benchmark.name} (#{benchmark.identifier}) is missing observations for #{format_ranges(coverage.missing_ranges)}."
+          "#{name} (#{identifier}) is missing observations for #{missing_ranges}."
         end
       end
 

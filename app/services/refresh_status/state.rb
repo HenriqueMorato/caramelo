@@ -130,8 +130,9 @@ module RefreshStatus
 
     def self.register(scope)
       with_lock(SCOPES_KEY) do
-        scopes = Array(Rails.cache.read(SCOPES_KEY)) | [ scope ]
-        Rails.cache.write(SCOPES_KEY, scopes)
+        cache = Rails.cache
+        scopes = Array(cache.read(SCOPES_KEY)) | [ scope ]
+        cache.write(SCOPES_KEY, scopes)
       end
     end
 
@@ -150,7 +151,9 @@ module RefreshStatus
     end
 
     def self.release_lock(scope, token)
-      Rails.cache.delete(lock_key(scope)) if token && Rails.cache.read(lock_key(scope)) == token
+      lock = lock_key(scope)
+      cache = Rails.cache
+      cache.delete(lock) if token && cache.read(lock) == token
     end
 
     def self.lock_key(scope)
