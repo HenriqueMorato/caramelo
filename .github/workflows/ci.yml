@@ -111,6 +111,9 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+      - name: Report selected Reek smells on changed Ruby files
+        run: bin/reek-changed
+
       - name: Lint HTML+ERB templates
         run: bin/herb
 

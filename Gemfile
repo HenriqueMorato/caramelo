@@ -67,6 +67,9 @@ group :development, :test do
 
   # Detect N+1 and unused eager-loading queries while exercising request flows.
   gem "bullet", "~> 8.2"
+
+  # Advisory code-smell reports for selected changed-file checks.
+  gem "reek", "~> 6.5", require: false
 end
 
 group :development do

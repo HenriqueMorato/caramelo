@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+
+require "bundler/setup"
+require "open3"
+
+BASE_REVISION = ARGV.fetch(0, "HEAD^")
+ROOTS = %w[app lib].freeze
+SMELLS = %w[
+  LongParameterList
+  ControlParameter
+  TooManyStatements
+  DuplicateMethodCall
+  DataClump
+  RepeatedConditional
+  NestedIterators
+  TooManyMethods
+  TooManyInstanceVariables
+  UnusedParameters
+].freeze
+NULL_REVISION = /\A(?:0{40}|0{64})\z/
+
+def command_output(*command, stdin_data: nil)
+  stdout, stderr, status = Open3.capture3(*command, stdin_data:)
+  abort(stderr) unless status.success?
+
+  stdout
+end
+
+def empty_tree_revision
+  command_output("git", "hash-object", "-t", "tree", "--stdin", stdin_data: "").strip
+end
+
+def changed_ruby_files(base_revision)
+  base_revision = empty_tree_revision if base_revision.match?(NULL_REVISION)
+  changed = command_output(
+    "git", "diff", "--name-only", "--diff-filter=ACMR", base_revision, "--", *ROOTS
+  )
+  untracked = command_output("git", "ls-files", "--others", "--exclude-standard", "--", *ROOTS)
+
+  (changed.lines + untracked.lines).map(&:strip).uniq.filter do |path|
+    path.end_with?(".rb") && File.file?(path)
+  end
+end
+
+paths = changed_ruby_files(BASE_REVISION)
+if paths.empty?
+  puts "No changed Ruby files under app/ or lib/."
+  exit 0
+end
+
+command = [ Gem.bin_path("reek", "reek"), "--no-documentation", "--format", "github" ]
+SMELLS.each { |smell| command.concat([ "--smell", smell ]) }
+command.concat(paths)
+
+stdout, stderr, status = Open3.capture3(*command)
+print stdout
+warn stderr unless stderr.empty?
+
+if status.success? || status.exitstatus == 2
+  puts "Reek advisory report complete for #{paths.length} changed Ruby file(s)."
+  exit 0
+end
+
+warn "Reek failed with status #{status.exitstatus || "unknown"}."
+exit status.exitstatus || 1

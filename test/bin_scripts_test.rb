@@ -16,4 +16,15 @@ class BinScriptsTest < ActiveSupport::TestCase
       assert_includes stdout, usage
     end
   end
+
+  test "reek script is executable and handles a clean Ruby diff" do
+    path = Rails.root.join("bin/reek-changed")
+
+    assert_predicate path, :executable?
+
+    stdout, stderr, status = Open3.capture3({ "RAILS_ENV" => "test" }, path.to_s, "HEAD")
+
+    assert_predicate status, :success?, stderr
+    assert_includes stdout, "No changed Ruby files under app/ or lib/."
+  end
 end
