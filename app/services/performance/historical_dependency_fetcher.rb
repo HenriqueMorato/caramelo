@@ -133,9 +133,10 @@ module Performance
     end
 
     def add_action_rate_requirement(dates_by_pair, action)
-      return unless action.cash_action? || action.cash_in_lieu?
+      cash_action = action.cash_action?
+      return unless cash_action || action.cash_in_lieu?
 
-      date = action.cash_action? ? action.performance_on : action.effective_on
+      date = cash_action ? action.performance_on : action.effective_on
       add_date(dates_by_pair, action.currency, date)
     end
 
@@ -226,14 +227,18 @@ module Performance
       instrument_trades.sum do |trade|
         next 0.to_r if trade.traded_on >= start_date
 
-        trade.buy? ? trade.quantity.to_r : -trade.quantity.to_r
+        quantity = trade.quantity.to_r
+        trade.buy? ? quantity : -quantity
       end
     end
 
     def open_dates_for(events, start_date, initial_quantity)
       quantity = initial_quantity
       (start_date..to).filter_map do |date|
-        events.fetch(date, []).each { |trade| quantity += trade.buy? ? trade.quantity.to_r : -trade.quantity.to_r }
+        events.fetch(date, []).each do |trade|
+          trade_quantity = trade.quantity.to_r
+          quantity += trade.buy? ? trade_quantity : -trade_quantity
+        end
         date if date >= from && quantity.positive?
       end
     end
@@ -249,8 +254,9 @@ module Performance
     end
 
     def fetch_ranges(requirement, refetch_full_range:)
+      dates = requirement.dates
       if refetch_full_range
-        range = MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max
+        range = MarketData::HistoricalObservationWindow.for(dates.min).begin..dates.max
         bounded_ranges([ range ])
       else
         ranges_for(missing_dates(requirement))
@@ -272,15 +278,17 @@ module Performance
     end
 
     def import_range(requirement, range, fence:, generation:)
+      from_date = range.begin
+      to_date = range.end
       if requirement.price?
         price_importer.call(
-          instrument: requirement.instrument, from: range.begin, to: range.end,
+          instrument: requirement.instrument, from: from_date, to: to_date,
           enqueue_performance_rebuild: false, fence:, generation:
         )
       else
         rate_importer.call(
           base_currency: requirement.base_currency, quote_currency: requirement.quote_currency,
-          from: range.begin, to: range.end, enqueue_performance_rebuild: false,
+          from: from_date, to: to_date, enqueue_performance_rebuild: false,
           fence:, generation:
         )
       end
@@ -339,19 +347,22 @@ module Performance
     end
 
     def rate_scope(requirement)
+      base_currency = requirement.base_currency
+      quote_currency = requirement.quote_currency
       scope = HistoricalExchangeRate.where(
         provider: RATE_PROVIDER,
         rate_date: observation_range_for(requirement)
       )
       scope.where(
-        base_currency: requirement.base_currency, quote_currency: requirement.quote_currency
+        base_currency:, quote_currency:
       ).or(scope.where(
-        base_currency: requirement.quote_currency, quote_currency: requirement.base_currency
+        base_currency: quote_currency, quote_currency: base_currency
       ))
     end
 
     def observation_range_for(requirement)
-      MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max
+      dates = requirement.dates
+      MarketData::HistoricalObservationWindow.for(dates.min).begin..dates.max
     end
 
     def missing_dates_from(observed_dates, dates)
@@ -359,7 +370,7 @@ module Performance
       latest_observation = nil
       dates.select do |date|
         while observation_index < observed_dates.length && observed_dates[observation_index] <= date
-          latest_observation = observed_dates[observation_index]
+          latest_observation = observed_dates.fetch(observation_index)
           observation_index += 1
         end
 
@@ -386,8 +397,10 @@ module Performance
     end
 
     def append_range(ranges, range)
-      if ranges.any? && range.begin <= ranges.last.end + 1.day
-        ranges[-1] = ranges.last.begin..[ ranges.last.end, range.end ].max
+      last_range = ranges.last
+      last_end = last_range&.end
+      if last_end && range.begin <= last_end + 1.day
+        ranges[-1] = last_range.begin..[ last_end, range.end ].max
       else
         ranges << range
       end
@@ -397,8 +410,9 @@ module Performance
       ranges.flat_map do |range|
         bounded = []
         start_date = range.begin
-        while start_date <= range.end
-          end_date = [ start_date + MAX_RANGE_DAYS, range.end ].min
+        range_end = range.end
+        while start_date <= range_end
+          end_date = [ start_date + MAX_RANGE_DAYS, range_end ].min
           bounded << (start_date..end_date)
           start_date = end_date + 1.day
         end

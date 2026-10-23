@@ -42,7 +42,7 @@ module Performance
       values = [ BigDecimal("0") ]
       factor = BigDecimal("1")
       observations.drop(baseline ? 1 : 0).each do |observation|
-        factor = (factor * (BigDecimal("1") + observation.value)).truncate(DailyRateReturn::ACCUMULATION_SCALE)
+        factor = (factor * (1 + observation.value)).truncate(DailyRateReturn::ACCUMULATION_SCALE)
         values << factor - 1
       end
       baseline ? values : values.drop(1)
@@ -69,13 +69,15 @@ module Performance
     def calculate
       validate_range!
       observations = benchmark.observations.where(observed_on: from..to).chronological.to_a
-      return missing_result(observations:) unless observations.length >= 2
+      observation_count = observations.length
+      return missing_result(observations:) unless observation_count >= 2
       return missing_result(observations:) unless source_history_available?(observations)
 
       calculation_observations = convert_observations(observations)
-      return missing_result(observations:, calculation_observations:) unless calculation_observations.length == observations.length
+      calculation_count = calculation_observations.length
+      return missing_result(observations:, calculation_observations:) unless calculation_count == observation_count
       chart_points = chart_observations(observations, calculation_observations)
-      anchored = chart_points.length > calculation_observations.length
+      anchored = chart_points.length > calculation_count
       return_observations = if anchored && benchmark.rate?
         chart_points.drop(1)
       elsif anchored && benchmark.index?
@@ -111,12 +113,14 @@ module Performance
     end
 
     def calculate_return(observations)
+      first_observation = observations.first
+      last_observation = observations.last
       if benchmark.rate?
-        return DailyRateReturn.for(observations:, from: observations.first.observed_on,
-          to: observations.last.observed_on + 1.day).return_ratio
+        return DailyRateReturn.for(observations:, from: first_observation.observed_on,
+          to: last_observation.observed_on + 1.day).return_ratio
       end
 
-      observations.last.value / observations.first.value - 1
+      last_observation.value / first_observation.value - 1
     end
 
     def missing_result(observations: [], calculation_observations: observations)
@@ -165,7 +169,7 @@ module Performance
 
         rate = lookup.exchange_rate.rate.to_d
         value = if previous_rate
-          ((BigDecimal("1") + observation.value.to_d) * rate / previous_rate) - 1
+          ((1 + observation.value.to_d) * rate / previous_rate) - 1
         else
           observation.value
         end

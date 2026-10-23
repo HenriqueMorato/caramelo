@@ -99,19 +99,21 @@ module CorporateActionImports
 
     def trades_for(current_instrument)
       @trades_by_instrument ||= {}
-      @trades_by_instrument.fetch(current_instrument.id) do
-        @trades_by_instrument[current_instrument.id] = user.trades
+      instrument_id = current_instrument.id
+      @trades_by_instrument.fetch(instrument_id) do
+        @trades_by_instrument[instrument_id] = user.trades
           .where(instrument: current_instrument, traded_on: ..to)
           .order(:traded_on, :id).to_a
       end
     end
 
     def candidate_has_position?(current_instrument, candidate)
-      return true unless candidate.event_on
+      event_on = candidate.event_on
+      return true unless event_on
 
       quantity = 0.to_r
       quantity_timeline_for(current_instrument).each do |event_date, event_quantity|
-        break if event_date > candidate.event_on
+        break if event_date > event_on
 
         quantity = event_quantity
       end
@@ -123,8 +125,9 @@ module CorporateActionImports
 
     def quantity_timeline_for(current_instrument)
       @quantity_timelines ||= {}
-      @quantity_timelines.fetch(current_instrument.id) do
-        @quantity_timelines[current_instrument.id] = Position::Calculator.quantity_timeline(
+      instrument_id = current_instrument.id
+      @quantity_timelines.fetch(instrument_id) do
+        @quantity_timelines[instrument_id] = Position::Calculator.quantity_timeline(
           trades: trades_for(current_instrument),
           corporate_actions: corporate_actions_for(current_instrument),
           amount_for: ->(trade) { trade.total_amount }
@@ -164,10 +167,11 @@ module CorporateActionImports
     end
 
     def persist_new_import(current_instrument, candidate, source_reference)
-      import = user.corporate_action_imports.new(source:, source_reference:)
+      imports = user.corporate_action_imports
+      import = imports.new(source:, source_reference:)
       persist_import(import, current_instrument, candidate, was_new: true)
     rescue ActiveRecord::RecordNotUnique
-      import = user.corporate_action_imports.find_by!(source:, source_reference:)
+      import = imports.find_by!(source:, source_reference:)
       import.with_lock do
         persist_import(import, current_instrument, candidate, was_new: false)
       end
@@ -176,9 +180,10 @@ module CorporateActionImports
     def persist_import(import, current_instrument, candidate, was_new:)
       previous_status = import.status
       manually_reviewed = import.reviewed_at.present?
-      changed_after_review = (import.confirmed? || manually_reviewed) &&
+      confirmed = import.confirmed?
+      changed_after_review = (confirmed || manually_reviewed) &&
         candidate_changed?(import, current_instrument, candidate)
-      preserve_review = import.confirmed? || import.ignored? || manually_reviewed
+      preserve_review = confirmed || import.ignored? || manually_reviewed
       warnings = assign_candidate(import, current_instrument, candidate, preserve_review:)
       apply_import_status(import, previous_status:, preserve_review:, changed_after_review:, warnings:)
       import.reviewed_at = nil if was_new
@@ -192,11 +197,12 @@ module CorporateActionImports
         import.failure_message = "The provider payload changed after review; review it explicitly."
       elsif previous_status == "confirmed" || previous_status == "ignored"
         import.status = previous_status
-      elsif preserve_review
-        import.status = :pending
-        import.failure_message = nil
       else
-        import.status = warnings.include?("multiple_institutions") ? :ambiguous : :pending
+        import.status = if preserve_review
+          :pending
+        else
+          warnings.include?("multiple_institutions") ? :ambiguous : :pending
+        end
         import.failure_message = nil
       end
     end
@@ -236,8 +242,9 @@ module CorporateActionImports
 
     def assign_candidate_values(import, candidate)
       import.kind = candidate.kind
-      import.event_on = candidate.event_on
-      import.ex_date = candidate.cash_action? ? candidate.event_on : nil
+      event_on = candidate.event_on
+      import.event_on = event_on
+      import.ex_date = candidate.cash_action? ? event_on : nil
       assign_empty_cash_amounts(import)
       assign_candidate_ratio(import, candidate)
     end
@@ -260,17 +267,19 @@ module CorporateActionImports
     end
 
     def manual_duplicate_warning_for(current_instrument, candidate)
-      return unless candidate.event_on
+      event_on = candidate.event_on
+      return unless event_on
 
       "possible_duplicate" if manual_action_index_for(current_instrument).include?(
-        kind: candidate.kind, date: candidate.event_on
+        kind: candidate.kind, date: event_on
       )
     end
 
     def manual_action_index_for(current_instrument)
       @manual_action_indices ||= {}
-      @manual_action_indices.fetch(current_instrument.id) do
-        @manual_action_indices[current_instrument.id] = ManualActionIndex.new(
+      instrument_id = current_instrument.id
+      @manual_action_indices.fetch(instrument_id) do
+        @manual_action_indices[instrument_id] = ManualActionIndex.new(
           user:, instrument: current_instrument
         )
       end

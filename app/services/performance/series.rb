@@ -186,11 +186,12 @@ module Performance
 
     def instrument_gain_on_cost_ratio(record)
       return unless instrument
-      return if record.invested_amount.zero?
+      invested_amount = record.invested_amount
+      return if invested_amount.zero?
 
       decimal(
         (record.realized_gain_amount + record.unrealized_gain_amount + record.investment_income_amount) /
-          record.invested_amount
+          invested_amount
       )
     end
 
@@ -199,8 +200,9 @@ module Performance
       # an unavailable close between these endpoints does not erase its cash flows.
       flow_total = record.cash_flow_total - opening.cash_flow_total
       dated_flow_total = record.dated_cash_flow_total - opening.dated_cash_flow_total
-      duration = date.jd - from.jd
-      weighted_flows = (date.jd * flow_total - dated_flow_total) / duration
+      date_jd = date.jd
+      duration = date_jd - from.jd
+      weighted_flows = (date_jd * flow_total - dated_flow_total) / duration
       opening.market_value_amount.to_r + weighted_flows
     end
 
@@ -208,8 +210,9 @@ module Performance
       return :failed if refresh_status == :failed
       return :pending if observations.all?(&:pending?)
       return :partial if observations.any?(&:pending?)
-      return :partial if observations.any?(&:missing?) && observations.any? { |item| !item.missing? }
-      return :missing if observations.any?(&:missing?)
+      has_missing = observations.any?(&:missing?)
+      return :partial if has_missing && observations.any? { |item| !item.missing? }
+      return :missing if has_missing
       return :stale if observations.any?(&:stale?)
       return :empty if records.values.all?(&:empty?)
 

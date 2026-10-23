@@ -16,7 +16,9 @@ module Performance
       def calculate
         state = replay_trades
         return missing_result if state.nil?
-        return closed_result(state) if state.calculation.quantity.zero?
+        calculation = state.calculation
+        quantity = calculation.quantity
+        return closed_result(state) if quantity.zero?
 
         daily_closing_price = find_daily_closing_price
         return missing_result(daily_closing_price:) unless daily_closing_price
@@ -28,7 +30,7 @@ module Performance
         )
         return missing_result(daily_closing_price:, exchange_rate_lookup:) unless exchange_rate_lookup.available?
 
-        market_value = state.calculation.quantity * daily_closing_price.close_price.to_r *
+        market_value = quantity * daily_closing_price.close_price.to_r *
           exchange_rate_lookup.exchange_rate.rate.to_r
         available_result(state, market_value, daily_closing_price:, exchange_rate_lookup:)
       end
@@ -132,15 +134,18 @@ module Performance
       end
 
       def available_result(state, market_value, daily_closing_price:, exchange_rate_lookup:)
-        reporting_cost_basis = decimal(state.calculation.cost_basis_amount)
+        calculation = state.calculation
+        investment_income = decimal(state.investment_income)
+        cost_basis_amount = calculation.cost_basis_amount
+        reporting_cost_basis = decimal(cost_basis_amount)
         market_value_amount = decimal(market_value)
         Portfolio::PositionResult.new(
-          instrument:, quantity: decimal(state.calculation.quantity), reporting_cost_basis_amount: reporting_cost_basis,
-          market_value_amount:, realized_gain_amount: decimal(state.calculation.realized_gain_amount),
-          unrealized_gain_amount: decimal(market_value - state.calculation.cost_basis_amount),
+          instrument:, quantity: decimal(calculation.quantity), reporting_cost_basis_amount: reporting_cost_basis,
+          market_value_amount:, realized_gain_amount: decimal(calculation.realized_gain_amount),
+          unrealized_gain_amount: decimal(market_value - cost_basis_amount),
           net_cash_flow_amount: decimal(state.net_cash_flow),
-          investment_income_amount: decimal(state.investment_income),
-          investment_income: Money.from_amount(decimal(state.investment_income), reporting_currency),
+          investment_income_amount: investment_income,
+          investment_income: Money.from_amount(investment_income, reporting_currency),
           invested_amount: decimal(state.invested_amount), status: :available,
           daily_closing_price:, exchange_rate_lookup:, cash_flows: state.cash_flows
         )
@@ -148,12 +153,13 @@ module Performance
 
       def closed_result(state)
         zero = BigDecimal("0")
+        investment_income = decimal(state.investment_income)
         Portfolio::PositionResult.new(
           instrument:, quantity: zero, reporting_cost_basis_amount: zero, market_value_amount: zero,
           realized_gain_amount: decimal(state.calculation.realized_gain_amount), unrealized_gain_amount: zero,
           net_cash_flow_amount: decimal(state.net_cash_flow),
-          investment_income_amount: decimal(state.investment_income),
-          investment_income: Money.from_amount(decimal(state.investment_income), reporting_currency),
+          investment_income_amount: investment_income,
+          investment_income: Money.from_amount(investment_income, reporting_currency),
           invested_amount: decimal(state.invested_amount), status: :closed,
           daily_closing_price: nil, exchange_rate_lookup: nil, cash_flows: state.cash_flows
         )

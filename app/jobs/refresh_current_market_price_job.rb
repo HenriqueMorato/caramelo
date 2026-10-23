@@ -12,8 +12,9 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   discard_on ActiveJob::DeserializationError
 
   def self.enqueue_for(instrument:, force: false, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
+    cache = Rails.cache
     marker_key = deduplication_key(instrument)
-    unless Rails.cache.write(marker_key, true, expires_in: DEDUPLICATION_WINDOW, unless_exist: true)
+    unless cache.write(marker_key, true, expires_in: DEDUPLICATION_WINDOW, unless_exist: true)
       instrument_event(:coalesced, instrument:)
       return COALESCED
     end
@@ -30,10 +31,10 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
       return job
     end
 
-    Rails.cache.delete(marker_key)
+    cache.delete(marker_key)
     nil
   rescue
-    Rails.cache.delete(marker_key)
+    cache.delete(marker_key)
     raise
   end
 
@@ -44,9 +45,12 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   def perform(instrument, force: false, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
     retry_scheduled = false
     executed = false
+    job_class = self.class
+    refresh_scope = job_class.refresh_scope(instrument)
+    marker_key = job_class.deduplication_key(instrument)
     return if batch_scope && !batch_active?(batch_scope, batch_run_id)
 
-    RefreshStatus::Tracker.perform(scope: self.class.refresh_scope(instrument), run_id: batch_run_id) do
+    RefreshStatus::Tracker.perform(scope: refresh_scope, run_id: batch_run_id) do
       executed = true
       instrument_event(:attempted, instrument:)
       request_throttle.wait!(instrument:)
@@ -54,21 +58,17 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
       refresh_exchange_rate(instrument:, force:)
       instrument_event(:succeeded, instrument:)
     end
-  rescue MarketPrice::ProviderFailure => error
-    scheduled_delay = retry_provider_failure(error)
+  rescue MarketPrice::ProviderFailure, MarketPrice::CurrencyMismatch, MarketPrice::UnsupportedInstrument => error
+    scheduled_delay = retry_provider_failure(error) if error.is_a?(MarketPrice::ProviderFailure)
     retry_scheduled = scheduled_delay
     if scheduled_delay
-      RefreshStatus::Tracker.enqueue(scope: self.class.refresh_scope(instrument), run_id: batch_run_id)
+      RefreshStatus::Tracker.enqueue(scope: refresh_scope, run_id: batch_run_id)
       instrument_event(:retried, instrument:, wait_seconds: scheduled_delay.to_i)
     else
-      instrument_event(:failed, instrument:, error: error.class.name)
-      report(error, instrument:)
+      report_failure(error, instrument:)
     end
-  rescue MarketPrice::CurrencyMismatch, MarketPrice::UnsupportedInstrument => error
-    instrument_event(:failed, instrument:, error: error.class.name)
-    report(error, instrument:)
   ensure
-    Rails.cache.delete(self.class.deduplication_key(instrument)) unless retry_scheduled
+    Rails.cache.delete(marker_key) unless retry_scheduled
     broadcast_current(instrument)
     advance_batch(batch_scope, batch_run_id) if batch_scope && executed && !retry_scheduled
     release_lease(lease_token, lease_target) unless retry_scheduled
@@ -93,11 +93,12 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   end
 
   def refresh_exchange_rate(instrument:, force:)
+    base_currency = instrument.currency
     reporting_currencies_for(instrument:).each do |reporting_currency|
-      next if instrument.currency == reporting_currency
+      next if base_currency == reporting_currency
 
       exchange_rate_service.refresh(
-        base_currency: instrument.currency,
+        base_currency:,
         quote_currency: reporting_currency,
         force:
       )
@@ -137,6 +138,11 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     Rails.error.report(error, handled: true, context: { instrument_id: instrument.id })
   end
 
+  def report_failure(error, instrument:)
+    instrument_event(:failed, instrument:, error: error.class.name)
+    report(error, instrument:)
+  end
+
   def release_lease(token, target_attributes)
     return unless token && target_attributes
 
@@ -154,6 +160,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
   end
 
   def retry_delay(error)
+    multiplier = 1 + (retry_random * RETRY_JITTER)
     retry_after = error.retry_after.to_s
     base_delay = if retry_after.match?(/\A\d+\z/)
       retry_after.to_i.seconds
@@ -162,9 +169,9 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
       [ retry_at - Time.current, 0.seconds ].max
     end
 
-    [ base_delay * (1 + (retry_random * RETRY_JITTER)), MAX_RETRY_DELAY ].min
+    [ base_delay * multiplier, MAX_RETRY_DELAY ].min
   rescue ArgumentError
-    DEFAULT_RETRY_DELAY * (1 + (retry_random * RETRY_JITTER))
+    DEFAULT_RETRY_DELAY * multiplier
   end
 
   def retry_random

@@ -213,9 +213,14 @@ Pass a different base revision when reviewing a branch against another commit:
 bin/reek-changed origin/main
 ```
 
-Thresholds live in `.reek.yml`. Structural duplication is intentionally not
-part of this first pass; Flay can be evaluated separately if duplication becomes
-a recurring issue.
+Thresholds live in `.reek.yml`. Repeated calls are allowed up to three times
+when they read an immutable value object; a fourth call remains an advisory
+signal. We intentionally do not use Reek's `--todo` baseline: it generates a
+large path- and method-specific allowlist that becomes stale as code moves.
+Existing structural warnings stay informational, while new warnings on changed
+files remain visible in CI. Structural duplication is intentionally not part of
+this first pass; Flay can be evaluated separately if duplication becomes a
+recurring issue.
 
 ## Current Market Prices
 
