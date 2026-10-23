@@ -48,8 +48,9 @@ module Performance
 
     def performance_instruments
       @performance_start_dates ||= begin
-        trade_dates = user.trades.where(traded_on: ..series.to).group(:instrument_id).minimum(:traded_on)
-        action_dates = user.corporate_actions.effective_on_or_before(series.to)
+        ending_on = series.to
+        trade_dates = user.trades.where(traded_on: ..ending_on).group(:instrument_id).minimum(:traded_on)
+        action_dates = user.corporate_actions.effective_on_or_before(ending_on)
           .select(:instrument_id, :effective_on, :ex_date, :paid_on)
           .to_a.group_by(&:instrument_id)
           .transform_values { |actions| actions.map(&:performance_on).min }
@@ -95,13 +96,18 @@ module Performance
       return missing_aggregate if observations.any?(&:missing?)
 
       status = observations.any?(&:stale?) ? :stale : :available
+      aggregate_values(observations, active_instruments, status)
+    end
+
+    def aggregate_values(observations, active_instruments, status)
+      observations_by_instrument = observations.to_h { |observation| [ observation.instrument_id, observation ] }
       Aggregate.new(
         observations.sum { |observation| observation.market_value_amount || BigDecimal("0") },
-        observations.sum { |observation| observation.cash_flow_total },
-        observations.sum { |observation| observation.dated_cash_flow_total },
+        observations.sum(&:cash_flow_total),
+        observations.sum(&:dated_cash_flow_total),
         status,
-        observations.to_h { |observation| [ observation.instrument_id, observation.source_generation ] },
-        observations.filter_map { |observation| observation.instrument_id if observation.stale? },
+        observations_by_instrument.transform_values(&:source_generation),
+        observations_by_instrument.filter_map { |instrument_id, observation| instrument_id if observation.stale? },
         active_instruments.map(&:id)
       )
     end
@@ -119,31 +125,39 @@ module Performance
       return unless aggregate&.available?
       return unless comparable_aggregates?(aggregate, opening)
 
-      duration = date.jd - opening_date.jd
+      date_jd = date.jd
+      duration = date_jd - opening_date.jd
       return if duration <= 0
 
       flow = aggregate.cash_flow_total - opening.cash_flow_total
       dated_flow = aggregate.dated_cash_flow_total - opening.dated_cash_flow_total
-      weighted_flow = (date.jd * flow - dated_flow) / duration
-      capital = opening.market_value_amount.to_r + weighted_flow
+      opening_market_value = opening.market_value_amount
+      weighted_flow = (date_jd * flow - dated_flow) / duration
+      capital = opening_market_value.to_r + weighted_flow
       return if capital.zero?
 
-      gain = aggregate.market_value_amount - opening.market_value_amount - flow
+      gain = aggregate.market_value_amount - opening_market_value - flow
       decimal(gain / capital)
     end
 
     def comparable_aggregates?(aggregate, opening)
-      instrument_ids = aggregate.source_generations.keys | opening.source_generations.keys |
-        aggregate.active_instrument_ids | opening.active_instrument_ids
+      aggregate_generations = aggregate.source_generations
+      opening_generations = opening.source_generations
+      aggregate_active_instrument_ids = aggregate.active_instrument_ids
+      opening_active_instrument_ids = opening.active_instrument_ids
+      aggregate_stale_instrument_ids = aggregate.stale_instrument_ids
+      opening_stale_instrument_ids = opening.stale_instrument_ids
+      instrument_ids = aggregate_generations.keys | opening_generations.keys |
+        aggregate_active_instrument_ids | opening_active_instrument_ids
       instrument_ids.all? do |instrument_id|
-        opening_generation = opening.source_generations[instrument_id]
-        closing_generation = aggregate.source_generations[instrument_id]
+        opening_generation = opening_generations[instrument_id]
+        closing_generation = aggregate_generations[instrument_id]
         next false if closing_generation.nil?
-        next true if opening_generation.nil? && !opening.active_instrument_ids.include?(instrument_id)
+        next true if opening_generation.nil? && !opening_active_instrument_ids.include?(instrument_id)
         next true if opening_generation == closing_generation
 
-        !opening.stale_instrument_ids.include?(instrument_id) &&
-          !aggregate.stale_instrument_ids.include?(instrument_id)
+        !opening_stale_instrument_ids.include?(instrument_id) &&
+          !aggregate_stale_instrument_ids.include?(instrument_id)
       end
     end
 
