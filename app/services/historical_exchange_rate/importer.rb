@@ -158,22 +158,39 @@ class HistoricalExchangeRate
 
     def affected_instrument_targets
       @affected_instrument_targets ||= affected_users.flat_map do |user|
-        trades = user.trades.includes(:instrument).to_a
-        income = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
-        instruments = (trades.map(&:instrument) + income.map(&:instrument)).uniq
-        trades_by_instrument = trades.group_by(&:instrument_id)
-        income_by_instrument = income.group_by(&:instrument_id)
-        instruments.flat_map do |instrument|
-          dependencies = [ instrument.currency,
-            *trades_by_instrument.fetch(instrument.id, []).filter_map(&:settlement_currency),
-            *income_by_instrument.fetch(instrument.id, []).filter_map(&:currency) ].uniq
-          instrument_target_currencies(user:, instrument:).filter_map do |reporting_currency|
-            [ user, instrument, reporting_currency ] if dependencies.any? do |dependency_currency|
-              affected_pair?(dependency_currency, reporting_currency)
-            end
-          end
-        end
+        affected_targets_for_user(user)
       end
+    end
+
+    def affected_targets_for_user(user)
+      trades = user.trades.includes(:instrument).to_a
+      income = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
+      instruments = (trades.map(&:instrument) + income.map(&:instrument)).uniq
+      trades_by_instrument = trades.group_by(&:instrument_id)
+      income_by_instrument = income.group_by(&:instrument_id)
+      instruments.flat_map do |instrument|
+        affected_targets_for_instrument(
+          user:, instrument:, trades: trades_by_instrument.fetch(instrument.id, []),
+          income: income_by_instrument.fetch(instrument.id, [])
+        )
+      end
+    end
+
+    def affected_targets_for_instrument(user:, instrument:, trades:, income:)
+      dependencies = instrument_dependencies(instrument, trades:, income:)
+      instrument_target_currencies(user:, instrument:).filter_map do |reporting_currency|
+        next unless dependencies.any? { |dependency| affected_pair?(dependency, reporting_currency) }
+
+        [ user, instrument, reporting_currency ]
+      end
+    end
+
+    def instrument_dependencies(instrument, trades:, income:)
+      [
+        instrument.currency,
+        *trades.filter_map(&:settlement_currency),
+        *income.filter_map(&:currency)
+      ].uniq
     end
 
     def instrument_target_currencies(user:, instrument:)

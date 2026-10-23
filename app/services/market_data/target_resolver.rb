@@ -52,14 +52,25 @@ module MarketData
     end
 
     def ensure_performance_currency!(target)
-      valid_pair = target.quote_currency == owner.reporting_currency && (
-        owner.trades.where(currency: target.base_currency).exists? ||
-        owner.trades.where(settlement_currency: target.base_currency).exists? ||
-        owner.corporate_actions.effective_on_or_before(Date.current).where(currency: target.base_currency).exists? ||
-        owner.corporate_actions.effective_on_or_before(Date.current).joins(:instrument)
-          .where(instruments: { currency: target.base_currency }).exists?
-      )
+      valid_pair = target.quote_currency == owner.reporting_currency &&
+        performance_currency_present?(target.base_currency)
       raise ActiveRecord::RecordNotFound unless valid_pair
+    end
+
+    def performance_currency_present?(currency)
+      trade_currency_present?(currency) || income_currency_present?(currency)
+    end
+
+    def trade_currency_present?(currency)
+      owner.trades.where(currency:).exists? || owner.trades.where(settlement_currency: currency).exists?
+    end
+
+    def income_currency_present?(currency)
+      income_scope.where(currency:).exists? || income_scope.joins(:instrument).where(instruments: { currency: }).exists?
+    end
+
+    def income_scope
+      owner.corporate_actions.effective_on_or_before(Date.current)
     end
 
     def ensure_benchmark!(target)

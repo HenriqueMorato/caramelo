@@ -37,11 +37,25 @@ module Performance
       @closing_valuation = valuation_for(to)
       return missing_result if opening_valuation.missing? || closing_valuation.missing?
 
-      @cash_flows = closing_valuation.cash_flows.select do |cash_flow|
-        cash_flow.occurred_on > from && cash_flow.occurred_on <= to
-      end
+      calculate_available_values
+      available_result
+    end
+
+    private
+
+    def calculate_available_values
+      @cash_flows = closing_valuation.cash_flows.select { |cash_flow| cash_flow_in_period?(cash_flow) }
       @net_cash_flow_amount = decimal(cash_flows.sum(&:amount))
-      @gain_loss_amount = decimal(closing_valuation.market_value_amount - opening_valuation.market_value_amount - net_cash_flow_amount)
+      @gain_loss_amount = decimal(
+        closing_valuation.market_value_amount - opening_valuation.market_value_amount - net_cash_flow_amount
+      )
+    end
+
+    def cash_flow_in_period?(cash_flow)
+      cash_flow.occurred_on > from && cash_flow.occurred_on <= to
+    end
+
+    def available_result
       status = opening_valuation.empty? && closing_valuation.empty? ? :empty : :available
 
       Result.new(
@@ -51,8 +65,6 @@ module Performance
         return_ratio:, status:
       )
     end
-
-    private
 
     attr_reader :from, :to, :portfolio, :owner, :instrument, :opening_valuation, :closing_valuation,
       :cash_flows, :net_cash_flow_amount, :gain_loss_amount

@@ -30,17 +30,32 @@ module MarketData
     end
 
     def easter_sunday(year)
+      month, day_offset = easter_month_and_day(year)
+      Date.new(year, month, day_offset + 1)
+    end
+
+    def easter_month_and_day(year)
+      h = easter_epact(year)
+      l = easter_weekday_offset(year, h)
+      m = (year % 19 + 11 * h + 22 * l) / 451
+      (h + l - 7 * m + 114).divmod(31)
+    end
+
+    def easter_epact(year)
       a = year % 19
-      b, c = year.divmod(100)
-      d, e = b.divmod(4)
+      b = year / 100
+      d = b / 4
       f = (b + 8) / 25
       g = (b - f + 1) / 3
-      h = (19 * a + b - d - g + 15) % 30
-      i, k = c.divmod(4)
-      l = (32 + 2 * e + 2 * i - h - k) % 7
-      m = (a + 11 * h + 22 * l) / 451
-      month, day_offset = (h + l - 7 * m + 114).divmod(31)
-      Date.new(year, month, day_offset + 1)
+      (19 * a + b - d - g + 15) % 30
+    end
+
+    def easter_weekday_offset(year, epact)
+      century, year_remainder = year.divmod(100)
+      century_remainder = century % 4
+      year_quarter = year_remainder / 4
+      year_remainder_modulo = year_remainder % 4
+      (32 + 2 * century_remainder + 2 * year_quarter - epact - year_remainder_modulo) % 7
     end
   end
 end

@@ -181,11 +181,20 @@ module Performance
     def open_dates_from_trades(instrument_trades)
       start_date = [ instrument_trades.first.traded_on, from ].max
       events = instrument_trades.group_by(&:traded_on)
-      quantity = instrument_trades.sum do |trade|
+      quantity = quantity_before(start_date, instrument_trades)
+      open_dates_for(events, start_date, quantity)
+    end
+
+    def quantity_before(start_date, instrument_trades)
+      instrument_trades.sum do |trade|
         next 0.to_r if trade.traded_on >= start_date
 
         trade.buy? ? trade.quantity.to_r : -trade.quantity.to_r
       end
+    end
+
+    def open_dates_for(events, start_date, initial_quantity)
+      quantity = initial_quantity
       (start_date..to).filter_map do |date|
         events.fetch(date, []).each { |trade| quantity += trade.buy? ? trade.quantity.to_r : -trade.quantity.to_r }
         date if date >= from && quantity.positive?
@@ -193,34 +202,51 @@ module Performance
     end
 
     def fetch(requirement, refetch_full_range:)
-      missing = missing_dates(requirement)
-      ranges = if refetch_full_range
-        bounded_ranges([ MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max ])
-      else
-        ranges_for(missing)
-      end
+      ranges = fetch_ranges(requirement, refetch_full_range:)
       return false if ranges.empty?
 
       fence = publication_fence_for(requirement)
       generation = fence.capture
-      ranges.each do |range|
-        progress.call("Fetching #{label_for(requirement)}")
-        throttle&.wait!(instrument: requirement.instrument) if requirement.is_a?(PriceRequirement)
-        throttle&.wait! unless requirement.is_a?(PriceRequirement)
-        if requirement.is_a?(PriceRequirement)
-          price_importer.call(
-            instrument: requirement.instrument, from: range.begin, to: range.end,
-            enqueue_performance_rebuild: false, fence:, generation:
-          )
-        else
-          rate_importer.call(
-            base_currency: requirement.base_currency, quote_currency: requirement.quote_currency,
-            from: range.begin, to: range.end, enqueue_performance_rebuild: false,
-            fence:, generation:
-          )
-        end
-      end
+      ranges.each { |range| fetch_range(requirement, range, fence:, generation:) }
       true
+    end
+
+    def fetch_ranges(requirement, refetch_full_range:)
+      if refetch_full_range
+        range = MarketData::HistoricalObservationWindow.for(requirement.dates.min).begin..requirement.dates.max
+        bounded_ranges([ range ])
+      else
+        ranges_for(missing_dates(requirement))
+      end
+    end
+
+    def fetch_range(requirement, range, fence:, generation:)
+      progress.call("Fetching #{label_for(requirement)}")
+      wait_for_requirement(requirement)
+      import_range(requirement, range, fence:, generation:)
+    end
+
+    def wait_for_requirement(requirement)
+      if requirement.is_a?(PriceRequirement)
+        throttle&.wait!(instrument: requirement.instrument)
+      else
+        throttle&.wait!
+      end
+    end
+
+    def import_range(requirement, range, fence:, generation:)
+      if requirement.is_a?(PriceRequirement)
+        price_importer.call(
+          instrument: requirement.instrument, from: range.begin, to: range.end,
+          enqueue_performance_rebuild: false, fence:, generation:
+        )
+      else
+        rate_importer.call(
+          base_currency: requirement.base_currency, quote_currency: requirement.quote_currency,
+          from: range.begin, to: range.end, enqueue_performance_rebuild: false,
+          fence:, generation:
+        )
+      end
     end
 
     def publication_fence_for(requirement)
@@ -305,17 +331,29 @@ module Performance
     end
 
     def ranges_for(dates)
-      ranges = dates.sort.slice_when { |left, right| right != left + 1.day }
+      bounded_ranges(coalesced_ranges(dates))
+    end
+
+    def coalesced_ranges(dates)
+      merge_ranges(initial_ranges(dates))
+    end
+
+    def initial_ranges(dates)
+      dates.sort.slice_when { |left, right| right != left + 1.day }
         .map { |group| MarketData::HistoricalObservationWindow.for(group.first).begin..group.last }
         .sort_by(&:begin)
-        .each_with_object([]) do |range, ranges|
-          if ranges.any? && range.begin <= ranges.last.end + 1.day
-            ranges[-1] = ranges.last.begin..[ ranges.last.end, range.end ].max
-          else
-            ranges << range
-          end
-        end
-      bounded_ranges(ranges)
+    end
+
+    def merge_ranges(ranges)
+      ranges.each_with_object([]) { |range, merged| append_range(merged, range) }
+    end
+
+    def append_range(ranges, range)
+      if ranges.any? && range.begin <= ranges.last.end + 1.day
+        ranges[-1] = ranges.last.begin..[ ranges.last.end, range.end ].max
+      else
+        ranges << range
+      end
     end
 
     def bounded_ranges(ranges)
