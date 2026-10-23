@@ -183,6 +183,16 @@ For a multi-account development run, set the variable before starting Rails:
 CARAMELO_ACCOUNT_MODE=multi CARAMELO_AUTHENTICATION_MODE=password bin/dev
 ```
 
+## Verification
+
+Run the dependency policy after changing either dependency manifest. It checks
+that the Ruby and JavaScript lockfiles are fresh, Git dependencies use immutable
+commit references, and direct registry dependencies have bounded versions:
+
+```sh
+bin/dependency-policy
+```
+
 ## Current Market Prices
 
 caramelo uses the Yahoo Finance chart endpoint for current B3, NASDAQ, NYSE,

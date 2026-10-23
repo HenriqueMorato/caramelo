@@ -6,6 +6,28 @@ on:
     branches: [ main ]
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version-file: .ruby-version
+
+      - name: Check dependency policy before installation
+        env:
+          BUNDLE_FROZEN: "true"
+        run: bin/dependency-policy
+
+      - name: Install locked dependencies
+        env:
+          BUNDLE_FROZEN: "true"
+        run: bundle install --jobs 4 --retry 3
+
   scan_ruby:
     runs-on: ubuntu-latest
 
