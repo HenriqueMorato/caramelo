@@ -6,6 +6,7 @@ CI.run do
   step "Setup: Test database", "bin/rails db:test:prepare"
 
   step "Style: Ruby", "bin/rubocop"
+  step "Advisory: Reek", "bin/reek-changed"
   step "Style: HTML+ERB", "bin/herb"
   step "Translations: I18n", "bin/i18n-tasks health"
 

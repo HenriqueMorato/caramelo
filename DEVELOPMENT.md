@@ -193,6 +193,30 @@ commit references, and direct registry dependencies have bounded versions:
 bin/dependency-policy
 ```
 
+The project also runs an advisory Reek pass over changed Ruby files under
+`app/` and `lib/`. It checks parameter and method complexity, repeated
+conditionals, nested iteration, repeated argument groups, and unused
+parameters through `LongParameterList`, `ControlParameter`,
+`TooManyStatements`, `DuplicateMethodCall`, `DataClump`,
+`RepeatedConditional`, `NestedIterators`, `TooManyMethods`,
+`TooManyInstanceVariables`, and `UnusedParameters`. The report does not block
+CI while we establish a useful baseline. Run it against the current commit's
+parent locally with:
+
+```sh
+bin/reek-changed
+```
+
+Pass a different base revision when reviewing a branch against another commit:
+
+```sh
+bin/reek-changed origin/main
+```
+
+Thresholds live in `.reek.yml`. Structural duplication is intentionally not
+part of this first pass; Flay can be evaluated separately if duplication becomes
+a recurring issue.
+
 ## Current Market Prices
 
 caramelo uses the Yahoo Finance chart endpoint for current B3, NASDAQ, NYSE,
