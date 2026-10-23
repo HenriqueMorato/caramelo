@@ -60,14 +60,10 @@ module MarketData
       end
 
       def normalize_rate(value)
-        raise InvalidResponse, "FX rate must not be a float" if value.is_a?(Float)
-
-        rate = BigDecimal(value.to_s)
-        raise InvalidResponse, "FX rate must be finite and positive" unless rate.finite? && rate.positive?
-
-        rate
-      rescue ArgumentError
-        raise InvalidResponse, "FX rate is invalid"
+        DecimalNormalizer.positive(
+          value:, float_message: "FX rate must not be a float",
+          invalid_message: "FX rate is invalid", nonpositive_message: "FX rate must be finite and positive"
+        )
       end
     end
   end

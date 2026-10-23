@@ -4,6 +4,7 @@ CI.run do
   step "Policy: Dependencies", "bin/dependency-policy"
   step "Setup", "bin/setup --skip-server"
   step "Setup: Test database", "bin/rails db:test:prepare"
+
   step "Style: Ruby", "bin/rubocop"
   step "Style: HTML+ERB", "bin/herb"
   step "Translations: I18n", "bin/i18n-tasks health"

@@ -70,14 +70,10 @@ module MarketData
       end
 
       def normalize_price(value)
-        raise InvalidResponse, "price must not be a float" if value.is_a?(Float)
-
-        price = BigDecimal(value.to_s)
-        raise InvalidResponse, "price must be finite and greater than zero" unless price.finite? && price.positive?
-
-        price
-      rescue ArgumentError
-        raise InvalidResponse, "price is invalid"
+        DecimalNormalizer.positive(
+          value:, float_message: "price must not be a float",
+          invalid_message: "price is invalid", nonpositive_message: "price must be finite and greater than zero"
+        )
       end
 
       def normalize_currency(value)

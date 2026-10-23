@@ -95,14 +95,10 @@ module MarketData
       end
 
       def normalize_event_amount(value)
-        raise InvalidResponse, "event amount must not be a float" if value.is_a?(Float)
-
-        amount = BigDecimal(value.to_s)
-        raise InvalidResponse, "event amount is invalid" unless amount.finite? && amount.positive?
-
-        amount
-      rescue ArgumentError
-        raise InvalidResponse, "event amount is invalid"
+        DecimalNormalizer.positive(
+          value:, float_message: "event amount must not be a float",
+          invalid_message: "event amount is invalid", nonpositive_message: "event amount is invalid"
+        )
       end
 
       def normalize_split_ratio(payload)
