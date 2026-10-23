@@ -3,26 +3,25 @@ module Performance
     PRICE_PROVIDER = MarketData::YahooFinance::MARKET_CONFIGURATION.identifier
     RATE_PROVIDER = MarketData::YahooFinance::FX_CONFIGURATION.identifier
     MAX_RANGE_DAYS = 30.years.in_days.ceil
+    REQUIREMENT_BATCH_SIZE = 8
 
-    PriceRequirement = Data.define(:instrument, :dates)
-    RateRequirement = Data.define(:base_currency, :quote_currency, :dates)
+    PriceRequirement = Data.define(:instrument, :dates) do
+      def price? = true
+    end
+    RateRequirement = Data.define(:base_currency, :quote_currency, :dates) do
+      def price? = false
+    end
     MissingDependency = Data.define(:label, :dates)
 
     class Unavailable < StandardError
+      include MarketData::DateRangeFormatting
+
       attr_reader :dependencies
 
       def initialize(dependencies)
         @dependencies = dependencies
-        details = dependencies.map { |dependency| "#{dependency.label} missing for #{format_ranges(dependency.dates)}" }
+        details = dependencies.map { |dependency| "#{dependency.label} missing for #{format_dates(dependency.dates)}" }
         super("Historical data remains unavailable: #{details.join('; ')}")
-      end
-
-      private
-
-      def format_ranges(dates)
-        ranges = dates.sort.slice_when { |left, right| right != left + 1.day }
-          .map { |group| group.first..group.last }
-        ranges.map { |range| range.begin == range.end ? range.begin.iso8601 : "#{range.begin}–#{range.end}" }.join(", ")
       end
     end
 
@@ -50,23 +49,11 @@ module Performance
 
     def call(from:, to:, refetch_full_range: false, allow_long_range: false)
       validate_range!(from:, to:, allow_long_range:)
-      @from = from
-      @to = to
-      @trades = nil
-      @actions = nil
-      @price_requirements = nil
-      prices = price_requirements
-      requirements = prices + rate_requirements(prices)
-      fetched = requirements.map { |requirement| fetch(requirement, refetch_full_range:) }.any?
-
-      missing = requirements.filter_map do |requirement|
-        dates = missing_dates(requirement)
-        next if dates.empty?
-
-        MissingDependency.new(label: label_for(requirement), dates:)
-      end
-      raise Unavailable, missing if missing.any?
-      enqueue_performance_rebuilds if fetched && @enqueue_performance_rebuilds
+      prepare_range(from:, to:)
+      requirements = dependencies
+      fetch_dependencies(requirements, refetch_full_range:)
+      raise_if_dependencies_missing(requirements)
+      enqueue_performance_rebuilds if fetched_dependencies? && @enqueue_performance_rebuilds
 
       requirements
     end
@@ -75,6 +62,38 @@ module Performance
 
     attr_reader :user, :instrument, :reporting_currency, :price_importer, :rate_importer, :progress, :from, :to,
       :throttle, :cache
+
+    def prepare_range(from:, to:)
+      @from = from
+      @to = to
+      @trades = nil
+      @actions = nil
+      @price_requirements = nil
+      @fetched_dependencies = false
+    end
+
+    def dependencies
+      prices = price_requirements
+      prices + rate_requirements(prices)
+    end
+
+    def fetch_dependencies(requirements, refetch_full_range:)
+      @fetched_dependencies = requirements.each_slice(REQUIREMENT_BATCH_SIZE).sum do |batch|
+        batch.count { |requirement| fetch(requirement, refetch_full_range:) }
+      end.positive?
+    end
+
+    def fetched_dependencies?
+      @fetched_dependencies
+    end
+
+    def raise_if_dependencies_missing(requirements)
+      missing = requirements.filter_map do |requirement|
+        dates = missing_dates(requirement)
+        MissingDependency.new(label: label_for(requirement), dates:) unless dates.empty?
+      end
+      raise Unavailable, missing if missing.any?
+    end
 
     def validate_range!(from:, to:, allow_long_range:)
       valid_dates = from.is_a?(Date) && to.is_a?(Date) && from <= to && to <= Date.current
@@ -95,25 +114,34 @@ module Performance
 
     def rate_requirements(price_requirements = self.price_requirements)
       dates_by_pair = Hash.new { |hash, pair| hash[pair] = Set.new }
+      add_price_rate_requirements(dates_by_pair, price_requirements)
+      trades.each { |trade| add_trade_rate_requirement(dates_by_pair, trade) }
+      actions.each { |action| add_action_rate_requirement(dates_by_pair, action) }
+
+      build_rate_requirements(dates_by_pair)
+    end
+
+    def add_price_rate_requirements(dates_by_pair, price_requirements)
       price_requirements.each do |requirement|
         add_dates(dates_by_pair, requirement.instrument.currency, requirement.dates)
       end
-      trades.each do |trade|
-        base_currency = trade.explicit_settlement_conversion? ? trade.settlement_currency : trade.currency
-        add_date(dates_by_pair, base_currency, trade.traded_on)
-      end
-      actions.each do |action|
-        if action.cash_action?
-          add_date(dates_by_pair, action.currency, action.performance_on)
-        elsif action.cash_in_lieu?
-          add_date(dates_by_pair, action.currency, action.effective_on)
-        end
-      end
+    end
 
+    def add_trade_rate_requirement(dates_by_pair, trade)
+      base_currency = trade.explicit_settlement_conversion? ? trade.settlement_currency : trade.currency
+      add_date(dates_by_pair, base_currency, trade.traded_on)
+    end
+
+    def add_action_rate_requirement(dates_by_pair, action)
+      return unless action.cash_action? || action.cash_in_lieu?
+
+      date = action.cash_action? ? action.performance_on : action.effective_on
+      add_date(dates_by_pair, action.currency, date)
+    end
+
+    def build_rate_requirements(dates_by_pair)
       dates_by_pair.map do |(base_currency, quote_currency), dates|
-        RateRequirement.new(
-          base_currency:, quote_currency:, dates: dates.to_a.sort
-        )
+        RateRequirement.new(base_currency:, quote_currency:, dates: dates.to_a.sort)
       end
     end
 
@@ -152,21 +180,30 @@ module Performance
     end
 
     def open_position_dates(target_instrument)
-      instrument_trades = trades.select { |trade| trade.instrument == target_instrument }
+      instrument_trades = trades_for_instrument(target_instrument)
       return [] if instrument_trades.empty?
 
-      instrument_actions = actions.select do |action|
-        action.instrument == target_instrument && action.quantity_action?
-      end
-      quantities = Position::Calculator.quantity_timeline(
-        trades: instrument_trades,
-        corporate_actions: instrument_actions,
-        amount_for: ->(trade) { trade.total_amount },
-        cash_in_lieu_amount_for: ->(action) { action.cash_in_lieu_amount.to_d }
-      )
+      quantities = quantity_timeline_for(target_instrument, instrument_trades)
       open_dates_from_timeline(instrument_trades.first.traded_on, quantities)
     rescue Position::InvalidLongOnlyData, Position::InvalidQuantityActionData
       open_dates_from_trades(instrument_trades)
+    end
+
+    def trades_for_instrument(target_instrument)
+      trades.select { |trade| trade.instrument == target_instrument }
+    end
+
+    def quantity_timeline_for(target_instrument, instrument_trades)
+      Position::Calculator.quantity_timeline(
+        trades: instrument_trades,
+        corporate_actions: quantity_actions_for(target_instrument),
+        amount_for: ->(trade) { trade.total_amount },
+        cash_in_lieu_amount_for: ->(action) { action.cash_in_lieu_amount.to_d }
+      )
+    end
+
+    def quantity_actions_for(target_instrument)
+      actions.select { |action| action.instrument == target_instrument && action.quantity_action? }
     end
 
     def open_dates_from_timeline(start_date, quantities)
@@ -227,7 +264,7 @@ module Performance
     end
 
     def wait_for_requirement(requirement)
-      if requirement.is_a?(PriceRequirement)
+      if requirement.price?
         throttle&.wait!(instrument: requirement.instrument)
       else
         throttle&.wait!
@@ -235,7 +272,7 @@ module Performance
     end
 
     def import_range(requirement, range, fence:, generation:)
-      if requirement.is_a?(PriceRequirement)
+      if requirement.price?
         price_importer.call(
           instrument: requirement.instrument, from: range.begin, to: range.end,
           enqueue_performance_rebuild: false, fence:, generation:
@@ -250,7 +287,7 @@ module Performance
     end
 
     def publication_fence_for(requirement)
-      target = if requirement.is_a?(PriceRequirement)
+      target = if requirement.price?
         MarketData::Target.new(kind: :daily_closing_prices, record_id: requirement.instrument.id,
           provider: PRICE_PROVIDER)
       else
@@ -283,7 +320,7 @@ module Performance
     end
 
     def observed_dates_for(requirement)
-      if requirement.is_a?(PriceRequirement)
+      if requirement.price?
         price_observed_dates(requirement)
       else
         rate_observed_dates(requirement)
@@ -370,7 +407,7 @@ module Performance
     end
 
     def label_for(requirement)
-      return "#{requirement.instrument.ticker} historical closing prices" if requirement.is_a?(PriceRequirement)
+      return "#{requirement.instrument.ticker} historical closing prices" if requirement.price?
 
       "#{requirement.base_currency}/#{requirement.quote_currency} historical exchange rates"
     end

@@ -25,29 +25,8 @@ module CorporateActionImports
 
     def call
       validate_range!
-      imports = []
-      errors = []
-      created_count = 0
-      instruments.each do |current_instrument|
-        begin
-          ensure_current_run!
-          fetch_from = [ from, trades_for(current_instrument).first.traded_on ].max
-          @provider.fetch(instrument: current_instrument, from: fetch_from, to:).each do |candidate|
-            next unless candidate_has_position?(current_instrument, candidate)
-
-            import, created = persist_candidate_with_fence(current_instrument, candidate)
-            imports << import
-            created_count += 1 if created
-          end
-        rescue Superseded
-          raise
-        rescue StandardError => error
-          raise if strict
-
-          errors << { instrument: current_instrument, error: error }
-        end
-      end
-      Result.new(from:, to:, source:, imports:, errors:, created_count:)
+      result = scan_instruments
+      Result.new(from:, to:, source:, **result)
     end
 
     private
@@ -55,6 +34,42 @@ module CorporateActionImports
     attr_reader :user, :from, :to, :source, :instrument, :provider, :fence
 
     def strict = @strict
+
+    def scan_instruments
+      imports = []
+      errors = []
+      created_count = 0
+      instruments.each do |current_instrument|
+        scan_instrument(current_instrument, imports, errors) { created_count += 1 }
+      end
+      { imports:, errors:, created_count: }
+    end
+
+    def scan_instrument(current_instrument, imports, errors)
+      ensure_current_run!
+      persist_candidates(current_instrument, imports) { yield }
+    rescue Superseded
+      raise
+    rescue StandardError => error
+      raise if strict
+
+      errors << { instrument: current_instrument, error: error }
+    end
+
+    def fetch_candidates(current_instrument)
+      fetch_from = [ from, trades_for(current_instrument).first.traded_on ].max
+      @provider.fetch(instrument: current_instrument, from: fetch_from, to:)
+    end
+
+    def persist_candidates(current_instrument, imports)
+      fetch_candidates(current_instrument).each do |candidate|
+        next unless candidate_has_position?(current_instrument, candidate)
+
+        import, created = persist_candidate_with_fence(current_instrument, candidate)
+        imports << import
+        yield if created
+      end
+    end
 
     def ensure_current_run!
       return unless fence
@@ -64,14 +79,20 @@ module CorporateActionImports
     end
 
     def instruments
-      if instrument
-        unless user.trades.where(instrument_id: instrument.id, traded_on: ..to).exists?
-          raise ArgumentError, "instrument is not traded by this owner"
-        end
+      return targeted_instrument if instrument
 
-        return [ instrument ]
+      traded_instruments
+    end
+
+    def targeted_instrument
+      unless user.trades.where(instrument_id: instrument.id, traded_on: ..to).exists?
+        raise ArgumentError, "instrument is not traded by this owner"
       end
 
+      [ instrument ]
+    end
+
+    def traded_instruments
       instrument_ids = user.trades.where(traded_on: ..to).distinct.pluck(:instrument_id)
       Instrument.where(id: instrument_ids).alphabetical.to_a
     end
@@ -159,6 +180,13 @@ module CorporateActionImports
         candidate_changed?(import, current_instrument, candidate)
       preserve_review = import.confirmed? || import.ignored? || manually_reviewed
       warnings = assign_candidate(import, current_instrument, candidate, preserve_review:)
+      apply_import_status(import, previous_status:, preserve_review:, changed_after_review:, warnings:)
+      import.reviewed_at = nil if was_new
+      import.save!
+      [ import, was_new ]
+    end
+
+    def apply_import_status(import, previous_status:, preserve_review:, changed_after_review:, warnings:)
       if changed_after_review
         import.status = :conflict
         import.failure_message = "The provider payload changed after review; review it explicitly."
@@ -171,65 +199,81 @@ module CorporateActionImports
         import.status = warnings.include?("multiple_institutions") ? :ambiguous : :pending
         import.failure_message = nil
       end
-      import.reviewed_at = nil if was_new
-      import.save!
-      [ import, was_new ]
     end
 
     def assign_candidate(import, current_instrument, candidate, preserve_review: false)
       institution, institution_warning = institution_match_for(current_instrument)
-      duplicate_warning = manual_duplicate_warning_for(current_instrument, candidate)
+      assign_instrument_attributes(import, current_instrument, institution, candidate, preserve_review:)
+      warnings = candidate_warnings(current_instrument, candidate, institution_warning)
+      import.warning_list = warnings
+      warnings
+    end
+
+    def assign_instrument_attributes(import, current_instrument, institution, candidate, preserve_review:)
+      assign_import_identity(import, current_instrument, institution, preserve_review:)
+      assign_provider_attributes(import, candidate)
+      assign_candidate_values(import, candidate) unless preserve_review
+      assign_candidate_payload(import, candidate)
+    end
+
+    def assign_import_identity(import, current_instrument, institution, preserve_review:)
       import.instrument = current_instrument
       import.institution = institution unless preserve_review
       import.source = source
+    end
+
+    def assign_provider_attributes(import, candidate)
       import.provider_symbol = candidate.provider_symbol
       import.provider_exchange = candidate.provider_exchange
       import.amount_per_share = candidate.amount_per_share&.to_s("F")
-      unless preserve_review
-        import.kind = candidate.kind
-        import.event_on = candidate.event_on
-        import.ex_date = candidate.cash_action? ? candidate.event_on : nil
-        import.paid_on = nil
-        import.gross_amount_cents = nil
-        import.withholding_tax_cents = nil
-        import.net_amount_cents = nil
-        import.ratio_numerator = candidate.ratio_numerator
-        import.ratio_denominator = candidate.ratio_denominator
-      end
+    end
+
+    def assign_candidate_payload(import, candidate)
       import.currency = candidate.currency
       import.normalized_candidate = normalized_candidate(candidate)
       import.raw_payload_hash = candidate.raw_payload
-      warnings = candidate.warnings + [ institution_warning, duplicate_warning ].compact
-      import.warning_list = warnings
-      warnings
+    end
+
+    def assign_candidate_values(import, candidate)
+      import.kind = candidate.kind
+      import.event_on = candidate.event_on
+      import.ex_date = candidate.cash_action? ? candidate.event_on : nil
+      assign_empty_cash_amounts(import)
+      assign_candidate_ratio(import, candidate)
+    end
+
+    def assign_empty_cash_amounts(import)
+      import.paid_on = nil
+      import.gross_amount_cents = nil
+      import.withholding_tax_cents = nil
+      import.net_amount_cents = nil
+    end
+
+    def assign_candidate_ratio(import, candidate)
+      import.ratio_numerator = candidate.ratio_numerator
+      import.ratio_denominator = candidate.ratio_denominator
+    end
+
+    def candidate_warnings(current_instrument, candidate, institution_warning)
+      duplicate_warning = manual_duplicate_warning_for(current_instrument, candidate)
+      candidate.warnings + [ institution_warning, duplicate_warning ].compact
     end
 
     def manual_duplicate_warning_for(current_instrument, candidate)
       return unless candidate.event_on
 
-      key = [ normalized_action_kind(candidate.kind), candidate.event_on ]
-      "possible_duplicate" if manual_action_keys_for(current_instrument).key?(key)
+      "possible_duplicate" if manual_action_index_for(current_instrument).include?(
+        kind: candidate.kind, date: candidate.event_on
+      )
     end
 
-    def manual_action_keys_for(current_instrument)
-      @manual_action_keys_by_instrument ||= {}
-      @manual_action_keys_by_instrument.fetch(current_instrument.id) do
-        keys = user.corporate_actions.where(
-          instrument: current_instrument, source: "manual"
-        ).where.not(status: :reversed).pluck(:kind, :effective_on, :ex_date, :paid_on).each_with_object({}) do |row, result|
-          kind, effective_on, ex_date, paid_on = row
-          [ effective_on, ex_date, paid_on ].compact.uniq.each do |date|
-            result[[ normalized_action_kind(kind), date ]] = true
-          end
-        end
-        @manual_action_keys_by_instrument[current_instrument.id] = keys
+    def manual_action_index_for(current_instrument)
+      @manual_action_indices ||= {}
+      @manual_action_indices.fetch(current_instrument.id) do
+        @manual_action_indices[current_instrument.id] = ManualActionIndex.new(
+          user:, instrument: current_instrument
+        )
       end
-    end
-
-    def normalized_action_kind(kind)
-      return "split" if CorporateActionImport.stock_split_kind?(kind)
-
-      kind.to_s
     end
 
     def normalized_candidate(candidate)

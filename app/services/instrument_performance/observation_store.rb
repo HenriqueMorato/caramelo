@@ -1,5 +1,7 @@
 module InstrumentPerformance
   class ObservationStore
+    include Performance::ObservationStoreSupport
+
     UNIQUE_INDEX = "index_instrument_performance_observations_uniqueness"
     MONETARY_ATTRIBUTES = %i[
       market_value_amount cost_basis_amount realized_gain_amount
@@ -10,18 +12,6 @@ module InstrumentPerformance
       @user = user
       @instrument = instrument
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
-    end
-
-    def read(from:, to:)
-      scope.for_range(from:, to:).index_by(&:observed_on)
-    end
-
-    def stale_from(observed_on)
-      scope.where(observed_on: observed_on..).update_all(stale_at: Time.current, updated_at: Time.current)
-    end
-
-    def delete_all
-      scope.delete_all
     end
 
     def write(valuation, source_generation: 0, generated_at: Time.current)
@@ -74,19 +64,8 @@ module InstrumentPerformance
       }
     end
 
-    def cash_flow_attributes(cash_flows)
-      {
-        cash_flow_total: cash_flows.sum { |flow| flow.amount.to_r }.to_r.to_s,
-        dated_cash_flow_total: cash_flows.sum { |flow| flow.amount.to_r * flow.occurred_on.jd }.to_r.to_s
-      }
-    end
-
     def observation_status(valuation)
       valuation.status.to_sym == :empty ? :empty : valuation.status
-    end
-
-    def serialize_decimal(value)
-      value&.to_d&.to_s("F")
     end
   end
 end

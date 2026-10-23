@@ -1,9 +1,9 @@
 class CorporateAction < ApplicationRecord
-  extend FriendlyId
+  include RandomSlugCandidates
+
+  RANDOM_SLUG_PREFIX = "evt"
 
   RATIO_INTEGER_MAX = (2**63) - 1
-
-  friendly_id :slug_candidates, use: :slugged
 
   belongs_to :user
   belongs_to :instrument
@@ -144,14 +144,6 @@ class CorporateAction < ApplicationRecord
     self.ratio_numerator = nil
     self.ratio_denominator = nil
     errors.add(:bonus_percentage, :invalid_percentage)
-  end
-
-  def slug_candidates
-    [ generate_reference_code, generate_reference_code ]
-  end
-
-  def generate_reference_code
-    "evt-#{SecureRandom.base58(12).downcase}"
   end
 
   def amounts_reconcile

@@ -1,5 +1,7 @@
 class DailyClosingPrice
-  class Importer
+  class Importer < MarketData::ObservationImporter
+    include MarketData::ObservationPersistence
+
     def self.default
       new(provider: Providers::YahooFinance.new)
     end
@@ -9,34 +11,28 @@ class DailyClosingPrice
     end
 
     def call(instrument:, from:, to:, enqueue_performance_rebuild: true, fence: nil, generation: nil)
-      raise ArgumentError, "from must be on or before to" if from > to
-
-      generation ||= fence&.capture
       @instrument = instrument
-      @from = from
-      @to = to
-      @observations = provider.fetch(instrument:, from:, to:)
-      validate_observations!
-      counts = if fence
-        result = nil
-        return Result.new(from:, to:, observations:, missing_dates: expected_dates - observations.map(&:trading_date),
-          created_count: 0, updated_count: 0) if fence.publish(generation) { result = persist_with_invalidation } == :superseded
+      super(from:, to:, enqueue_performance_rebuild:, fence:, generation:)
+    end
 
-        result
-      else
-        persist_with_invalidation
-      end
-      enqueue_performance_observations if enqueue_performance_rebuild
+    private
 
+    attr_reader :provider, :instrument
+
+    def validate_request!(from:, to:)
+      raise ArgumentError, "from must be on or before to" if from > to
+    end
+
+    def fetch_observations
+      provider.fetch(instrument:, from:, to:)
+    end
+
+    def result_for(counts:)
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:trading_date),
         created_count: counts.fetch(:created), updated_count: counts.fetch(:updated)
       )
     end
-
-    private
-
-    attr_reader :provider, :instrument, :from, :to, :observations, :performance_users
 
     def persist_with_invalidation
       DailyClosingPrice.transaction do
@@ -100,18 +96,9 @@ class DailyClosingPrice
 
     def persist_observation(record, observation)
       observation => { instrument:, trading_date:, provider:, close_price:, currency:, observed_at: }
-      created = record.new_record?
-      record.update!(
-        close_price:, currency:, observed_at:
-      )
-      created ? :created : :updated
-    rescue ActiveRecord::RecordNotUnique
-      DailyClosingPrice.find_by!(
-        instrument:, trading_date:, provider:
-      ).update!(
-        close_price:, currency:, observed_at:
-      )
-      :updated
+      persist_record(record, attributes: { close_price:, currency:, observed_at: }) do
+        DailyClosingPrice.find_by!(instrument:, trading_date:, provider:)
+      end
     end
   end
 end

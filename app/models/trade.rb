@@ -1,7 +1,7 @@
 class Trade < ApplicationRecord
-  extend FriendlyId
+  include RandomSlugCandidates
 
-  friendly_id :slug_candidates, use: :slugged
+  RANDOM_SLUG_PREFIX = "txn"
 
   PERFORMANCE_INPUTS = %w[
     user_id instrument_id side traded_on quantity unit_price fees_cents currency
@@ -67,14 +67,6 @@ class Trade < ApplicationRecord
   end
 
   private
-
-  def slug_candidates
-    [ generate_reference_code, generate_reference_code ]
-  end
-
-  def generate_reference_code
-    "txn-#{SecureRandom.base58(12).downcase}"
-  end
 
   def synchronize_settlement_currency
     if settlement_exchange_rate.present?

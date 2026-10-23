@@ -1,7 +1,7 @@
 class CorporateActionImport < ApplicationRecord
-  extend FriendlyId
+  include RandomSlugCandidates
 
-  friendly_id :slug_candidates, use: :slugged
+  RANDOM_SLUG_PREFIX = "imp"
 
   belongs_to :user
   belongs_to :instrument, optional: true
@@ -139,14 +139,6 @@ class CorporateActionImport < ApplicationRecord
   end
 
   private
-
-  def slug_candidates
-    [ generate_reference_code, generate_reference_code ]
-  end
-
-  def generate_reference_code
-    "imp-#{SecureRandom.base58(12).downcase}"
-  end
 
   def parse_json(value, fallback:)
     parsed = JSON.parse(value.presence || (fallback.is_a?(Array) ? "[]" : "{}"))

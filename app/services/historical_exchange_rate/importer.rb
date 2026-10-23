@@ -1,5 +1,7 @@
 class HistoricalExchangeRate
-  class Importer
+  class Importer < MarketData::ObservationImporter
+    include MarketData::ObservationPersistence
+
     def self.default
       new(provider: Providers::YahooFinance.new)
     end
@@ -9,35 +11,34 @@ class HistoricalExchangeRate
     end
 
     def call(base_currency:, quote_currency:, from:, to:, enqueue_performance_rebuild: true, fence: nil, generation: nil)
-      validate_range!(from:, to:)
-      generation ||= fence&.capture
       @base_currency = normalize_currency(base_currency)
       @quote_currency = normalize_currency(quote_currency)
-      raise ArgumentError, "currencies must differ" if @base_currency == @quote_currency
-      @from = from
-      @to = to
-      @observations = provider.fetch(base_currency: @base_currency, quote_currency: @quote_currency, from:, to:)
-      validate_observations!
-      counts = if fence
-        result = nil
-        return Result.new(from:, to:, observations:, missing_dates: expected_dates - observations.map(&:rate_date),
-          created_count: 0, updated_count: 0) if fence.publish(generation) { result = persist_with_invalidation } == :superseded
+      super(from:, to:, enqueue_performance_rebuild:, fence:, generation:)
+    end
 
-        result
-      else
-        persist_with_invalidation
-      end
-      enqueue_performance_observations if enqueue_performance_rebuild && observations.present?
+    private
 
+    attr_reader :provider, :base_currency, :quote_currency
+
+    def validate_request!(from:, to:)
+      validate_range!(from:, to:)
+      raise ArgumentError, "currencies must differ" if base_currency == quote_currency
+    end
+
+    def fetch_observations
+      provider.fetch(base_currency:, quote_currency:, from:, to:)
+    end
+
+    def result_for(counts:)
       Result.new(
         from:, to:, observations:, missing_dates: expected_dates - observations.map(&:rate_date),
         created_count: counts.fetch(:created), updated_count: counts.fetch(:updated)
       )
     end
 
-    private
-
-    attr_reader :provider, :base_currency, :quote_currency, :from, :to, :observations, :performance_users
+    def should_enqueue_performance_rebuild?
+      observations.present?
+    end
 
     def validate_range!(from:, to:)
       unless from.is_a?(Date) && to.is_a?(Date)
@@ -91,30 +92,30 @@ class HistoricalExchangeRate
       end
     end
 
-    def persist_observation(record, observation)
-      created = record.new_record?
-      record.update!(rate: observation.rate, observed_at: observation.observed_at, fetched_at: observation.fetched_at)
-      created ? :created : :updated
-    rescue ActiveRecord::RecordNotUnique
-      HistoricalExchangeRate.find_by!(
-        base_currency: observation.base_currency, quote_currency: observation.quote_currency,
-        rate_date: observation.rate_date, provider: observation.provider
-      ).update!(rate: observation.rate, observed_at: observation.observed_at, fetched_at: observation.fetched_at)
-      :updated
-    end
-
     def expected_dates
       TradingCalendar.weekdays_between(from, to)
+    end
+
+    def persist_observation(record, observation)
+      persist_record(
+        record,
+        attributes: { rate: observation.rate, observed_at: observation.observed_at, fetched_at: observation.fetched_at }
+      ) do
+        HistoricalExchangeRate.find_by!(
+          base_currency: observation.base_currency, quote_currency: observation.quote_currency,
+          rate_date: observation.rate_date, provider: observation.provider
+        )
+      end
     end
 
     def mark_performance_observations_stale
       return [] if observations.empty?
 
-      users = affected_users.to_a
+      users = performance_targets.users
       users.each do |user|
         Performance::ObservationInvalidator.mark!(user:, from: earliest_observation_date)
       end
-      affected_instrument_targets.each do |user, instrument, reporting_currency|
+      performance_targets.instrument_targets.each do |user, instrument, reporting_currency|
         Performance::ObservationInvalidator.mark_instrument!(
           user:, instrument:, reporting_currency:, from: earliest_observation_date
         )
@@ -128,7 +129,7 @@ class HistoricalExchangeRate
         result = Performance::ObservationInvalidator.enqueue(user:, from: earliest_observation_date)
         failures << [ :portfolio, user.id ] if result == :failed
       end
-      affected_instrument_targets.each do |user, instrument, reporting_currency|
+      performance_targets.instrument_targets.each do |user, instrument, reporting_currency|
         result = Performance::ObservationInvalidator.enqueue_instrument(
           user:, instrument:, reporting_currency:, from: earliest_observation_date
         )
@@ -143,64 +144,10 @@ class HistoricalExchangeRate
       observations.map(&:rate_date).min
     end
 
-    def affected_users
-      # Valuation can resolve either the direct rate or its inverse.
-      currencies = [ base_currency, quote_currency ]
-      trade_user_ids = Trade.where(currency: currencies)
-        .or(Trade.where(settlement_currency: currencies)).distinct.pluck(:user_id)
-      income_user_ids = CorporateAction.effective_on_or_before(Date.current).joins(:instrument)
-        .where(
-          "corporate_actions.currency IN (:currencies) OR instruments.currency IN (:currencies)",
-          currencies: currencies
-        ).distinct.pluck(:user_id)
-      User.where(id: trade_user_ids | income_user_ids)
-    end
-
-    def affected_instrument_targets
-      @affected_instrument_targets ||= affected_users.flat_map do |user|
-        affected_targets_for_user(user)
-      end
-    end
-
-    def affected_targets_for_user(user)
-      trades = user.trades.includes(:instrument).to_a
-      income = user.corporate_actions.effective_on_or_before(Date.current).includes(:instrument).to_a
-      instruments = (trades.map(&:instrument) + income.map(&:instrument)).uniq
-      trades_by_instrument = trades.group_by(&:instrument_id)
-      income_by_instrument = income.group_by(&:instrument_id)
-      instruments.flat_map do |instrument|
-        affected_targets_for_instrument(
-          user:, instrument:, trades: trades_by_instrument.fetch(instrument.id, []),
-          income: income_by_instrument.fetch(instrument.id, [])
-        )
-      end
-    end
-
-    def affected_targets_for_instrument(user:, instrument:, trades:, income:)
-      dependencies = instrument_dependencies(instrument, trades:, income:)
-      instrument_target_currencies(user:, instrument:).filter_map do |reporting_currency|
-        next unless dependencies.any? { |dependency| affected_pair?(dependency, reporting_currency) }
-
-        [ user, instrument, reporting_currency ]
-      end
-    end
-
-    def instrument_dependencies(instrument, trades:, income:)
-      [
-        instrument.currency,
-        *trades.filter_map(&:settlement_currency),
-        *income.filter_map(&:currency)
-      ].uniq
-    end
-
-    def instrument_target_currencies(user:, instrument:)
-      materialized = user.instrument_performance_materializations.where(instrument:).pluck(:reporting_currency)
-      materialized | [ instrument.currency, user.reporting_currency ]
-    end
-
-    def affected_pair?(instrument_currency, reporting_currency)
-      instrument_currency != reporting_currency &&
-        [ instrument_currency, reporting_currency ].sort == [ base_currency, quote_currency ].sort
+    def performance_targets
+      @performance_targets ||= PerformanceTargets.new(
+        base_currency:, quote_currency:
+      )
     end
 
     def normalize_currency(currency)

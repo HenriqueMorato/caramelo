@@ -1,22 +1,12 @@
 module Performance
   class ObservationStore
+    include ObservationStoreSupport
+
     UNIQUE_INDEX = "index_portfolio_performance_observations_uniqueness"
 
     def initialize(user:, reporting_currency: user.reporting_currency)
       @user = user
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
-    end
-
-    def read(from:, to:)
-      scope.for_range(from:, to:).index_by(&:observed_on)
-    end
-
-    def stale_from(observed_on)
-      scope.where(observed_on: observed_on..).update_all(stale_at: Time.current, updated_at: Time.current)
-    end
-
-    def delete_all
-      scope.delete_all
     end
 
     def write(valuation, source_generation: 0, generated_at: Time.current)
@@ -41,8 +31,7 @@ module Performance
         reporting_currency:,
         market_value_amount: serialize_decimal(valuation.market_value_amount),
         net_cash_flow_amount: serialize_decimal(valuation.net_cash_flow_amount),
-        cash_flow_total: valuation.cash_flows.sum { |flow| flow.amount.to_r }.to_r.to_s,
-        dated_cash_flow_total: valuation.cash_flows.sum { |flow| flow.amount.to_r * flow.occurred_on.jd }.to_r.to_s,
+        **cash_flow_attributes(valuation.cash_flows),
         status: valuation.status,
         source_generation:,
         generated_at:,
@@ -50,12 +39,6 @@ module Performance
         created_at: generated_at,
         updated_at: generated_at
       }
-    end
-
-    def serialize_decimal(value)
-      return if value.nil?
-
-      value.to_d.to_s("F")
     end
   end
 end
