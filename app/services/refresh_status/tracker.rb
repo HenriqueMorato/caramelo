@@ -3,8 +3,9 @@ module RefreshStatus
     def self.enqueue(scope:, total_count: nil, run_id: nil, supersede: false)
       explicit_run_id = run_id.present?
       current = State.read(scope)
-      return current if explicit_run_id && !supersede && current && current.run_id != run_id
-      return current if explicit_run_id && current&.run_id == run_id && current.status == "succeeded"
+      current_run_id = current&.run_id
+      return current if explicit_run_id && !supersede && current && current_run_id != run_id
+      return current if explicit_run_id && current_run_id == run_id && current.status == "succeeded"
 
       run_id ||= SecureRandom.uuid
       completed = total_count == 0
@@ -18,7 +19,8 @@ module RefreshStatus
 
     def self.perform(scope:, total_count: nil, preserve_progress: false, run_id: nil)
       existing = State.read(scope)
-      return existing if run_id && existing && existing.run_id != run_id
+      existing_run_id = existing&.run_id
+      return existing if run_id && existing && existing_run_id != run_id
       return existing if run_id && existing&.status == "succeeded"
 
       if preserve_progress && existing
@@ -43,15 +45,17 @@ module RefreshStatus
 
       processed_count = latest.processed_count + 1
       failed = latest.failed?
-      latest = if latest.total_count && processed_count >= latest.total_count && !failed
+      total_count = latest.total_count
+      completed = total_count && processed_count >= total_count && !failed
+      latest = if completed
         write(latest, status: "succeeded", finished_at: Time.current, processed_count:)
       else
         write(latest, processed_count:)
       end
       return refresh unless latest
 
-      broadcast(latest, health: latest.finished_at.present? && !failed,
-        progress_only: latest.finished_at.nil? || failed)
+      finished = latest.finished_at.present?
+      broadcast(latest, health: finished && !failed, progress_only: !finished || failed)
     end
 
     def self.record_failure(refresh, error)
@@ -74,16 +78,17 @@ module RefreshStatus
     end
 
     def self.write(refresh, **attributes)
+      run_id = refresh.run_id
       State.write(
         scope: refresh.scope,
-        run_id: refresh.run_id,
+        run_id:,
         status: attributes.fetch(:status, refresh.status),
         started_at: attributes.fetch(:started_at, refresh.started_at),
         finished_at: attributes.fetch(:finished_at, refresh.finished_at),
         error_class: attributes.fetch(:error_class, refresh.error_class),
         error_message: attributes.fetch(:error_message, refresh.error_message),
         processed_count: attributes.fetch(:processed_count, refresh.processed_count),
-        total_count: attributes.fetch(:total_count, refresh.total_count), expected_run_id: refresh.run_id
+        total_count: attributes.fetch(:total_count, refresh.total_count), expected_run_id: run_id
       )
     end
 
@@ -115,7 +120,8 @@ module RefreshStatus
       refresh = current_state(refresh)
       return unless refresh
 
-      completed = refresh.total_count.nil? || refresh.processed_count >= refresh.total_count
+      total_count = refresh.total_count
+      completed = total_count.nil? || refresh.processed_count >= total_count
       if completed && !refresh.failed?
         refresh = write(refresh, status: "succeeded", finished_at: Time.current)
         return unless refresh
