@@ -1,0 +1,55 @@
+<%# locals: (investment_goal:) %>
+
+<% target_amount_errors = investment_goal.errors.full_messages_for(:target_amount) %>
+<% target_on_errors = investment_goal.errors.full_messages_for(:target_on) %>
+<% first_error_attribute = investment_goal.errors.attribute_names.first %>
+
+<%= form_with model: investment_goal, class: "space-y-6",
+              data: {
+                controller: "form-state",
+                form_state_discard_value: t("investment_goals.form.Discard changes"),
+                form_state_dirty_value: investment_goal.errors.any?,
+                action: "input->form-state#markDirty change->form-state#markDirty turbo:submit-start->form-state#submit turbo:submit-end->form-state#submitted turbo:before-visit@window->form-state#confirmNavigation beforeunload@window->form-state#beforeUnload"
+              } do |form| %>
+  <% if investment_goal.errors.any? %>
+    <div class="ui-form-errors" role="alert">
+      <p class="font-semibold"><%= t("forms.Could not save", count: investment_goal.errors.count, model: InvestmentGoal.model_name.human.downcase) %></p>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% investment_goal.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :target_amount, class: "block text-sm font-semibold text-coffee" %>
+    <p id="investment-goal-target-help" class="mt-1 text-sm leading-6 text-muted"><%= t("investment_goals.form.Target amount help", currency: investment_goal.reporting_currency) %></p>
+    <%= form.number_field :target_amount, value: investment_goal.target_amount&.to_s("F"), required: true,
+      min: "0.01", step: "0.01", inputmode: "decimal", autofocus: first_error_attribute == :target_amount,
+      class: [ "ui-field", { "ui-field-invalid": target_amount_errors.any? } ],
+      aria: { invalid: target_amount_errors.any?,
+        describedby: [ "investment-goal-target-help", ("investment-goal-target-error" if target_amount_errors.any?) ].compact.join(" ") } %>
+    <% if target_amount_errors.any? %>
+      <p id="investment-goal-target-error" class="mt-2 text-sm text-guava" role="alert"><%= target_amount_errors.to_sentence %></p>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.label :target_on, class: "block text-sm font-semibold text-coffee" %>
+    <p id="investment-goal-date-help" class="mt-1 text-sm leading-6 text-muted"><%= t("investment_goals.form.Target date help") %></p>
+    <%= form.date_field :target_on, min: Date.current, autofocus: first_error_attribute == :target_on,
+      class: [ "ui-field", { "ui-field-invalid": target_on_errors.any? } ],
+      aria: { invalid: target_on_errors.any?,
+        describedby: [ "investment-goal-date-help", ("investment-goal-date-error" if target_on_errors.any?) ].compact.join(" ") } %>
+    <% if target_on_errors.any? %>
+      <p id="investment-goal-date-error" class="mt-2 text-sm text-guava" role="alert"><%= target_on_errors.to_sentence %></p>
+    <% end %>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <%= form.submit(investment_goal.persisted? ? t("investment_goals.form.Update") : t("investment_goals.form.Create"),
+      class: "ui-button ui-button-primary cursor-pointer", data: { turbo_submits_with: t("investment_goals.form.Saving") }) %>
+    <%= link_to t("actions.Cancel"), investment_goals_path, class: "ui-button ui-button-secondary" %>
+  </div>
+<% end %>

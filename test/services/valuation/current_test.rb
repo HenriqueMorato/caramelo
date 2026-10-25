@@ -11,6 +11,7 @@ class Valuation::CurrentTest < ActiveSupport::TestCase
     result = Valuation::Current.for(position:, market_price:, exchange_rate_service:)
 
     assert_equal Money.from_amount(250, "USD"), result.market_value
+    assert_equal BigDecimal("250"), result.market_value_amount
     assert_predicate result, :same_currency?
     assert_empty exchange_rate_service.requests
   end
@@ -40,6 +41,7 @@ class Valuation::CurrentTest < ActiveSupport::TestCase
     result = Valuation::Current.for(position:, market_price:, exchange_rate_service:)
 
     assert_equal Money.from_amount(1_250, "BRL"), result.market_value
+    assert_equal BigDecimal("1250"), result.market_value_amount
     assert_predicate result, :available?
     assert_equal [ [ "USD", "BRL" ] ], exchange_rate_service.requests
   end

@@ -19,6 +19,7 @@ class BackupTest < ActiveSupport::TestCase
     CorporateActionImportScan.delete_all
     CorporateActionImport.delete_all
     CorporateAction.delete_all
+    InvestmentGoal.delete_all
     Instrument.where(id: @scan_instrument_id).delete_all if @scan_instrument_id
   end
 
@@ -85,6 +86,15 @@ class BackupTest < ActiveSupport::TestCase
 
     assert_equal 1, counts.fetch("corporate_actions")
     assert_equal 1, counts.fetch("corporate_action_imports")
+  end
+
+  test "keeps investment goals in the durable ledger artifact" do
+    User.owner.investment_goals.create!(target_amount: "1000000")
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    counts = Backup::Verifier.call(directory: result.directory).record_counts.fetch("ledger")
+
+    assert_equal 1, counts.fetch("investment_goals")
   end
 
   test "keeps custom asset type labels in the durable ledger artifact" do

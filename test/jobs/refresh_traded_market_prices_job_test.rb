@@ -63,6 +63,23 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     assert_not User.owner.trades.exists?(instrument: untraded_instrument)
   end
 
+  test "supersedes an older per-instrument refresh run" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    old_state = RefreshStatus::Tracker.enqueue(
+      scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument), run_id: "old-run"
+    )
+
+    RefreshTradedMarketPricesJob.new.perform
+
+    job = enqueued_jobs.find { |entry| entry[:job] == RefreshCurrentMarketPriceJob }
+    state = RefreshStatus::State.read(old_state.scope)
+
+    assert_not_nil job
+    assert_not_equal "old-run", state.run_id
+    assert_equal job[:args].last.stringify_keys["batch_run_id"], state.run_id
+  end
+
   test "handles a representative 45-instrument refresh without duplicate jobs" do
     baseline_ids = User.owner.trades.distinct.pluck(:instrument_id)
     instruments = 45.times.map do |index|

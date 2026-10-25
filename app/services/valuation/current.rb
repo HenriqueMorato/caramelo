@@ -1,6 +1,6 @@
 module Valuation
   class Current
-    Result = Data.define(:market_value, :status, :exchange_rate_lookup) do
+    Result = Data.define(:market_value, :market_value_amount, :status, :exchange_rate_lookup) do
       def available? = market_value.present?
       def stale? = status == :stale
       def missing? = status == :missing
@@ -26,7 +26,7 @@ module Valuation
       native_amount = quote.valuation_amount_for(position.quantity)
       if quote.currency == reporting_currency
         return Result.new(
-          market_value: Money.from_amount(native_amount, reporting_currency),
+          market_value: Money.from_amount(native_amount, reporting_currency), market_value_amount: native_amount,
           status: market_price.stale? ? :stale : :same_currency,
           exchange_rate_lookup: nil
         )
@@ -37,6 +37,7 @@ module Valuation
 
       Result.new(
         market_value: Money.from_amount(native_amount * rate_lookup.exchange_rate.rate, reporting_currency),
+        market_value_amount: native_amount * rate_lookup.exchange_rate.rate,
         status: market_price.stale? || rate_lookup.stale? ? :stale : :current,
         exchange_rate_lookup: rate_lookup
       )
@@ -47,7 +48,7 @@ module Valuation
     attr_reader :position, :market_price, :exchange_rate_service, :reporting_currency
 
     def missing_result(exchange_rate_lookup = nil)
-      Result.new(market_value: nil, status: :missing, exchange_rate_lookup:)
+      Result.new(market_value: nil, market_value_amount: nil, status: :missing, exchange_rate_lookup:)
     end
   end
 end

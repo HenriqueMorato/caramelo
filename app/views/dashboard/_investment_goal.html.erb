@@ -1,0 +1,103 @@
+<%# locals: (goals:, progresses:) %>
+
+<% if goals.blank? %>
+  <section class="ui-card border-dashed p-6 sm:p-7" aria-labelledby="investment-goal-empty-heading">
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div class="max-w-2xl">
+        <p class="ui-eyebrow"><%= t("investment_goals.dashboard.Eyebrow") %></p>
+        <h2 id="investment-goal-empty-heading" class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee">
+          <%= t("investment_goals.dashboard.Empty heading") %>
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-muted"><%= t("investment_goals.dashboard.Empty explanation") %></p>
+      </div>
+      <%= link_to t("investment_goals.dashboard.Set goal"), new_investment_goal_path,
+        class: "ui-button ui-button-secondary shrink-0" %>
+    </div>
+  </section>
+<% else %>
+  <div
+    class="grid grid-cols-1 gap-4<%= " lg:grid-cols-2" if goals.length > 1 %>"
+    role="group"
+    aria-label="<%= t("investment_goals.dashboard.Eyebrow") %>"
+  >
+    <% goals.each do |goal| %>
+      <% progress = progresses.fetch(goal.id) %>
+      <% if progress&.available? %>
+        <% percentage = progress.percentage.clamp(BigDecimal("0"), BigDecimal("100")) %>
+        <section
+          class="ui-card relative h-full overflow-visible p-6 sm:p-7"
+          aria-labelledby="investment-goal-heading-<%= goal.id %>"
+          data-goal-state="<%= progress.stale? ? "stale" : "available" %>"
+          <% if goal.celebration_pending? %>
+            data-controller="goal-celebration"
+            data-goal-celebration-acknowledge-url-value="<%= acknowledge_celebration_investment_goal_path(goal) %>"
+            data-goal-celebration-achieved-at-value="<%= goal.achieved_at.iso8601(6) %>"
+          <% end %>
+        >
+          <% if goal.celebration_pending? %>
+            <canvas class="goal-fireworks" aria-hidden="true"></canvas>
+            <div class="goal-celebration" data-goal-celebration-target="banner" role="status" aria-live="polite">
+              <span class="goal-celebration-message"><%= t("investment_goals.dashboard.Achieved celebration") %></span>
+              <%= form_with url: acknowledge_celebration_investment_goal_path(goal), method: :post,
+                class: "contents", data: { action: "submit->goal-celebration#dismiss" } do |acknowledgement_form| %>
+                <%= acknowledgement_form.hidden_field :achieved_at, value: goal.achieved_at.iso8601(6) %>
+                <%= acknowledgement_form.submit t("investment_goals.dashboard.Dismiss celebration"), class: "goal-celebration-dismiss" %>
+              <% end %>
+            </div>
+          <% end %>
+
+          <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p class="ui-eyebrow"><%= t("investment_goals.dashboard.Eyebrow") %></p>
+              <h2 id="investment-goal-heading-<%= goal.id %>" class="mt-2 font-display text-xl font-semibold tracking-tight text-coffee">
+                <%= goal.achieved? ? t("investment_goals.dashboard.Achieved heading") : t("investment_goals.dashboard.Heading") %>
+              </h2>
+              <p class="mt-2 text-sm leading-6 text-muted">
+                <%= goal.target_on ? t("investment_goals.dashboard.Target date", date: l(goal.target_on, format: :long)) : t("investment_goals.dashboard.No target date") %>
+              </p>
+              <% if progress.stale? %>
+                <p class="mt-2 text-xs leading-5 text-caramel-deep"><%= t("investment_goals.dashboard.Stale explanation") %></p>
+              <% end %>
+            </div>
+          </div>
+
+          <div class="mt-6 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div>
+              <div class="flex flex-wrap items-baseline justify-between gap-3">
+                <span class="font-mono text-2xl font-semibold tabular-nums text-coffee"><%= display_money(progress.current_value) %></span>
+                <span class="font-mono text-sm font-semibold tabular-nums text-caramel-deep"><%= number_to_percentage(progress.percentage, precision: 1) %></span>
+              </div>
+              <div
+                class="mt-3 h-3 overflow-hidden rounded-full bg-caramel/15"
+                role="progressbar"
+                aria-label="<%= t("investment_goals.dashboard.Progress label") %>"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="<%= percentage.to_f.round(2) %>"
+              >
+                <div class="h-full rounded-full bg-caramel" style="width: <%= percentage.to_f.round(2) %>%"></div>
+              </div>
+              <p class="mt-2 text-xs text-muted"><%= t("investment_goals.dashboard.Target amount", amount: display_money(progress.target_value)) %></p>
+            </div>
+            <div class="rounded-xl border border-coffee/10 bg-paper px-4 py-3 sm:min-w-44">
+              <p class="text-xs font-semibold uppercase tracking-[0.12em] text-muted"><%= t("investment_goals.dashboard.Remaining") %></p>
+              <p class="mt-1 font-mono text-lg font-semibold tabular-nums text-coffee"><%= display_money(progress.remaining_value) %></p>
+            </div>
+          </div>
+        </section>
+      <% else %>
+        <section class="ui-card border-dashed p-6 sm:p-7" aria-labelledby="investment-goal-pending-heading-<%= goal.id %>" role="status">
+          <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="ui-eyebrow"><%= t("investment_goals.dashboard.Eyebrow") %></p>
+              <h2 id="investment-goal-pending-heading-<%= goal.id %>" class="mt-2 font-display text-xl font-semibold tracking-tight text-coffee">
+                <%= t("investment_goals.dashboard.Pending heading") %>
+              </h2>
+              <p class="mt-2 text-sm leading-6 text-muted"><%= t("investment_goals.dashboard.Pending explanation") %></p>
+            </div>
+          </div>
+        </section>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>

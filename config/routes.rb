@@ -5,6 +5,15 @@ Rails.application.routes.draw do
   root "dashboard#index"
   resource :performance, only: :show
   resource :performance_methodology, only: :show, path: "performance/methodology"
+  resources :investment_goals, path: "goals", only: %i[index new create edit update] do
+    member do
+      post :pause
+      post :resume
+      post :archive
+      post :reset
+      post :acknowledge_celebration
+    end
+  end
   resource :settings, only: %i[show update], controller: :settings
   resource :money_visibility, only: :update
   get "market-data/health", to: "market_data_health#show", as: :market_data_health

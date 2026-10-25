@@ -209,6 +209,12 @@ html[data-theme="dark"] {
   to { transform: scaleX(0); }
 }
 
+@keyframes goal-celebration-tada {
+  0% { opacity: 0; transform: translateY(0.25rem) scale(0.96); }
+  65% { opacity: 1; transform: translateY(0) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+
 @layer components {
   body:has(#health-refresh-activity) #notification-stack #refresh-status {
     display: none;
@@ -216,6 +222,84 @@ html[data-theme="dark"] {
 
   .notification-stack {
     overscroll-behavior: contain;
+  }
+
+  .goal-celebration {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 3rem;
+    margin: -0.25rem 0 1.25rem;
+    padding: 0.6rem 0.8rem;
+    overflow: visible;
+    border: 1px solid color-mix(in srgb, var(--caramelo-caramel) 34%, transparent);
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--caramelo-caramel) 10%, transparent);
+    animation: goal-celebration-tada 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+
+  .goal-fireworks {
+    position: absolute;
+    inset: -1.5rem 0 auto;
+    z-index: 0;
+    width: 100%;
+    height: 9rem;
+    pointer-events: none;
+  }
+
+  .goal-celebration-message {
+    position: relative;
+    z-index: 1;
+    color: var(--caramelo-caramel-strong);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .goal-celebration-dismiss {
+    position: relative;
+    z-index: 1;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    color: var(--caramelo-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .goal-celebration-dismiss:hover,
+  .goal-celebration-dismiss:focus-visible {
+    color: var(--caramelo-ink);
+  }
+
+  .goal-celebration-dismiss:focus-visible {
+    outline: 2px solid var(--caramelo-caramel);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 639px) {
+    .goal-fireworks {
+      inset: -1.25rem 0 auto;
+      height: 8rem;
+    }
+
+    .goal-celebration {
+      min-height: 2.9rem;
+      padding: 0.6rem 0.75rem;
+    }
+
+    .goal-celebration-message {
+      font-size: 0.95rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .goal-celebration {
+      animation: none;
+    }
   }
 
   .appearance-option {

@@ -1,6 +1,7 @@
 class User < ApplicationRecord
   has_many :instrument_performance_observations, dependent: :delete_all
   has_many :instrument_performance_materializations, dependent: :delete_all
+  has_many :investment_goals, dependent: :delete_all
   has_many :portfolio_performance_observations, dependent: :delete_all
   has_many :portfolio_performance_materializations, dependent: :delete_all
   has_many :position_materializations, dependent: :delete_all

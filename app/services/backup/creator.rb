@@ -106,6 +106,7 @@ module Backup
       database.execute("DELETE FROM corporate_action_imports WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM corporate_action_import_scans WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM corporate_actions WHERE user_id <> ?", [ owner_id ])
+      database.execute("DELETE FROM investment_goals WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM trades WHERE user_id <> ?", [ owner_id ])
       database.execute(<<~SQL, [ owner_id ])
         DELETE FROM institutions

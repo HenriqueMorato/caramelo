@@ -106,12 +106,52 @@ module Dashboard
       available_positions.any?
     end
 
+    def market_value_amount
+      return BigDecimal("0") if no_open_positions?
+      return unless market_value_displayable?
+
+      available_positions.sum do |position|
+        if position.valuation.respond_to?(:market_value_amount) && position.valuation.market_value_amount
+          position.valuation.market_value_amount
+        else
+          position.valuation.market_value.amount
+        end
+      end
+    end
+
     def market_value_available?
       open_positions.any? && open_positions.all? { |position| position.valuation.market_value.present? }
     end
 
     def complete_market_value
       market_value if no_open_positions? || market_value_available?
+    end
+
+    def complete_market_value_amount
+      market_value_amount if no_open_positions? || market_value_available?
+    end
+
+    def complete_fresh_market_value_for(currency:)
+      complete_market_value_for(currency:, require_fresh: true)
+    end
+
+    def complete_market_value_for(currency:, require_fresh: false)
+      target_currency = CurrencyCode.normalize(currency)
+      return Money.from_amount(0, target_currency) if no_open_positions?
+
+      valuations = valuations_for(target_currency)
+      return unless valuations.all? { |position, valuation| complete_valuation?(position, valuation, require_fresh:) }
+
+      Money.from_amount(
+        valuations.sum { |_position, valuation| market_value_amount_for(valuation) }, target_currency
+      )
+    end
+
+    def complete_market_value_amount_for(currency:)
+      value = complete_market_value_for(currency:)
+      return unless value
+
+      exact_market_value_amount_for(currency:)
     end
 
     def has_trades?
@@ -144,6 +184,43 @@ module Dashboard
 
     def available_positions
       open_positions.select { |position| position.valuation.available? }
+    end
+
+    def exact_market_value_amount_for(currency:)
+      CurrencyCode.normalize(currency)
+      valuations_for(currency).sum { |_position, valuation| market_value_amount_for(valuation) }
+    end
+
+    def valuations_for(currency)
+      open_positions.map { |position| [ position, valuation_for(position, currency) ] }
+    end
+
+    def valuation_for(position, currency)
+      return position.valuation if currency == reporting_currency
+
+      position_record = position.position_result.position if position.position_result.respond_to?(:position)
+      return unless position_record&.respond_to?(:quantity)
+
+      Valuation::Current.for(
+        position: position_record, market_price: position.market_price, reporting_currency: currency
+      )
+    end
+
+    def complete_valuation?(position, valuation, require_fresh:)
+      return false unless valuation&.available?
+      return true unless require_fresh
+
+      !valuation.stale? && !position.market_price.stale?
+    end
+
+    def market_value_amount_for(valuation)
+      return BigDecimal("0") unless valuation
+
+      if valuation.respond_to?(:market_value_amount) && valuation.market_value_amount
+        valuation.market_value_amount
+      else
+        valuation.market_value.amount
+      end
     end
 
     def previous_business_day_value

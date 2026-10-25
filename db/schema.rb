@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_19_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_100000) do
   create_table "asset_types", force: :cascade do |t|
     t.string "key", limit: 32, null: false
     t.string "name", limit: 64, null: false
@@ -253,6 +253,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_090000) do
     t.index ["slug"], name: "index_instruments_on_slug", unique: true
   end
 
+  create_table "investment_goals", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "kind", limit: 32, default: "portfolio_value", null: false
+    t.text "target_amount", null: false
+    t.date "target_on"
+    t.string "status", limit: 16, default: "active", null: false
+    t.datetime "achieved_at"
+    t.datetime "celebration_seen_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "kind"], name: "index_investment_goals_on_user_id_and_kind"
+    t.index ["user_id", "status"], name: "index_investment_goals_on_user_id_and_status"
+    t.index ["user_id"], name: "index_investment_goals_on_user_id"
+    t.check_constraint "kind IN ('portfolio_value')", name: "investment_goals_kind"
+    t.check_constraint "status IN ('active', 'paused', 'achieved', 'archived')", name: "investment_goals_status"
+  end
+
   create_table "market_benchmark_observations", force: :cascade do |t|
     t.integer "market_benchmark_id", null: false
     t.date "observed_on", null: false
@@ -411,6 +428,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_090000) do
   add_foreign_key "instrument_performance_observations", "instruments"
   add_foreign_key "instrument_performance_observations", "users"
   add_foreign_key "instruments", "asset_types", column: "asset_type", primary_key: "key", on_delete: :restrict
+  add_foreign_key "investment_goals", "users"
   add_foreign_key "market_benchmark_observations", "market_benchmarks"
   add_foreign_key "portfolio_performance_materializations", "users"
   add_foreign_key "portfolio_performance_observations", "users"
