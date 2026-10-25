@@ -82,7 +82,7 @@ end
 
 group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
-  gem "axe-core-capybara", "~> 4.11"
+  gem "axe-core-capybara", "~> 4.14"
   gem "capybara", "~> 3.40"
   gem "selenium-webdriver", "~> 4.51"
 
