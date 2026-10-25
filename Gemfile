@@ -66,7 +66,7 @@ group :development, :test do
   gem "i18n-tasks", "~> 1.1.2", require: false
 
   # Detect N+1 and unused eager-loading queries while exercising request flows.
-  gem "bullet", "~> 8.2"
+  gem "bullet", "~> 8.3"
 
   # Advisory code-smell reports for selected changed-file checks.
   gem "reek", "~> 6.5", require: false
