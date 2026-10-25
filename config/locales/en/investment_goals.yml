@@ -67,6 +67,7 @@ en:
         value.
       No target date: No target date
       Page title: Investment goals · %{application}
+      Plan allocation: Plan allocation
       Portfolio value: Portfolio value goal
       Target date: Target date %{date}
     new:

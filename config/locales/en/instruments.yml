@@ -18,6 +18,8 @@ en:
         categories from Data health.
       Currency help: A three-letter ISO code such as BRL or USD.
       Exchange help: A four-character MIC, such as BVMF for B3 or XNAS for Nasdaq.
+      Quantity step help: Defaults to 0.001 for US-listed and UCITS instruments. Use
+        1 for whole units or another increment when your broker requires it.
       Ticker help: The market symbol, such as PETR4 or VOO.
     index:
       Empty state: Add an instrument now so it is ready for your first trade.

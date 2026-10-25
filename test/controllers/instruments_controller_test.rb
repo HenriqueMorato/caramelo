@@ -457,6 +457,7 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input[name='instrument[exchange]'][value='BVMF']"
     assert_select "input[name='instrument[currency]'][value='BRL']"
+    assert_select "input[name='instrument[quantity_step]'][value='1.0']"
   end
 
   test "includes registered custom asset types in the instrument form" do

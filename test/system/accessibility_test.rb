@@ -26,7 +26,8 @@ class AccessibilityTest < ApplicationSystemTestCase
       asset_type_edit: edit_asset_type_path(AssetType.find_by!(key: "stock")),
       instrument_edit: edit_instrument_path(instruments(:petr4_bvmf)),
       corporate_action_new: new_instrument_corporate_action_path(instruments(:petr4_bvmf)),
-      performance_methodology: performance_methodology_path
+      performance_methodology: performance_methodology_path,
+      portfolio_plan: portfolio_plan_path
     }
 
     with_accessibility_viewport(:desktop) do
@@ -47,7 +48,8 @@ class AccessibilityTest < ApplicationSystemTestCase
       instrument: instrument_path(instruments(:voo_arcx)),
       settings: settings_path,
       market_data_health: market_data_health_path,
-      trade_new: new_trade_path
+      trade_new: new_trade_path,
+      portfolio_plan: portfolio_plan_path
     }
 
     with_accessibility_viewport(:mobile) do

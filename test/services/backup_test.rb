@@ -20,6 +20,9 @@ class BackupTest < ActiveSupport::TestCase
     CorporateActionImport.delete_all
     CorporateAction.delete_all
     InvestmentGoal.delete_all
+    PortfolioAllocationInstrumentTarget.delete_all
+    PortfolioAllocationAssetTarget.delete_all
+    PortfolioAllocationPlan.delete_all
     Instrument.where(id: @scan_instrument_id).delete_all if @scan_instrument_id
   end
 
@@ -95,6 +98,19 @@ class BackupTest < ActiveSupport::TestCase
     counts = Backup::Verifier.call(directory: result.directory).record_counts.fetch("ledger")
 
     assert_equal 1, counts.fetch("investment_goals")
+  end
+
+  test "keeps portfolio allocation plans in the durable ledger artifact" do
+    plan = User.owner.create_portfolio_allocation_plan!
+    plan.asset_targets.create!(asset_type_key: "other", target_percentage: 100)
+    plan.instrument_targets.create!(instrument: instruments(:voo_arcx), asset_type_key: "other", target_percentage: 100)
+
+    result = Backup::Creator.call(configuration: @configuration, now: Time.zone.parse("2026-09-05 12:00:00"))
+    counts = Backup::Verifier.call(directory: result.directory).record_counts.fetch("ledger")
+
+    assert_equal 1, counts.fetch("portfolio_allocation_plans")
+    assert_equal 1, counts.fetch("portfolio_allocation_asset_targets")
+    assert_equal 1, counts.fetch("portfolio_allocation_instrument_targets")
   end
 
   test "keeps custom asset type labels in the durable ledger artifact" do

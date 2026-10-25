@@ -1,0 +1,74 @@
+---
+en:
+  Portfolio planning: Portfolio planning
+  portfolio_plans:
+    notices:
+      Saved: Allocation targets saved.
+    show:
+      Action: "%{action} %{quantity} · %{amount}"
+      Add a trade: Add a trade
+      Asset target: Type target %
+      Back to goals: Back to goals
+      Below minimum: Below minimum unit
+      Buy only: Buy only
+      Calculate: Calculate
+      Calculation explanation: Enter new money to see a buy-only contribution plan,
+        or compare a full rebalance. Buy-only uses that contribution across underweight
+        positions; Difference shows the full gap. Estimates use current quotes, a
+        fixed 1% cash reserve, and each instrument’s quantity step.
+      Calculation heading: What would move you closer?
+      Cash reserve: Cash reserve
+      Comparison table: Current and target allocation
+      Could not save: Check the target mix
+      Current percentage: Current
+      Current value: Current value
+      Data issue: "%{instrument}: %{reason}"
+      Data reasons:
+        closed: position is no longer open
+        invalid: position history needs attention
+        missing: price or exchange rate is missing
+        stale: price or exchange rate is stale
+      Data unavailable: The plan needs fresh market data
+      Data unavailable explanation: A current quote or currency conversion is missing
+        or stale for one or more open holdings. Refresh the records before relying
+        on an adjustment.
+      Difference: Difference
+      Estimate disclaimer: These are estimates, not orders. Prices can move before
+        a trade, and no trade is created automatically.
+      Full rebalance: Full rebalance
+      Heading: Shape your portfolio
+      Instrument: Instrument
+      Instrument count: "%{selected} of %{total} held instruments selected"
+      Instrument target: Instrument target %
+      Introduction: Set the mix you want, then see the next purchases that would move
+        your holdings closer to it.
+      Investable money: Investable money
+      Mode: Recommendation mode
+      New money: New money (%{currency})
+      Next move: Next move
+      No holdings: No open holdings yet
+      No holdings explanation: Record a trade first, then return here to shape the
+        portfolio around the positions you own.
+      Not configured: Set your target mix first
+      Not configured explanation: Save at least one asset type target before calculating
+        a recommendation. Instrument targets are optional and split evenly when left
+        blank.
+      On target: On target
+      Open data health: Open Data health
+      Over target: Over target
+      Page title: Portfolio plan · %{application}
+      Projected value: Projected value
+      Save targets: Save targets
+      Saving: Saving…
+      Suggested: Suggested move
+      Summary: Portfolio plan summary
+      Target explanation: Asset types total 100%. Leave instrument targets blank to
+        split that type evenly, or set one or more to shape the remainder. Only instruments
+        with an open position are available here.
+      Target heading: Choose where your money belongs
+      Target mix: Target mix
+      Target percentage: Target
+      Total reminder: Asset types total 100%. Leave instrument targets blank to split
+        evenly, or set some instruments and the remainder will be shared across the
+        rest.
+      Unallocated: "%{amount} remains unallocated after quantity rounding."

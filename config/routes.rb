@@ -5,6 +5,7 @@ Rails.application.routes.draw do
   root "dashboard#index"
   resource :performance, only: :show
   resource :performance_methodology, only: :show, path: "performance/methodology"
+  resource :portfolio_plan, path: "goals/portfolio-plan", only: %i[show update], controller: :portfolio_plans
   resources :investment_goals, path: "goals", only: %i[index new create edit update] do
     member do
       post :pause

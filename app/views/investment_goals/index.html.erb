@@ -7,7 +7,10 @@
       <h1 class="ui-page-title"><%= t("investment_goals.index.Heading") %></h1>
       <p class="ui-page-intro"><%= t("investment_goals.index.Introduction") %></p>
     </div>
-    <%= link_to t("investment_goals.index.Add goal"), new_investment_goal_path, class: "ui-button ui-button-primary w-fit" %>
+    <div class="flex flex-wrap items-center gap-3">
+      <%= link_to t("investment_goals.index.Add goal"), new_investment_goal_path, class: "ui-button ui-button-primary w-fit" %>
+      <%= link_to t("investment_goals.index.Plan allocation"), portfolio_plan_path, class: "ui-button ui-button-secondary w-fit" %>
+    </div>
   </div>
 
   <% if @investment_goals.any? %>

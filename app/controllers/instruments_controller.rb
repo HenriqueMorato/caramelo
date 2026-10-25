@@ -16,6 +16,7 @@ class InstrumentsController < ApplicationController
 
   def new
     @instrument = Instrument.new
+    @instrument.quantity_step = @instrument.default_quantity_step
   end
 
   def create
@@ -155,6 +156,6 @@ class InstrumentsController < ApplicationController
   end
 
   def instrument_params
-    params.expect(instrument: %i[ticker exchange name currency asset_type])
+    params.expect(instrument: %i[ticker exchange name currency asset_type quantity_step])
   end
 end
