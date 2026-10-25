@@ -1,22 +1,76 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = [ "assetField" ]
+  static targets = [
+    "assetField", "assetRange", "assetOutput", "assetBar",
+    "instrumentField", "instrumentRange", "instrumentOutput", "instrumentBar"
+  ]
 
   connect() {
-    this.balanceAssetFields()
+    if (this.element.dataset.invalid !== "true") this.balanceAllFields()
+    this.syncControls()
   }
 
   balance(event) {
-    if (event?.currentTarget?.dataset.autoFilled === "true") {
-      delete event.currentTarget.dataset.autoFilled
+    const field = event?.currentTarget
+    if (!field) return
+
+    if (field.dataset.autoFilled === "true") {
+      delete field.dataset.autoFilled
     }
 
-    this.balanceAssetFields()
+    if (field.value.trim() === "") {
+      this.syncControls()
+      return
+    }
+
+    this.balanceFields(this.fieldsFor(field))
+    this.syncControls()
   }
 
-  balanceAssetFields() {
-    const fields = this.assetFieldTargets
+  prepare(event) {
+    const field = event?.currentTarget
+    if (!field || field.dataset.autoFilled !== "true") return
+
+    field.value = ""
+    delete field.dataset.autoFilled
+    this.syncControls()
+  }
+
+  move(event) {
+    const range = event.currentTarget
+    const fields = range.dataset.portfolioTargetType === "instrument" ? this.instrumentFieldTargets : this.assetFieldTargets
+    const field = fields.find((candidate) => this.matchesRange(candidate, range))
+    if (!field) return
+
+    field.value = range.value
+    if (field.dataset.autoFilled === "true") delete field.dataset.autoFilled
+    this.balanceFields(this.fieldsFor(field))
+    this.syncControls()
+  }
+
+  fieldsFor(field) {
+    if (field.dataset.portfolioTargetType === "instrument") {
+      return this.instrumentFieldTargets.filter((candidate) => candidate.dataset.assetKey === field.dataset.assetKey)
+    }
+
+    return this.assetFieldTargets
+  }
+
+  matchesRange(field, range) {
+    return field.dataset.assetKey === range.dataset.assetKey &&
+      (range.dataset.portfolioTargetType !== "instrument" || field.dataset.instrumentKey === range.dataset.instrumentKey)
+  }
+
+  balanceAllFields() {
+    this.balanceFields(this.assetFieldTargets)
+
+    Array.from(new Set(this.instrumentFieldTargets.map((field) => field.dataset.assetKey))).forEach((assetKey) => {
+      this.balanceFields(this.instrumentFieldTargets.filter((field) => field.dataset.assetKey === assetKey))
+    })
+  }
+
+  balanceFields(fields) {
     const autoFilledFields = fields.filter((field) => field.dataset.autoFilled === "true")
     autoFilledFields.forEach((field) => {
       field.value = ""
@@ -39,5 +93,32 @@ export default class extends Controller {
       field.dataset.autoFilled = "true"
       assigned += value
     })
+  }
+
+  syncControls() {
+    this.syncRangeControls(this.assetRangeTargets, this.assetFieldTargets, this.assetOutputTargets, this.assetBarTargets)
+    this.syncRangeControls(this.instrumentRangeTargets, this.instrumentFieldTargets, this.instrumentOutputTargets, this.instrumentBarTargets)
+  }
+
+  syncRangeControls(ranges, fields, outputs, bars) {
+    ranges.forEach((range) => {
+      const field = fields.find((candidate) => this.matchesRange(candidate, range))
+      const value = Number(field?.value)
+      const normalized = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0
+      range.value = normalized
+
+      const output = outputs.find((candidate) => this.matchesRange(candidate, range))
+      if (output) output.textContent = `${this.formatPercentage(normalized)}%`
+
+      const bar = bars.find((candidate) => this.matchesRange(candidate, range))
+      if (bar) {
+        bar.style.width = `${normalized}%`
+        bar.setAttribute("aria-valuenow", normalized)
+      }
+    })
+  }
+
+  formatPercentage(value) {
+    return Number.isInteger(value) ? value.toString() : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")
   }
 }

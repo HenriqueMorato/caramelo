@@ -1,0 +1,19 @@
+<%# locals: (comparison:, calculation:, alignment_class: "justify-end") %>
+
+<% suggested_move = if comparison.below_minimum?
+  t("portfolio_plans.show.Below minimum")
+elsif comparison.sell?
+  t("portfolio_plans.show.Action", action: comparison.action.to_s.humanize, quantity: number_with_precision(comparison.quantity, precision: 8, strip_insignificant_zeros: true), amount: display_money(Money.from_amount(comparison.estimated_amount, calculation.currency)))
+elsif comparison.overweight?
+  t("portfolio_plans.show.Over target")
+elsif comparison.none?
+  t("portfolio_plans.show.On target")
+else
+  t("portfolio_plans.show.Action", action: comparison.action.to_s.humanize, quantity: number_with_precision(comparison.quantity, precision: 8, strip_insignificant_zeros: true), amount: display_money(Money.from_amount(comparison.estimated_amount, calculation.currency)))
+end %>
+<div class="flex flex-wrap items-center <%= alignment_class %> gap-2">
+  <span><%= suggested_move %></span>
+  <% if comparison.over_target_after_purchase? %>
+    <span class="rounded-full bg-warning-surface px-2 py-1 text-xs font-semibold text-warning-text"><%= t("portfolio_plans.show.Over target by", amount: display_money(Money.from_amount(comparison.overshoot_amount, calculation.currency))) %></span>
+  <% end %>
+</div>

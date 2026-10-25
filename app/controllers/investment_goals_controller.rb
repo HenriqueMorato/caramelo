@@ -4,6 +4,7 @@ class InvestmentGoalsController < ApplicationController
 
   def index
     @investment_goals = current_account.investment_goals.manageable
+    @portfolio_allocation_plan = current_account.portfolio_allocation_plan
   end
 
   def new

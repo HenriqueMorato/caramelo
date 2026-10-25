@@ -58,16 +58,30 @@ en:
       Update: Update investment goal
     index:
       Add goal: Add investment goal
+      Allocation explanation: Set target percentages for each asset type, optionally
+        shape the split between positions, and see the next buy or rebalance that
+        moves your portfolio closer.
+      Allocation heading: Shape your portfolio mix
+      Allocation status:
+        configured: Target mix ready
+        not_configured: Not set up yet
+      Allocation steps:
+        Mix: Choose a mix
+        Next move: Get a next move
+        Positions: Compare positions
       Empty explanation: Set a value target to turn a long-term intention into a visible
         next step.
       Empty eyebrow: A small step
       Empty heading: No investment goals yet
+      Goals section eyebrow: Keep your direction visible
+      Goals section heading: Your investment goals
       Heading: Investment goals
       Introduction: Set a personal target and follow progress from your portfolio
         value.
       No target date: No target date
+      Open allocation planner: Open allocation planner
       Page title: Investment goals · %{application}
-      Plan allocation: Plan allocation
+      Portfolio allocation: Portfolio allocation
       Portfolio value: Portfolio value goal
       Target date: Target date %{date}
     new:

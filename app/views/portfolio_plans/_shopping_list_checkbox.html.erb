@@ -1,0 +1,7 @@
+<%# locals: (comparison:) %>
+
+<% if comparison.buy? && comparison.quantity.positive? %>
+  <label class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl hover:bg-caramel/10 focus-within:ring-2 focus-within:ring-caramel/40">
+    <%= tag.input type: "checkbox", aria: { label: t("portfolio_plans.show.Mark as purchased", instrument: comparison.instrument.ticker) }, data: { shopping_list_item: true }, class: "h-5 w-5 rounded border-coffee/30 text-caramel accent-caramel focus:ring-caramel" %>
+  </label>
+<% end %>

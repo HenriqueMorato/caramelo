@@ -327,7 +327,7 @@ html[data-theme="dark"] {
   }
 
   .ui-summary-item {
-    @apply rounded-xl border border-coffee/10 bg-paper px-5 py-4;
+    @apply min-w-0 rounded-xl border border-coffee/10 bg-paper px-5 py-4;
   }
 
   .ui-summary-item-primary {
@@ -342,7 +342,8 @@ html[data-theme="dark"] {
   }
 
   .ui-summary-item dd {
-    @apply mt-2 font-mono text-2xl font-semibold tabular-nums text-coffee;
+    @apply mt-2 min-w-0 font-mono text-2xl font-semibold leading-tight tabular-nums text-coffee;
+    overflow-wrap: anywhere;
   }
 
   .ui-summary-item-primary dt {

@@ -7,49 +7,79 @@
       <h1 class="ui-page-title"><%= t("investment_goals.index.Heading") %></h1>
       <p class="ui-page-intro"><%= t("investment_goals.index.Introduction") %></p>
     </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <%= link_to t("investment_goals.index.Add goal"), new_investment_goal_path, class: "ui-button ui-button-primary w-fit" %>
-      <%= link_to t("investment_goals.index.Plan allocation"), portfolio_plan_path, class: "ui-button ui-button-secondary w-fit" %>
-    </div>
   </div>
 
-  <% if @investment_goals.any? %>
-    <div class="grid grid-cols-1 gap-4<%= " lg:grid-cols-2" if @investment_goals.length > 1 %>">
-      <% @investment_goals.each do |goal| %>
-        <article id="<%= dom_id(goal) %>" class="ui-card flex h-full flex-col p-6">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="ui-eyebrow"><%= t("investment_goals.index.Portfolio value") %></p>
-              <h2 class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= display_money(goal.target_value) %></h2>
+  <section class="ui-card overflow-hidden border-caramel/25 bg-caramel/5 p-6 sm:p-8" aria-labelledby="portfolio-allocation-heading">
+    <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div class="max-w-2xl">
+        <div class="flex flex-wrap items-center gap-3">
+          <p class="ui-eyebrow"><%= t("investment_goals.index.Portfolio allocation") %></p>
+          <span class="ui-badge <%= @portfolio_allocation_plan&.configured? ? "ui-badge-active" : "ui-badge-inactive" %>">
+            <%= t("investment_goals.index.Allocation status.#{@portfolio_allocation_plan&.configured? ? "configured" : "not_configured"}") %>
+          </span>
+        </div>
+        <h2 id="portfolio-allocation-heading" class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee sm:text-3xl"><%= t("investment_goals.index.Allocation heading") %></h2>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-muted"><%= t("investment_goals.index.Allocation explanation") %></p>
+        <%= link_to t("investment_goals.index.Open allocation planner"), portfolio_plan_path, class: "ui-button ui-button-primary mt-5 w-fit" %>
+      </div>
+
+      <div class="grid w-full max-w-sm gap-3 rounded-2xl border border-caramel/20 bg-paper/70 p-4 sm:p-5" aria-hidden="true">
+        <% [[t("investment_goals.index.Allocation steps.Mix"), "60%"], [t("investment_goals.index.Allocation steps.Positions"), "→"], [t("investment_goals.index.Allocation steps.Next move"), "✓"]].each do |label, value| %>
+          <div class="flex items-center gap-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-caramel/15 font-mono text-xs font-bold text-caramel-deep"><%= value %></span>
+            <span class="text-sm font-medium text-coffee"><%= label %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </section>
+
+  <section class="space-y-5 border-t border-coffee/10 pt-8" aria-labelledby="investment-goals-heading">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="ui-eyebrow"><%= t("investment_goals.index.Goals section eyebrow") %></p>
+        <h2 id="investment-goals-heading" class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t("investment_goals.index.Goals section heading") %></h2>
+      </div>
+      <%= link_to t("investment_goals.index.Add goal"), new_investment_goal_path, class: "ui-button ui-button-primary w-fit" %>
+    </div>
+
+    <% if @investment_goals.any? %>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <% @investment_goals.each do |goal| %>
+          <article id="<%= dom_id(goal) %>" class="ui-card flex h-full flex-col p-6">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="ui-eyebrow"><%= t("investment_goals.index.Portfolio value") %></p>
+                <h3 class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= display_money(goal.target_value) %></h3>
+              </div>
+              <span class="ui-badge <%= goal.achieved? ? "ui-badge-active" : "ui-badge-inactive" %>"><%= t("investment_goals.statuses.#{goal.status}") %></span>
             </div>
-            <span class="ui-badge <%= goal.achieved? ? "ui-badge-active" : "ui-badge-inactive" %>"><%= t("investment_goals.statuses.#{goal.status}") %></span>
-          </div>
-          <p class="mt-4 text-sm leading-6 text-muted">
-            <%= goal.target_on ? t("investment_goals.index.Target date", date: l(goal.target_on, format: :long)) : t("investment_goals.index.No target date") %>
-          </p>
-          <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-coffee/10 pt-4">
-            <%= link_to t("actions.Edit"), edit_investment_goal_path(goal), class: "ui-button ui-button-secondary" %>
-            <% if goal.active? %>
-              <%= button_to t("investment_goals.actions.Pause"), pause_investment_goal_path(goal), method: :post, class: "ui-button ui-button-secondary" %>
-            <% elsif goal.paused? %>
-              <%= button_to t("investment_goals.actions.Resume"), resume_investment_goal_path(goal), method: :post, class: "ui-button ui-button-secondary" %>
-            <% elsif goal.achieved? || goal.archived? %>
-              <%= button_to t("investment_goals.actions.Reset"), reset_investment_goal_path(goal), method: :post, class: "ui-button ui-button-secondary" %>
-            <% end %>
-            <% unless goal.archived? %>
-              <%= button_to t("investment_goals.actions.Archive"), archive_investment_goal_path(goal), method: :post,
-                class: "ui-button ui-button-secondary", form: { data: { turbo_confirm: t("investment_goals.confirmations.Archive") } } %>
-            <% end %>
-          </div>
-        </article>
-      <% end %>
-    </div>
-  <% else %>
-    <div class="ui-card border-dashed p-8 sm:p-10" role="status">
-      <p class="ui-eyebrow"><%= t("investment_goals.index.Empty eyebrow") %></p>
-      <h2 class="mt-3 font-display text-3xl font-semibold tracking-tight text-coffee"><%= t("investment_goals.index.Empty heading") %></h2>
-      <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("investment_goals.index.Empty explanation") %></p>
-      <%= link_to t("investment_goals.index.Add goal"), new_investment_goal_path, class: "ui-button ui-button-primary mt-6 w-fit" %>
-    </div>
-  <% end %>
+            <p class="mt-4 text-sm leading-6 text-muted">
+              <%= goal.target_on ? t("investment_goals.index.Target date", date: l(goal.target_on, format: :long)) : t("investment_goals.index.No target date") %>
+            </p>
+            <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-coffee/10 pt-4">
+              <%= link_to t("actions.Edit"), edit_investment_goal_path(goal), class: "ui-button ui-button-secondary" %>
+              <% if goal.active? %>
+                <%= button_to t("investment_goals.actions.Pause"), pause_investment_goal_path(goal), method: :post, class: "ui-button ui-button-secondary" %>
+              <% elsif goal.paused? %>
+                <%= button_to t("investment_goals.actions.Resume"), resume_investment_goal_path(goal), method: :post, class: "ui-button ui-button-secondary" %>
+              <% elsif goal.achieved? || goal.archived? %>
+                <%= button_to t("investment_goals.actions.Reset"), reset_investment_goal_path(goal), method: :post, class: "ui-button ui-button-secondary" %>
+              <% end %>
+              <% unless goal.archived? %>
+                <%= button_to t("investment_goals.actions.Archive"), archive_investment_goal_path(goal), method: :post,
+                  class: "ui-button ui-button-secondary", form: { data: { turbo_confirm: t("investment_goals.confirmations.Archive") } } %>
+              <% end %>
+            </div>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="ui-card border-dashed p-8 sm:p-10" role="status">
+        <p class="ui-eyebrow"><%= t("investment_goals.index.Empty eyebrow") %></p>
+        <h3 class="mt-3 font-display text-3xl font-semibold tracking-tight text-coffee"><%= t("investment_goals.index.Empty heading") %></h3>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-muted"><%= t("investment_goals.index.Empty explanation") %></p>
+      </div>
+    <% end %>
+  </section>
 </section>

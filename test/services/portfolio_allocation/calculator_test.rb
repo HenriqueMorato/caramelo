@@ -28,7 +28,32 @@ class PortfolioAllocation::CalculatorTest < ActiveSupport::TestCase
     assert_equal [ :buy, :buy ], result.recommendations.map(&:action)
     assert_equal BigDecimal("5"), result.comparisons.first.quantity
     assert_equal BigDecimal("3.96"), result.comparisons.second.quantity
+    assert_equal BigDecimal("0"), result.comparisons.first.overshoot_amount
     assert_operator result.unallocated_amount, :>, BigDecimal("0")
+  end
+
+  test "limits purchases to the requested number of instruments and flags an overshoot" do
+    result = PortfolioAllocation::Calculator.for(
+      plan: @plan, owner: @owner, contribution: "100", instrument_count: "1", snapshot: @snapshot
+    )
+
+    assert_equal [ @stock ], result.recommendations.map(&:instrument)
+    assert_equal BigDecimal("9"), result.recommendations.first.quantity
+    assert_predicate result.recommendations.first, :over_target_after_purchase?
+    assert_equal BigDecimal("30.6"), result.recommendations.first.overshoot_amount
+    assert_equal BigDecimal("9"), result.unallocated_amount
+  end
+
+  test "uses a second instrument to spend a fractional remainder when possible" do
+    result = PortfolioAllocation::Calculator.for(
+      plan: @plan, owner: @owner, contribution: "100", instrument_count: "2", snapshot: @snapshot
+    )
+
+    assert_equal [ :buy, :buy ], result.recommendations.map(&:action)
+    assert_equal BigDecimal("0"), result.unallocated_amount
+    assert_equal BigDecimal("4.9"), result.comparisons.second.quantity
+    assert_equal BigDecimal("9.4"), result.comparisons.second.overshoot_amount
+    assert_predicate result, :over_target?
   end
 
   test "reports sells and buys in full rebalance mode" do
@@ -86,6 +111,46 @@ class PortfolioAllocation::CalculatorTest < ActiveSupport::TestCase
       PortfolioAllocation::Calculator.for(plan: @plan, owner: @owner, contribution: "not-a-number", snapshot: @snapshot)
     end
     assert_equal "contribution is invalid", error.message
+  end
+
+  test "rejects an invalid instrument count" do
+    error = assert_raises(ArgumentError) do
+      PortfolioAllocation::Calculator.for(plan: @plan, owner: @owner, instrument_count: "0", snapshot: @snapshot)
+    end
+    assert_equal "instrument_count is invalid", error.message
+
+    error = assert_raises(ArgumentError) do
+      PortfolioAllocation::Calculator.for(plan: @plan, owner: @owner, instrument_count: "many", snapshot: @snapshot)
+    end
+    assert_equal "instrument_count is invalid", error.message
+  end
+
+  test "divides an asset remainder among holdings without explicit instrument targets" do
+    second_stock = Instrument.create!(ticker: "STK2", exchange: "BVMF", name: "Second stock", currency: "BRL", asset_type: :stock)
+    @plan.instrument_targets.delete_all
+    @plan.instrument_targets.create!(instrument: @stock, asset_type_key: "stock", target_percentage: 60)
+    @plan.instrument_targets.create!(instrument: @bond, asset_type_key: "bond", target_percentage: 100)
+    holdings = [ holding(@stock, "300", "10", "1"), holding(second_stock, "100", "10", "1"), holding(@bond, "600", "10", "1") ]
+    snapshot = Snapshot::Result.new(:available, holdings, BigDecimal("1000"), [])
+
+    result = PortfolioAllocation::Calculator.for(plan: @plan, owner: @owner, snapshot: snapshot)
+
+    omitted = result.comparisons.find { |comparison| comparison.instrument == second_stock }
+    assert_equal BigDecimal("40"), omitted.instrument_percentage
+  end
+
+  test "assigns zero to an omitted holding when explicit targets use the full share" do
+    second_stock = Instrument.create!(ticker: "STK3", exchange: "BVMF", name: "Third stock", currency: "BRL", asset_type: :stock)
+    @plan.instrument_targets.delete_all
+    @plan.instrument_targets.create!(instrument: @stock, asset_type_key: "stock", target_percentage: 100)
+    @plan.instrument_targets.create!(instrument: @bond, asset_type_key: "bond", target_percentage: 100)
+    holdings = [ holding(@stock, "300", "10", "1"), holding(second_stock, "100", "10", "1"), holding(@bond, "600", "10", "1") ]
+    snapshot = Snapshot::Result.new(:available, holdings, BigDecimal("1000"), [])
+
+    result = PortfolioAllocation::Calculator.for(plan: @plan, owner: @owner, snapshot: snapshot)
+
+    omitted = result.comparisons.find { |comparison| comparison.instrument == second_stock }
+    assert_equal BigDecimal("0"), omitted.instrument_percentage
   end
 
   test "blocks recommendations when current data is incomplete" do

@@ -18,7 +18,8 @@ class PortfolioPlansController < ApplicationController
     )
     if result.success?
       redirect_to portfolio_plan_path(
-        mode: calculation_params[:mode], contribution: calculation_params[:contribution]
+        mode: calculation_params[:mode], contribution: calculation_params[:contribution],
+        instrument_count: calculation_params[:instrument_count]
       ), notice: t("portfolio_plans.notices.Saved"), status: :see_other
     else
       @submitted_asset_targets = allocation.fetch(:asset_targets, {}).to_h
@@ -44,8 +45,11 @@ class PortfolioPlansController < ApplicationController
     @instrument_targets = @plan.instrument_targets.index_by(&:instrument_id)
     @mode = calculation_params[:mode].to_s.in?(PortfolioAllocation::Calculator::MODES) ? calculation_params[:mode].to_s : "buy_only"
     @contribution = calculation_params[:contribution].presence || "0"
+    @instrument_count = calculation_params[:instrument_count].to_s
+    @instrument_count_limit = @open_position_results.length
     @calculation = PortfolioAllocation::Calculator.for(
-      plan: @plan, owner: current_account, contribution: @contribution, mode: @mode
+      plan: @plan, owner: current_account, contribution: @contribution, mode: @mode,
+      instrument_count: calculation_params[:instrument_count]
     ) unless @calculation_error
   end
 
@@ -56,6 +60,6 @@ class PortfolioPlansController < ApplicationController
   end
 
   def calculation_params
-    params.permit(:mode, :contribution)
+    params.permit(:mode, :contribution, :instrument_count)
   end
 end

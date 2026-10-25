@@ -40,6 +40,44 @@ class PortfolioAllocation::PlanEditorTest < ActiveSupport::TestCase
     assert_empty @plan.instrument_targets
   end
 
+  test "splits a remainder across multiple blank asset targets" do
+    etf = Instrument.create!(ticker: "ALBE", exchange: "BVMF", name: "Allocation ETF", currency: "BRL", asset_type: :etf)
+    users(:owner).trades.create!(instrument: etf, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 10, fees_cents: 0, currency: etf.currency)
+
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "50", "bond" => "", "etf" => "" }, instrument_targets: {}
+    )
+
+    assert_predicate result, :success?
+    assert_equal({ "stock" => BigDecimal("50"), "bond" => BigDecimal("25"), "etf" => BigDecimal("25") },
+      @plan.asset_targets.reload.to_h { |target| [ target.asset_type_key, target.target_percentage ] })
+  end
+
+  test "accepts a partial instrument breakdown while other holdings remain blank" do
+    second_stock = Instrument.create!(ticker: "ALBS", exchange: "BVMF", name: "Second allocation stock", currency: "BRL", asset_type: :stock)
+    users(:owner).trades.create!(instrument: second_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 10, fees_cents: 0, currency: second_stock.currency)
+
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "100" }, instrument_targets: { @stock.id.to_s => "60" }
+    )
+
+    assert_predicate result, :success?
+  end
+
+  test "ignores a blank alias for an already parsed asset target" do
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "60", " STOCK " => "" }, instrument_targets: {}
+    )
+
+    assert_not result.success?
+    assert_includes result.errors, "Asset type targets must total 100%."
+  end
+
   test "rejects totals that do not reconcile" do
     result = PortfolioAllocation::PlanEditor.call(
       plan: @plan, owner: users(:owner),

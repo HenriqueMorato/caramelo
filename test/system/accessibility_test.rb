@@ -27,6 +27,7 @@ class AccessibilityTest < ApplicationSystemTestCase
       instrument_edit: edit_instrument_path(instruments(:petr4_bvmf)),
       corporate_action_new: new_instrument_corporate_action_path(instruments(:petr4_bvmf)),
       performance_methodology: performance_methodology_path,
+      investment_goals: investment_goals_path,
       portfolio_plan: portfolio_plan_path
     }
 
@@ -49,6 +50,7 @@ class AccessibilityTest < ApplicationSystemTestCase
       settings: settings_path,
       market_data_health: market_data_health_path,
       trade_new: new_trade_path,
+      investment_goals: investment_goals_path,
       portfolio_plan: portfolio_plan_path
     }
 

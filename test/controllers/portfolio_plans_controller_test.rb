@@ -76,6 +76,18 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", /These are estimates, not orders/
   end
 
+  test "limits the shopping list and flags a target overshoot" do
+    save_targets
+
+    get portfolio_plan_url(contribution: "100", mode: "buy_only", instrument_count: "1")
+
+    assert_response :success
+    assert_select "input[name='instrument_count'][value='1']"
+    assert_select "input[data-shopping-list-item]", count: 2
+    assert_select "[role=status]", /Some purchases use the available money more fully/
+    assert_select "td", /Over target by/
+  end
+
   test "shows the sell quantity for an overweight holding in full rebalance mode" do
     patch portfolio_plan_url, params: {
       portfolio_allocation: {
@@ -96,6 +108,14 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[role=alert]", /contribution is invalid/
     assert_select "h2", "What would move you closer?"
+  end
+
+  test "preserves an invalid instrument count in the calculation form" do
+    get portfolio_plan_url(instrument_count: "0")
+
+    assert_response :success
+    assert_select "[role=alert]", /instrument_count is invalid/
+    assert_select "input[name='instrument_count'][value='0']"
   end
 
   test "does not show a closed holding in the target mix" do

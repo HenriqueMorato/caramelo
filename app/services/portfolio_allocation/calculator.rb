@@ -14,6 +14,8 @@ module PortfolioAllocation
       def none? = action == :none
       def overweight? = difference_amount.negative?
       def below_minimum? = (buy? || sell?) && quantity.zero?
+      def over_target_after_purchase? = buy? && estimated_amount > difference_amount
+      def overshoot_amount = over_target_after_purchase? ? estimated_amount - difference_amount : BigDecimal("0")
     end
 
     Result = Data.define(
@@ -26,22 +28,25 @@ module PortfolioAllocation
       def incomplete? = status == :incomplete
       def unconfigured? = status == :unconfigured
       def recommendations = comparisons.reject(&:none?)
+      def over_target? = comparisons.any?(&:over_target_after_purchase?)
     end
 
-    def self.for(plan:, owner:, contribution: 0, mode: "buy_only", reporting_currency: owner.reporting_currency,
+    def self.for(plan:, owner:, contribution: 0, mode: "buy_only", instrument_count: nil,
+      reporting_currency: owner.reporting_currency,
       market_price_service: MarketPrice::Service.default,
       exchange_rate_service: ExchangeRate::Service.default, snapshot: nil)
       new(
-        plan:, owner:, contribution:, mode:, reporting_currency:,
+        plan:, owner:, contribution:, mode:, instrument_count:, reporting_currency:,
         market_price_service:, exchange_rate_service:, snapshot:
       ).call
     end
 
-    def initialize(plan:, owner:, contribution:, mode:, reporting_currency:, market_price_service:, exchange_rate_service:, snapshot:)
+    def initialize(plan:, owner:, contribution:, mode:, instrument_count:, reporting_currency:, market_price_service:, exchange_rate_service:, snapshot:)
       @plan = plan
       @owner = owner
       @contribution = parse_contribution(contribution)
       @mode = mode.to_s.in?(MODES) ? mode.to_s : "buy_only"
+      @instrument_count = parse_instrument_count(instrument_count)
       @reporting_currency = CurrencyCode.normalize(reporting_currency)
       @market_price_service = market_price_service
       @exchange_rate_service = exchange_rate_service
@@ -69,7 +74,7 @@ module PortfolioAllocation
 
     private
 
-    attr_reader :plan, :owner, :contribution, :mode, :reporting_currency,
+    attr_reader :plan, :owner, :contribution, :mode, :instrument_count, :reporting_currency,
       :market_price_service, :exchange_rate_service
 
     def parse_contribution(value)
@@ -81,6 +86,19 @@ module PortfolioAllocation
       raise error if error.message == "contribution must be nonnegative"
 
       raise ArgumentError, "contribution is invalid"
+    end
+
+    def parse_instrument_count(value)
+      return nil if value.nil? || value.to_s.strip.empty?
+
+      count = Integer(value.to_s, 10)
+      raise ArgumentError, "instrument_count is invalid" unless count.positive?
+
+      count
+    rescue ArgumentError => error
+      raise error if error.message == "instrument_count is invalid"
+
+      raise ArgumentError, "instrument_count is invalid"
     end
 
     def investable_amount
@@ -169,9 +187,18 @@ module PortfolioAllocation
       total = positive.sum { |values| values.last }
       return {} if total.zero? || investable_amount.zero?
 
+      return planned_buy_allocations(positive) if instrument_count
+
       positive.to_h do |holding, *_values, difference|
         [ holding.instrument.id, investable_amount * difference / total ]
       end
+    end
+
+    def planned_buy_allocations(positive)
+      candidates = positive.map do |holding, *_values, difference|
+        PurchasePlanner::Candidate.new(holding:, target_gap: difference)
+      end
+      PurchasePlanner.for(candidates:, budget: investable_amount, count: instrument_count)
     end
 
     def comparison_for(holding:, asset_percentage:, instrument_percentage:, target_percentage:,

@@ -26,40 +26,60 @@
   <% end %>
 
   <section class="ui-card p-6 sm:p-8" aria-labelledby="portfolio-plan-targets-heading">
-    <div class="max-w-2xl">
+    <div class="w-full max-w-none">
       <p class="ui-eyebrow"><%= t("portfolio_plans.show.Target mix") %></p>
       <h2 id="portfolio-plan-targets-heading" class="mt-2 font-display text-2xl font-semibold tracking-tight text-coffee"><%= t("portfolio_plans.show.Target heading") %></h2>
       <p class="mt-2 text-sm leading-6 text-muted"><%= t("portfolio_plans.show.Target explanation") %></p>
     </div>
 
     <% if @groups.any? %>
-      <%= form_with scope: :portfolio_allocation, url: portfolio_plan_path, method: :patch, class: "mt-8 space-y-6", data: { controller: "portfolio-allocation-form" } do |form| %>
+      <%= form_with scope: :portfolio_allocation, url: portfolio_plan_path, method: :patch, class: "mt-8 space-y-6", data: { controller: "portfolio-allocation-form", invalid: @plan.errors.any? } do |form| %>
         <div class="space-y-4">
           <% @groups.each do |asset_type_key, position_results| %>
             <% asset_target = @asset_targets[asset_type_key] %>
+            <% submitted_asset_target = @submitted_asset_targets&.fetch(asset_type_key, nil) %>
+            <% asset_value = submitted_asset_target.nil? ? asset_target&.target_percentage&.to_s : submitted_asset_target %>
             <article class="rounded-2xl border border-coffee/10 bg-paper/40 p-4 sm:p-5">
               <div class="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h3 class="font-semibold text-coffee"><%= AssetType.label_for(asset_type_key) %></h3>
                   <p class="mt-1 text-sm text-muted"><%= t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) }, total: position_results.length) %></p>
                 </div>
-                <div class="w-32">
-                  <%= label_tag "portfolio_allocation_asset_targets_#{asset_type_key}", t("portfolio_plans.show.Asset target"), class: "block text-xs font-semibold uppercase tracking-wide text-muted" %>
-                  <%= number_field_tag "portfolio_allocation[asset_targets][#{asset_type_key}]", @submitted_asset_targets&.fetch(asset_type_key, nil) || asset_target&.target_percentage&.to_s, id: "portfolio_allocation_asset_targets_#{asset_type_key}", min: 0, max: 100, step: 0.01, inputmode: "decimal", data: { portfolio_allocation_form_target: "assetField", action: "input->portfolio-allocation-form#balance" }, class: "ui-field mt-2 text-right font-mono tabular-nums", placeholder: "0" %>
+                <output class="font-mono text-xl font-semibold tabular-nums text-caramel-deep" data-portfolio-allocation-form-target="assetOutput" data-asset-key="<%= asset_type_key %>" aria-live="polite"><%= number_with_precision(asset_value.presence || 0, precision: 2, strip_insignificant_zeros: true) %>%</output>
+              </div>
+              <div class="relative mt-5">
+                <div class="absolute inset-x-0 top-2 h-2 overflow-hidden rounded-full bg-caramel/15" aria-hidden="true">
+                  <div class="h-full rounded-full bg-caramel transition-[width] duration-150 motion-reduce:transition-none" data-portfolio-allocation-form-target="assetBar" data-asset-key="<%= asset_type_key %>" role="progressbar" aria-label="<%= t("portfolio_plans.show.Asset target") %>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= asset_value.presence || 0 %>"></div>
                 </div>
+                <%= tag.input type: "range", id: "portfolio_allocation_asset_targets_range_#{asset_type_key}", value: asset_value.presence || 0, min: 0, max: 100, step: 1, aria: { label: t("portfolio_plans.show.Asset target") }, data: { portfolio_allocation_form_target: "assetRange", asset_key: asset_type_key, action: "input->portfolio-allocation-form#move change->portfolio-allocation-form#move" }, class: "relative z-10 h-6 w-full cursor-pointer accent-caramel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2" %>
+              </div>
+              <div class="mt-4 flex items-center justify-between gap-3">
+                <%= label_tag "portfolio_allocation_asset_targets_#{asset_type_key}", t("portfolio_plans.show.Exact target"), class: "text-xs font-semibold uppercase tracking-wide text-muted" %>
+                <%= number_field_tag "portfolio_allocation[asset_targets][#{asset_type_key}]", asset_value, id: "portfolio_allocation_asset_targets_#{asset_type_key}", min: 0, max: 100, step: 0.01, inputmode: "decimal", data: { portfolio_allocation_form_target: "assetField", asset_key: asset_type_key, action: "focus->portfolio-allocation-form#prepare input->portfolio-allocation-form#balance change->portfolio-allocation-form#balance blur->portfolio-allocation-form#balance" }, class: "ui-field w-28 text-right font-mono tabular-nums", placeholder: "0" %>
               </div>
               <div class="mt-4 space-y-3 border-t border-coffee/10 pt-4">
                 <% position_results.each do |position_result| %>
                   <% instrument = position_result.instrument %>
                   <% target = @instrument_targets[instrument.id] %>
+                  <% submitted_instrument_target = @submitted_instrument_targets&.fetch(instrument.id.to_s, nil) %>
+                  <% instrument_value = submitted_instrument_target.nil? ? target&.target_percentage&.to_s : submitted_instrument_target %>
                   <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="min-w-0">
                       <p class="truncate font-medium text-coffee"><%= instrument.ticker %></p>
                       <p class="truncate text-xs text-muted"><%= instrument.name %> · <%= instrument.exchange %></p>
                     </div>
-                    <div class="w-32">
-                      <%= label_tag "portfolio_allocation_instrument_targets_#{instrument.id}", t("portfolio_plans.show.Instrument target"), class: "sr-only" %>
-                      <%= number_field_tag "portfolio_allocation[instrument_targets][#{instrument.id}]", @submitted_instrument_targets&.fetch(instrument.id.to_s, nil) || target&.target_percentage&.to_s, id: "portfolio_allocation_instrument_targets_#{instrument.id}", min: 0, max: 100, step: 0.01, inputmode: "decimal", class: "ui-field text-right font-mono tabular-nums" %>
+                    <div class="w-full max-w-xs sm:w-56">
+                      <div class="flex items-center justify-end gap-2">
+                        <output class="font-mono text-xs font-semibold tabular-nums text-caramel-deep" data-portfolio-allocation-form-target="instrumentOutput" data-asset-key="<%= asset_type_key %>" data-instrument-key="<%= instrument.id %>" aria-live="polite"><%= number_with_precision(instrument_value.presence || 0, precision: 2, strip_insignificant_zeros: true) %>%</output>
+                        <%= label_tag "portfolio_allocation_instrument_targets_#{instrument.id}", t("portfolio_plans.show.Instrument target", instrument: instrument.ticker), class: "sr-only" %>
+                        <%= number_field_tag "portfolio_allocation[instrument_targets][#{instrument.id}]", instrument_value, id: "portfolio_allocation_instrument_targets_#{instrument.id}", min: 0, max: 100, step: 0.01, inputmode: "decimal", data: { portfolio_allocation_form_target: "instrumentField", portfolio_target_type: "instrument", asset_key: asset_type_key, instrument_key: instrument.id, action: "focus->portfolio-allocation-form#prepare input->portfolio-allocation-form#balance change->portfolio-allocation-form#balance blur->portfolio-allocation-form#balance" }, class: "ui-field w-24 text-right font-mono tabular-nums", placeholder: "0" %>
+                      </div>
+                      <div class="relative mt-2">
+                        <div class="absolute inset-x-0 top-1.5 h-1.5 overflow-hidden rounded-full bg-caramel/15" aria-hidden="true">
+                          <div class="h-full rounded-full bg-caramel/80 transition-[width] duration-150 motion-reduce:transition-none" data-portfolio-allocation-form-target="instrumentBar" data-asset-key="<%= asset_type_key %>" data-instrument-key="<%= instrument.id %>" role="progressbar" aria-label="<%= t("portfolio_plans.show.Instrument target", instrument: instrument.ticker) %>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= instrument_value.presence || 0 %>"></div>
+                        </div>
+                        <%= tag.input type: "range", id: "portfolio_allocation_instrument_targets_range_#{instrument.id}", value: instrument_value.presence || 0, min: 0, max: 100, step: 1, aria: { label: t("portfolio_plans.show.Instrument target", instrument: instrument.ticker) }, data: { portfolio_allocation_form_target: "instrumentRange", portfolio_target_type: "instrument", asset_key: asset_type_key, instrument_key: instrument.id, action: "input->portfolio-allocation-form#move change->portfolio-allocation-form#move" }, class: "relative z-10 h-5 w-full cursor-pointer accent-caramel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2" %>
+                      </div>
                     </div>
                   </div>
                 <% end %>
@@ -88,20 +108,25 @@
       <p class="mt-2 text-sm leading-6 text-muted"><%= t("portfolio_plans.show.Calculation explanation") %></p>
     </div>
 
-    <%= form_with url: portfolio_plan_path, method: :get, class: "mt-6 grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end", data: { turbo_frame: "portfolio-plan-calculation", turbo_action: "advance" } do |form| %>
-      <div>
+    <%= form_with url: portfolio_plan_path, method: :get, class: "mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start", data: { turbo_frame: "portfolio-plan-calculation", turbo_action: "advance" } do |form| %>
+      <div class="min-w-0">
         <%= form.label :contribution, t("portfolio_plans.show.New money", currency: current_account.reporting_currency), class: "block text-sm font-semibold text-coffee" %>
         <%= form.number_field :contribution, value: @contribution, min: 0, step: 0.01, inputmode: "decimal", class: "ui-field mt-2 font-mono tabular-nums", placeholder: "0" %>
       </div>
-      <div>
-        <%= form.label :mode, t("portfolio_plans.show.Mode"), class: "block text-sm font-semibold text-coffee" %>
-        <%= form.custom_select :mode, [[t("portfolio_plans.show.Buy only"), "buy_only"], [t("portfolio_plans.show.Full rebalance"), "full_rebalance"]], { selected: @mode }, class: "mt-2 block w-full rounded-xl border border-coffee/20 bg-oat-2 px-4 py-3 text-coffee shadow-sm focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20" %>
+      <div class="min-w-0">
+        <%= form.label :instrument_count, t("portfolio_plans.show.Instruments to buy"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.number_field :instrument_count, value: @instrument_count, min: 1, max: @instrument_count_limit, step: 1, inputmode: "numeric", class: "ui-field mt-2 font-mono tabular-nums", placeholder: t("portfolio_plans.show.All instruments") %>
+        <p class="mt-1 text-xs leading-5 text-muted"><%= t("portfolio_plans.show.Instruments to buy explanation") %></p>
       </div>
-      <%= button_tag t("portfolio_plans.show.Calculate"), type: "submit", name: nil, class: "ui-button ui-button-primary cursor-pointer" %>
+      <div class="min-w-0">
+        <%= form.label :mode, t("portfolio_plans.show.Mode"), class: "block text-sm font-semibold text-coffee" %>
+        <%= form.custom_select :mode, [[t("portfolio_plans.show.Buy only"), "buy_only"], [t("portfolio_plans.show.Full rebalance"), "full_rebalance"]], { selected: @mode }, class: "block w-full rounded-xl border border-coffee/20 bg-oat-2 px-4 py-3 text-coffee shadow-sm focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/20" %>
+      </div>
+      <%= button_tag t("portfolio_plans.show.Calculate"), type: "submit", name: nil, class: "ui-button ui-button-primary min-h-[3.125rem] w-full cursor-pointer border border-coffee/20 sm:mt-7 sm:w-fit" %>
     <% end %>
 
     <% if @calculation&.available? %>
-      <dl class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="<%= t("portfolio_plans.show.Summary") %>">
+      <dl class="mt-8 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="<%= t("portfolio_plans.show.Summary") %>">
         <% [[t("portfolio_plans.show.Current value"), @calculation.current_amount], [t("portfolio_plans.show.Investable money"), @calculation.investable_amount], [t("portfolio_plans.show.Cash reserve"), @calculation.reserve_amount], [t("portfolio_plans.show.Projected value"), @calculation.projected_amount]].each do |label, amount| %>
           <div class="ui-summary-item">
             <dt><%= label %></dt>
@@ -110,11 +135,12 @@
         <% end %>
       </dl>
 
-      <div class="mt-8 overflow-x-auto rounded-2xl border border-coffee/10">
+      <div class="mt-8 hidden overflow-x-auto rounded-2xl border border-coffee/10 lg:block" role="region" aria-label="<%= t("portfolio_plans.show.Comparison table") %>" tabindex="0" data-portfolio-plan-comparisons="desktop">
         <table class="w-full min-w-[720px] text-sm">
           <caption class="sr-only"><%= t("portfolio_plans.show.Comparison table") %></caption>
           <thead class="bg-paper/60 text-left text-xs uppercase tracking-wide text-muted">
             <tr>
+              <th class="w-14 px-4 py-3 font-semibold"><span class="sr-only"><%= t("portfolio_plans.show.Shopping list") %></span></th>
               <th class="px-4 py-3 font-semibold"><%= t("portfolio_plans.show.Instrument") %></th>
               <th class="px-4 py-3 text-right font-semibold"><%= t("portfolio_plans.show.Current percentage") %></th>
               <th class="px-4 py-3 text-right font-semibold"><%= t("portfolio_plans.show.Target percentage") %></th>
@@ -125,29 +151,57 @@
           <tbody class="divide-y divide-coffee/10">
             <% @calculation.comparisons.each do |comparison| %>
               <tr>
+                <td class="px-4 py-3 text-center">
+                  <%= render "shopping_list_checkbox", comparison: %>
+                </td>
                 <th class="px-4 py-3 text-left font-medium text-coffee"><%= comparison.instrument.ticker %></th>
                 <td class="px-4 py-3 text-right font-mono tabular-nums"><%= number_to_percentage(comparison.current_percentage, precision: 2) %></td>
                 <td class="px-4 py-3 text-right font-mono tabular-nums"><%= number_to_percentage(comparison.target_percentage, precision: 2) %></td>
                 <td class="px-4 py-3 text-right font-mono tabular-nums"><%= display_money(Money.from_amount(comparison.difference_amount, @calculation.currency)) %></td>
                 <td class="px-4 py-3 text-right font-medium <%= comparison.buy? ? "text-positive" : comparison.sell? ? "text-negative" : "text-muted" %>">
-                  <% suggested_move = if comparison.below_minimum?
-                    t("portfolio_plans.show.Below minimum")
-                  elsif comparison.sell?
-                    t("portfolio_plans.show.Action", action: comparison.action.to_s.humanize, quantity: number_with_precision(comparison.quantity, precision: 8, strip_insignificant_zeros: true), amount: display_money(Money.from_amount(comparison.estimated_amount, @calculation.currency)))
-                  elsif comparison.overweight?
-                    t("portfolio_plans.show.Over target")
-                  elsif comparison.none?
-                    t("portfolio_plans.show.On target")
-                  else
-                    t("portfolio_plans.show.Action", action: comparison.action.to_s.humanize, quantity: number_with_precision(comparison.quantity, precision: 8, strip_insignificant_zeros: true), amount: display_money(Money.from_amount(comparison.estimated_amount, @calculation.currency)))
-                  end %>
-                  <%= suggested_move %>
+                  <%= render "suggested_move", comparison:, calculation: @calculation %>
                 </td>
               </tr>
             <% end %>
           </tbody>
         </table>
       </div>
+      <div class="mt-8 space-y-3 lg:hidden" role="list" aria-label="<%= t("portfolio_plans.show.Comparison table") %>" data-portfolio-plan-comparisons="mobile">
+        <% @calculation.comparisons.each do |comparison| %>
+          <article class="rounded-2xl border border-coffee/10 bg-paper p-4" role="listitem">
+            <div class="flex min-w-0 items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="truncate font-semibold text-coffee"><%= comparison.instrument.ticker %></h3>
+                <p class="mt-1 truncate text-xs text-muted"><%= comparison.instrument.name %> · <%= comparison.instrument.exchange %></p>
+              </div>
+              <%= render "shopping_list_checkbox", comparison: %>
+            </div>
+            <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div class="min-w-0">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("portfolio_plans.show.Current percentage") %></dt>
+                <dd class="mt-1 font-mono tabular-nums text-coffee"><%= number_to_percentage(comparison.current_percentage, precision: 2) %></dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("portfolio_plans.show.Target percentage") %></dt>
+                <dd class="mt-1 font-mono tabular-nums text-coffee"><%= number_to_percentage(comparison.target_percentage, precision: 2) %></dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("portfolio_plans.show.Difference") %></dt>
+                <dd class="mt-1 break-words font-mono tabular-nums text-coffee"><%= display_money(Money.from_amount(comparison.difference_amount, @calculation.currency)) %></dd>
+              </div>
+              <div class="col-span-2 min-w-0 border-t border-coffee/10 pt-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("portfolio_plans.show.Suggested") %></dt>
+                <dd class="mt-1 min-w-0 font-medium <%= comparison.buy? ? "text-positive" : comparison.sell? ? "text-negative" : "text-muted" %>">
+                  <%= render "suggested_move", comparison:, calculation: @calculation, alignment_class: "justify-start" %>
+                </dd>
+              </div>
+            </dl>
+          </article>
+        <% end %>
+      </div>
+      <% if @calculation.over_target? %>
+        <p class="mt-4 rounded-xl border border-warning-border bg-warning-surface px-4 py-3 text-sm leading-6 text-warning-text" role="status"><%= t("portfolio_plans.show.Over target explanation") %></p>
+      <% end %>
       <p class="mt-4 text-sm leading-6 text-muted"><%= t("portfolio_plans.show.Estimate disclaimer") %></p>
       <% if @calculation.unallocated_amount.positive? %>
         <p class="mt-2 text-sm font-medium text-coffee"><%= t("portfolio_plans.show.Unallocated", amount: display_money(Money.from_amount(@calculation.unallocated_amount, @calculation.currency))) %></p>
