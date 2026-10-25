@@ -24,5 +24,7 @@
     <%= render "dashboard/portfolio_state", dashboard: @dashboard %>
   <% end %>
 
+  <%= render "dashboard/investment_goal", goals: @investment_goals, progresses: @investment_goal_progresses %>
+
   <%= render "dashboard/long_view", dashboard: @dashboard, series: @series, series_presenter: @series_presenter if @dashboard.market_value_displayable? %>
 </section>

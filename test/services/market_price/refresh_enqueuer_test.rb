@@ -32,6 +32,21 @@ class MarketPrice::RefreshEnqueuerTest < ActiveSupport::TestCase
     assert_equal "queued", state.status
   end
 
+  test "supersedes an older target run when assigning a batch run" do
+    instrument = instruments(:petr4_bvmf)
+    scope = "test_refresh:#{instrument.id}"
+    RefreshStatus::Tracker.enqueue(scope:, run_id: "old-run")
+    job_class = fake_job_class(events: [], result: Object.new)
+
+    MarketPrice::RefreshEnqueuer.new(broadcaster: fake_broadcaster(events: []), job_class:).enqueue(
+      instrument:, batch_scope: "batch", batch_run_id: "new-run"
+    )
+
+    state = RefreshStatus::State.read(scope)
+    assert_equal "new-run", state.run_id
+    assert_equal "queued", state.status
+  end
+
   test "passes lease details to a batch job" do
     events = []
     job = Object.new

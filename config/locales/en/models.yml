@@ -124,6 +124,9 @@ en:
       instrument:
         one: Instrument
         other: Instruments
+      investment_goal:
+        one: investment goal
+        other: investment goals
       trade:
         one: Trade
         other: Trades

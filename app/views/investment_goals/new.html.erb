@@ -1,0 +1,13 @@
+<% content_for :title, t("investment_goals.new.Page title", application: t("caramelo")) %>
+
+<section class="mx-auto max-w-2xl space-y-8">
+  <div class="ui-page-header-copy">
+    <p class="ui-eyebrow"><%= t("Portfolio") %></p>
+    <h1 class="ui-page-title"><%= t("investment_goals.new.Heading") %></h1>
+    <p class="ui-page-intro"><%= t("investment_goals.new.Introduction") %></p>
+  </div>
+
+  <div class="ui-card p-6 sm:p-8">
+    <%= render "form", investment_goal: @investment_goal %>
+  </div>
+</section>

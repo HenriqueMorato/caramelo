@@ -26,11 +26,91 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
 
     assert_equal [ position ], presenter.open_positions
     assert_equal value, presenter.market_value
+    assert_equal BigDecimal("12"), presenter.market_value_amount
     assert_equal value, presenter.complete_market_value
+    assert_equal BigDecimal("12"), presenter.complete_market_value_amount
     assert_predicate presenter, :market_value_available?
     assert_not_predicate presenter, :stale_market_data?
     assert_not_predicate presenter, :missing_market_data?
     assert_equal fetched_at, presenter.last_market_data_at
+  end
+
+  test "keeps exact fresh values available through the generic valuation fallback" do
+    value = Money.from_amount(12, Rails.configuration.x.caramelo.reporting_currency)
+    position = position_result(
+      invalid: false, open: true,
+      valuation: ValuationState.new(value, false, false),
+      market_price: MarketPriceState.new(false, nil)
+    )
+    presenter = Dashboard::Presenter.new(positions: [ position ], recent_trades: [], performance: nil)
+
+    assert_equal value, presenter.complete_fresh_market_value_for(currency: "BRL")
+  end
+
+  test "preserves an exact market value amount when the valuation provides one" do
+    valuation = Data.define(:market_value, :market_value_amount, :stale?, :missing?) do
+      def available? = market_value.present?
+    end.new(Money.from_amount(12, "BRL"), BigDecimal("12.345"), false, false)
+    position = position_result(
+      invalid: false, open: true, valuation:, market_price: MarketPriceState.new(false, nil)
+    )
+    presenter = Dashboard::Presenter.new(positions: [ position ], recent_trades: [], performance: nil)
+
+    assert_equal BigDecimal("12.345"), presenter.market_value_amount
+  end
+
+  test "handles closed portfolios and unavailable cross-currency valuation state" do
+    users(:owner).update!(reporting_currency: "BRL")
+    closed_position = position_result(
+      invalid: false, open: false,
+      valuation: ValuationState.new(nil, false, true), market_price: MarketPriceState.new(false, nil)
+    )
+    closed_presenter = Dashboard::Presenter.new(
+      positions: [ closed_position ], recent_trades: [], performance: nil
+    )
+    assert_equal Money.from_amount(0, "USD"), closed_presenter.complete_fresh_market_value_for(currency: "USD")
+
+    position_result_without_record = Object.new
+    unavailable_position = Struct.new(
+      :invalid?, :position, :valuation, :market_price, :position_result
+    ).new(
+      false, PositionState.new(true), ValuationState.new(Money.from_amount(12, "BRL"), false, false),
+      MarketPriceState.new(false, nil), position_result_without_record
+    )
+    presenter = Dashboard::Presenter.new(
+      owner: users(:owner), positions: [ unavailable_position ], recent_trades: [], performance: nil
+    )
+
+    assert_equal "BRL", presenter.reporting_currency
+    assert_nil presenter.complete_fresh_market_value_for(currency: "USD")
+    assert_equal BigDecimal("0"), presenter.send(:market_value_amount_for, nil)
+    assert_equal Money.from_amount(12, "BRL"), presenter.send(
+      :complete_market_value_for, currency: "BRL", require_fresh: false
+    )
+  end
+
+  test "uses the current valuation fallback only for position records with quantity" do
+    valuation = ValuationState.new(Money.from_amount(12, "BRL"), false, false)
+    market_price = MarketPriceState.new(false, nil)
+    position_without_quantity = Struct.new(:position).new(Object.new)
+    unavailable_position = Struct.new(:position_result, :valuation, :market_price).new(
+      position_without_quantity, valuation, market_price
+    )
+    presenter = Dashboard::Presenter.new(positions: [], recent_trades: [], performance: nil)
+
+    assert_nil presenter.send(:valuation_for, unavailable_position, "USD")
+
+    position_record = Struct.new(:quantity).new(BigDecimal("2"))
+    current_price = CurrentMarketPrice.new(
+      unit_price: "12", currency: "USD", provider: "test", quoted_at: Time.current, fetched_at: Time.current
+    )
+    position_with_quantity = Struct.new(:position).new(position_record)
+    position = Struct.new(:position_result, :valuation, :market_price).new(
+      position_with_quantity, valuation, MarketPriceState.new(false, current_price)
+    )
+
+    result = presenter.send(:valuation_for, position, "USD")
+    assert_predicate result, :available?
   end
 
   test "handles missing and stale positions without presenting a value" do
@@ -236,6 +316,8 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     assert_not_predicate presenter, :market_value_available?
     assert_equal Money.from_amount(0, Rails.configuration.x.caramelo.reporting_currency), presenter.market_value
     assert_equal Money.from_amount(0, Rails.configuration.x.caramelo.reporting_currency), presenter.complete_market_value
+    assert_equal BigDecimal("0"), presenter.market_value_amount
+    assert_equal BigDecimal("0"), presenter.complete_market_value_amount
   end
 
   test "returns an empty summary without positions" do
@@ -247,6 +329,8 @@ class Dashboard::PresenterTest < ActiveSupport::TestCase
     assert_not_predicate presenter, :stale_market_data?
     assert_not_predicate presenter, :missing_market_data?
     assert_nil presenter.last_market_data_at
+    assert_nil presenter.market_value_amount
+    assert_nil presenter.complete_market_value_amount
   end
 
   test "detects a portfolio with trades even when valuation data is missing" do

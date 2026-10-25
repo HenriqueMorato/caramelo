@@ -1,0 +1,88 @@
+---
+en:
+  Goals: Goals
+  activerecord:
+    attributes:
+      investment_goal:
+        target_amount: Target portfolio value
+        target_on: Target date
+    errors:
+      models:
+        investment_goal:
+          attributes:
+            target_amount:
+              currency_precision: cannot have more than %{precision} decimal places
+                for this currency
+            target_on:
+              invalid: is invalid
+              past: must be today or a future date
+  investment_goals:
+    actions:
+      Archive: Archive
+      Pause: Pause
+      Reset: Start again
+      Resume: Resume
+    confirmations:
+      Archive: Archive this investment goal?
+    dashboard:
+      Achieved celebration: Goal reached — nice work.
+      Achieved heading: You reached your milestone
+      Dismiss celebration: Dismiss
+      Empty explanation: Choose a portfolio value to work toward and keep the next
+        milestone in view.
+      Empty heading: Give your portfolio a destination
+      Eyebrow: Investment goal
+      Heading: Your next milestone
+      No target date: No target date
+      Pending explanation: Progress will appear once the complete portfolio value
+        is available.
+      Pending heading: Your goal is waiting for market data
+      Progress label: Portfolio value progress toward the goal
+      Remaining: Remaining
+      Set goal: Set a goal
+      Stale explanation: Showing the last known portfolio value; the goal will be
+        marked reached after fresh market data arrives.
+      Target amount: Target %{amount}
+      Target date: Target date %{date}
+    edit:
+      Heading: Edit investment goal
+      Introduction: Keep the target current as your plans change.
+      Page title: Edit goal · %{application}
+    form:
+      Create: Create investment goal
+      Discard changes: Discard changes?
+      Saving: Saving…
+      Target amount help: The portfolio value you want to reach in %{currency}, your
+        reporting currency from Settings.
+      Target date help: Optional. Leave this blank when the date is not important.
+      Update: Update investment goal
+    index:
+      Add goal: Add investment goal
+      Empty explanation: Set a value target to turn a long-term intention into a visible
+        next step.
+      Empty eyebrow: A small step
+      Empty heading: No investment goals yet
+      Heading: Investment goals
+      Introduction: Set a personal target and follow progress from your portfolio
+        value.
+      No target date: No target date
+      Page title: Investment goals · %{application}
+      Portfolio value: Portfolio value goal
+      Target date: Target date %{date}
+    new:
+      Heading: Add investment goal
+      Introduction: Choose a portfolio value that would feel meaningful to reach.
+      Page title: Add goal · %{application}
+    notices:
+      Archived: Investment goal archived.
+      Created: Investment goal created.
+      NoChange: Investment goal was already in that state.
+      Paused: Investment goal paused.
+      Reset: Investment goal started again.
+      Resumed: Investment goal resumed.
+      Updated: Investment goal updated.
+    statuses:
+      achieved: Achieved
+      active: Active
+      archived: Archived
+      paused: Paused

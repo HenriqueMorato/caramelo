@@ -5,6 +5,7 @@ module Backup
   ARTIFACTS = %w[primary ledger].freeze
   DURABLE_TABLES = %w[
     users institutions instruments asset_types trades corporate_actions corporate_action_imports corporate_action_import_scans
+    investment_goals
   ].freeze
   REPLACEABLE_TABLES = %w[
     sessions daily_closing_prices historical_exchange_rates current_market_prices market_benchmarks
