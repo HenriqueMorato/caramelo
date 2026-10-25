@@ -36,7 +36,7 @@ class NavigationTest < ApplicationSystemTestCase
     visit root_path
 
     toggle = find("aside button[data-navigation-target='toggle']")
-    assert_equal "Collapse navigation", toggle[:"aria-label"]
+    assert_equal "Close navigation", toggle[:"aria-label"]
     toggle.click
 
     assert_selector "aside.w-20"
