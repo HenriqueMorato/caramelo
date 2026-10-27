@@ -107,6 +107,19 @@ module Backup
       database.execute("DELETE FROM corporate_action_import_scans WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM corporate_actions WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM investment_goals WHERE user_id <> ?", [ owner_id ])
+      database.execute(<<~SQL, [ owner_id ])
+        DELETE FROM portfolio_allocation_asset_targets
+        WHERE portfolio_allocation_plan_id NOT IN (
+          SELECT id FROM portfolio_allocation_plans WHERE user_id = ?
+        )
+      SQL
+      database.execute(<<~SQL, [ owner_id ])
+        DELETE FROM portfolio_allocation_instrument_targets
+        WHERE portfolio_allocation_plan_id NOT IN (
+          SELECT id FROM portfolio_allocation_plans WHERE user_id = ?
+        )
+      SQL
+      database.execute("DELETE FROM portfolio_allocation_plans WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM trades WHERE user_id <> ?", [ owner_id ])
       database.execute(<<~SQL, [ owner_id ])
         DELETE FROM institutions

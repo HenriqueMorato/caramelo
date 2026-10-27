@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_122000) do
   create_table "asset_types", force: :cascade do |t|
     t.string "key", limit: 32, null: false
     t.string "name", limit: 64, null: false
@@ -248,9 +248,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100000) do
     t.datetime "updated_at", null: false
     t.string "asset_type", default: "other", null: false
     t.string "slug", null: false
+    t.decimal "quantity_step", precision: 20, scale: 8, default: "1.0", null: false
     t.index ["asset_type"], name: "index_instruments_on_asset_type"
     t.index ["exchange", "ticker"], name: "index_instruments_on_exchange_and_ticker", unique: true
     t.index ["slug"], name: "index_instruments_on_slug", unique: true
+    t.check_constraint "quantity_step > 0", name: "instruments_quantity_step_positive"
   end
 
   create_table "investment_goals", force: :cascade do |t|
@@ -310,6 +312,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100000) do
     t.datetime "updated_at", null: false
     t.index ["scope"], name: "index_market_data_refreshes_on_scope", unique: true
     t.index ["status"], name: "index_market_data_refreshes_on_status"
+  end
+
+  create_table "portfolio_allocation_asset_targets", force: :cascade do |t|
+    t.integer "portfolio_allocation_plan_id", null: false
+    t.string "asset_type_key", limit: 32, null: false
+    t.decimal "target_percentage", precision: 20, scale: 8, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["portfolio_allocation_plan_id", "asset_type_key"], name: "index_portfolio_allocation_asset_targets_uniqueness", unique: true
+    t.index ["portfolio_allocation_plan_id"], name: "idx_on_portfolio_allocation_plan_id_337ed6c1a3"
+    t.check_constraint "target_percentage > 0 AND target_percentage <= 100", name: "portfolio_allocation_asset_targets_percentage"
+  end
+
+  create_table "portfolio_allocation_instrument_targets", force: :cascade do |t|
+    t.integer "portfolio_allocation_plan_id", null: false
+    t.integer "instrument_id", null: false
+    t.string "asset_type_key", limit: 32, null: false
+    t.decimal "target_percentage", precision: 20, scale: 8, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["instrument_id"], name: "index_portfolio_allocation_instrument_targets_on_instrument_id"
+    t.index ["portfolio_allocation_plan_id", "instrument_id"], name: "index_portfolio_allocation_instrument_targets_uniqueness", unique: true
+    t.index ["portfolio_allocation_plan_id"], name: "idx_on_portfolio_allocation_plan_id_d50add6c4b"
+    t.check_constraint "target_percentage > 0 AND target_percentage <= 100", name: "portfolio_allocation_instrument_targets_percentage"
+  end
+
+  create_table "portfolio_allocation_plans", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_portfolio_allocation_plans_on_user_id", unique: true
   end
 
   create_table "portfolio_performance_materializations", force: :cascade do |t|
@@ -430,6 +463,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100000) do
   add_foreign_key "instruments", "asset_types", column: "asset_type", primary_key: "key", on_delete: :restrict
   add_foreign_key "investment_goals", "users"
   add_foreign_key "market_benchmark_observations", "market_benchmarks"
+  add_foreign_key "portfolio_allocation_asset_targets", "asset_types", column: "asset_type_key", primary_key: "key", on_delete: :restrict
+  add_foreign_key "portfolio_allocation_asset_targets", "portfolio_allocation_plans"
+  add_foreign_key "portfolio_allocation_instrument_targets", "asset_types", column: "asset_type_key", primary_key: "key", on_delete: :restrict
+  add_foreign_key "portfolio_allocation_instrument_targets", "instruments"
+  add_foreign_key "portfolio_allocation_instrument_targets", "portfolio_allocation_plans"
+  add_foreign_key "portfolio_allocation_plans", "users"
   add_foreign_key "portfolio_performance_materializations", "users"
   add_foreign_key "portfolio_performance_observations", "users"
   add_foreign_key "position_materializations", "instruments"

@@ -21,6 +21,48 @@ class InstrumentTest < ActiveSupport::TestCase
     assert_includes instrument.errors[:asset_type], "is not included in the list"
   end
 
+  test "defaults US listings and UCITS funds to fractional quantity steps" do
+    us_listing = Instrument.new(
+      ticker: "US#{SecureRandom.hex(2).upcase}", exchange: "XNAS", name: "US listing", currency: "USD"
+    )
+    ucits_fund = Instrument.new(
+      ticker: "EU#{SecureRandom.hex(2).upcase}", exchange: "XETR", name: "Global UCITS ETF", currency: "EUR"
+    )
+
+    assert_predicate us_listing, :us_listing?
+    assert_predicate ucits_fund, :ucits?
+    assert_equal BigDecimal("0.001"), us_listing.default_quantity_step
+    assert_equal BigDecimal("0.001"), ucits_fund.default_quantity_step
+
+    us_listing.save!
+    ucits_fund.save!
+
+    assert_equal BigDecimal("0.001"), us_listing.quantity_step
+    assert_equal BigDecimal("0.001"), ucits_fund.quantity_step
+  end
+
+  test "keeps whole quantity steps for other listings" do
+    instrument = Instrument.new(ticker: "BR#{SecureRandom.hex(2).upcase}", name: "Brazilian listing")
+
+    assert_not_predicate instrument, :fractional_quantity_step?
+    assert_equal BigDecimal("1"), instrument.default_quantity_step
+    instrument.save!
+
+    assert_equal BigDecimal("1"), instrument.quantity_step
+  end
+
+  test "preserves a quantity step chosen for a new eligible listing" do
+    instrument = Instrument.new(
+      ticker: "OV#{SecureRandom.hex(2).upcase}", exchange: "XNAS", name: "Override listing", currency: "USD"
+    )
+    instrument.quantity_step = instrument.default_quantity_step
+    instrument.quantity_step = 1
+
+    instrument.save!
+
+    assert_equal BigDecimal("1"), instrument.quantity_step
+  end
+
   test "exposes registered asset type keys for compatibility" do
     custom = AssetType.create!(name: "Private credit")
 

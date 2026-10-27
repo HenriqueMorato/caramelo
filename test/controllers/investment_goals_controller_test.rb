@@ -6,7 +6,10 @@ class InvestmentGoalsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Investment goals"
-    assert_select "h2", "No investment goals yet"
+    assert_select "h2", "Your investment goals"
+    assert_select "h3", "No investment goals yet"
+    assert_select "#portfolio-allocation-heading", "Shape your portfolio mix"
+    assert_select "a", "Open allocation planner"
 
     assert_difference("User.owner.investment_goals.count") do
       post investment_goals_url, params: {
