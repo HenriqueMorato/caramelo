@@ -844,7 +844,7 @@ html[data-theme="dark"] {
 
   .ui-badge-closed,
   .ui-badge-inactive {
-    @apply bg-coffee/5 text-muted;
+    @apply bg-coffee/5 text-coffee;
   }
 
   .ui-badge-active {
