@@ -180,7 +180,10 @@ class PortfolioPlansTest < ApplicationSystemTestCase
 
     visit portfolio_plan_path
     click_on "Add instrument group"
+    assert_selector "details[data-controller='allocation-group']", count: 1
+    assert_selector "details[data-controller='allocation-group'] > summary:focus", count: 1
     click_on "Add instrument group"
+    assert_selector "details[data-controller='allocation-group'] > summary:focus", count: 1
 
     assert_selector "details[data-controller='allocation-group']", count: 2
     assert_selector "details[data-controller='allocation-group'][open]", count: 2
@@ -194,6 +197,7 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     accept_confirm do
       groups.last.find("button", text: "Delete group").click
     end
+    assert_equal groups.first[:id], page.evaluate_script("document.activeElement.closest('details')?.id")
     assert_selector "details[data-controller='allocation-group']", count: 1
   end
 

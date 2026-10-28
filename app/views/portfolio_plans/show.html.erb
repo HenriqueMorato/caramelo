@@ -105,7 +105,7 @@
               </div>
               <% if available_group_positions.length >= 2 %>
                 <div class="mt-4">
-                  <%= link_to new_portfolio_plan_group_path(asset_type_key:), class: "ui-button ui-button-primary w-fit", data: { turbo_stream: true } do %>
+                  <%= link_to new_portfolio_plan_group_path(asset_type_key:), class: "ui-button ui-button-primary w-fit", data: { turbo_stream: true, portfolio_allocation_add_group: true } do %>
                     <span aria-hidden="true">+</span>
                     <span><%= t("portfolio_plans.show.Add instrument group") %></span>
                   <% end %>
@@ -115,7 +115,7 @@
           <% end %>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-          <%= form.submit t("portfolio_plans.show.Save targets"), class: "ui-button ui-button-primary cursor-pointer", data: { turbo_submits_with: t("portfolio_plans.show.Saving") } %>
+          <%= form.submit t("portfolio_plans.show.Save targets"), class: "ui-button ui-button-primary cursor-pointer", data: { turbo_submits_with: t("portfolio_plans.show.Saving"), portfolio_allocation_save: true } %>
           <span class="text-sm text-muted"><%= t("portfolio_plans.show.Total reminder") %></span>
         </div>
       <% end %>

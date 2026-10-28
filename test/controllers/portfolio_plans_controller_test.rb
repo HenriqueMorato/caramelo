@@ -73,6 +73,21 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_equal "ETF alternatives", group.name
     assert_equal({ @stock.id => "hold", second_stock.id => "buy" },
       group.members.to_h { |member| [ member.instrument_id, member.purchase_policy ] })
+
+    get portfolio_plan_url
+
+    assert_select "button[type='submit'][name='portfolio_allocation[groups][#{group.id}][remove]'][value='1']", count: 1
+
+    patch portfolio_plan_url, params: {
+      portfolio_allocation: {
+        asset_targets: { stock: "60", bond: "40" },
+        instrument_targets: { @bond.id.to_s => "100" },
+        groups: { group.id.to_s => { asset_type_key: "stock", remove: "1" } }
+      }
+    }
+
+    assert_redirected_to portfolio_plan_url(mode: nil, contribution: nil)
+    assert_empty User.owner.reload.portfolio_allocation_plan.allocation_groups
   end
 
   test "appends a new allocation group through Turbo" do
@@ -87,12 +102,15 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_select "turbo-stream template input[name$='[asset_type_key]'][value='stock']"
   end
 
-  test "falls back to the planner when a group is requested without Turbo" do
+  test "renders a new group when a group is requested without Turbo" do
     add_second_stock
 
     get new_portfolio_plan_group_url(asset_type_key: "stock")
 
-    assert_redirected_to portfolio_plan_url(anchor: "portfolio-allocation-groups-stock")
+    assert_response :success
+    assert_select "details[data-controller='allocation-group'][open]", count: 1
+    assert_select "input[name='portfolio_allocation[groups][new_stock][name]']"
+    assert_select "button[type='submit'][name='portfolio_allocation[groups][new_stock][remove]'][value='1']", count: 1
   end
 
   test "rejects a new group when fewer than two positions are available" do

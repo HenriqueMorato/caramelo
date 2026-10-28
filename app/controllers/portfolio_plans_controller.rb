@@ -15,21 +15,27 @@ class PortfolioPlansController < ApplicationController
     position_results = available_group_positions(asset_type_key)
     return head :unprocessable_content unless AssetType.valid_key?(asset_type_key) && position_results.length >= 2
 
+    group_key = "new_#{asset_type_key}"
     respond_to do |format|
       format.turbo_stream do
+        group_key = "#{group_key}_#{SecureRandom.hex(4)}"
         render turbo_stream: turbo_stream.append(
           "portfolio-allocation-groups-#{asset_type_key}",
           partial: "portfolio_plans/allocation_group",
           locals: {
             group: nil,
-            group_key: "new_#{asset_type_key}_#{SecureRandom.hex(4)}",
+            group_key:,
             asset_type_key:,
             position_results:,
             submitted: nil
           }
         )
       end
-      format.html { redirect_to portfolio_plan_path(anchor: "portfolio-allocation-groups-#{asset_type_key}") }
+      format.html do
+        @submitted_groups = { group_key => { "asset_type_key" => asset_type_key } }
+        prepare_view
+        render :show
+      end
     end
   end
 
