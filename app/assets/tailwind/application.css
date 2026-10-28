@@ -599,6 +599,295 @@ html[data-theme="dark"] {
     @apply text-sm leading-6 text-muted;
   }
 
+  .portfolio-plan-workspace {
+    @apply grid items-start gap-6;
+  }
+
+  .portfolio-plan-planner {
+    @apply mt-6 min-w-0;
+  }
+
+  .portfolio-plan-planner > turbo-frame {
+    @apply block;
+  }
+
+  .portfolio-plan-step {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-caramel-deep;
+  }
+
+  .portfolio-plan-section-heading {
+    @apply mt-2 font-display text-2xl font-semibold tracking-tight text-coffee sm:text-3xl;
+  }
+
+  .portfolio-plan-section-copy {
+    @apply mt-2 max-w-2xl text-sm leading-6 text-muted;
+  }
+
+  .portfolio-plan-status {
+    @apply inline-flex min-h-8 items-center rounded-full border border-coffee/10 bg-paper px-3 py-1 text-xs font-semibold text-muted;
+  }
+
+  .portfolio-plan-status[data-complete="true"] {
+    @apply border-leaf/20 bg-leaf/10 text-leaf;
+  }
+
+  .portfolio-plan-mix {
+    @apply mt-7 rounded-xl border border-coffee/10 bg-paper p-3;
+  }
+
+  .portfolio-plan-mix-bar {
+    @apply flex h-3 min-w-0 overflow-hidden rounded-full bg-oat;
+  }
+
+  .portfolio-plan-mix-segment {
+    flex: 0 0 auto;
+    width: 0;
+    min-width: 0;
+    background: var(--asset-color, var(--caramelo-caramel));
+    transition: width 150ms ease;
+  }
+
+  .portfolio-plan-mix-segment + .portfolio-plan-mix-segment {
+    border-left: 2px solid var(--caramelo-raised);
+  }
+
+  .portfolio-plan-mix-caption {
+    @apply mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted;
+  }
+
+  .portfolio-plan-column-labels {
+    @apply mt-7 hidden gap-4 px-4 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted md:grid;
+    grid-template-columns: minmax(96px, 0.8fr) minmax(84px, 0.9fr) minmax(0, 1.7fr) minmax(76px, 0.9fr);
+  }
+
+  .portfolio-plan-allocation-row {
+    @apply grid min-w-0 gap-4 rounded-2xl border border-coffee/10 bg-paper/60 p-4;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .portfolio-plan-allocation-row + .portfolio-plan-allocation-row {
+    @apply mt-3;
+  }
+
+  .portfolio-plan-allocation-row .portfolio-plan-asset-name::before {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    margin-right: 0.55rem;
+    border-radius: 9999px;
+    background: var(--asset-color, var(--caramelo-caramel));
+    content: "";
+    vertical-align: 0.05em;
+  }
+
+  .portfolio-plan-asset-meta {
+    @apply mt-1 text-xs leading-5 text-muted;
+  }
+
+  .portfolio-plan-current,
+  .portfolio-plan-gap {
+    @apply font-mono text-sm tabular-nums text-coffee;
+  }
+
+  .portfolio-plan-gap-positive {
+    @apply text-leaf;
+  }
+
+  .portfolio-plan-gap-negative {
+    @apply text-guava;
+  }
+
+  .portfolio-plan-target-control {
+    @apply min-w-0;
+  }
+
+  .portfolio-plan-target-track {
+    @apply relative min-w-0;
+  }
+
+  .portfolio-plan-target-track > .portfolio-plan-track-fill {
+    @apply absolute inset-x-0 top-2 h-1.5 overflow-hidden rounded-full bg-caramel/15;
+  }
+
+  .portfolio-plan-target-track > .portfolio-plan-track-fill > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--asset-color, var(--caramelo-caramel));
+    transition: width 150ms ease;
+  }
+
+  .portfolio-plan-target-track input[type="range"] {
+    @apply relative z-10 h-6 w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2;
+    accent-color: var(--asset-color, var(--caramelo-caramel));
+  }
+
+  .portfolio-plan-percent-field {
+    @apply relative mt-3;
+  }
+
+  .portfolio-plan-percent-field .ui-field {
+    @apply w-full pr-6 text-right font-mono tabular-nums;
+    border-color: color-mix(in srgb, var(--asset-color, var(--caramelo-caramel)) 45%, var(--caramelo-chart-border));
+    color: var(--asset-color, var(--caramelo-caramel));
+    caret-color: var(--asset-color, var(--caramelo-caramel));
+  }
+
+  .portfolio-plan-percent-field > span {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .portfolio-plan-percent-field .ui-field:focus {
+    border-color: var(--asset-color, var(--caramelo-caramel));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--asset-color, var(--caramelo-caramel)) 18%, transparent);
+  }
+
+  .portfolio-plan-total {
+    @apply mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-coffee/10 pt-4 text-sm text-muted;
+  }
+
+  .portfolio-plan-total strong {
+    @apply font-mono tabular-nums text-coffee;
+  }
+
+  .portfolio-plan-details {
+    @apply mt-6 border-t border-coffee/10 pt-6;
+  }
+
+  .portfolio-plan-detail {
+    @apply rounded-2xl border border-coffee/10 bg-paper/55;
+  }
+
+  .portfolio-plan-detail + .portfolio-plan-detail {
+    @apply mt-3;
+  }
+
+  .portfolio-plan-detail > summary {
+    @apply flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-caramel;
+  }
+
+  .portfolio-plan-detail > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .portfolio-plan-detail > summary::after {
+    flex: 0 0 auto;
+    color: var(--caramelo-muted);
+    content: "⌄";
+    font-size: 1rem;
+    transition: transform 150ms ease;
+  }
+
+  .portfolio-plan-detail[open] > summary::after {
+    transform: rotate(180deg);
+  }
+
+  .portfolio-plan-detail-body {
+    @apply border-t border-coffee/10 px-4 pb-4 pt-1;
+  }
+
+  .portfolio-plan-detail-body .portfolio-plan-instrument-row {
+    @apply grid min-w-0 items-center gap-3 border-b border-coffee/10 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_14rem];
+  }
+
+  .portfolio-plan-detail-body .portfolio-plan-instrument-row > div:last-child {
+    @apply w-full sm:w-auto;
+  }
+
+  .portfolio-plan-calculation {
+    @apply min-w-0;
+  }
+
+  .portfolio-plan-mode-options {
+    @apply grid gap-1 rounded-xl border border-coffee/10 bg-oat p-1 sm:grid-cols-2;
+  }
+
+  .portfolio-plan-mode-option {
+    @apply relative block cursor-pointer;
+  }
+
+  .portfolio-plan-mode-option input {
+    @apply absolute inset-0 size-full cursor-pointer opacity-0;
+  }
+
+  .portfolio-plan-mode-option > .portfolio-plan-mode-label {
+    @apply flex min-h-11 items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted transition-[background-color,color,box-shadow,transform] duration-150;
+  }
+
+  .portfolio-plan-mode-option:hover > .portfolio-plan-mode-label {
+    @apply bg-paper/70 text-coffee;
+  }
+
+  .portfolio-plan-mode-option input:checked + .portfolio-plan-mode-label {
+    @apply bg-paper text-coffee shadow-sm;
+  }
+
+  .portfolio-plan-mode-option input:focus-visible + .portfolio-plan-mode-label {
+    @apply ring-2 ring-caramel ring-offset-2;
+  }
+
+  .portfolio-plan-calculation-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 48rem) {
+    .portfolio-plan-calculation-form {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+  }
+
+  @media (min-width: 68.75rem) {
+    .portfolio-plan-calculation-form {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(10rem, auto);
+      align-items: start;
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .portfolio-plan-allocation-row {
+      grid-template-columns: minmax(96px, 0.8fr) minmax(84px, 0.9fr) minmax(0, 1.7fr) minmax(76px, 0.9fr);
+      align-items: center;
+    }
+
+    .portfolio-plan-target-control {
+      grid-column: 3;
+      grid-row: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 70px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .portfolio-plan-percent-field {
+      @apply mt-0;
+    }
+
+    .portfolio-plan-current {
+      grid-column: 2;
+      grid-row: 1;
+      text-align: right;
+    }
+
+    .portfolio-plan-gap {
+      grid-column: 4;
+      grid-row: 1;
+      text-align: right;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .portfolio-plan-mix-segment,
+    .portfolio-plan-target-track > .portfolio-plan-track-fill > span,
+    .portfolio-plan-detail > summary::after {
+      transition: none;
+    }
+  }
+
   .trade-entry-layout {
     @apply grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.65fr)];
   }

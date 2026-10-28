@@ -5,8 +5,16 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     prepare_holdings
 
     visit portfolio_plan_path
-    assert_text "Shape your portfolio"
+    assert_text "Give your portfolio direction."
     assert_text "Stock"
+    assert_selector "form#portfolio-allocation-form"
+    assert_selector ".portfolio-plan-mix-bar"
+    assert_text "Inside each allocation"
+    assert_selector "#portfolio_plan_mode_buy_only[type='radio'][checked]", visible: :all
+    assert_selector ".portfolio-plan-mode-options"
+    assert_no_selector "details.portfolio-plan-detail[open]"
+    open_allocation_details("Bond")
+    open_allocation_details("Stock")
     assert_text "Allocation bond"
 
     find("input[name='portfolio_allocation[asset_targets][stock]']").set("60")
@@ -16,12 +24,17 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     click_on "Save targets"
 
     assert_text "Allocation targets saved."
+    fill_in "New money (BRL)", with: "0"
+    find("button[data-amount='100']").click
+    assert_field "New money (BRL)", with: "100"
+    find("button[data-amount='1000']").click
+    assert_field "New money (BRL)", with: "1100"
     fill_in "New money (BRL)", with: "100"
     click_on "Calculate"
 
-    assert_current_path portfolio_plan_path(contribution: "100", instrument_count: "", mode: "buy_only")
+    assert_current_path portfolio_plan_path, ignore_query: true
     assert_selector "turbo-frame#portfolio-plan-calculation"
-    assert_text "What would move you closer?"
+    assert_text "Put the plan in motion."
     assert_text "These are estimates, not orders."
     assert_text "Buy"
     assert_no_text "0.00000000"
@@ -35,14 +48,15 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_text "Shape your portfolio mix"
     assert_text "Set target percentages for each asset type"
     click_on "Open allocation planner"
-    assert_selector "form[data-controller='portfolio-allocation-form']"
+    open_allocation_details("Stock")
+    assert_selector "section[data-controller='portfolio-allocation-form']"
     assert_selector "#portfolio_allocation_asset_targets_range_stock[data-action*='input->portfolio-allocation-form#move']"
 
     find("input[name='portfolio_allocation[asset_targets][stock]']").set("60")
     fill_in "portfolio_allocation_asset_targets_bond", with: "40"
     find("#portfolio_allocation_asset_targets_range_stock").set("70")
 
-    assert_text "70%"
+    assert_field "portfolio_allocation_asset_targets_stock", with: "70"
     assert_field "portfolio_allocation_asset_targets_bond", with: "40"
     assert_selector "#portfolio_allocation_instrument_targets_range_#{@stock.id}.h-5"
     assert_field "portfolio_allocation_instrument_targets_#{@stock.id}", with: ""
@@ -93,6 +107,7 @@ class PortfolioPlansTest < ApplicationSystemTestCase
 
     visit portfolio_plan_path
     find("input[name='portfolio_allocation[asset_targets][stock]']").set("100")
+    open_allocation_details("Stock")
     find("input[name='portfolio_allocation[instrument_targets][#{@stock.id}]']").set("100")
     click_on "Save targets"
     assert_text "Allocation targets saved."
@@ -108,6 +123,8 @@ class PortfolioPlansTest < ApplicationSystemTestCase
 
     assert_text "The plan needs fresh market data"
     assert_text "Open Data health"
+    click_link "Open Data health"
+    assert_current_path market_data_health_path
   end
 
   test "fills the remaining asset target and splits blank instruments evenly" do
@@ -115,6 +132,8 @@ class PortfolioPlansTest < ApplicationSystemTestCase
 
     visit portfolio_plan_path
     find("input[name='portfolio_allocation[asset_targets][stock]']").set("60")
+    open_allocation_details("Stock")
+    open_allocation_details("Bond")
 
     assert_field "portfolio_allocation[asset_targets][bond]", with: "40.00"
     assert_field "portfolio_allocation[instrument_targets][#{@stock.id}]", with: ""
@@ -142,6 +161,7 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     )
 
     visit portfolio_plan_path
+    open_allocation_details("Stock")
     fill_in "portfolio_allocation_asset_targets_stock", with: "60"
     fill_in "portfolio_allocation_asset_targets_bond", with: "40"
     click_on "Add instrument group"
@@ -179,6 +199,7 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     )
 
     visit portfolio_plan_path
+    open_allocation_details("Stock")
     click_on "Add instrument group"
     assert_selector "details[data-controller='allocation-group']", count: 1
     assert_selector "details[data-controller='allocation-group'] > summary:focus", count: 1
@@ -202,6 +223,10 @@ class PortfolioPlansTest < ApplicationSystemTestCase
   end
 
   private
+
+  def open_allocation_details(asset_type)
+    find("details.portfolio-plan-detail summary", text: asset_type).click
+  end
 
   def prepare_holdings
     Trade.where(user: User.owner).delete_all

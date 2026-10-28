@@ -3,7 +3,8 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [
     "assetField", "assetRange", "assetOutput", "assetBar",
-    "instrumentField", "instrumentRange", "instrumentOutput", "instrumentBar"
+    "instrumentField", "instrumentRange", "instrumentOutput", "instrumentBar",
+    "allocationTotal", "allocationStatus"
   ]
 
   connect() {
@@ -98,6 +99,22 @@ export default class extends Controller {
   syncControls() {
     this.syncRangeControls(this.assetRangeTargets, this.assetFieldTargets, this.assetOutputTargets, this.assetBarTargets)
     this.syncRangeControls(this.instrumentRangeTargets, this.instrumentFieldTargets, this.instrumentOutputTargets, this.instrumentBarTargets)
+    this.syncAllocationSummary()
+  }
+
+  syncAllocationSummary() {
+    const total = this.assetFieldTargets.reduce((sum, field) => {
+      const value = Number(field.value)
+      return Number.isFinite(value) ? sum + value : sum
+    }, 0)
+    const normalized = Math.round(total * 100) / 100
+
+    this.allocationTotalTargets.forEach((target) => {
+      target.textContent = `${this.formatPercentage(normalized)}%`
+    })
+    this.allocationStatusTargets.forEach((target) => {
+      target.dataset.complete = Math.abs(normalized - 100) <= 0.01 ? "true" : "false"
+    })
   }
 
   syncRangeControls(ranges, fields, outputs, bars) {
@@ -110,11 +127,10 @@ export default class extends Controller {
       const output = outputs.find((candidate) => this.matchesRange(candidate, range))
       if (output) output.textContent = `${this.formatPercentage(normalized)}%`
 
-      const bar = bars.find((candidate) => this.matchesRange(candidate, range))
-      if (bar) {
+      bars.filter((candidate) => this.matchesRange(candidate, range)).forEach((bar) => {
         bar.style.width = `${normalized}%`
         bar.setAttribute("aria-valuenow", normalized)
-      }
+      })
     })
   }
 

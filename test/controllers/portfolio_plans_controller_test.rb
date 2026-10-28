@@ -21,7 +21,9 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     get portfolio_plan_url
 
     assert_response :success
-    assert_select "h1", "Shape your portfolio"
+    assert_select "h1", "Give your portfolio direction."
+    assert_select ".portfolio-plan-workspace"
+    assert_select ".portfolio-plan-planner"
     assert_select "input[name='portfolio_allocation[asset_targets][stock]']"
     assert_select "input[name='portfolio_allocation[instrument_targets][#{@stock.id}]']"
     assert_select "p", text: "Set your target mix first"
@@ -171,7 +173,7 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     get portfolio_plan_url(contribution: "100", mode: "buy_only")
 
     assert_response :success
-    assert_select "h2", "What would move you closer?"
+    assert_select "h2", "Put the plan in motion."
     assert_select "dd", text: /R\$99,00/
     assert_select "td", text: /Buy/
     assert_select "p", /These are estimates, not orders/
@@ -208,7 +210,7 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "[role=alert]", /contribution is invalid/
-    assert_select "h2", "What would move you closer?"
+    assert_select "h2", "Put the plan in motion."
   end
 
   test "preserves an invalid instrument count in the calculation form" do

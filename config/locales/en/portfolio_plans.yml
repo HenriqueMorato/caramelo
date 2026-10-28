@@ -7,25 +7,25 @@ en:
     show:
       Action: "%{action} %{quantity} · %{amount}"
       Add a trade: Add a trade
+      Add contribution amount: Add %{amount} to contribution
       Add instrument group: Add instrument group
       All instruments: All
+      Allocated: allocated
       Asset target: Type target %
+      Asset type: Asset type
       Back to goals: Back to goals
       Below minimum: Below minimum unit
       Buy in group: Buy
       Buy only: Buy only
+      Buy only explanation: Add new money to underweight positions and keep existing
+        holdings.
       Calculate: Calculate
-      Calculation explanation: Enter new money to see a buy-only contribution plan,
-        or compare a full rebalance. Choose a number of instruments to make a shorter
-        shopping list. Buy-only uses that contribution across underweight positions;
-        Difference shows the full gap. Groups let related instruments share one target
-        while you keep an existing holding and direct new money to another. Estimates
-        use current quotes, a fixed 1% cash reserve, and each instrument’s quantity
-        step.
-      Calculation heading: What would move you closer?
+      Calculation explanation: Preview changes by asset type.
+      Calculation heading: Put the plan in motion.
       Cash reserve: Cash reserve
       Comparison table: Current and target allocation
       Could not save: Check the target mix
+      Current allocation: Current
       Current percentage: Current
       Current value: Current value
       Data issue: "%{instrument}: %{reason}"
@@ -46,6 +46,8 @@ en:
         a trade, and no trade is created automatically.
       Exact target: Exact target %
       Full rebalance: Full rebalance
+      Full rebalance explanation: Compare the full buy-and-sell gap against your targets.
+      Gap: Gap
       Group context: "%{group} · %{policy}"
       Group members: Instruments in this group
       Group name: Group name
@@ -54,22 +56,24 @@ en:
       Group target: Group share %
       Group target explanation: This group gets this share of the %{asset_type} target.
         Hold instruments count toward it, while Buy instruments receive new money.
-      Heading: Shape your portfolio
+      Heading: Give your portfolio direction.
       Hold in group: Hold
+      Inside each allocation: Inside each allocation
+      Inside each allocation explanation: Choose the holdings that share each asset-type
+        target. This is optional; blank instrument targets are divided evenly.
       Instrument: Instrument
       Instrument count: "%{selected} of %{total} held instruments selected"
       Instrument target: "%{instrument} target percentage"
       Instruments to buy: Instruments to buy
       Instruments to buy explanation: Leave blank to consider every underweight instrument.
         The planner uses the available money as fully as the quantity steps allow.
-      Introduction: Set the mix you want, then see the next purchases that would move
-        your holdings closer to it.
+      Introduction: Set your ideal mix. See what it takes to get a little closer.
       Investable money: Investable money
       Mark as purchased: Mark %{instrument} as purchased
       Mode: Recommendation mode
       New instrument group: New instrument group
       New money: New money (%{currency})
-      Next move: Next move
+      Next move: 02 / Your next step
       No group target: No target yet
       No holdings: No open holdings yet
       No holdings explanation: Record a trade first, then return here to shape the
@@ -80,26 +84,30 @@ en:
         blank.
       On target: On target
       Open data health: Open Data health
+      Optional fine tune: Optional · fine-tune
       Over target: Over target
       Over target by: Over target by %{amount}
       Over target explanation: Some purchases use the available money more fully even
         though they move slightly past the target. Review the flagged rows before
         buying.
       Page title: Portfolio plan · %{application}
+      Portfolio-wide percentages: Portfolio-wide percentages
       Projected value: Projected value
+      Quick contributions: Quick amounts
+      Save status: No unsaved changes
       Save targets: Save targets
       Saving: Saving…
       Shopping list: Shopping list
       Suggested: Suggested move
       Summary: Portfolio plan summary
-      Target explanation: Move a bar to rebalance the others automatically. Use the
-        exact field when you want a precise decimal percentage. Instrument targets
-        are optional and split evenly when left blank. Group related instruments when
-        they should share one asset-type target, then mark each member Buy or Hold.
-      Target heading: Move the bars to choose your mix
-      Target mix: Target mix
+      Target column: Target
+      Target explanation: A little more here. A little less there. Move a bar to rebalance
+        the others automatically, or use an exact field for a precise percentage.
+      Target heading: Target allocation
+      Target mix: 01 / Your destination
       Target percentage: Target
       Total reminder: Asset types total 100%. Leave instrument targets blank to split
         evenly, or set some instruments and the remainder will be shared across the
         rest.
       Unallocated: "%{amount} remains unallocated after quantity rounding."
+      Your target mix: Your target mix
