@@ -119,6 +119,22 @@ module Backup
           SELECT id FROM portfolio_allocation_plans WHERE user_id = ?
         )
       SQL
+      database.execute(<<~SQL, [ owner_id ])
+        DELETE FROM portfolio_allocation_group_members
+        WHERE portfolio_allocation_group_id NOT IN (
+          SELECT portfolio_allocation_groups.id
+          FROM portfolio_allocation_groups
+          INNER JOIN portfolio_allocation_plans
+            ON portfolio_allocation_plans.id = portfolio_allocation_groups.portfolio_allocation_plan_id
+          WHERE portfolio_allocation_plans.user_id = ?
+        )
+      SQL
+      database.execute(<<~SQL, [ owner_id ])
+        DELETE FROM portfolio_allocation_groups
+        WHERE portfolio_allocation_plan_id NOT IN (
+          SELECT id FROM portfolio_allocation_plans WHERE user_id = ?
+        )
+      SQL
       database.execute("DELETE FROM portfolio_allocation_plans WHERE user_id <> ?", [ owner_id ])
       database.execute("DELETE FROM trades WHERE user_id <> ?", [ owner_id ])
       database.execute(<<~SQL, [ owner_id ])
@@ -141,6 +157,10 @@ module Backup
           SELECT instrument_id FROM corporate_action_imports WHERE instrument_id IS NOT NULL
           UNION
           SELECT instrument_id FROM corporate_action_import_scans
+          UNION
+          SELECT instrument_id FROM portfolio_allocation_instrument_targets
+          UNION
+          SELECT instrument_id FROM portfolio_allocation_group_members
         )
       SQL
       database.execute("DELETE FROM users WHERE id <> ?", [ owner_id ])

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_122000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_27_201000) do
   create_table "asset_types", force: :cascade do |t|
     t.string "key", limit: 32, null: false
     t.string "name", limit: 64, null: false
@@ -325,6 +325,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_122000) do
     t.check_constraint "target_percentage > 0 AND target_percentage <= 100", name: "portfolio_allocation_asset_targets_percentage"
   end
 
+  create_table "portfolio_allocation_group_members", force: :cascade do |t|
+    t.integer "portfolio_allocation_group_id", null: false
+    t.integer "instrument_id", null: false
+    t.string "purchase_policy", limit: 16, default: "buy", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["instrument_id"], name: "index_portfolio_allocation_group_members_on_instrument_id"
+    t.index ["portfolio_allocation_group_id", "instrument_id"], name: "index_portfolio_allocation_group_members_uniqueness", unique: true
+    t.index ["portfolio_allocation_group_id"], name: "idx_on_portfolio_allocation_group_id_7e00b34bdd"
+    t.check_constraint "purchase_policy IN ('buy', 'hold')", name: "portfolio_allocation_group_members_purchase_policy"
+  end
+
+  create_table "portfolio_allocation_groups", force: :cascade do |t|
+    t.integer "portfolio_allocation_plan_id", null: false
+    t.string "name", limit: 80, null: false
+    t.string "asset_type_key", limit: 32, null: false
+    t.decimal "target_percentage", precision: 20, scale: 8, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "normalized_name", limit: 80, null: false
+    t.index ["portfolio_allocation_plan_id", "name"], name: "index_portfolio_allocation_groups_uniqueness", unique: true
+    t.index ["portfolio_allocation_plan_id", "normalized_name"], name: "index_portfolio_allocation_groups_normalized_uniqueness", unique: true
+    t.index ["portfolio_allocation_plan_id"], name: "idx_on_portfolio_allocation_plan_id_35547a9ea8"
+    t.check_constraint "target_percentage > 0 AND target_percentage <= 100", name: "portfolio_allocation_groups_percentage"
+  end
+
   create_table "portfolio_allocation_instrument_targets", force: :cascade do |t|
     t.integer "portfolio_allocation_plan_id", null: false
     t.integer "instrument_id", null: false
@@ -465,6 +491,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_122000) do
   add_foreign_key "market_benchmark_observations", "market_benchmarks"
   add_foreign_key "portfolio_allocation_asset_targets", "asset_types", column: "asset_type_key", primary_key: "key", on_delete: :restrict
   add_foreign_key "portfolio_allocation_asset_targets", "portfolio_allocation_plans"
+  add_foreign_key "portfolio_allocation_group_members", "instruments"
+  add_foreign_key "portfolio_allocation_group_members", "portfolio_allocation_groups"
+  add_foreign_key "portfolio_allocation_groups", "asset_types", column: "asset_type_key", primary_key: "key", on_delete: :restrict
+  add_foreign_key "portfolio_allocation_groups", "portfolio_allocation_plans"
   add_foreign_key "portfolio_allocation_instrument_targets", "asset_types", column: "asset_type_key", primary_key: "key", on_delete: :restrict
   add_foreign_key "portfolio_allocation_instrument_targets", "instruments"
   add_foreign_key "portfolio_allocation_instrument_targets", "portfolio_allocation_plans"

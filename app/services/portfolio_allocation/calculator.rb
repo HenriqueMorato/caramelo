@@ -7,7 +7,7 @@ module PortfolioAllocation
       :instrument, :asset_type_key, :asset_percentage, :instrument_percentage,
       :target_percentage, :current_amount, :current_percentage, :target_amount,
       :difference_amount, :price_amount, :quantity_step, :action, :quantity,
-      :estimated_amount
+      :estimated_amount, :allocation_group, :purchase_policy
     ) do
       def buy? = action == :buy
       def sell? = action == :sell
@@ -16,6 +16,8 @@ module PortfolioAllocation
       def below_minimum? = (buy? || sell?) && quantity.zero?
       def over_target_after_purchase? = buy? && estimated_amount > difference_amount
       def overshoot_amount = over_target_after_purchase? ? estimated_amount - difference_amount : BigDecimal("0")
+      def grouped? = allocation_group.present?
+      def hold? = purchase_policy == "hold"
     end
 
     Result = Data.define(
@@ -130,16 +132,17 @@ module PortfolioAllocation
     end
 
     def instrument_percentage_for(instrument, holdings)
-      configured = instrument_percentages[instrument.asset_type]
-      holding_ids = holdings.map { |holding| holding.instrument.id }
-      available_count = holdings.count { |holding| holding.instrument.asset_type == instrument.asset_type }
-      return BigDecimal("100") / available_count if configured.blank?
+      configured = instrument_percentages[instrument.asset_type] || {}
+      available_holdings = holdings.select { |holding| holding.instrument.asset_type == instrument.asset_type }
+      groups = allocation_groups_by_asset_type.fetch(instrument.asset_type, [])
+      ungrouped_holdings = available_holdings.reject { |holding| group_memberships.key?(holding.instrument.id) }
+      return BigDecimal("100") / available_holdings.length if configured.blank? && groups.empty?
 
       explicit = configured[instrument.id]
       return explicit if explicit
 
-      remainder = BigDecimal("100") - configured.values.sum
-      omitted_count = available_count - configured.keys.count { |id| holding_ids.include?(id) }
+      remainder = BigDecimal("100") - configured.values.sum - groups.sum(&:target_percentage)
+      omitted_count = ungrouped_holdings.count { |holding| !configured.key?(holding.instrument.id) }
       return BigDecimal("0") unless remainder.positive? && omitted_count.positive?
 
       remainder / omitted_count
@@ -153,56 +156,63 @@ module PortfolioAllocation
     end
 
     def build_comparisons(snapshot)
+      holdings_by_id = snapshot.holdings.index_by { |holding| holding.instrument.id }
       raw = snapshot.holdings.map do |holding|
+        group, member = group_memberships[holding.instrument.id]
         asset_percentage = asset_percentages[holding.instrument.asset_type] || BigDecimal("0")
-        instrument_percentage = instrument_percentage_for(holding.instrument, snapshot.holdings)
-        target_percentage = target_percentage_for(holding.instrument, instrument_percentage:)
         current_percentage = holding.market_value_amount / snapshot.total_amount * BigDecimal("100")
-        target_amount = projected_amount * target_percentage
-        difference_amount = target_amount - holding.market_value_amount
-        [ holding, asset_percentage, instrument_percentage, target_percentage,
-          current_percentage, target_amount, difference_amount ]
+        target_amount, instrument_percentage = if group
+          [ grouped_target_amount(group, member, holdings_by_id), group.target_percentage.to_d ]
+        else
+          instrument_percentage = instrument_percentage_for(holding.instrument, snapshot.holdings)
+          [ projected_amount * target_percentage_for(holding.instrument, instrument_percentage:), instrument_percentage ]
+        end
+        target_percentage = target_amount / projected_amount
+        {
+          holding:, asset_percentage:, instrument_percentage:, target_percentage:,
+          current_percentage:, target_amount:, difference_amount: target_amount - holding.market_value_amount,
+          allocation_group: group, purchase_policy: member&.purchase_policy
+        }
       end
 
-      if mode == "buy_only"
-        buy_allocations = buy_allocations(raw)
-      end
+      buy_allocations = mode == "buy_only" ? buy_allocations(raw) : {}
 
-      raw.map do |holding, asset_percentage, instrument_percentage, target_percentage,
-        current_percentage, target_amount, difference_amount|
+      raw.map do |entry|
+        holding = entry.fetch(:holding)
+        difference_amount = entry.fetch(:difference_amount)
         requested_amount = if mode == "buy_only"
           buy_allocations.fetch(holding.instrument.id, BigDecimal("0"))
         else
           difference_amount
         end
-        comparison_for(
-          holding:, asset_percentage:, instrument_percentage:, target_percentage:,
-          current_percentage:, target_amount:, difference_amount:, requested_amount:
-        )
+        comparison_for(**entry, requested_amount:)
       end
     end
 
     def buy_allocations(raw)
-      positive = raw.select { |_holding, _asset, _instrument, _target, _current, _amount, difference| difference.positive? }
-      total = positive.sum { |values| values.last }
+      positive = raw.select { |entry| entry.fetch(:difference_amount).positive? }
+      total = positive.sum { |entry| entry.fetch(:difference_amount) }
       return {} if total.zero? || investable_amount.zero?
 
       return planned_buy_allocations(positive) if instrument_count
 
-      positive.to_h do |holding, *_values, difference|
-        [ holding.instrument.id, investable_amount * difference / total ]
+      positive.to_h do |entry|
+        [ entry.fetch(:holding).instrument.id, investable_amount * entry.fetch(:difference_amount) / total ]
       end
     end
 
     def planned_buy_allocations(positive)
-      candidates = positive.map do |holding, *_values, difference|
-        PurchasePlanner::Candidate.new(holding:, target_gap: difference)
+      candidates = positive.map do |entry|
+        PurchasePlanner::Candidate.new(
+          holding: entry.fetch(:holding), target_gap: entry.fetch(:difference_amount)
+        )
       end
       PurchasePlanner.for(candidates:, budget: investable_amount, count: instrument_count)
     end
 
     def comparison_for(holding:, asset_percentage:, instrument_percentage:, target_percentage:,
-      current_percentage:, target_amount:, difference_amount:, requested_amount:)
+      current_percentage:, target_amount:, difference_amount:, allocation_group:,
+      purchase_policy:, requested_amount:)
       action = if requested_amount.positive?
         :buy
       elsif requested_amount.negative?
@@ -217,7 +227,8 @@ module PortfolioAllocation
         holding.instrument, holding.instrument.asset_type, asset_percentage, instrument_percentage,
         target_percentage * BigDecimal("100"), holding.market_value_amount,
         current_percentage, target_amount, difference_amount, holding.price_amount,
-        holding.instrument.quantity_step.to_d, action, quantity, estimated_amount
+        holding.instrument.quantity_step.to_d, action, quantity, estimated_amount,
+        allocation_group, purchase_policy
       )
     end
 
@@ -245,12 +256,39 @@ module PortfolioAllocation
 
     def closed_target_issues(snapshot)
       holding_ids = snapshot.holdings.map { |holding| holding.instrument.id }
-      instruments = Instrument.where(id: plan.instrument_targets.pluck(:instrument_id)).index_by(&:id)
-      plan.instrument_targets.filter_map do |target|
-        next if holding_ids.include?(target.instrument_id)
+      target_instrument_ids = plan.instrument_targets.pluck(:instrument_id) +
+        plan.allocation_groups.joins(:members).pluck("portfolio_allocation_group_members.instrument_id")
+      instruments = Instrument.where(id: target_instrument_ids.uniq).index_by(&:id)
+      target_instrument_ids.uniq.filter_map do |instrument_id|
+        next if holding_ids.include?(instrument_id)
 
-        CurrentSnapshot::Issue.new(instruments.fetch(target.instrument_id), :closed)
+        CurrentSnapshot::Issue.new(instruments.fetch(instrument_id), :closed)
       end
+    end
+
+    def group_memberships
+      @group_memberships ||= plan.allocation_groups.includes(:members).each_with_object({}) do |group, memberships|
+        group.members.each { |member| memberships[member.instrument_id] = [ group, member ] }
+      end
+    end
+
+    def allocation_groups_by_asset_type
+      @allocation_groups_by_asset_type ||= plan.allocation_groups.group_by(&:asset_type_key)
+    end
+
+    def grouped_target_amount(group, member, holdings_by_id)
+      target_amount = projected_amount * asset_percentages.fetch(group.asset_type_key, BigDecimal("0")) *
+        group.target_percentage.to_d / BigDecimal("10000")
+      return holdings_by_id.fetch(member.instrument_id).market_value_amount if member.hold?
+
+      hold_amount = group.members.select(&:hold?).sum do |group_member|
+        holdings_by_id.fetch(group_member.instrument_id).market_value_amount
+      end
+      buy_members = group.members.select(&:buy?)
+      return BigDecimal("0") if buy_members.empty?
+
+      available_amount = [ target_amount - hold_amount, BigDecimal("0") ].max
+      available_amount / buy_members.length
     end
 
     def unconfigured_result

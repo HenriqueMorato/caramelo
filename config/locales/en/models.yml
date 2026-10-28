@@ -86,9 +86,14 @@ en:
               instrument_mismatch: must match the instrument currency
         instrument:
           attributes:
+            asset_type:
+              cannot_change_with_allocation: cannot change while portfolio allocation
+                targets or groups exist
             base:
               cannot_destroy_with_activity: cannot be deleted while trades, income,
                 imports, or historical data exist
+              cannot_destroy_with_allocation: cannot be deleted while portfolio allocation
+                targets or groups exist
             currency:
               cannot_change_with_activity: cannot change while trades or income records
                 exist

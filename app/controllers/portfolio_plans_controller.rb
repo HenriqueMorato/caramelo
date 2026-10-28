@@ -13,8 +13,9 @@ class PortfolioPlansController < ApplicationController
     allocation = allocation_params
     result = PortfolioAllocation::PlanEditor.call(
       plan: @plan, owner: current_account,
-      asset_targets: allocation.fetch(:asset_targets, {}),
-      instrument_targets: allocation.fetch(:instrument_targets, {})
+      asset_targets: allocation[:asset_targets] || {},
+      instrument_targets: allocation[:instrument_targets] || {},
+      groups: allocation[:groups] || {}
     )
     if result.success?
       redirect_to portfolio_plan_path(
@@ -22,8 +23,9 @@ class PortfolioPlansController < ApplicationController
         instrument_count: calculation_params[:instrument_count]
       ), notice: t("portfolio_plans.notices.Saved"), status: :see_other
     else
-      @submitted_asset_targets = allocation.fetch(:asset_targets, {}).to_h
-      @submitted_instrument_targets = allocation.fetch(:instrument_targets, {}).to_h
+      @submitted_asset_targets = allocation[:asset_targets].to_h
+      @submitted_instrument_targets = allocation[:instrument_targets].to_h
+      @submitted_groups = allocation[:groups].to_h
       result.errors.each { |message| @plan.errors.add(:base, message) }
       prepare_view
       render :show, status: :unprocessable_content
@@ -43,6 +45,8 @@ class PortfolioPlansController < ApplicationController
     @groups = @groups.sort_by { |asset_type_key, _| AssetType.label_for(asset_type_key) }
     @asset_targets = @plan.asset_targets.index_by(&:asset_type_key)
     @instrument_targets = @plan.instrument_targets.index_by(&:instrument_id)
+    @allocation_groups = @plan.allocation_groups.includes(:members).to_a
+    @grouped_instrument_ids = @allocation_groups.flat_map { |group| group.members.map(&:instrument_id) }
     @mode = calculation_params[:mode].to_s.in?(PortfolioAllocation::Calculator::MODES) ? calculation_params[:mode].to_s : "buy_only"
     @contribution = calculation_params[:contribution].presence || "0"
     @instrument_count = calculation_params[:instrument_count].to_s
@@ -55,7 +59,7 @@ class PortfolioPlansController < ApplicationController
 
   def allocation_params
     params.require(:portfolio_allocation).permit(
-      asset_targets: {}, instrument_targets: {}
+      asset_targets: {}, instrument_targets: {}, groups: {}
     )
   end
 

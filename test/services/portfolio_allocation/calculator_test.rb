@@ -153,6 +153,73 @@ class PortfolioAllocation::CalculatorTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0"), omitted.instrument_percentage
   end
 
+  test "keeps hold members in place and directs a group's target to buy members" do
+    second_stock = Instrument.create!(ticker: "STK4", exchange: "BVMF", name: "Grouped stock", currency: "BRL", asset_type: :stock)
+    @plan.instrument_targets.delete_all
+    @plan.instrument_targets.create!(instrument: @bond, asset_type_key: "bond", target_percentage: 100)
+    group = @plan.allocation_groups.create!(name: "Stock alternatives", asset_type_key: "stock", target_percentage: 100)
+    group.members.create!(instrument: @stock, purchase_policy: :hold)
+    group.members.create!(instrument: second_stock, purchase_policy: :buy)
+    snapshot = Snapshot::Result.new(
+      :available,
+      [ holding(@stock, "300", "10", "1"), holding(second_stock, "100", "10", "1"), holding(@bond, "600", "10", "1") ],
+      BigDecimal("1000"), []
+    )
+
+    result = PortfolioAllocation::Calculator.for(
+      plan: @plan, owner: @owner, contribution: "100", mode: "full_rebalance", snapshot:
+    )
+    hold = result.comparisons.find { |comparison| comparison.instrument == @stock }
+    buy = result.comparisons.find { |comparison| comparison.instrument == second_stock }
+
+    assert_predicate hold, :grouped?
+    assert_predicate hold, :hold?
+    assert_equal :none, hold.action
+    assert_equal BigDecimal("300"), hold.target_amount
+    assert_predicate buy, :grouped?
+    assert_equal BigDecimal("359.4"), buy.target_amount
+    assert_equal :buy, buy.action
+  end
+
+  test "assigns the remaining asset share to ungrouped instruments" do
+    second_stock = Instrument.create!(ticker: "STK5", exchange: "BVMF", name: "Grouped stock", currency: "BRL", asset_type: :stock)
+    third_stock = Instrument.create!(ticker: "STK6", exchange: "BVMF", name: "Ungrouped stock", currency: "BRL", asset_type: :stock)
+    @plan.instrument_targets.delete_all
+    @plan.instrument_targets.create!(instrument: @bond, asset_type_key: "bond", target_percentage: 100)
+    group = @plan.allocation_groups.create!(name: "Stock alternatives", asset_type_key: "stock", target_percentage: 60)
+    group.members.create!(instrument: @stock, purchase_policy: :hold)
+    group.members.create!(instrument: second_stock, purchase_policy: :buy)
+    snapshot = Snapshot::Result.new(
+      :available,
+      [ holding(@stock, "300", "10", "1"), holding(second_stock, "100", "10", "1"), holding(third_stock, "100", "10", "1"), holding(@bond, "500", "10", "1") ],
+      BigDecimal("1000"), []
+    )
+
+    result = PortfolioAllocation::Calculator.for(plan: @plan, owner: @owner, snapshot:)
+    ungrouped = result.comparisons.find { |comparison| comparison.instrument == third_stock }
+
+    assert_equal BigDecimal("40"), ungrouped.instrument_percentage
+    assert_equal BigDecimal("24"), ungrouped.target_percentage
+  end
+
+  test "returns no target amount when a grouped member is neither buy nor hold" do
+    group = @plan.allocation_groups.create!(name: "Stock alternatives", asset_type_key: "stock", target_percentage: 100)
+    group.members.create!(instrument: @stock, purchase_policy: :hold)
+    member = Struct.new(:instrument_id) do
+      def hold? = false
+      def buy? = false
+    end.new(@stock.id)
+    calculator = PortfolioAllocation::Calculator.new(
+      plan: @plan, owner: @owner, contribution: "0", mode: "buy_only", instrument_count: nil,
+      reporting_currency: "BRL", market_price_service: MarketPrice::Service.default,
+      exchange_rate_service: ExchangeRate::Service.default, snapshot: @snapshot
+    )
+
+    amount = calculator.send(:grouped_target_amount, group, member, { @stock.id => @holdings.first })
+
+    assert_equal BigDecimal("0"), amount
+  end
+
   test "blocks recommendations when current data is incomplete" do
     issue = Snapshot::Issue.new(@bond, :stale)
     snapshot = Snapshot::Result.new(:incomplete, [], nil, [ issue ])

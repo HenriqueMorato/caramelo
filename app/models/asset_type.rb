@@ -25,6 +25,8 @@ class AssetType < ApplicationRecord
     primary_key: :key, inverse_of: :asset_type
   has_many :portfolio_allocation_instrument_targets, foreign_key: :asset_type_key,
     primary_key: :key, inverse_of: :asset_type
+  has_many :portfolio_allocation_groups, foreign_key: :asset_type_key,
+    primary_key: :key, inverse_of: :asset_type
 
   normalizes :key, with: ->(value) { value.to_s.strip.downcase }
   normalizes :name, with: ->(value) { value.to_s.strip.squish }

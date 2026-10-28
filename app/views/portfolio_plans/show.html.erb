@@ -43,7 +43,7 @@
               <div class="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h3 class="font-semibold text-coffee"><%= AssetType.label_for(asset_type_key) %></h3>
-                  <p class="mt-1 text-sm text-muted"><%= t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) }, total: position_results.length) %></p>
+                  <p class="mt-1 text-sm text-muted"><%= t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></p>
                 </div>
                 <output class="font-mono text-xl font-semibold tabular-nums text-caramel-deep" data-portfolio-allocation-form-target="assetOutput" data-asset-key="<%= asset_type_key %>" aria-live="polite"><%= number_with_precision(asset_value.presence || 0, precision: 2, strip_insignificant_zeros: true) %>%</output>
               </div>
@@ -58,7 +58,7 @@
                 <%= number_field_tag "portfolio_allocation[asset_targets][#{asset_type_key}]", asset_value, id: "portfolio_allocation_asset_targets_#{asset_type_key}", min: 0, max: 100, step: 0.01, inputmode: "decimal", data: { portfolio_allocation_form_target: "assetField", asset_key: asset_type_key, action: "focus->portfolio-allocation-form#prepare input->portfolio-allocation-form#balance change->portfolio-allocation-form#balance blur->portfolio-allocation-form#balance" }, class: "ui-field w-28 text-right font-mono tabular-nums", placeholder: "0" %>
               </div>
               <div class="mt-4 space-y-3 border-t border-coffee/10 pt-4">
-                <% position_results.each do |position_result| %>
+                <% position_results.reject { |result| @grouped_instrument_ids.include?(result.instrument.id) }.each do |position_result| %>
                   <% instrument = position_result.instrument %>
                   <% target = @instrument_targets[instrument.id] %>
                   <% submitted_instrument_target = @submitted_instrument_targets&.fetch(instrument.id.to_s, nil) %>
@@ -84,6 +84,17 @@
                   </div>
                 <% end %>
               </div>
+              <% available_group_positions = position_results.reject { |result| @grouped_instrument_ids.include?(result.instrument.id) } %>
+              <% @allocation_groups.select { |group| group.asset_type_key == asset_type_key }.each do |allocation_group| %>
+                <div class="mt-5 border-t border-coffee/10 pt-4">
+                  <%= render "allocation_group", group: allocation_group, group_key: allocation_group.id, asset_type_key:, position_results:, submitted: @submitted_groups&.fetch(allocation_group.id.to_s, nil) %>
+                </div>
+              <% end %>
+              <% if available_group_positions.length >= 2 %>
+                <div class="mt-5 border-t border-coffee/10 pt-4">
+                  <%= render "allocation_group", group: nil, group_key: "new_#{asset_type_key}", asset_type_key:, position_results: available_group_positions, submitted: @submitted_groups&.fetch("new_#{asset_type_key}", nil) %>
+                </div>
+              <% end %>
             </article>
           <% end %>
         </div>
@@ -154,7 +165,12 @@
                 <td class="px-4 py-3 text-center">
                   <%= render "shopping_list_checkbox", comparison: %>
                 </td>
-                <th class="px-4 py-3 text-left font-medium text-coffee"><%= comparison.instrument.ticker %></th>
+                <th class="px-4 py-3 text-left font-medium text-coffee">
+                  <span class="block"><%= comparison.instrument.ticker %></span>
+                  <% if comparison.grouped? %>
+                    <span class="mt-1 block text-xs font-normal text-muted"><%= t("portfolio_plans.show.Group context", group: comparison.allocation_group.name, policy: comparison.hold? ? t("portfolio_plans.show.Hold in group") : t("portfolio_plans.show.Buy in group")) %></span>
+                  <% end %>
+                </th>
                 <td class="px-4 py-3 text-right font-mono tabular-nums"><%= number_to_percentage(comparison.current_percentage, precision: 2) %></td>
                 <td class="px-4 py-3 text-right font-mono tabular-nums"><%= number_to_percentage(comparison.target_percentage, precision: 2) %></td>
                 <td class="px-4 py-3 text-right font-mono tabular-nums"><%= display_money(Money.from_amount(comparison.difference_amount, @calculation.currency)) %></td>
@@ -173,6 +189,9 @@
               <div class="min-w-0">
                 <h3 class="truncate font-semibold text-coffee"><%= comparison.instrument.ticker %></h3>
                 <p class="mt-1 truncate text-xs text-muted"><%= comparison.instrument.name %> · <%= comparison.instrument.exchange %></p>
+                <% if comparison.grouped? %>
+                  <p class="mt-1 truncate text-xs text-muted"><%= t("portfolio_plans.show.Group context", group: comparison.allocation_group.name, policy: comparison.hold? ? t("portfolio_plans.show.Hold in group") : t("portfolio_plans.show.Buy in group")) %></p>
+                <% end %>
               </div>
               <%= render "shopping_list_checkbox", comparison: %>
             </div>

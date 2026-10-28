@@ -128,6 +128,39 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_text "Buy"
   end
 
+  test "groups related instruments and marks one as hold" do
+    prepare_holdings
+    @second_stock = Instrument.create!(ticker: "ALB2", exchange: "BVMF", name: "Second allocation stock", currency: "BRL", asset_type: :stock)
+    User.owner.trades.create!(instrument: @second_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 15, fees_cents: 0, currency: @second_stock.currency)
+    CurrentMarketPriceCache.new.write(
+      instrument: @second_stock,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: 15, currency: @second_stock.currency, provider: "yahoo_finance",
+        quoted_at: Time.current - 1.minute, fetched_at: Time.current
+      )
+    )
+
+    visit portfolio_plan_path
+    fill_in "portfolio_allocation_asset_targets_stock", with: "60"
+    fill_in "portfolio_allocation_asset_targets_bond", with: "40"
+    fill_in "portfolio_allocation_groups_new_stock_name", with: "ETF alternatives"
+    fill_in "portfolio_allocation_groups_new_stock_target_percentage", with: "100"
+    check "portfolio_allocation_groups_new_stock_members_#{@stock.id}_selected"
+    check "portfolio_allocation_groups_new_stock_members_#{@second_stock.id}_selected"
+    select "Hold", from: "portfolio_allocation_groups_new_stock_members_#{@stock.id}_purchase_policy"
+    select "Buy", from: "portfolio_allocation_groups_new_stock_members_#{@second_stock.id}_purchase_policy"
+    click_on "Save targets"
+
+    assert_text "Allocation targets saved."
+    fill_in "New money (BRL)", with: "100"
+    click_on "Calculate"
+
+    assert_text "ETF alternatives · Hold"
+    assert_text "ETF alternatives · Buy"
+    assert_page_accessible(label: "portfolio plan with allocation group")
+  end
+
   private
 
   def prepare_holdings

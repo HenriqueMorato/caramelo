@@ -1,0 +1,57 @@
+<%# locals: (group:, group_key:, asset_type_key:, position_results:, submitted: nil) %>
+
+<% submitted_attributes = submitted.to_h %>
+<% submitted_members = submitted_attributes["members"] || submitted_attributes[:members] || {} %>
+<% group_name = submitted_attributes["name"] || submitted_attributes[:name] || group&.name %>
+<% group_target = submitted_attributes["target_percentage"] || submitted_attributes[:target_percentage] || group&.target_percentage&.to_s %>
+<% group_members = group&.members&.index_by(&:instrument_id) || {} %>
+<fieldset class="rounded-2xl border border-caramel/20 bg-caramel/5 p-4" aria-labelledby="portfolio-allocation-group-<%= group_key %>">
+  <legend id="portfolio-allocation-group-<%= group_key %>" class="px-1 text-sm font-semibold text-coffee">
+    <%= group ? t("portfolio_plans.show.Edit group") : t("portfolio_plans.show.New group") %>
+  </legend>
+  <%= hidden_field_tag "portfolio_allocation[groups][#{group_key}][asset_type_key]", asset_type_key %>
+  <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+    <div>
+      <%= label_tag "portfolio_allocation_groups_#{group_key}_name", t("portfolio_plans.show.Group name"), class: "block text-sm font-semibold text-coffee" %>
+      <%= text_field_tag "portfolio_allocation[groups][#{group_key}][name]", group_name, id: "portfolio_allocation_groups_#{group_key}_name", class: "ui-field mt-2", placeholder: t("portfolio_plans.show.Group name placeholder"), maxlength: 80 %>
+    </div>
+    <div>
+      <%= label_tag "portfolio_allocation_groups_#{group_key}_target_percentage", t("portfolio_plans.show.Group target"), class: "block text-sm font-semibold text-coffee" %>
+      <%= number_field_tag "portfolio_allocation[groups][#{group_key}][target_percentage]", group_target, id: "portfolio_allocation_groups_#{group_key}_target_percentage", min: 0, max: 100, step: 0.01, inputmode: "decimal", class: "ui-field mt-2 font-mono tabular-nums", placeholder: "100" %>
+    </div>
+  </div>
+  <p class="mt-2 text-xs leading-5 text-muted"><%= t("portfolio_plans.show.Group target explanation", asset_type: AssetType.label_for(asset_type_key)) %></p>
+
+  <div class="mt-4 space-y-2 border-t border-coffee/10 pt-4">
+    <p class="text-xs font-semibold uppercase tracking-wide text-muted"><%= t("portfolio_plans.show.Group members") %></p>
+    <% position_results.each do |position_result| %>
+      <% instrument = position_result.instrument %>
+      <% submitted_member = submitted_members[instrument.id.to_s] || submitted_members[instrument.id] %>
+      <% persisted_member = group_members[instrument.id] %>
+      <% selected = if submitted.present?
+        ActiveModel::Type::Boolean.new.cast(submitted_member&.fetch("selected", submitted_member&.fetch(:selected, false)))
+      else
+        persisted_member.present?
+      end %>
+      <% policy = submitted_member&.fetch("purchase_policy", submitted_member&.fetch(:purchase_policy, nil)) || persisted_member&.purchase_policy || "buy" %>
+      <div class="flex flex-wrap items-center gap-3 rounded-xl border border-coffee/10 bg-paper/60 p-3">
+        <%= hidden_field_tag "portfolio_allocation[groups][#{group_key}][members][#{instrument.id}][selected]", "0" %>
+        <%= check_box_tag "portfolio_allocation[groups][#{group_key}][members][#{instrument.id}][selected]", "1", selected, id: "portfolio_allocation_groups_#{group_key}_members_#{instrument.id}_selected", class: "size-5 rounded border-coffee/30 text-caramel accent-caramel focus:ring-caramel" %>
+        <%= label_tag "portfolio_allocation_groups_#{group_key}_members_#{instrument.id}_selected", class: "min-w-0 flex-1 cursor-pointer" do %>
+          <span class="block truncate font-medium text-coffee"><%= instrument.ticker %></span>
+          <span class="block truncate text-xs text-muted"><%= instrument.name %> · <%= instrument.exchange %></span>
+        <% end %>
+        <%= select_tag "portfolio_allocation[groups][#{group_key}][members][#{instrument.id}][purchase_policy]", options_for_select([[t("portfolio_plans.show.Buy in group"), "buy"], [t("portfolio_plans.show.Hold in group"), "hold"]], policy), id: "portfolio_allocation_groups_#{group_key}_members_#{instrument.id}_purchase_policy", class: "ui-field w-full sm:w-auto", aria: { label: t("portfolio_plans.show.Group policy", instrument: instrument.ticker) } %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if group %>
+    <div class="mt-4 border-t border-coffee/10 pt-3">
+      <% removed = ActiveModel::Type::Boolean.new.cast(submitted_attributes["remove"] || submitted_attributes[:remove]) %>
+      <%= hidden_field_tag "portfolio_allocation[groups][#{group_key}][remove]", "0" %>
+      <%= check_box_tag "portfolio_allocation[groups][#{group_key}][remove]", "1", removed, id: "portfolio_allocation_groups_#{group_key}_remove", class: "mr-2 size-4 rounded border-coffee/30 text-caramel accent-caramel focus:ring-caramel" %>
+      <%= label_tag "portfolio_allocation_groups_#{group_key}_remove", t("portfolio_plans.show.Remove group"), class: "text-sm text-muted" %>
+    </div>
+  <% end %>
+</fieldset>
