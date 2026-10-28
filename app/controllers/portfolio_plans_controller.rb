@@ -9,6 +9,30 @@ class PortfolioPlansController < ApplicationController
     prepare_view
   end
 
+  def new_group
+    prepare_position_view
+    asset_type_key = AssetType.normalize_key(params[:asset_type_key])
+    position_results = available_group_positions(asset_type_key)
+    return head :unprocessable_content unless AssetType.valid_key?(asset_type_key) && position_results.length >= 2
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.append(
+          "portfolio-allocation-groups-#{asset_type_key}",
+          partial: "portfolio_plans/allocation_group",
+          locals: {
+            group: nil,
+            group_key: "new_#{asset_type_key}_#{SecureRandom.hex(4)}",
+            asset_type_key:,
+            position_results:,
+            submitted: nil
+          }
+        )
+      end
+      format.html { redirect_to portfolio_plan_path(anchor: "portfolio-allocation-groups-#{asset_type_key}") }
+    end
+  end
+
   def update
     allocation = allocation_params
     result = PortfolioAllocation::PlanEditor.call(
@@ -39,14 +63,11 @@ class PortfolioPlansController < ApplicationController
   end
 
   def prepare_view
-    @position_results = Position.overview(owner: current_account)
-    @open_position_results = @position_results.select { |result| result.position&.open? }
+    prepare_position_view
     @groups = @open_position_results.group_by { |result| result.instrument.asset_type }
     @groups = @groups.sort_by { |asset_type_key, _| AssetType.label_for(asset_type_key) }
     @asset_targets = @plan.asset_targets.index_by(&:asset_type_key)
     @instrument_targets = @plan.instrument_targets.index_by(&:instrument_id)
-    @allocation_groups = @plan.allocation_groups.includes(:members).to_a
-    @grouped_instrument_ids = @allocation_groups.flat_map { |group| group.members.map(&:instrument_id) }
     @mode = calculation_params[:mode].to_s.in?(PortfolioAllocation::Calculator::MODES) ? calculation_params[:mode].to_s : "buy_only"
     @contribution = calculation_params[:contribution].presence || "0"
     @instrument_count = calculation_params[:instrument_count].to_s
@@ -55,6 +76,19 @@ class PortfolioPlansController < ApplicationController
       plan: @plan, owner: current_account, contribution: @contribution, mode: @mode,
       instrument_count: calculation_params[:instrument_count]
     ) unless @calculation_error
+  end
+
+  def prepare_position_view
+    @position_results = Position.overview(owner: current_account)
+    @open_position_results = @position_results.select { |result| result.position&.open? }
+    @allocation_groups = @plan.allocation_groups.includes(:members).to_a
+    @grouped_instrument_ids = @allocation_groups.flat_map { |group| group.members.map(&:instrument_id) }
+  end
+
+  def available_group_positions(asset_type_key)
+    @open_position_results.select do |result|
+      result.instrument.asset_type == asset_type_key && !@grouped_instrument_ids.include?(result.instrument.id)
+    end
   end
 
   def allocation_params

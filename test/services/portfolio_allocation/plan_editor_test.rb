@@ -338,6 +338,33 @@ class PortfolioAllocation::PlanEditorTest < ActiveSupport::TestCase
     assert_empty @plan.reload.allocation_groups
   end
 
+  test "removes a persisted group marked for removal" do
+    second_stock = add_second_stock
+    group = group_attributes(
+      name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+      members: {
+        @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+        second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+      }
+    ).fetch("group")
+    created = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" }, groups: { "new_stock" => group }
+    )
+    assert_predicate created, :success?
+    persisted_group = @plan.reload.allocation_groups.sole
+
+    removal = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" },
+      groups: { persisted_group.id.to_s => group.merge(remove: "1") }
+    )
+
+    assert_predicate removal, :success?
+    assert_empty @plan.reload.allocation_groups
+    assert_not PortfolioAllocationGroupMember.exists?(portfolio_allocation_group_id: persisted_group.id)
+  end
+
   test "replaces an existing group without leaving orphaned members" do
     second_stock = add_second_stock
     attributes = group_attributes(

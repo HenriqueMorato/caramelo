@@ -50,8 +50,7 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     get portfolio_plan_url
 
     assert_response :success
-    assert_select "input[name='portfolio_allocation[groups][new_stock][name]']"
-    assert_select "select[name='portfolio_allocation[groups][new_stock][members][#{@stock.id}][purchase_policy]']"
+    assert_select "a[data-turbo-stream='true'][href*='/goals/portfolio-plan/groups/new']", text: /Add instrument group/
 
     patch portfolio_plan_url, params: {
       portfolio_allocation: {
@@ -74,6 +73,32 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_equal "ETF alternatives", group.name
     assert_equal({ @stock.id => "hold", second_stock.id => "buy" },
       group.members.to_h { |member| [ member.instrument_id, member.purchase_policy ] })
+  end
+
+  test "appends a new allocation group through Turbo" do
+    add_second_stock
+
+    get new_portfolio_plan_group_url(asset_type_key: "stock"), as: :turbo_stream
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_select "turbo-stream[action='append'][target='portfolio-allocation-groups-stock']"
+    assert_select "turbo-stream template details[data-controller='allocation-group']"
+    assert_select "turbo-stream template input[name$='[asset_type_key]'][value='stock']"
+  end
+
+  test "falls back to the planner when a group is requested without Turbo" do
+    add_second_stock
+
+    get new_portfolio_plan_group_url(asset_type_key: "stock")
+
+    assert_redirected_to portfolio_plan_url(anchor: "portfolio-allocation-groups-stock")
+  end
+
+  test "rejects a new group when fewer than two positions are available" do
+    get new_portfolio_plan_group_url(asset_type_key: "bond"), as: :turbo_stream
+
+    assert_response :unprocessable_content
   end
 
   test "preserves submitted group values when the group is invalid" do

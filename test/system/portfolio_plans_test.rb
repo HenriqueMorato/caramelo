@@ -144,12 +144,16 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     visit portfolio_plan_path
     fill_in "portfolio_allocation_asset_targets_stock", with: "60"
     fill_in "portfolio_allocation_asset_targets_bond", with: "40"
-    fill_in "portfolio_allocation_groups_new_stock_name", with: "ETF alternatives"
-    fill_in "portfolio_allocation_groups_new_stock_target_percentage", with: "100"
-    check "portfolio_allocation_groups_new_stock_members_#{@stock.id}_selected"
-    check "portfolio_allocation_groups_new_stock_members_#{@second_stock.id}_selected"
-    select "Hold", from: "portfolio_allocation_groups_new_stock_members_#{@stock.id}_purchase_policy"
-    select "Buy", from: "portfolio_allocation_groups_new_stock_members_#{@second_stock.id}_purchase_policy"
+    click_on "Add instrument group"
+    assert_selector "details[data-controller='allocation-group'][open]", count: 1
+    within "details[data-controller='allocation-group']" do
+      fill_in "Group name", with: "ETF alternatives"
+      fill_in "Group share %", with: "100"
+      find("input[id$='_members_#{@stock.id}_selected']").check
+      find("input[id$='_members_#{@second_stock.id}_selected']").check
+      find("select[id$='_members_#{@stock.id}_purchase_policy']").select "Hold"
+      find("select[id$='_members_#{@second_stock.id}_purchase_policy']").select "Buy"
+    end
     click_on "Save targets"
 
     assert_text "Allocation targets saved."
@@ -159,6 +163,38 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_text "ETF alternatives · Hold"
     assert_text "ETF alternatives · Buy"
     assert_page_accessible(label: "portfolio plan with allocation group")
+  end
+
+  test "adds multiple groups and lets each group collapse or be removed" do
+    prepare_holdings
+    second_stock = Instrument.create!(ticker: "ALB2", exchange: "BVMF", name: "Second allocation stock", currency: "BRL", asset_type: :stock)
+    User.owner.trades.create!(instrument: second_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 15, fees_cents: 0, currency: second_stock.currency)
+    CurrentMarketPriceCache.new.write(
+      instrument: second_stock,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: 15, currency: second_stock.currency, provider: "yahoo_finance",
+        quoted_at: Time.current - 1.minute, fetched_at: Time.current
+      )
+    )
+
+    visit portfolio_plan_path
+    click_on "Add instrument group"
+    click_on "Add instrument group"
+
+    assert_selector "details[data-controller='allocation-group']", count: 2
+    assert_selector "details[data-controller='allocation-group'][open]", count: 2
+    groups = all("details[data-controller='allocation-group']")
+
+    groups.first.find("summary").click
+    assert_selector "details[data-controller='allocation-group']:not([open])", count: 1
+    groups.first.find("summary").click
+    assert_selector "details[data-controller='allocation-group'][open]", count: 2
+
+    accept_confirm do
+      groups.last.find("button", text: "Delete group").click
+    end
+    assert_selector "details[data-controller='allocation-group']", count: 1
   end
 
   private

@@ -85,14 +85,30 @@
                 <% end %>
               </div>
               <% available_group_positions = position_results.reject { |result| @grouped_instrument_ids.include?(result.instrument.id) } %>
-              <% @allocation_groups.select { |group| group.asset_type_key == asset_type_key }.each do |allocation_group| %>
-                <div class="mt-5 border-t border-coffee/10 pt-4">
-                  <%= render "allocation_group", group: allocation_group, group_key: allocation_group.id, asset_type_key:, position_results:, submitted: @submitted_groups&.fetch(allocation_group.id.to_s, nil) %>
-                </div>
-              <% end %>
+              <% available_group_ids = available_group_positions.map { |result| result.instrument.id } %>
+              <% persisted_groups = @allocation_groups.select { |group| group.asset_type_key == asset_type_key } %>
+              <% submitted_groups = (@submitted_groups || {}).to_h %>
+              <% submitted_groups_for_type = submitted_groups.select do |_group_key, attributes|
+                values = attributes.respond_to?(:to_h) ? attributes.to_h : {}
+                (values["asset_type_key"] || values[:asset_type_key]).to_s == asset_type_key
+              end %>
+              <div id="portfolio-allocation-groups-<%= asset_type_key %>" class="mt-5 space-y-3 border-t border-coffee/10 pt-4">
+                <% persisted_groups.each do |allocation_group| %>
+                  <% group_member_ids = allocation_group.members.map(&:instrument_id) %>
+                  <% group_position_results = position_results.select { |result| available_group_ids.include?(result.instrument.id) || group_member_ids.include?(result.instrument.id) } %>
+                  <%= render "allocation_group", group: allocation_group, group_key: allocation_group.id, asset_type_key:, position_results: group_position_results, submitted: submitted_groups[allocation_group.id.to_s] %>
+                <% end %>
+                <% submitted_groups_for_type.each do |group_key, attributes| %>
+                  <% next if persisted_groups.any? { |allocation_group| allocation_group.id.to_s == group_key.to_s } %>
+                  <%= render "allocation_group", group: nil, group_key:, asset_type_key:, position_results: available_group_positions, submitted: attributes %>
+                <% end %>
+              </div>
               <% if available_group_positions.length >= 2 %>
-                <div class="mt-5 border-t border-coffee/10 pt-4">
-                  <%= render "allocation_group", group: nil, group_key: "new_#{asset_type_key}", asset_type_key:, position_results: available_group_positions, submitted: @submitted_groups&.fetch("new_#{asset_type_key}", nil) %>
+                <div class="mt-4">
+                  <%= link_to new_portfolio_plan_group_path(asset_type_key:), class: "ui-button ui-button-primary w-fit", data: { turbo_stream: true } do %>
+                    <span aria-hidden="true">+</span>
+                    <span><%= t("portfolio_plans.show.Add instrument group") %></span>
+                  <% end %>
                 </div>
               <% end %>
             </article>
