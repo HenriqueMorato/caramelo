@@ -131,18 +131,20 @@ class PortfolioAllocation::PlanEditorTest < ActiveSupport::TestCase
     assert_includes result.errors, "Choose at least one asset type target."
   end
 
-  test "requires a type target for each instrument group and instruments for each type target" do
+  test "requires a type target for each instrument group and allows future asset types" do
     missing_type = PortfolioAllocation::PlanEditor.call(
       plan: @plan, owner: users(:owner),
       asset_targets: { "stock" => "100" }, instrument_targets: { @bond.id.to_s => "100" }
     )
     assert_includes missing_type.errors, "Add an asset type target for Bond."
 
-    missing_instruments = PortfolioAllocation::PlanEditor.call(
+    future_asset_type = PortfolioAllocation::PlanEditor.call(
       plan: @plan, owner: users(:owner),
       asset_targets: { "stock" => "50", "crypto" => "50" }, instrument_targets: { @stock.id.to_s => "100" }
     )
-    assert_includes missing_instruments.errors, "Choose instruments for Crypto."
+    assert_predicate future_asset_type, :success?
+    assert_equal({ "stock" => BigDecimal("50"), "crypto" => BigDecimal("50") },
+      @plan.asset_targets.reload.to_h { |target| [ target.asset_type_key, target.target_percentage ] })
   end
 
   test "reports a persistence validation failure" do

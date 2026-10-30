@@ -171,12 +171,6 @@ module PortfolioAllocation
           "Instrument and group targets for #{AssetType.label_for(asset_type_key)} must total 100%."
         errors << message
       end
-
-      asset_target_values.each_key do |asset_type_key|
-        next if open_instruments_by_id.values.any? { |instrument| instrument.asset_type == asset_type_key }
-
-        errors << "Choose instruments for #{AssetType.label_for(asset_type_key)}."
-      end
     end
 
     def persist(asset_target_values, instrument_target_values, group_definitions)

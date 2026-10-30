@@ -21,11 +21,33 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     get portfolio_plan_url
 
     assert_response :success
-    assert_select "h1", "Shape your portfolio"
+    assert_select "h1", "Give your portfolio direction."
+    assert_select ".portfolio-plan-workspace"
+    assert_select ".portfolio-plan-planner"
     assert_select "input[name='portfolio_allocation[asset_targets][stock]']"
     assert_select "input[name='portfolio_allocation[instrument_targets][#{@stock.id}]']"
     assert_select "p", text: "Set your target mix first"
     assert_equal User.owner, PortfolioAllocationPlan.first.user
+  end
+
+  test "renders registered asset types without open instruments" do
+    get portfolio_plan_url
+
+    assert_response :success
+    assert_select "input[name='portfolio_allocation[asset_targets][crypto]']", count: 1
+    assert_select ".portfolio-plan-allocation-row .portfolio-plan-asset-name", text: "Crypto", count: 1
+    assert_select ".portfolio-plan-asset-meta", text: /No instruments yet/, count: 4
+    assert_select ".portfolio-plan-mix-segment[data-tooltip='Crypto · 0%']", count: 1
+  end
+
+  test "keeps the empty holdings state without creating asset rows" do
+    Trade.where(user: User.owner).delete_all
+
+    get portfolio_plan_url
+
+    assert_response :success
+    assert_select ".ui-empty-state", text: /No open holdings yet/
+    assert_select "input[name='portfolio_allocation[asset_targets][crypto]']", count: 0
   end
 
   test "saves nested targets without accepting another account" do
@@ -171,10 +193,31 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     get portfolio_plan_url(contribution: "100", mode: "buy_only")
 
     assert_response :success
-    assert_select "h2", "What would move you closer?"
+    assert_select "h2", "Put the plan in motion."
     assert_select "dd", text: /R\$99,00/
     assert_select "td", text: /Buy/
     assert_select "p", /These are estimates, not orders/
+  end
+
+  test "shows current allocation and gap while fresh recommendations wait for stale quotes" do
+    save_targets
+    [ [ @stock, 30 ], [ @bond, 20 ] ].each do |instrument, price|
+      CurrentMarketPriceCache.new.write(
+        instrument:,
+        current_market_price: CurrentMarketPrice.new(
+          unit_price: price, currency: instrument.currency, provider: "yahoo_finance",
+          quoted_at: 2.hours.ago, fetched_at: 2.hours.ago
+        )
+      )
+    end
+
+    get portfolio_plan_url
+
+    assert_response :success
+    assert_select ".portfolio-plan-current", text: "60.00%", count: 1
+    assert_select ".portfolio-plan-current", text: "40.00%", count: 1
+    assert_select ".portfolio-plan-gap", text: "0.00%", count: 2
+    assert_select "h3", "The plan needs fresh market data"
   end
 
   test "limits the shopping list and flags a target overshoot" do
@@ -208,7 +251,7 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "[role=alert]", /contribution is invalid/
-    assert_select "h2", "What would move you closer?"
+    assert_select "h2", "Put the plan in motion."
   end
 
   test "preserves an invalid instrument count in the calculation form" do
