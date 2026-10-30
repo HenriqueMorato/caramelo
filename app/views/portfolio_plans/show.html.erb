@@ -146,7 +146,7 @@ end %>
                         <span class="portfolio-plan-asset-name block truncate font-semibold text-coffee" style="<%= detail_asset_style %>"><%= AssetType.label_for(asset_type_key) %></span>
                         <span class="mt-1 block truncate text-xs text-muted"><%= position_results.empty? ? t("portfolio_plans.show.No instruments yet") : t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></span>
                       </span>
-                      <span class="shrink-0 font-mono text-sm tabular-nums text-caramel-deep"><%= number_with_precision(target_values.fetch(asset_type_key), precision: 2, strip_insignificant_zeros: true) %>%</span>
+                      <span class="shrink-0 font-mono text-right text-base tabular-nums text-caramel-deep"><%= number_with_precision(target_values.fetch(asset_type_key), precision: 2, strip_insignificant_zeros: true) %>%</span>
                     </summary>
                     <div class="portfolio-plan-detail-body">
                       <% if position_results.empty? %>
@@ -162,11 +162,11 @@ end %>
                             <p class="truncate font-medium text-coffee"><%= instrument.ticker %></p>
                             <p class="truncate text-xs text-muted"><%= instrument.name %> · <%= instrument.exchange %></p>
                           </div>
-                          <div class="w-full max-w-xs justify-self-end">
-                            <div class="flex items-center justify-end gap-2">
-                              <output class="font-mono text-xs font-semibold tabular-nums text-caramel-deep" data-portfolio-allocation-form-target="instrumentOutput" data-asset-key="<%= asset_type_key %>" data-instrument-key="<%= instrument.id %>" aria-live="polite"><%= number_with_precision(instrument_value.presence || 0, precision: 2, strip_insignificant_zeros: true) %>%</output>
+                          <div class="portfolio-plan-instrument-panel">
+                            <div class="portfolio-plan-instrument-target">
+                              <output class="font-mono text-sm font-semibold tabular-nums text-caramel-deep" data-portfolio-allocation-form-target="instrumentOutput" data-asset-key="<%= asset_type_key %>" data-instrument-key="<%= instrument.id %>" aria-live="polite"><%= number_with_precision(instrument_value.presence || 0, precision: 2, strip_insignificant_zeros: true) %>%</output>
                               <%= label_tag "portfolio_allocation_instrument_targets_#{instrument.id}", t("portfolio_plans.show.Instrument target", instrument: instrument.ticker), class: "sr-only" %>
-                              <%= number_field_tag "portfolio_allocation[instrument_targets][#{instrument.id}]", instrument_value, id: "portfolio_allocation_instrument_targets_#{instrument.id}", min: 0, max: 100, step: 0.01, inputmode: "decimal", data: { portfolio_allocation_form_target: "instrumentField", portfolio_target_type: "instrument", asset_key: asset_type_key, instrument_key: instrument.id, action: "focus->portfolio-allocation-form#prepare input->portfolio-allocation-form#balance change->portfolio-allocation-form#balance blur->portfolio-allocation-form#balance" }, class: "ui-field w-24 text-right font-mono tabular-nums", placeholder: "0" %>
+                              <%= number_field_tag "portfolio_allocation[instrument_targets][#{instrument.id}]", instrument_value, id: "portfolio_allocation_instrument_targets_#{instrument.id}", min: 0, max: 100, step: 0.01, inputmode: "decimal", data: { portfolio_allocation_form_target: "instrumentField", portfolio_target_type: "instrument", asset_key: asset_type_key, instrument_key: instrument.id, action: "focus->portfolio-allocation-form#prepare input->portfolio-allocation-form#balance change->portfolio-allocation-form#balance blur->portfolio-allocation-form#balance" }, class: "ui-field text-right font-mono tabular-nums", placeholder: "0" %>
                             </div>
                             <div class="relative mt-2">
                               <div class="absolute inset-x-0 top-1.5 h-1.5 overflow-hidden rounded-full bg-caramel/15" aria-hidden="true">

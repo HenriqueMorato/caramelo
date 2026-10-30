@@ -787,7 +787,11 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-detail > summary {
-    @apply flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-caramel;
+    @apply flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 bg-paper/25 px-4 py-3 text-left transition-colors hover:bg-paper/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-caramel;
+  }
+
+  .portfolio-plan-detail > summary > span:last-child {
+    @apply ml-auto;
   }
 
   .portfolio-plan-detail > summary::-webkit-details-marker {
@@ -799,6 +803,7 @@ html[data-theme="dark"] {
     color: var(--caramelo-muted);
     content: "⌄";
     font-size: 1rem;
+    margin-left: 0.75rem;
     transition: transform 150ms ease;
   }
 
@@ -811,11 +816,54 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-detail-body .portfolio-plan-instrument-row {
-    @apply grid min-w-0 items-center gap-3 border-b border-coffee/10 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_14rem];
+    @apply grid min-w-0 items-center gap-3 border-b border-coffee/10 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_16rem];
   }
 
   .portfolio-plan-detail-body .portfolio-plan-instrument-row > div:last-child {
     @apply w-full sm:w-auto;
+  }
+
+  .portfolio-plan-instrument-target {
+    @apply grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] items-center gap-2;
+  }
+
+  .portfolio-plan-instrument-target output {
+    @apply w-16 text-right;
+  }
+
+  .portfolio-plan-instrument-target .ui-field {
+    @apply mt-0 w-full text-right;
+  }
+
+  .portfolio-plan-group {
+    @apply overflow-hidden rounded-xl border border-caramel/25 bg-paper/30;
+  }
+
+  .portfolio-plan-group > summary {
+    @apply relative flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 bg-caramel/10 px-4 py-3 transition-colors hover:bg-caramel/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-caramel [&::-webkit-details-marker]:hidden;
+  }
+
+  .portfolio-plan-group > summary::before {
+    background: var(--caramelo-caramel);
+    border-radius: 0 999px 999px 0;
+    content: "";
+    inset-block: 0.75rem;
+    left: 0;
+    opacity: 0.8;
+    position: absolute;
+    width: 0.2rem;
+  }
+
+  .portfolio-plan-group-editor {
+    @apply border-t border-caramel/15 bg-paper/20 px-4 pb-4 pt-4;
+  }
+
+  .portfolio-plan-group-members {
+    @apply mt-4 space-y-0 border-t border-coffee/10 pt-3;
+  }
+
+  .portfolio-plan-group-member {
+    @apply flex flex-wrap items-center gap-3 border-b border-coffee/10 py-2 last:border-b-0;
   }
 
   .portfolio-plan-calculation {
