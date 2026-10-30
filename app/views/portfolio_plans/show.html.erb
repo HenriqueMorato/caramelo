@@ -10,11 +10,6 @@ end %>
 end %>
 <% target_total = target_values.values.sum %>
 <% target_complete = (target_total - BigDecimal("100")).abs <= BigDecimal("0.01") %>
-<% current_percentages = if @calculation&.available?
-  @calculation.comparisons.group_by(&:asset_type_key).transform_values { |comparisons| comparisons.sum(&:current_percentage) }
-else
-  {}
-end %>
 
 <section class="space-y-8">
   <div class="flex flex-col gap-5 border-b border-coffee/10 pb-7 sm:flex-row sm:items-end sm:justify-between">
@@ -89,8 +84,8 @@ end %>
               <% @groups.each do |asset_type_key, position_results| %>
                 <% asset_value = target_values.fetch(asset_type_key) %>
                 <% asset_input = target_inputs.fetch(asset_type_key) %>
-                <% current_value = @calculation&.available? ? current_percentages.fetch(asset_type_key, BigDecimal("0")) : nil %>
-                <% gap_value = current_value.nil? ? nil : asset_value - current_value %>
+                <% current_value = @current_values_available ? @current_percentages.fetch(asset_type_key, BigDecimal("0")) : nil %>
+                <% gap_value = current_value.nil? || asset_input.blank? ? nil : asset_value - current_value %>
                 <% asset_style = "--asset-color: var(--caramelo-asset-#{asset_type_key}, var(--caramelo-caramel));" %>
                 <article class="portfolio-plan-allocation-row" style="<%= asset_style %>">
                   <div class="min-w-0">
@@ -110,7 +105,7 @@ end %>
                     </div>
                     <output class="sr-only" data-portfolio-allocation-form-target="assetOutput" data-asset-key="<%= asset_type_key %>" aria-live="polite"><%= number_with_precision(asset_value, precision: 2, strip_insignificant_zeros: true) %>%</output>
                   </div>
-                  <div class="portfolio-plan-gap <%= gap_value&.positive? ? "portfolio-plan-gap-positive" : gap_value&.negative? ? "portfolio-plan-gap-negative" : "" %>" role="group" aria-label="<%= t("portfolio_plans.show.Gap") %>"><%= gap_value.nil? ? "—" : number_to_percentage(gap_value, precision: 2) %></div>
+                  <div class="portfolio-plan-gap <%= gap_value&.positive? ? "portfolio-plan-gap-positive" : gap_value&.negative? ? "portfolio-plan-gap-negative" : "" %>" role="group" aria-label="<%= t("portfolio_plans.show.Gap") %>" data-portfolio-allocation-form-target="assetGap" data-asset-key="<%= asset_type_key %>" data-current-percentage="<%= current_value&.to_s("F") %>"><%= gap_value.nil? ? "—" : number_to_percentage(gap_value, precision: 2) %></div>
                 </article>
               <% end %>
             </div>
@@ -146,7 +141,10 @@ end %>
                         <span class="portfolio-plan-asset-name block truncate font-semibold text-coffee" style="<%= detail_asset_style %>"><%= AssetType.label_for(asset_type_key) %></span>
                         <span class="mt-1 block truncate text-xs text-muted"><%= position_results.empty? ? t("portfolio_plans.show.No instruments yet") : t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></span>
                       </span>
-                      <span class="shrink-0 font-mono text-right text-base tabular-nums text-caramel-deep"><%= number_with_precision(target_values.fetch(asset_type_key), precision: 2, strip_insignificant_zeros: true) %>%</span>
+                      <span class="portfolio-plan-detail-target shrink-0 font-mono text-right text-base tabular-nums text-caramel-deep"><%= number_with_precision(target_values.fetch(asset_type_key), precision: 2, strip_insignificant_zeros: true) %>%</span>
+                      <svg class="portfolio-plan-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
                     </summary>
                     <div class="portfolio-plan-detail-body">
                       <% if position_results.empty? %>

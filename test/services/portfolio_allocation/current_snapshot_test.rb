@@ -34,6 +34,7 @@ class PortfolioAllocation::CurrentSnapshotTest < ActiveSupport::TestCase
     missing_price = build_snapshot(lookup: missing_price_lookup)
 
     assert_predicate missing_price, :incomplete?
+    assert_not_predicate missing_price, :values_available?
     assert_equal :missing, missing_price.issues.first.kind
     assert_nil missing_price.total_amount
 
@@ -55,6 +56,8 @@ class PortfolioAllocation::CurrentSnapshotTest < ActiveSupport::TestCase
     stale_price = build_snapshot(lookup: quote_lookup(fetched_at: 1.hour.ago))
 
     assert_predicate stale_price, :incomplete?
+    assert_predicate stale_price, :values_available?
+    assert_equal BigDecimal("10"), stale_price.total_amount
     assert_equal :stale, stale_price.issues.first.kind
 
     reset_positions!
@@ -67,6 +70,7 @@ class PortfolioAllocation::CurrentSnapshotTest < ActiveSupport::TestCase
     )
 
     assert_predicate stale_fx, :incomplete?
+    assert_predicate stale_fx, :values_available?
     assert_equal :stale, stale_fx.issues.first.kind
   end
 

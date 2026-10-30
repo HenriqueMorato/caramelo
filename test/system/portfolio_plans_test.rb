@@ -76,6 +76,18 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_field "portfolio_allocation_instrument_targets_#{@stock.id}", with: "35"
   end
 
+  test "updates the asset gap as the target changes" do
+    prepare_holdings
+
+    visit portfolio_plan_path
+    find("input[name='portfolio_allocation[asset_targets][stock]']").set("60")
+    assert_equal "0.00%", find("article.portfolio-plan-allocation-row", text: "Stock").find(".portfolio-plan-gap").text
+
+    find("input[name='portfolio_allocation[asset_targets][stock]']").set("70")
+    assert_equal "10.00%", find("article.portfolio-plan-allocation-row", text: "Stock").find(".portfolio-plan-gap").text
+    assert_equal "-34.00%", find("article.portfolio-plan-allocation-row", text: "Bond").find(".portfolio-plan-gap").text
+  end
+
   test "shows a screen-only shopping list for the selected instrument count" do
     prepare_holdings
 

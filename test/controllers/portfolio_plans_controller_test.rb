@@ -199,6 +199,27 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", /These are estimates, not orders/
   end
 
+  test "shows current allocation and gap while fresh recommendations wait for stale quotes" do
+    save_targets
+    [ [ @stock, 30 ], [ @bond, 20 ] ].each do |instrument, price|
+      CurrentMarketPriceCache.new.write(
+        instrument:,
+        current_market_price: CurrentMarketPrice.new(
+          unit_price: price, currency: instrument.currency, provider: "yahoo_finance",
+          quoted_at: 2.hours.ago, fetched_at: 2.hours.ago
+        )
+      )
+    end
+
+    get portfolio_plan_url
+
+    assert_response :success
+    assert_select ".portfolio-plan-current", text: "60.00%", count: 1
+    assert_select ".portfolio-plan-current", text: "40.00%", count: 1
+    assert_select ".portfolio-plan-gap", text: "0.00%", count: 2
+    assert_select "h3", "The plan needs fresh market data"
+  end
+
   test "limits the shopping list and flags a target overshoot" do
     save_targets
 

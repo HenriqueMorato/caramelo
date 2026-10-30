@@ -33,7 +33,9 @@
     <span class="flex shrink-0 items-center gap-3 text-right text-caramel-deep">
       <span class="font-mono text-sm tabular-nums" data-allocation-group-target="targetSummary"><%= group_target_label %></span>
       <span class="sr-only"><%= t("portfolio_plans.show.Edit group") %></span>
-      <span class="text-lg leading-none transition-transform group-open:rotate-180" aria-hidden="true">⌄</span>
+      <svg class="portfolio-plan-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
     </span>
   </summary>
 

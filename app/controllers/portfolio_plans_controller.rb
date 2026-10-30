@@ -85,9 +85,12 @@ class PortfolioPlansController < ApplicationController
     @contribution = calculation_params[:contribution].presence || "0"
     @instrument_count = calculation_params[:instrument_count].to_s
     @instrument_count_limit = @open_position_results.length
+    @current_snapshot = PortfolioAllocation::CurrentSnapshot.for(owner: current_account)
+    @current_values_available = @current_snapshot.values_available?
+    @current_percentages = current_percentages(@current_snapshot)
     @calculation = PortfolioAllocation::Calculator.for(
       plan: @plan, owner: current_account, contribution: @contribution, mode: @mode,
-      instrument_count: calculation_params[:instrument_count]
+      instrument_count: calculation_params[:instrument_count], snapshot: @current_snapshot
     ) unless @calculation_error
   end
 
@@ -112,5 +115,13 @@ class PortfolioPlansController < ApplicationController
 
   def calculation_params
     params.permit(:mode, :contribution, :instrument_count)
+  end
+
+  def current_percentages(snapshot)
+    return {} unless snapshot.values_available?
+
+    snapshot.holdings.group_by { |holding| holding.instrument.asset_type }.transform_values do |holdings|
+      holdings.sum(&:market_value_amount) / snapshot.total_amount * BigDecimal("100")
+    end
   end
 end

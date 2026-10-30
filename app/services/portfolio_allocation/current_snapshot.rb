@@ -9,6 +9,7 @@ module PortfolioAllocation
       def available? = status == :available
       def empty? = status == :empty
       def incomplete? = status == :incomplete
+      def values_available? = total_amount.present? && total_amount.positive?
     end
 
     def self.for(owner:, reporting_currency: owner.reporting_currency,
@@ -32,7 +33,7 @@ module PortfolioAllocation
       holdings = open_results.filter_map { |result| holding_for(result) }
       issues = holdings.filter_map { |holding| issue_for(holding) }
       status = issues.empty? ? :available : :incomplete
-      total_amount = status == :available ? holdings.sum(&:market_value_amount) : nil
+      total_amount = holdings.sum(&:market_value_amount) if holdings.all?(&:market_value_amount)
       Result.new(status, holdings, total_amount, issues)
     end
 

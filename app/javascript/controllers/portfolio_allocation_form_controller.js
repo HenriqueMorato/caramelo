@@ -4,6 +4,7 @@ export default class extends Controller {
   static targets = [
     "assetField", "assetRange", "assetOutput", "assetBar",
     "assetMixSegment", "assetTooltip",
+    "assetGap",
     "instrumentField", "instrumentRange", "instrumentOutput", "instrumentBar",
     "allocationTotal", "allocationStatus"
   ]
@@ -106,7 +107,27 @@ export default class extends Controller {
     )
     this.syncRangeControls(this.instrumentRangeTargets, this.instrumentFieldTargets, this.instrumentOutputTargets, this.instrumentBarTargets)
     this.syncMixSegments()
+    this.syncAllocationGaps()
     this.syncAllocationSummary()
+  }
+
+  syncAllocationGaps() {
+    this.assetGapTargets.forEach((gap) => {
+      const field = this.assetFieldTargets.find((candidate) => candidate.dataset.assetKey === gap.dataset.assetKey)
+      const current = Number(gap.dataset.currentPercentage)
+      const target = Number(field?.value)
+
+      if (!Number.isFinite(current) || field?.value.trim() === "" || !Number.isFinite(target)) {
+        gap.textContent = "—"
+        gap.classList.remove("portfolio-plan-gap-positive", "portfolio-plan-gap-negative")
+        return
+      }
+
+      const difference = Math.abs(target - current) < 0.005 ? 0 : target - current
+      gap.textContent = `${difference.toFixed(2)}%`
+      gap.classList.toggle("portfolio-plan-gap-positive", difference > 0)
+      gap.classList.toggle("portfolio-plan-gap-negative", difference < 0)
+    })
   }
 
   syncMixSegments() {
