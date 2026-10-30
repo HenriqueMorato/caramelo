@@ -6,7 +6,8 @@ module Backup
   DURABLE_TABLES = %w[
     users institutions instruments asset_types trades corporate_actions corporate_action_imports corporate_action_import_scans
     investment_goals portfolio_allocation_plans portfolio_allocation_asset_targets
-    portfolio_allocation_instrument_targets
+    portfolio_allocation_instrument_targets portfolio_allocation_groups
+    portfolio_allocation_group_members
   ].freeze
   REPLACEABLE_TABLES = %w[
     sessions daily_closing_prices historical_exchange_rates current_market_prices market_benchmarks

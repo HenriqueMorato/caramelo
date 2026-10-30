@@ -506,6 +506,21 @@ class InstrumentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "ARCX", instrument.exchange
   end
 
+  test "does not allow changing the asset type of an allocated instrument" do
+    plan = PortfolioAllocationPlan.for(user: users(:owner))
+    plan.asset_targets.create!(asset_type_key: "other", target_percentage: 100)
+    plan.instrument_targets.create!(instrument: @instrument, asset_type_key: "other", target_percentage: 100)
+
+    patch instrument_url(@instrument), params: {
+      instrument: { ticker: @instrument.ticker, exchange: @instrument.exchange, name: @instrument.name,
+        currency: @instrument.currency, asset_type: "bond" }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /cannot change while portfolio allocation targets or groups exist/
+    assert_equal "other", @instrument.reload.asset_type
+  end
+
   test "renders validation errors when updating an instrument fails" do
     patch instrument_url(@instrument), params: {
       instrument: { ticker: "", exchange: "BAD", name: "", currency: "ZZZ" }

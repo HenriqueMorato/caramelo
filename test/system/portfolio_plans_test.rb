@@ -128,6 +128,79 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_text "Buy"
   end
 
+  test "groups related instruments and marks one as hold" do
+    prepare_holdings
+    @second_stock = Instrument.create!(ticker: "ALB2", exchange: "BVMF", name: "Second allocation stock", currency: "BRL", asset_type: :stock)
+    User.owner.trades.create!(instrument: @second_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 15, fees_cents: 0, currency: @second_stock.currency)
+    CurrentMarketPriceCache.new.write(
+      instrument: @second_stock,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: 15, currency: @second_stock.currency, provider: "yahoo_finance",
+        quoted_at: Time.current - 1.minute, fetched_at: Time.current
+      )
+    )
+
+    visit portfolio_plan_path
+    fill_in "portfolio_allocation_asset_targets_stock", with: "60"
+    fill_in "portfolio_allocation_asset_targets_bond", with: "40"
+    click_on "Add instrument group"
+    assert_selector "details[data-controller='allocation-group'][open]", count: 1
+    within "details[data-controller='allocation-group']" do
+      fill_in "Group name", with: "ETF alternatives"
+      fill_in "Group share %", with: "100"
+      find("input[id$='_members_#{@stock.id}_selected']").check
+      find("input[id$='_members_#{@second_stock.id}_selected']").check
+      find("select[id$='_members_#{@stock.id}_purchase_policy']").select "Hold"
+      find("select[id$='_members_#{@second_stock.id}_purchase_policy']").select "Buy"
+    end
+    click_on "Save targets"
+
+    assert_text "Allocation targets saved."
+    fill_in "New money (BRL)", with: "100"
+    click_on "Calculate"
+
+    assert_text "ETF alternatives · Hold"
+    assert_text "ETF alternatives · Buy"
+    assert_page_accessible(label: "portfolio plan with allocation group")
+  end
+
+  test "adds multiple groups and lets each group collapse or be removed" do
+    prepare_holdings
+    second_stock = Instrument.create!(ticker: "ALB2", exchange: "BVMF", name: "Second allocation stock", currency: "BRL", asset_type: :stock)
+    User.owner.trades.create!(instrument: second_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 15, fees_cents: 0, currency: second_stock.currency)
+    CurrentMarketPriceCache.new.write(
+      instrument: second_stock,
+      current_market_price: CurrentMarketPrice.new(
+        unit_price: 15, currency: second_stock.currency, provider: "yahoo_finance",
+        quoted_at: Time.current - 1.minute, fetched_at: Time.current
+      )
+    )
+
+    visit portfolio_plan_path
+    click_on "Add instrument group"
+    assert_selector "details[data-controller='allocation-group']", count: 1
+    assert_selector "details[data-controller='allocation-group'] > summary:focus", count: 1
+    click_on "Add instrument group"
+    assert_selector "details[data-controller='allocation-group'] > summary:focus", count: 1
+
+    assert_selector "details[data-controller='allocation-group']", count: 2
+    assert_selector "details[data-controller='allocation-group'][open]", count: 2
+    groups = all("details[data-controller='allocation-group']")
+
+    groups.first.find("summary").click
+    assert_selector "details[data-controller='allocation-group']:not([open])", count: 1
+    groups.first.find("summary").click
+    assert_selector "details[data-controller='allocation-group'][open]", count: 2
+
+    accept_confirm do
+      groups.last.find("button", text: "Delete group").click
+    end
+    assert_equal groups.first[:id], page.evaluate_script("document.activeElement.closest('details')?.id")
+    assert_selector "details[data-controller='allocation-group']", count: 1
+  end
+
   private
 
   def prepare_holdings

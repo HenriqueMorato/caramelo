@@ -9,12 +9,43 @@ class PortfolioPlansController < ApplicationController
     prepare_view
   end
 
+  def new_group
+    prepare_position_view
+    asset_type_key = AssetType.normalize_key(params[:asset_type_key])
+    position_results = available_group_positions(asset_type_key)
+    return head :unprocessable_content unless AssetType.valid_key?(asset_type_key) && position_results.length >= 2
+
+    group_key = "new_#{asset_type_key}"
+    respond_to do |format|
+      format.turbo_stream do
+        group_key = "#{group_key}_#{SecureRandom.hex(4)}"
+        render turbo_stream: turbo_stream.append(
+          "portfolio-allocation-groups-#{asset_type_key}",
+          partial: "portfolio_plans/allocation_group",
+          locals: {
+            group: nil,
+            group_key:,
+            asset_type_key:,
+            position_results:,
+            submitted: nil
+          }
+        )
+      end
+      format.html do
+        @submitted_groups = { group_key => { "asset_type_key" => asset_type_key } }
+        prepare_view
+        render :show
+      end
+    end
+  end
+
   def update
     allocation = allocation_params
     result = PortfolioAllocation::PlanEditor.call(
       plan: @plan, owner: current_account,
-      asset_targets: allocation.fetch(:asset_targets, {}),
-      instrument_targets: allocation.fetch(:instrument_targets, {})
+      asset_targets: allocation[:asset_targets] || {},
+      instrument_targets: allocation[:instrument_targets] || {},
+      groups: allocation[:groups] || {}
     )
     if result.success?
       redirect_to portfolio_plan_path(
@@ -22,8 +53,9 @@ class PortfolioPlansController < ApplicationController
         instrument_count: calculation_params[:instrument_count]
       ), notice: t("portfolio_plans.notices.Saved"), status: :see_other
     else
-      @submitted_asset_targets = allocation.fetch(:asset_targets, {}).to_h
-      @submitted_instrument_targets = allocation.fetch(:instrument_targets, {}).to_h
+      @submitted_asset_targets = allocation[:asset_targets].to_h
+      @submitted_instrument_targets = allocation[:instrument_targets].to_h
+      @submitted_groups = allocation[:groups].to_h
       result.errors.each { |message| @plan.errors.add(:base, message) }
       prepare_view
       render :show, status: :unprocessable_content
@@ -37,8 +69,7 @@ class PortfolioPlansController < ApplicationController
   end
 
   def prepare_view
-    @position_results = Position.overview(owner: current_account)
-    @open_position_results = @position_results.select { |result| result.position&.open? }
+    prepare_position_view
     @groups = @open_position_results.group_by { |result| result.instrument.asset_type }
     @groups = @groups.sort_by { |asset_type_key, _| AssetType.label_for(asset_type_key) }
     @asset_targets = @plan.asset_targets.index_by(&:asset_type_key)
@@ -53,9 +84,22 @@ class PortfolioPlansController < ApplicationController
     ) unless @calculation_error
   end
 
+  def prepare_position_view
+    @position_results = Position.overview(owner: current_account)
+    @open_position_results = @position_results.select { |result| result.position&.open? }
+    @allocation_groups = @plan.allocation_groups.includes(:members).to_a
+    @grouped_instrument_ids = @allocation_groups.flat_map { |group| group.members.map(&:instrument_id) }
+  end
+
+  def available_group_positions(asset_type_key)
+    @open_position_results.select do |result|
+      result.instrument.asset_type == asset_type_key && !@grouped_instrument_ids.include?(result.instrument.id)
+    end
+  end
+
   def allocation_params
     params.require(:portfolio_allocation).permit(
-      asset_targets: {}, instrument_targets: {}
+      asset_targets: {}, instrument_targets: {}, groups: {}
     )
   end
 

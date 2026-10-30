@@ -4,6 +4,8 @@ class PortfolioAllocationPlan < ApplicationRecord
     inverse_of: :portfolio_allocation_plan
   has_many :instrument_targets, class_name: "PortfolioAllocationInstrumentTarget", dependent: :delete_all,
     inverse_of: :portfolio_allocation_plan
+  has_many :allocation_groups, class_name: "PortfolioAllocationGroup", dependent: :destroy,
+    inverse_of: :portfolio_allocation_plan
 
   validates :user, uniqueness: true
 

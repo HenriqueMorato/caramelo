@@ -176,4 +176,316 @@ class PortfolioAllocation::PlanEditorTest < ActiveSupport::TestCase
     assert_not result.success?
     assert result.errors.any? { |message| message.include?("must have an open position") }
   end
+
+  test "saves an allocation group and removes grouped instruments from direct targets" do
+    second_stock = add_second_stock
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" },
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+          second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+        }
+      )
+    )
+
+    assert_predicate result, :success?
+    group = @plan.reload.allocation_groups.includes(:members).sole
+    assert_equal "ETF alternatives", group.name
+    assert_equal BigDecimal("100"), group.target_percentage
+    assert_equal({ @stock.id => "hold", second_stock.id => "buy" },
+      group.members.to_h { |member| [ member.instrument_id, member.purchase_policy ] })
+    assert_equal [ @bond.id ], @plan.instrument_targets.pluck(:instrument_id)
+  end
+
+  test "allows a group to share the remainder with ungrouped instruments" do
+    second_stock = add_second_stock
+    third_stock = Instrument.create!(ticker: "ALB3", exchange: "BVMF", name: "Third allocation stock", currency: "BRL", asset_type: :stock)
+    users(:owner).trades.create!(instrument: third_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 10, fees_cents: 0, currency: third_stock.currency)
+
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" },
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "60",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+          second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+        }
+      )
+    )
+
+    assert_predicate result, :success?
+  end
+
+  test "rejects groups with too few members or without a buy member" do
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: { @stock.id.to_s => { selected: "1", purchase_policy: "hold" } }
+      )
+    )
+
+    assert_not result.success?
+    assert_includes result.errors, "Group ETF alternatives must include at least two instruments."
+
+    second_stock = add_second_stock
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+          second_stock.id.to_s => { selected: "1", purchase_policy: "hold" }
+        }
+      )
+    )
+
+    assert_not result.success?
+    assert_includes result.errors, "Group ETF alternatives must have at least one instrument marked Buy."
+  end
+
+  test "rejects group overlap, duplicate names, and invalid member policies" do
+    second_stock = add_second_stock
+    overlapping = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "100" }, instrument_targets: { @stock.id.to_s => "100" },
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+          second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+        }
+      )
+    )
+    assert_includes overlapping.errors, "Instrument PETR4 cannot have an individual target and a group target."
+
+    invalid_policy = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "something" },
+          second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+        }
+      )
+    )
+    assert invalid_policy.errors.any? { |message| message.include?("invalid group purchase policy") }
+  end
+
+  test "ignores an empty new-group card" do
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner),
+      asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: {
+        "new_stock" => {
+          asset_type_key: "stock", name: "", target_percentage: "",
+          members: { @stock.id.to_s => { selected: "0", purchase_policy: "buy" } }
+        }
+      }
+    )
+
+    assert_predicate result, :success?
+    assert_empty @plan.reload.allocation_groups
+  end
+
+  test "handles missing parameter maps and malformed group cards" do
+    missing = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: Object.new, instrument_targets: Object.new, groups: Object.new
+    )
+    assert_not missing.success?
+    assert_includes missing.errors, "Choose at least one asset type target."
+
+    nil_group = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: { "nil_group" => Object.new }
+    )
+    assert_predicate nil_group, :success?
+
+    malformed_member = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: {
+        "malformed" => {
+          name: "Malformed", asset_type_key: "stock", target_percentage: "100",
+          members: { @stock.id.to_s => Object.new }
+        }
+      }
+    )
+    assert_includes malformed_member.errors, "Group Malformed must include at least two instruments."
+  end
+
+  test "skips a group marked for removal" do
+    result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: {
+        "removed" => {
+          remove: "1", name: "Old alternatives", asset_type_key: "stock", target_percentage: "100",
+          members: { @stock.id.to_s => { selected: "1", purchase_policy: "buy" } }
+        }
+      }
+    )
+
+    assert_predicate result, :success?
+    assert_empty @plan.reload.allocation_groups
+  end
+
+  test "removes a persisted group marked for removal" do
+    second_stock = add_second_stock
+    group = group_attributes(
+      name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+      members: {
+        @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+        second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+      }
+    ).fetch("group")
+    created = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" }, groups: { "new_stock" => group }
+    )
+    assert_predicate created, :success?
+    persisted_group = @plan.reload.allocation_groups.sole
+
+    removal = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" },
+      groups: { persisted_group.id.to_s => group.merge(remove: "1") }
+    )
+
+    assert_predicate removal, :success?
+    assert_empty @plan.reload.allocation_groups
+    assert_not PortfolioAllocationGroupMember.exists?(portfolio_allocation_group_id: persisted_group.id)
+  end
+
+  test "replaces an existing group without leaving orphaned members" do
+    second_stock = add_second_stock
+    attributes = group_attributes(
+      name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+      members: {
+        @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+        second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+      }
+    )
+    first = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" }, groups: attributes
+    )
+    assert_predicate first, :success?
+    group_id = @plan.reload.allocation_groups.sole.id
+
+    replacement = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "60", "bond" => "40" },
+      instrument_targets: { @bond.id.to_s => "100" }, groups: {}
+    )
+
+    assert_predicate replacement, :success?
+    assert_empty @plan.reload.allocation_groups
+    assert_not PortfolioAllocationGroupMember.exists?(portfolio_allocation_group_id: group_id)
+  end
+
+  test "rejects unheld and cross-asset group members" do
+    unheld = Instrument.create!(ticker: "UNGRP", exchange: "BVMF", name: "Unheld group instrument", currency: "BRL", asset_type: :stock)
+    unheld_result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+          unheld.id.to_s => { selected: "1", purchase_policy: "buy" }
+        }
+      )
+    )
+    assert unheld_result.errors.any? { |message| message.include?("must have an open position before it can be grouped") }
+
+    cross_asset_result = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: group_attributes(
+        name: "ETF alternatives", asset_type_key: "stock", target_percentage: "100",
+        members: {
+          @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+          @bond.id.to_s => { selected: "1", purchase_policy: "buy" }
+        }
+      )
+    )
+    assert cross_asset_result.errors.any? { |message| message.include?("must use the Stock asset type") }
+  end
+
+  test "rejects duplicate group membership and invalid group headers" do
+    second_stock = add_second_stock
+    third_stock = Instrument.create!(ticker: "ALB7", exchange: "BVMF", name: "Third grouped stock", currency: "BRL", asset_type: :stock)
+    users(:owner).trades.create!(instrument: third_stock, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+      unit_price: 10, fees_cents: 0, currency: third_stock.currency)
+
+    duplicate = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: {
+        first: group_attributes(
+          name: "First", asset_type_key: "stock", target_percentage: "50",
+          members: {
+            @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+            second_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+          }
+        ).fetch("group"),
+        second: group_attributes(
+          name: "First", asset_type_key: "stock", target_percentage: "50",
+          members: {
+            @stock.id.to_s => { selected: "1", purchase_policy: "hold" },
+            third_stock.id.to_s => { selected: "1", purchase_policy: "buy" }
+          }
+        ).fetch("group")
+      }
+    )
+    assert_includes duplicate.errors, "An instrument can belong to only one allocation group."
+    assert_includes duplicate.errors, "Allocation group names must be unique."
+
+    missing_name = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: { invalid: { name: "", asset_type_key: "stock", target_percentage: "100" } }
+    )
+    assert_includes missing_name.errors, "Allocation groups need a name."
+
+    missing_target = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: { invalid: { name: "Missing target", asset_type_key: "stock", target_percentage: "" } }
+    )
+    assert_includes missing_target.errors, "The group Missing target percentage is not a valid number."
+
+    unknown_type = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: { invalid: { name: "Unknown", asset_type_key: "not_registered", target_percentage: "100" } }
+    )
+    assert_includes unknown_type.errors, "Asset type not_registered is not registered."
+
+    zero_target = PortfolioAllocation::PlanEditor.call(
+      plan: @plan, owner: users(:owner), asset_targets: { "stock" => "100" }, instrument_targets: {},
+      groups: { invalid: { name: "Zero", asset_type_key: "stock", target_percentage: "0" } }
+    )
+    assert_includes zero_target.errors, "Group Zero must have a positive target percentage."
+  end
+
+  private
+
+  def add_second_stock
+    @second_stock ||= Instrument.create!(ticker: "ALB2", exchange: "BVMF", name: "Second allocation stock", currency: "BRL", asset_type: :stock).tap do |instrument|
+      users(:owner).trades.create!(instrument:, side: :buy, traded_on: Date.new(2026, 1, 1), quantity: 1,
+        unit_price: 10, fees_cents: 0, currency: instrument.currency)
+    end
+  end
+
+  def group_attributes(name:, asset_type_key:, target_percentage:, members:)
+    {
+      "group" => {
+        name: name, asset_type_key: asset_type_key, target_percentage: target_percentage,
+        members:
+      }
+    }
+  end
 end

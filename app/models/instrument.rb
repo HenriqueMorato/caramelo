@@ -28,6 +28,8 @@ class Instrument < ApplicationRecord
   has_many :position_materializations, dependent: :delete_all
   has_many :portfolio_allocation_instrument_targets, dependent: :restrict_with_error,
     inverse_of: :instrument
+  has_many :portfolio_allocation_group_members, dependent: :restrict_with_error,
+    inverse_of: :instrument
 
   normalizes :ticker, with: ->(ticker) { ticker.strip.upcase }
   normalizes :exchange, with: ->(exchange) { exchange.strip.upcase }
@@ -74,6 +76,7 @@ class Instrument < ApplicationRecord
   def deletion_blocked?
     trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
       corporate_action_import_scans.exists? || daily_closing_prices.exists? ||
+      portfolio_allocation_instrument_targets.exists? || portfolio_allocation_group_members.exists? ||
       HistoricalDataBackfill.where(instrument: self).exists?
   end
 
@@ -90,21 +93,37 @@ class Instrument < ApplicationRecord
   end
 
   def identity_changed?
-    %w[ticker exchange currency].any? { |attribute| will_save_change_to_attribute?(attribute) }
+    %w[ticker exchange currency asset_type].any? { |attribute| will_save_change_to_attribute?(attribute) }
   end
 
   def identity_unchanged_when_referenced
-    return unless persisted? && referenced?
+    return unless persisted?
 
-    %w[ticker exchange currency].each do |attribute|
+    %w[ticker exchange currency asset_type].each do |attribute|
       next unless will_save_change_to_attribute?(attribute)
 
-      errors.add(attribute, :cannot_change_with_activity)
+      if attribute == "asset_type"
+        next unless allocation_referenced?
+
+        errors.add(attribute, :cannot_change_with_allocation)
+      else
+        next unless referenced?
+
+        errors.add(attribute, :cannot_change_with_activity)
+      end
     end
+  end
+
+  def allocation_referenced?
+    portfolio_allocation_instrument_targets.exists? || portfolio_allocation_group_members.exists?
   end
 
   def prevent_destroy_when_referenced
     return if trades.exists? || corporate_actions.exists? || daily_closing_prices.exists?
+    if allocation_referenced?
+      errors.add(:base, :cannot_destroy_with_allocation)
+      throw(:abort)
+    end
     return unless deletion_blocked?
 
     errors.add(:base, :cannot_destroy_with_activity)
@@ -121,6 +140,8 @@ class Instrument < ApplicationRecord
     trades.exists? || corporate_actions.exists? || corporate_action_imports.exists? ||
       corporate_action_import_scans.exists? || daily_closing_prices.exists? ||
       instrument_performance_observations.exists? || instrument_performance_materializations.exists? ||
+      portfolio_allocation_instrument_targets.exists? ||
+      portfolio_allocation_group_members.exists? ||
       position_materializations.exists? || HistoricalDataBackfill.where(instrument: self).exists?
   end
 end

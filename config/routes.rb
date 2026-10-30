@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   resource :performance, only: :show
   resource :performance_methodology, only: :show, path: "performance/methodology"
   resource :portfolio_plan, path: "goals/portfolio-plan", only: %i[show update], controller: :portfolio_plans
+  get "goals/portfolio-plan/groups/new", to: "portfolio_plans#new_group", as: :new_portfolio_plan_group
   resources :investment_goals, path: "goals", only: %i[index new create edit update] do
     member do
       post :pause
