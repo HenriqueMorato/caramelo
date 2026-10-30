@@ -632,7 +632,7 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-mix {
-    @apply mt-7 rounded-xl border border-coffee/10 bg-paper p-3;
+    @apply relative mt-7 rounded-xl border border-coffee/10 bg-paper p-3;
   }
 
   .portfolio-plan-mix-bar {
@@ -643,8 +643,29 @@ html[data-theme="dark"] {
     flex: 0 0 auto;
     width: 0;
     min-width: 0;
+    cursor: help;
     background: var(--asset-color, var(--caramelo-caramel));
-    transition: width 150ms ease;
+    outline: none;
+    transition: width 150ms ease, filter 150ms ease;
+  }
+
+  .portfolio-plan-mix-segment:hover,
+  .portfolio-plan-mix-segment:focus-visible {
+    z-index: 1;
+    filter: brightness(1.12);
+  }
+
+  .portfolio-plan-mix-tooltip {
+    @apply pointer-events-none absolute z-10 whitespace-nowrap rounded-md bg-coffee px-2 py-1 text-xs font-medium text-paper opacity-0 shadow-sm;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 0.5rem));
+    transition: opacity 150ms ease, transform 150ms ease;
+  }
+
+  .portfolio-plan-mix-tooltip[data-visible="true"] {
+    opacity: 1;
+    transform: translate(-50%, calc(-100% - 0.35rem));
   }
 
   .portfolio-plan-mix-segment + .portfolio-plan-mix-segment {
@@ -657,7 +678,7 @@ html[data-theme="dark"] {
 
   .portfolio-plan-column-labels {
     @apply mt-7 hidden gap-4 px-4 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted md:grid;
-    grid-template-columns: minmax(96px, 0.8fr) minmax(84px, 0.9fr) minmax(0, 1.7fr) minmax(76px, 0.9fr);
+    grid-template-columns: minmax(112px, 0.95fr) minmax(64px, 0.55fr) minmax(0, 1.45fr) minmax(72px, 0.65fr);
   }
 
   .portfolio-plan-allocation-row {
@@ -686,7 +707,7 @@ html[data-theme="dark"] {
 
   .portfolio-plan-current,
   .portfolio-plan-gap {
-    @apply font-mono text-sm tabular-nums text-coffee;
+    @apply whitespace-nowrap font-mono text-sm tabular-nums text-coffee;
   }
 
   .portfolio-plan-gap-positive {
@@ -724,22 +745,20 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-percent-field {
-    @apply relative mt-3;
+    @apply relative mt-3 flex items-center gap-1.5;
   }
 
   .portfolio-plan-percent-field .ui-field {
-    @apply w-full pr-6 text-right font-mono tabular-nums;
+    @apply mt-0 min-w-0 flex-1 pr-2 text-right font-mono tabular-nums;
     border-color: color-mix(in srgb, var(--asset-color, var(--caramelo-caramel)) 45%, var(--caramelo-chart-border));
     color: var(--asset-color, var(--caramelo-caramel));
     caret-color: var(--asset-color, var(--caramelo-caramel));
   }
 
   .portfolio-plan-percent-field > span {
-    position: absolute;
-    top: 50%;
-    right: 0.75rem;
+    @apply shrink-0 font-mono text-sm text-muted;
+    line-height: 1;
     pointer-events: none;
-    transform: translateY(-50%);
   }
 
   .portfolio-plan-percent-field .ui-field:focus {
@@ -804,7 +823,7 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-mode-options {
-    @apply grid gap-1 rounded-xl border border-coffee/10 bg-oat p-1 sm:grid-cols-2;
+    @apply grid gap-0 rounded-lg border border-coffee/10 bg-oat p-1 sm:grid-cols-2;
   }
 
   .portfolio-plan-mode-option {
@@ -816,7 +835,7 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-mode-option > .portfolio-plan-mode-label {
-    @apply flex min-h-11 items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted transition-[background-color,color,box-shadow,transform] duration-150;
+    @apply flex min-h-10 items-center justify-center rounded-md px-3 py-2 text-center text-sm font-semibold text-muted transition-[background-color,color,box-shadow,transform] duration-150;
   }
 
   .portfolio-plan-mode-option:hover > .portfolio-plan-mode-label {
@@ -850,7 +869,7 @@ html[data-theme="dark"] {
 
   @media (min-width: 48rem) {
     .portfolio-plan-allocation-row {
-      grid-template-columns: minmax(96px, 0.8fr) minmax(84px, 0.9fr) minmax(0, 1.7fr) minmax(76px, 0.9fr);
+      grid-template-columns: minmax(112px, 0.95fr) minmax(64px, 0.55fr) minmax(0, 1.45fr) minmax(72px, 0.65fr);
       align-items: center;
     }
 
@@ -858,7 +877,7 @@ html[data-theme="dark"] {
       grid-column: 3;
       grid-row: 1;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 70px;
+      grid-template-columns: minmax(0, 1fr) 108px;
       align-items: center;
       gap: 10px;
     }
@@ -882,6 +901,7 @@ html[data-theme="dark"] {
 
   @media (prefers-reduced-motion: reduce) {
     .portfolio-plan-mix-segment,
+    .portfolio-plan-mix-tooltip,
     .portfolio-plan-target-track > .portfolio-plan-track-fill > span,
     .portfolio-plan-detail > summary::after {
       transition: none;

@@ -30,6 +30,26 @@ class PortfolioPlansControllerTest < ActionDispatch::IntegrationTest
     assert_equal User.owner, PortfolioAllocationPlan.first.user
   end
 
+  test "renders registered asset types without open instruments" do
+    get portfolio_plan_url
+
+    assert_response :success
+    assert_select "input[name='portfolio_allocation[asset_targets][crypto]']", count: 1
+    assert_select ".portfolio-plan-allocation-row .portfolio-plan-asset-name", text: "Crypto", count: 1
+    assert_select ".portfolio-plan-asset-meta", text: /No instruments yet/, count: 4
+    assert_select ".portfolio-plan-mix-segment[data-tooltip='Crypto · 0%']", count: 1
+  end
+
+  test "keeps the empty holdings state without creating asset rows" do
+    Trade.where(user: User.owner).delete_all
+
+    get portfolio_plan_url
+
+    assert_response :success
+    assert_select ".ui-empty-state", text: /No open holdings yet/
+    assert_select "input[name='portfolio_allocation[asset_targets][crypto]']", count: 0
+  end
+
   test "saves nested targets without accepting another account" do
     patch portfolio_plan_url, params: {
       portfolio_allocation: {

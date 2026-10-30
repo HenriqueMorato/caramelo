@@ -7,8 +7,14 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     visit portfolio_plan_path
     assert_text "Give your portfolio direction."
     assert_text "Stock"
+    assert_text "Crypto"
+    assert_text "No instruments yet"
+    assert_text "Add money"
+    assert_text "Buy & sell"
     assert_selector "form#portfolio-allocation-form"
     assert_selector ".portfolio-plan-mix-bar"
+    find(".portfolio-plan-mix-segment[data-asset-key='stock']").hover
+    assert_selector ".portfolio-plan-mix-tooltip[data-visible='true']", text: /Stock · 0%/
     assert_text "Inside each allocation"
     assert_selector "#portfolio_plan_mode_buy_only[type='radio'][checked]", visible: :all
     assert_selector ".portfolio-plan-mode-options"
@@ -18,12 +24,17 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_text "Allocation bond"
 
     find("input[name='portfolio_allocation[asset_targets][stock]']").set("60")
+    assert_selector ".portfolio-plan-mix-segment[data-asset-key='stock'][data-tooltip='Stock · 60%']"
+    assert_selector ".portfolio-plan-mix-segment[data-asset-key='bond'][data-tooltip='Bond · 8%']"
     fill_in "portfolio_allocation_asset_targets_bond", with: "40"
     find("input[name='portfolio_allocation[instrument_targets][#{@stock.id}]']").set("100")
     find("input[name='portfolio_allocation[instrument_targets][#{@bond.id}]']").set("100")
     click_on "Save targets"
 
     assert_text "Allocation targets saved."
+    find("input[name='portfolio_allocation[asset_targets][stock]']").set("70")
+    assert_selector ".portfolio-plan-mix-segment[data-asset-key='stock'][data-tooltip='Stock · 63.64%']"
+    assert_selector ".portfolio-plan-mix-segment[data-asset-key='bond'][data-tooltip='Bond · 36.36%']"
     fill_in "New money (BRL)", with: "0"
     find("button[data-amount='100']").click
     assert_field "New money (BRL)", with: "100"
@@ -135,7 +146,7 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     open_allocation_details("Stock")
     open_allocation_details("Bond")
 
-    assert_field "portfolio_allocation[asset_targets][bond]", with: "40.00"
+    assert_field "portfolio_allocation[asset_targets][bond]", with: "8.00"
     assert_field "portfolio_allocation[instrument_targets][#{@stock.id}]", with: ""
     assert_field "portfolio_allocation[instrument_targets][#{@bond.id}]", with: ""
 

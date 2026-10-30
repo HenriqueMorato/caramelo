@@ -65,11 +65,14 @@ end %>
         <% if @groups.any? %>
           <%= form_with scope: :portfolio_allocation, url: portfolio_plan_path, method: :patch, id: "portfolio-allocation-form", class: "mt-7 space-y-6" do |form| %>
             <div class="portfolio-plan-mix">
-              <div class="portfolio-plan-mix-bar" role="img" aria-label="<%= t("portfolio_plans.show.Your target mix") %>">
+              <div class="portfolio-plan-mix-bar" role="group" aria-label="<%= t("portfolio_plans.show.Your target mix") %>">
                 <% target_values.each do |asset_type_key, value| %>
-                  <span class="portfolio-plan-mix-segment" style="--asset-color: var(--caramelo-asset-<%= asset_type_key %>, var(--caramelo-caramel)); width: <%= value %>%;" data-portfolio-allocation-form-target="assetBar" data-asset-key="<%= asset_type_key %>" aria-hidden="true"></span>
+                  <% target_label = AssetType.label_for(asset_type_key) %>
+                  <% target_percentage = number_with_precision(value, precision: 2, strip_insignificant_zeros: true) %>
+                  <span class="portfolio-plan-mix-segment" style="--asset-color: var(--caramelo-asset-<%= asset_type_key %>, var(--caramelo-caramel)); width: <%= value %>%;" data-portfolio-allocation-form-target="assetBar assetMixSegment" data-asset-key="<%= asset_type_key %>" data-asset-label="<%= target_label %>" data-tooltip="<%= target_label %> · <%= target_percentage %>%" data-action="mouseenter->portfolio-allocation-form#showMixTooltip mouseleave->portfolio-allocation-form#hideMixTooltip focus->portfolio-allocation-form#showMixTooltip blur->portfolio-allocation-form#hideMixTooltip" role="img" aria-label="<%= target_label %>: <%= target_percentage %>%" tabindex="0"></span>
                 <% end %>
               </div>
+              <div class="portfolio-plan-mix-tooltip" data-portfolio-allocation-form-target="assetTooltip" aria-hidden="true"></div>
               <div class="portfolio-plan-mix-caption">
                 <span><%= t("portfolio_plans.show.Your target mix") %></span>
                 <span><%= t("portfolio_plans.show.Portfolio-wide percentages") %></span>
@@ -86,13 +89,13 @@ end %>
               <% @groups.each do |asset_type_key, position_results| %>
                 <% asset_value = target_values.fetch(asset_type_key) %>
                 <% asset_input = target_inputs.fetch(asset_type_key) %>
-                <% current_value = current_percentages[asset_type_key] %>
+                <% current_value = @calculation&.available? ? current_percentages.fetch(asset_type_key, BigDecimal("0")) : nil %>
                 <% gap_value = current_value.nil? ? nil : asset_value - current_value %>
                 <% asset_style = "--asset-color: var(--caramelo-asset-#{asset_type_key}, var(--caramelo-caramel));" %>
                 <article class="portfolio-plan-allocation-row" style="<%= asset_style %>">
                   <div class="min-w-0">
                     <h3 class="portfolio-plan-asset-name truncate font-semibold text-coffee"><%= AssetType.label_for(asset_type_key) %></h3>
-                    <p class="portfolio-plan-asset-meta"><%= t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></p>
+                    <p class="portfolio-plan-asset-meta"><%= position_results.empty? ? t("portfolio_plans.show.No instruments yet") : t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></p>
                   </div>
                   <div class="portfolio-plan-current" role="group" aria-label="<%= t("portfolio_plans.show.Current allocation") %>"><%= current_value.nil? ? "—" : number_to_percentage(current_value, precision: 2) %></div>
                   <div class="portfolio-plan-target-control">
@@ -141,11 +144,14 @@ end %>
                     <summary>
                       <span class="min-w-0">
                         <span class="portfolio-plan-asset-name block truncate font-semibold text-coffee" style="<%= detail_asset_style %>"><%= AssetType.label_for(asset_type_key) %></span>
-                        <span class="mt-1 block truncate text-xs text-muted"><%= t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></span>
+                        <span class="mt-1 block truncate text-xs text-muted"><%= position_results.empty? ? t("portfolio_plans.show.No instruments yet") : t("portfolio_plans.show.Instrument count", selected: position_results.count { |result| @instrument_targets.key?(result.instrument.id) || @grouped_instrument_ids.include?(result.instrument.id) }, total: position_results.length) %></span>
                       </span>
                       <span class="shrink-0 font-mono text-sm tabular-nums text-caramel-deep"><%= number_with_precision(target_values.fetch(asset_type_key), precision: 2, strip_insignificant_zeros: true) %>%</span>
                     </summary>
                     <div class="portfolio-plan-detail-body">
+                      <% if position_results.empty? %>
+                        <p class="py-4 text-sm leading-6 text-muted"><%= t("portfolio_plans.show.No instruments yet") %></p>
+                      <% end %>
                       <% position_results.reject { |result| @grouped_instrument_ids.include?(result.instrument.id) }.each do |position_result| %>
                         <% instrument = position_result.instrument %>
                         <% target = @instrument_targets[instrument.id] %>
@@ -220,7 +226,7 @@ end %>
       <fieldset class="portfolio-plan-mode-fieldset sm:col-span-2 lg:col-span-3">
         <legend class="block text-sm font-semibold text-coffee"><%= t("portfolio_plans.show.Mode") %></legend>
         <div class="portfolio-plan-mode-options mt-2">
-          <% [[t("portfolio_plans.show.Buy only"), "buy_only", t("portfolio_plans.show.Buy only explanation")], [t("portfolio_plans.show.Full rebalance"), "full_rebalance", t("portfolio_plans.show.Full rebalance explanation")]].each do |label, value, explanation| %>
+          <% [[t("portfolio_plans.show.Add money"), "buy_only", t("portfolio_plans.show.Buy only explanation")], [t("portfolio_plans.show.Buy & sell"), "full_rebalance", t("portfolio_plans.show.Full rebalance explanation")]].each do |label, value, explanation| %>
             <label class="portfolio-plan-mode-option">
               <%= form.radio_button :mode, value, checked: @mode == value, id: "portfolio_plan_mode_#{value}", aria: { describedby: "portfolio_plan_mode_#{value}_help" } %>
               <span class="portfolio-plan-mode-label">

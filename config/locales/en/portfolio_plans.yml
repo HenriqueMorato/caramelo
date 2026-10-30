@@ -9,14 +9,15 @@ en:
       Add a trade: Add a trade
       Add contribution amount: Add %{amount} to contribution
       Add instrument group: Add instrument group
+      Add money: Add money
       All instruments: All
       Allocated: allocated
       Asset target: Type target %
       Asset type: Asset type
       Back to goals: Back to goals
       Below minimum: Below minimum unit
+      Buy & sell: Buy & sell
       Buy in group: Buy
-      Buy only: Buy only
       Buy only explanation: Add new money to underweight positions and keep existing
         holdings.
       Calculate: Calculate
@@ -45,7 +46,6 @@ en:
       Estimate disclaimer: These are estimates, not orders. Prices can move before
         a trade, and no trade is created automatically.
       Exact target: Exact target %
-      Full rebalance: Full rebalance
       Full rebalance explanation: Compare the full buy-and-sell gap against your targets.
       Gap: Gap
       Group context: "%{group} · %{policy}"
@@ -78,6 +78,8 @@ en:
       No holdings: No open holdings yet
       No holdings explanation: Record a trade first, then return here to shape the
         portfolio around the positions you own.
+      No instruments yet: No instruments yet. Add a trade to include this allocation
+        in recommendations.
       Not configured: Set your target mix first
       Not configured explanation: Save at least one asset type target before calculating
         a recommendation. Instrument targets are optional and split evenly when left

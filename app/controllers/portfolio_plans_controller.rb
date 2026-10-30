@@ -70,7 +70,14 @@ class PortfolioPlansController < ApplicationController
 
   def prepare_view
     prepare_position_view
-    @groups = @open_position_results.group_by { |result| result.instrument.asset_type }
+    grouped_positions = @open_position_results.group_by { |result| result.instrument.asset_type }
+    @groups = if @open_position_results.empty?
+      {}
+    else
+      AssetType.catalog.to_h do |asset_type|
+        [ asset_type.key, grouped_positions.fetch(asset_type.key, []) ]
+      end
+    end
     @groups = @groups.sort_by { |asset_type_key, _| AssetType.label_for(asset_type_key) }
     @asset_targets = @plan.asset_targets.index_by(&:asset_type_key)
     @instrument_targets = @plan.instrument_targets.index_by(&:instrument_id)
