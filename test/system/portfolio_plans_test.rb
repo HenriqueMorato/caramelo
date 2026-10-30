@@ -125,6 +125,39 @@ class PortfolioPlansTest < ApplicationSystemTestCase
     assert_text "SUGGESTED MOVE"
   end
 
+  test "keeps calculation fields usable at the intermediate breakpoint" do
+    prepare_holdings
+
+    visit portfolio_plan_path
+    page.current_window.resize_to(700, 844)
+
+    contribution = page.evaluate_script("document.querySelector('#contribution').getBoundingClientRect().toJSON()")
+    instrument_count = page.evaluate_script("document.querySelector('#instrument_count').getBoundingClientRect().toJSON()")
+
+    assert_operator contribution.fetch("width"), :>, 200
+    assert_operator instrument_count.fetch("width"), :>, 200
+    assert_operator instrument_count.fetch("top"), :>=, contribution.fetch("bottom")
+  end
+
+  test "keeps recommendation modes side by side on small screens" do
+    prepare_holdings
+
+    visit portfolio_plan_path
+    page.driver.browser.execute_cdp(
+      "Emulation.setDeviceMetricsOverride", width: 520, height: 844, deviceScaleFactor: 1, mobile: false
+    )
+    side_by_side = page.evaluate_script("Array.from(document.querySelectorAll('.portfolio-plan-mode-option')).map((option) => option.getBoundingClientRect().toJSON())")
+    assert_in_delta side_by_side.first.fetch("top"), side_by_side.second.fetch("top"), 0.1
+
+    page.driver.browser.execute_cdp(
+      "Emulation.setDeviceMetricsOverride", width: 430, height: 844, deviceScaleFactor: 1, mobile: false
+    )
+    stacked = page.evaluate_script("Array.from(document.querySelectorAll('.portfolio-plan-mode-option')).map((option) => option.getBoundingClientRect().toJSON())")
+    assert_operator stacked.second.fetch("top"), :>=, stacked.first.fetch("bottom")
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
   test "explains that a plan needs fresh data before recommending" do
     prepare_holdings
 

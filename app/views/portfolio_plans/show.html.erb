@@ -221,7 +221,7 @@ end %>
     </div>
 
     <%= form_with url: portfolio_plan_path, method: :get, class: "portfolio-plan-calculation-form mt-6 grid gap-4", data: { turbo_frame: "portfolio-plan-calculation", turbo_action: "advance" } do |form| %>
-      <fieldset class="portfolio-plan-mode-fieldset sm:col-span-2 lg:col-span-3">
+      <fieldset class="portfolio-plan-mode-fieldset md:col-span-2 lg:col-span-3">
         <legend class="block text-sm font-semibold text-coffee"><%= t("portfolio_plans.show.Mode") %></legend>
         <div class="portfolio-plan-mode-options mt-2">
           <% [[t("portfolio_plans.show.Add money"), "buy_only", t("portfolio_plans.show.Buy only explanation")], [t("portfolio_plans.show.Buy & sell"), "full_rebalance", t("portfolio_plans.show.Full rebalance explanation")]].each do |label, value, explanation| %>
@@ -250,7 +250,7 @@ end %>
         <%= form.number_field :instrument_count, value: @instrument_count, min: 1, max: @instrument_count_limit, step: 1, inputmode: "numeric", class: "ui-field mt-2 font-mono tabular-nums", placeholder: t("portfolio_plans.show.All instruments") %>
         <p class="mt-1 text-xs leading-5 text-muted"><%= t("portfolio_plans.show.Instruments to buy explanation") %></p>
       </div>
-      <div class="flex min-w-0 sm:col-span-2 lg:col-span-1 lg:pt-7">
+      <div class="flex min-w-0 md:col-span-2 lg:col-span-1 lg:pt-7">
         <%= button_tag t("portfolio_plans.show.Calculate"), type: "submit", name: nil, class: "ui-button ui-button-primary h-11 min-h-11 w-full cursor-pointer border border-coffee/20" %>
       </div>
     <% end %>

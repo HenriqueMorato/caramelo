@@ -868,7 +868,13 @@ html[data-theme="dark"] {
   }
 
   .portfolio-plan-mode-options {
-    @apply grid gap-0 rounded-lg border border-coffee/10 bg-oat p-1 sm:grid-cols-2;
+    @apply grid gap-0 rounded-lg border border-coffee/10 bg-oat p-1;
+  }
+
+  @media (min-width: 30rem) {
+    .portfolio-plan-mode-options {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   .portfolio-plan-mode-option {
