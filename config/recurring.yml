@@ -21,7 +21,7 @@ development:
     schedule: at 2:15am every day
 
   refresh_traded_market_prices:
-    class: RefreshTradedMarketPricesJob
+    command: "RefreshTradedMarketPricesJob.enqueue_for"
     queue: market_prices
     schedule: <%= Caramelo::Environment.fetch("CURRENT_PRICE_REFRESH_SCHEDULE", default: "every 5 minutes") %>
 
@@ -52,7 +52,7 @@ production:
     schedule: at 2:15am every day
 
   refresh_traded_market_prices:
-    class: RefreshTradedMarketPricesJob
+    command: "RefreshTradedMarketPricesJob.enqueue_for"
     queue: market_prices
     schedule: <%= Caramelo::Environment.fetch("CURRENT_PRICE_REFRESH_SCHEDULE", default: "every 5 minutes") %>
 

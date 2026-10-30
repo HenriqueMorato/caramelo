@@ -16,6 +16,53 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     assert_equal 1, enqueued_jobs.size
   end
 
+  test "resumes an active coordinator without creating a new run or completing coalesced children" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    clear_enqueued_jobs
+
+    RefreshTradedMarketPricesJob.new.perform
+    first = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+
+    RefreshTradedMarketPricesJob.new.perform
+    second = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+
+    assert_equal first.run_id, second.run_id
+    assert_equal "running", second.status
+    assert_equal 0, second.processed_count
+    instrument_jobs = enqueued_jobs.select do |job|
+      job[:job] == RefreshCurrentMarketPriceJob &&
+        job[:args].first["_aj_globalid"].end_with?("Instrument/#{instrument.id}")
+    end
+    assert_equal 1, instrument_jobs.size
+  end
+
+  test "fails the coordinator when a child cannot be enqueued" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+
+    with_stubbed_method(RefreshCurrentMarketPriceJob, :enqueue_for, ->(**) { nil }) do
+      assert_raises RefreshTradedMarketPricesJob::EnqueueFailure do
+        RefreshTradedMarketPricesJob.new.perform
+      end
+    end
+
+    state = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+    assert_equal "failed", state.status
+    assert_includes state.error_message, "could not enqueue"
+  end
+
+  test "coalesces coordinator executions" do
+    job = RefreshTradedMarketPricesJob.new
+
+    assert_equal :discard, RefreshTradedMarketPricesJob.concurrency_on_conflict
+    assert_equal 1, RefreshTradedMarketPricesJob.concurrency_limit
+    assert_equal RefreshTradedMarketPricesJob::DEDUPLICATION_WINDOW,
+      RefreshTradedMarketPricesJob.concurrency_duration
+    assert_equal "#{RefreshTradedMarketPricesJob.name}/#{RefreshTradedMarketPricesJob::COORDINATOR_CONCURRENCY_KEY}",
+      job.concurrency_key
+  end
+
   test "clears the coordinator marker when enqueueing fails" do
     failure = RuntimeError.new("queue unavailable")
     with_stubbed_method(RefreshTradedMarketPricesJob, :perform_later, -> { raise failure }) do

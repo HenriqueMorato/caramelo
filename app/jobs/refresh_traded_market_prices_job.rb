@@ -2,6 +2,12 @@ class RefreshTradedMarketPricesJob < ApplicationJob
   queue_as :market_prices
 
   DEDUPLICATION_WINDOW = 5.minutes
+  COORDINATOR_CONCURRENCY_KEY = "market_data:refresh_traded_market_prices"
+
+  class EnqueueFailure < RuntimeError; end
+
+  # Recurring schedules catch up after downtime; never replay duplicate coordinators.
+  limits_concurrency key: ->(*) { COORDINATOR_CONCURRENCY_KEY }, duration: DEDUPLICATION_WINDOW, on_conflict: :discard
 
   def self.enqueue_for
     return :coalesced unless Rails.cache.write(deduplication_key, true, expires_in: DEDUPLICATION_WINDOW, unless_exist: true)
@@ -18,8 +24,11 @@ class RefreshTradedMarketPricesJob < ApplicationJob
 
   def perform
     instruments = traded_instruments
+    existing_refresh = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
     RefreshStatus::Tracker.perform(
-      scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: instruments.count
+      scope: RefreshStatus::MARKET_PRICE_SCOPE,
+      total_count: instruments.count,
+      preserve_progress: existing_refresh&.active?
     ) do |refresh|
       instruments.find_each do |instrument|
         unless market_price_service.supports?(instrument:)
@@ -41,7 +50,7 @@ class RefreshTradedMarketPricesJob < ApplicationJob
           result = RefreshCurrentMarketPriceJob.enqueue_for(
             instrument:, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE, batch_run_id: refresh.run_id
           )
-          RefreshStatus::Tracker.advance(refresh) if result.nil? || result == RefreshCurrentMarketPriceJob::COALESCED
+          raise EnqueueFailure, "could not enqueue #{instrument.ticker} market-price refresh" unless result
         else
           RefreshStatus::Tracker.advance(refresh)
         end
