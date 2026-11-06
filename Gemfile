@@ -84,7 +84,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "axe-core-capybara", "~> 4.14"
   gem "capybara", "~> 3.40"
-  gem "selenium-webdriver", "~> 4.51"
+  gem "selenium-webdriver", "~> 4.52"
 
   # Report line and branch coverage across test processes [https://github.com/simplecov-ruby/simplecov]
   gem "simplecov", "~> 1.3", require: false
