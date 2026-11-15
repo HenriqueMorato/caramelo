@@ -38,10 +38,20 @@ module Caramelo
     config.x.caramelo.password_policy = Caramelo::Environment.password_policy
     config.x.caramelo.reporting_currency = "BRL"
 
-    # A queue child with a dead heartbeat must exit so the fork supervisor can replace it.
+    # Keep application failures isolated, but let the fork supervisor replace a worker
+    # when Solid Queue itself fails while finalizing a claim.
+    solid_queue_internal_error = lambda do |exception|
+      backtrace = exception.backtrace.to_a
+      solid_queue_frame = backtrace.any? { |line| line.include?("/gems/solid_queue-") }
+      application_frame = backtrace.any? do |line|
+        line.start_with?("#{Rails.root}/") && !line.start_with?("#{Rails.root}/vendor/")
+      end
+      solid_queue_frame && !application_frame
+    end
+
     config.solid_queue.on_thread_error = lambda do |exception|
       Rails.error.report(exception, handled: false)
-      exit!(1) if SolidQueue.supervisor?
+      Process.exit!(1) if SolidQueue.supervisor? && solid_queue_internal_error.call(exception)
     end
 
     # config.eager_load_paths << Rails.root.join("extras")
