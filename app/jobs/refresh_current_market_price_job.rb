@@ -44,7 +44,8 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
 
   def perform(instrument, force: false, batch_scope: nil, batch_run_id: nil, lease_token: nil, lease_target: nil)
     retry_scheduled = false
-    executed = false
+    completed = false
+    batch_failed = false
     job_class = self.class
     refresh_scope = job_class.refresh_scope(instrument)
     marker_key = job_class.deduplication_key(instrument)
@@ -57,6 +58,7 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
       market_price_service.refresh(instrument:, force:)
       refresh_exchange_rate(instrument:, force:)
       instrument_event(:succeeded, instrument:)
+      completed = true
     end
   rescue MarketPrice::ProviderFailure, MarketPrice::CurrencyMismatch, MarketPrice::UnsupportedInstrument => error
     scheduled_delay = retry_provider_failure(error) if error.is_a?(MarketPrice::ProviderFailure)
@@ -65,12 +67,14 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
       RefreshStatus::Tracker.enqueue(scope: refresh_scope, run_id: batch_run_id)
       instrument_event(:retried, instrument:, wait_seconds: scheduled_delay.to_i)
     else
+      fail_batch(batch_scope, batch_run_id, error)
+      batch_failed = true
       report_failure(error, instrument:)
     end
   ensure
     Rails.cache.delete(marker_key) unless retry_scheduled
     broadcast_current(instrument)
-    advance_batch(batch_scope, batch_run_id) if batch_scope && executed && !retry_scheduled
+    advance_batch(batch_scope, batch_run_id, instrument:) if batch_scope && completed && !retry_scheduled && !batch_failed
     release_lease(lease_token, lease_target) unless retry_scheduled
   end
 
@@ -124,9 +128,24 @@ class RefreshCurrentMarketPriceJob < ApplicationJob
     report(error, instrument:)
   end
 
-  def advance_batch(batch_scope, batch_run_id)
+  def advance_batch(batch_scope, batch_run_id, instrument: nil)
     batch = RefreshStatus::State.read(batch_scope)
-    RefreshStatus::Tracker.advance(batch) if batch&.active? && batch.run_id == batch_run_id
+    return unless batch&.active? && batch.run_id == batch_run_id
+
+    if instrument
+      RefreshStatus::Tracker.advance(batch, key: instrument.id)
+    else
+      RefreshStatus::Tracker.advance(batch)
+    end
+  end
+
+  def fail_batch(batch_scope, batch_run_id, error)
+    return unless batch_scope
+
+    batch = RefreshStatus::State.read(batch_scope)
+    return unless batch&.active? && batch.run_id == batch_run_id
+
+    RefreshStatus::Tracker.record_failure(batch, error)
   end
 
   def batch_active?(batch_scope, batch_run_id)

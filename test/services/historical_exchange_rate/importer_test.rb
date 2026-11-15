@@ -46,6 +46,41 @@ class HistoricalExchangeRate::ImporterTest < ActiveJob::TestCase
     assert_equal BigDecimal("6"), HistoricalExchangeRate.first.rate
   end
 
+  test "removes legacy Yahoo weekend rows when importing the canonical weekday" do
+    identifier = MarketData::YahooFinance::FX_CONFIGURATION.identifier
+    observed_at = Time.utc(2026, 8, 30, 23)
+    HistoricalExchangeRate.create!(
+      base_currency: "USD", quote_currency: "BRL", rate_date: Date.new(2026, 8, 30),
+      rate: "5", provider: identifier, observed_at:, fetched_at: observed_at
+    )
+    @provider.define_singleton_method(:identifier) { identifier }
+    @provider.define_singleton_method(:fetch) do |base_currency:, quote_currency:, from:, to:|
+      [ HistoricalExchangeRate::Observation.new(
+        base_currency:, quote_currency:, rate_date: Date.new(2026, 8, 28), rate: BigDecimal("6"),
+        provider: identifier, observed_at:, fetched_at: Time.current
+      ) ]
+    end
+
+    @importer.call(base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 28),
+      to: Date.new(2026, 8, 28), enqueue_performance_rebuild: false)
+
+    assert_not HistoricalExchangeRate.exists?(base_currency: "USD", quote_currency: "BRL", provider: identifier,
+      rate_date: Date.new(2026, 8, 30))
+    assert_equal BigDecimal("6"), HistoricalExchangeRate.find_by!(
+      base_currency: "USD", quote_currency: "BRL", provider: identifier, rate_date: Date.new(2026, 8, 28)
+    ).rate
+  end
+
+  test "ignores observations without timestamps during legacy-row cleanup" do
+    @provider.define_singleton_method(:identifier) { MarketData::YahooFinance::FX_CONFIGURATION.identifier }
+    @importer.instance_variable_set(:@observations, [ HistoricalExchangeRate::Observation.new(
+      base_currency: "USD", quote_currency: "BRL", rate_date: Date.new(2026, 8, 28),
+      rate: BigDecimal("6"), provider: @provider.identifier, observed_at: nil, fetched_at: nil
+    ) ])
+
+    assert_nothing_raised { @importer.send(:purge_legacy_weekend_records) }
+  end
+
   test "normalizes the pair before requesting observations" do
     @importer.call(base_currency: " usd ", quote_currency: "brl", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24))
 

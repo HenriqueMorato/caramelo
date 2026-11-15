@@ -48,6 +48,26 @@ class CorporateActionImportScanTest < ActiveSupport::TestCase
     assert @scan.active_expired?
   end
 
+  test "can claim stale work with an explicit recovery timeout" do
+    request = @scan.claim!(from: @from, to: @to)
+    @scan.start!(request.run_id)
+    stale_at = 6.minutes.ago
+    @scan.update_columns(started_at: stale_at, updated_at: stale_at)
+
+    replacement = @scan.claim!(from: @from, to: @to, timeout: 5.minutes)
+
+    assert_predicate @scan.reload, :queued?
+    refute_equal request.run_id, replacement.run_id
+  end
+
+  test "does not replace fresh active work" do
+    request = @scan.claim!(from: @from, to: @to)
+    @scan.start!(request.run_id)
+
+    assert_nil @scan.claim!(from: @from, to: @to, timeout: 5.minutes)
+    assert_equal request.run_id, @scan.reload.run_id
+  end
+
   test "rewinds its watermark and fences any active run" do
     request = @scan.claim!(from: @from, to: @to)
     @scan.start!(request.run_id)

@@ -6,15 +6,17 @@ module CorporateActionImports
       def failed? = failed_count.positive?
     end
 
-    def self.call(user: User.default_owner, instrument: nil, source: SOURCE, today: Date.current)
-      new(user:, instrument:, source:, today:).call
+    def self.call(user: User.default_owner, instrument: nil, source: SOURCE, today: Date.current,
+      stale_timeout: CorporateActionImportScan::ACTIVE_TIMEOUT)
+      new(user:, instrument:, source:, today:, stale_timeout:).call
     end
 
-    def initialize(user:, instrument:, source:, today:)
+    def initialize(user:, instrument:, source:, today:, stale_timeout:)
       @user = user
       @instrument = instrument
       @source = source.to_s.strip.downcase
       @today = today
+      @stale_timeout = stale_timeout
       raise ArgumentError, "unsupported import source" unless Providers::SUPPORTED_SOURCES.include?(@source)
     end
 
@@ -33,7 +35,7 @@ module CorporateActionImports
 
     private
 
-    attr_reader :user, :instrument, :source, :today
+    attr_reader :user, :instrument, :source, :today, :stale_timeout
 
     def instruments_with_first_trade
       relation = user.trades.where(traded_on: ..today)
@@ -74,7 +76,7 @@ module CorporateActionImports
     end
 
     def claim_request(state, from)
-      state.claim!(from:, to: today)
+      state.claim!(from:, to: today, timeout: stale_timeout)
     end
 
     def prepare_scan(state, current_instrument, request)

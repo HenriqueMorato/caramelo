@@ -21,9 +21,14 @@ development:
     schedule: at 2:15am every day
 
   refresh_traded_market_prices:
-    class: RefreshTradedMarketPricesJob
+    command: "RefreshTradedMarketPricesJob.enqueue_for"
     queue: market_prices
     schedule: <%= Caramelo::Environment.fetch("CURRENT_PRICE_REFRESH_SCHEDULE", default: "every 5 minutes") %>
+
+  recover_stale_market_data:
+    class: RecoverStaleMarketDataJob
+    queue: maintenance
+    schedule: every 2 minutes
 
   capture_market_benchmark_observations:
     class: CaptureMarketBenchmarkObservationsJob
@@ -52,9 +57,14 @@ production:
     schedule: at 2:15am every day
 
   refresh_traded_market_prices:
-    class: RefreshTradedMarketPricesJob
+    command: "RefreshTradedMarketPricesJob.enqueue_for"
     queue: market_prices
     schedule: <%= Caramelo::Environment.fetch("CURRENT_PRICE_REFRESH_SCHEDULE", default: "every 5 minutes") %>
+
+  recover_stale_market_data:
+    class: RecoverStaleMarketDataJob
+    queue: maintenance
+    schedule: every 2 minutes
 
   capture_market_benchmark_observations:
     class: CaptureMarketBenchmarkObservationsJob

@@ -144,6 +144,88 @@ class Performance::SeriesRefreshTest < ActiveJob::TestCase
     assert_enqueued_jobs 1, only: BuildPortfolioPerformanceObservationsJob
   end
 
+  test "releases an active lease only when its state is stale" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)
+
+    refute Performance::SeriesRefresh.release_stale(
+      user: @user, token:, cutoff: 1.minute.ago
+    )
+    assert_equal token, Performance::SeriesRefresh.lease_token(user: @user)
+
+    travel 6.minutes
+
+    assert Performance::SeriesRefresh.release_stale(
+      user: @user, token:, cutoff: 5.minutes.ago
+    )
+    assert_nil Performance::SeriesRefresh.lease_token(user: @user)
+  end
+
+  test "fences stale lease release by token and published state" do
+    token = Performance::SeriesRefresh.acquire(user: @user)
+
+    refute Performance::SeriesRefresh.release_stale(
+      user: @user, token: "different-token", cutoff: 5.minutes.ago
+    )
+    refute Performance::SeriesRefresh.release_stale(
+      user: @user, token:, cutoff: 5.minutes.ago
+    )
+    assert_equal token, Performance::SeriesRefresh.lease_token(user: @user)
+
+    Performance::SeriesRefresh.release(user: @user, token:)
+  end
+
+  test "does not delete a transient marker owned by another refresh" do
+    token = "enqueue-token"
+    Performance::SeriesRefresh.mark_enqueue_in_flight(user: @user, token:)
+
+    Performance::SeriesRefresh.release_enqueue_in_flight(user: @user, token: "different-token")
+    assert Performance::SeriesRefresh.enqueue_in_flight?(user: @user)
+
+    Performance::SeriesRefresh.release_enqueue_in_flight(user: @user, token:)
+    refute Performance::SeriesRefresh.enqueue_in_flight?(user: @user)
+  end
+
+  test "registers a transient marker inside lease acquisition" do
+    token = Performance::SeriesRefresh.acquire(user: @user, transient_marker: :enqueue)
+
+    assert token
+    assert_equal token, Performance::SeriesRefresh.lease_token(user: @user)
+    assert Performance::SeriesRefresh.enqueue_in_flight?(user: @user)
+
+    Performance::SeriesRefresh.release_enqueue_in_flight(user: @user, token:)
+    Performance::SeriesRefresh.release(user: @user, token:)
+  end
+
+  test "does not release leases while a transient execution marker is held" do
+    active_token = Performance::SeriesRefresh.acquire(user: @user, transient_marker: :enqueue)
+    Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token: active_token)
+
+    refute Performance::SeriesRefresh.release_stale(
+      user: @user, token: active_token, cutoff: 5.minutes.from_now
+    )
+
+    instrument = instruments(:voo_arcx)
+    orphan_token = Performance::SeriesRefresh.acquire(
+      user: @user, instrument:, reporting_currency: "USD", transient_marker: :synchronous
+    )
+    refute Performance::SeriesRefresh.release_orphaned(
+      user: @user, instrument:, reporting_currency: "USD", token: "different-token"
+    )
+    refute Performance::SeriesRefresh.release_orphaned(
+      user: @user, instrument:, reporting_currency: "USD", token: orphan_token
+    )
+
+    Performance::SeriesRefresh.release_enqueue_in_flight(user: @user, token: active_token)
+    Performance::SeriesRefresh.release_synchronous_execution(
+      user: @user, instrument:, reporting_currency: "USD", token: orphan_token
+    )
+    Performance::SeriesRefresh.release(user: @user, token: active_token)
+    Performance::SeriesRefresh.release(
+      user: @user, instrument:, reporting_currency: "USD", token: orphan_token
+    )
+  end
+
   test "marks an active state interrupted after its lease timeout" do
     token = Performance::SeriesRefresh.acquire(user: @user)
     Performance::SeriesRefresh.running(user: @user, from: @from, to: @to, token:)

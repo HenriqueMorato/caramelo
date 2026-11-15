@@ -125,6 +125,25 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal({ instrument_id: instrument.id }, report.second.fetch(:context))
   end
 
+  test "fails a parent batch when a non-retryable child fails" do
+    instrument = instruments(:petr4_bvmf)
+    failure = MarketPrice::ProviderFailure.new(provider_identifier: "fake", message: "invalid response")
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise failure }
+    batch = RefreshStatus::Tracker.enqueue(scope: "failed_child_batch", total_count: 1)
+    RefreshStatus::Tracker.enqueue(scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument), run_id: batch.run_id)
+
+    with_stubbed_method(Rails.error, :report, ->(*, **) { }) do
+      build_job(service:).perform(instrument, batch_scope: batch.scope, batch_run_id: batch.run_id)
+    end
+
+    parent = RefreshStatus::State.read(batch.scope)
+    child = RefreshStatus::State.read(RefreshCurrentMarketPriceJob.refresh_scope(instrument))
+    assert_equal "failed", parent.status
+    assert_equal 0, parent.processed_count
+    assert_equal "failed", child.status
+  end
+
   test "retries rate-limited provider failures using Retry-After" do
     instrument = instruments(:petr4_bvmf)
     failure = MarketPrice::ProviderFailure.new(
@@ -301,6 +320,7 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     state = RefreshStatus::State.read(scope)
     assert_equal "succeeded", state.status
     assert_equal 1, state.processed_count
+    assert_equal [ instrument.id.to_s ], state.completed_items
   end
 
   test "completes the instrument state when refreshing through a batch" do
@@ -350,6 +370,28 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     job.send(:advance_batch, scope, "old-run")
     job.send(:advance_batch, "missing_batch", "old-run")
     assert_equal 0, RefreshStatus::State.read(scope).processed_count
+  end
+
+  test "advances an active batch without an instrument key" do
+    job = RefreshCurrentMarketPriceJob.new
+    scope = "test_unkeyed_batch"
+    state = RefreshStatus::Tracker.enqueue(scope:, total_count: 1)
+
+    job.send(:advance_batch, scope, state.run_id)
+
+    assert_equal 1, RefreshStatus::State.read(scope).processed_count
+  end
+
+  test "ignores failure recording for missing or inactive batches" do
+    job = RefreshCurrentMarketPriceJob.new
+    error = RuntimeError.new("provider unavailable")
+    inactive_scope = "test_inactive_failure_batch"
+    RefreshStatus::State.write(scope: inactive_scope, status: "succeeded", run_id: "run")
+
+    job.send(:fail_batch, "missing_failure_batch", "run", error)
+    job.send(:fail_batch, inactive_scope, "run", error)
+
+    assert_equal "succeeded", RefreshStatus::State.read(inactive_scope).status
   end
 
   test "reports an inactive batch as unavailable for work" do

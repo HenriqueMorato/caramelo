@@ -3,6 +3,7 @@ module Performance
     CACHE_PREFIX = "caramelo:performance_series_refresh"
     STATE_TTL = 1.day
     LEASE_TTL = 30.minutes
+    TRANSIENT_EXECUTION_TTL = 10.minutes
     FAILURE_COOLDOWN = 30.seconds
 
     class AlreadyRunning < StandardError; end
@@ -101,13 +102,65 @@ module Performance
       end
     end
 
-    def self.acquire(user:, instrument: nil, reporting_currency: user.reporting_currency)
+    def self.lease_token(user:, instrument: nil, reporting_currency: user.reporting_currency)
+      Rails.cache.read(lease_key(user:, instrument:, reporting_currency:))
+    end
+
+    def self.release_stale(user:, instrument: nil, reporting_currency: user.reporting_currency, token:, cutoff:)
+      materialization_for(user:, instrument:, reporting_currency:).with_lock do
+        next false unless Rails.cache.read(lease_key(user:, instrument:, reporting_currency:)) == token
+        next false if transient_execution?(user:, instrument:, reporting_currency:)
+
+        state = read(user:, instrument:, reporting_currency:)
+        next false unless state&.active? && state.updated_at <= cutoff
+
+        Rails.cache.delete(lease_key(user:, instrument:, reporting_currency:))
+        true
+      end
+    end
+
+    def self.release_orphaned(user:, instrument: nil, reporting_currency: user.reporting_currency, token:)
+      materialization_for(user:, instrument:, reporting_currency:).with_lock do
+        next false unless Rails.cache.read(lease_key(user:, instrument:, reporting_currency:)) == token
+        next false if transient_execution?(user:, instrument:, reporting_currency:)
+
+        Rails.cache.delete(lease_key(user:, instrument:, reporting_currency:))
+        true
+      end
+    end
+
+    def self.enqueue_in_flight?(user:, instrument: nil, reporting_currency: user.reporting_currency)
+      Rails.cache.exist?(enqueue_key(user:, instrument:, reporting_currency:))
+    end
+
+    def self.synchronous_execution?(user:, instrument: nil, reporting_currency: user.reporting_currency)
+      Rails.cache.exist?(synchronous_key(user:, instrument:, reporting_currency:))
+    end
+
+    def self.mark_enqueue_in_flight(user:, instrument: nil, reporting_currency: user.reporting_currency, token:)
+      write_transient_marker(user:, instrument:, reporting_currency:, token:, kind: :enqueue)
+    end
+
+    def self.release_enqueue_in_flight(user:, instrument: nil, reporting_currency: user.reporting_currency, token:)
+      delete_transient_marker(enqueue_key(user:, instrument:, reporting_currency:), token)
+    end
+
+    def self.mark_synchronous_execution(user:, instrument: nil, reporting_currency: user.reporting_currency, token:)
+      write_transient_marker(user:, instrument:, reporting_currency:, token:, kind: :synchronous)
+    end
+
+    def self.release_synchronous_execution(user:, instrument: nil, reporting_currency: user.reporting_currency, token:)
+      delete_transient_marker(synchronous_key(user:, instrument:, reporting_currency:), token)
+    end
+
+    def self.acquire(user:, instrument: nil, reporting_currency: user.reporting_currency, transient_marker: nil)
       materialization_for(user:, instrument:, reporting_currency:).with_lock do
         token = SecureRandom.uuid
         acquired = Rails.cache.write(
           lease_key(user:, instrument:, reporting_currency:), token,
           expires_in: LEASE_TTL, unless_exist: true
         )
+        write_transient_marker(user:, instrument:, reporting_currency:, token:, kind: transient_marker) if acquired && transient_marker
         token if acquired
       end
     end
@@ -131,7 +184,7 @@ module Performance
     def enqueue
       materialization.request!(from:, to:)
       return :failed if !force && recent_failure?(self.class.read(user:, instrument:, reporting_currency:))
-      token = acquire_lease
+      token = acquire_lease(marker: :enqueue)
       return existing_refresh_status unless token
 
       enqueue_job(token)
@@ -139,13 +192,17 @@ module Performance
 
     def rebuild_now
       materialization.request!(from:, to:, source_changed: true)
-      token = acquire_lease
+      token = acquire_lease(marker: :synchronous)
       raise AlreadyRunning, "performance observations are already rebuilding for this target" unless token
 
       lease_owned = true
-      mark_queued(token)
-      lease_owned = false
-      job_class.perform_now(**job_arguments(token))
+      begin
+        mark_queued(token)
+        lease_owned = false
+        job_class.perform_now(**job_arguments(token))
+      ensure
+        self.class.release_synchronous_execution(user:, instrument:, reporting_currency:, token:)
+      end
     rescue StandardError
       self.class.release(user:, instrument:, token:, reporting_currency:) if lease_owned
       raise
@@ -161,11 +218,15 @@ module Performance
     end
 
     def enqueue_job(token)
-      mark_queued(token)
-      job = job_class.perform_later(**job_arguments(token))
-      return :queued if job.successfully_enqueued?
+      begin
+        mark_queued(token)
+        job = job_class.perform_later(**job_arguments(token))
+        return :queued if job.successfully_enqueued?
 
-      raise ActiveJob::EnqueueError, "performance observation build could not be enqueued"
+        raise ActiveJob::EnqueueError, "performance observation build could not be enqueued"
+      ensure
+        self.class.release_enqueue_in_flight(user:, instrument:, reporting_currency:, token:)
+      end
     rescue StandardError => error
       report_enqueue_failure(error, token:)
     end
@@ -191,8 +252,8 @@ module Performance
       :failed
     end
 
-    def acquire_lease
-      self.class.acquire(user:, instrument:, reporting_currency:)
+    def acquire_lease(marker:)
+      self.class.acquire(user:, instrument:, reporting_currency:, transient_marker: marker)
     end
 
     def existing_refresh_status
@@ -244,6 +305,22 @@ module Performance
         }
       end
 
+      def delete_transient_marker(key, token)
+        Rails.cache.delete(key) if Rails.cache.read(key) == token
+      end
+
+      def write_transient_marker(user:, instrument:, reporting_currency:, token:, kind:)
+        key = kind == :enqueue ? enqueue_key(user:, instrument:, reporting_currency:) : synchronous_key(
+          user:, instrument:, reporting_currency:
+        )
+        Rails.cache.write(key, token, expires_in: TRANSIENT_EXECUTION_TTL)
+      end
+
+      def transient_execution?(user:, instrument:, reporting_currency:)
+        enqueue_in_flight?(user:, instrument:, reporting_currency:) ||
+          synchronous_execution?(user:, instrument:, reporting_currency:)
+      end
+
       def with_current_lease(user:, instrument:, token:, reporting_currency:)
         materialization_for(user:, instrument:, reporting_currency:).with_lock do
           yield if Rails.cache.read(lease_key(user:, instrument:, reporting_currency:)) == token
@@ -256,6 +333,14 @@ module Performance
 
       def lease_key(user:, instrument:, reporting_currency:)
         "#{CACHE_PREFIX}:#{target_key(user:, instrument:, reporting_currency:)}:lease"
+      end
+
+      def enqueue_key(user:, instrument:, reporting_currency:)
+        "#{CACHE_PREFIX}:#{target_key(user:, instrument:, reporting_currency:)}:enqueue"
+      end
+
+      def synchronous_key(user:, instrument:, reporting_currency:)
+        "#{CACHE_PREFIX}:#{target_key(user:, instrument:, reporting_currency:)}:synchronous"
       end
 
       def target_key(user:, instrument:, reporting_currency:)
