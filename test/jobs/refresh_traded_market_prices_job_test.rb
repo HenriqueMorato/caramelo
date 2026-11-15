@@ -37,6 +37,115 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     assert_equal 1, instrument_jobs.size
   end
 
+  test "does not count a fresh instrument twice while another child is pending" do
+    fresh = instruments(:petr4_bvmf)
+    stale = instruments(:voo_arcx)
+    create_trade(instrument: fresh, side: :buy, quantity: 1)
+    create_trade(instrument: stale, side: :buy, quantity: 1)
+    instrument_ids = [ fresh.id, stale.id ]
+    lookup = Struct.new(:refresh_needed?)
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| lookup.new(instrument.id == stale.id) }
+    job = build_job(service:, instruments: instrument_ids) do
+      instrument_ids
+    end
+
+    job.perform
+    first = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+    job.perform
+    second = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+
+    assert_equal first.run_id, second.run_id
+    assert_equal 1, second.processed_count
+    assert_equal 2, second.total_count
+    assert_equal "running", second.status
+  end
+
+  test "starts a new run when an active state predates keyed progress" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    old_run = "legacy-run"
+    Rails.cache.write(
+      RefreshStatus::State.send(:key, RefreshStatus::MARKET_PRICE_SCOPE),
+      {
+        scope: RefreshStatus::MARKET_PRICE_SCOPE, run_id: old_run, status: "running",
+        started_at: Time.current.iso8601, finished_at: nil, updated_at: Time.current.iso8601,
+        error_class: nil, error_message: nil, processed_count: 0, total_count: 1
+      }
+    )
+
+    RefreshTradedMarketPricesJob.new.perform
+
+    state = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+    assert_not_equal old_run, state.run_id
+  end
+
+  test "reconciles keyed progress when the traded instrument set changes" do
+    retained = instruments(:petr4_bvmf)
+    removed = instruments(:voo_arcx)
+    create_trade(instrument: retained, side: :buy, quantity: 1)
+    create_trade(instrument: removed, side: :buy, quantity: 1)
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| Struct.new(:refresh_needed?).new(false) }
+    previous = RefreshStatus::Tracker.enqueue(
+      scope: RefreshStatus::MARKET_PRICE_SCOPE,
+      total_count: 2,
+      tracked_items: [ retained.id, removed.id ]
+    )
+    RefreshStatus::Tracker.advance(previous, key: retained.id)
+
+    job = build_job(service:, instruments: [ retained ])
+    job.perform
+
+    state = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
+    assert_equal [ retained.id.to_s ], state.tracked_items
+    assert_equal [ retained.id.to_s ], state.completed_items
+    assert_equal 1, state.processed_count
+    assert_equal "succeeded", state.status
+  end
+
+  test "reconciles the parent when a child succeeded before parent bookkeeping" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| Struct.new(:refresh_needed?).new(true) }
+    parent = RefreshStatus::Tracker.enqueue(
+      scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: 1, tracked_items: [ instrument.id ]
+    )
+    child_scope = RefreshCurrentMarketPriceJob.refresh_scope(instrument)
+    child = RefreshStatus::Tracker.enqueue(scope: child_scope, run_id: parent.run_id, total_count: 1)
+    RefreshStatus::Tracker.advance(child)
+
+    build_job(service:, instruments: [ instrument ]).perform
+
+    state = RefreshStatus::State.read(parent.scope)
+    assert_equal "succeeded", state.status
+    assert_equal 1, state.processed_count
+    assert_equal [ instrument.id.to_s ], state.completed_items
+  end
+
+  test "fails the parent when a child had already failed" do
+    instrument = instruments(:petr4_bvmf)
+    create_trade(instrument:, side: :buy, quantity: 1)
+    service = Object.new
+    service.define_singleton_method(:supports?) { |instrument:| true }
+    service.define_singleton_method(:read) { |instrument:| Struct.new(:refresh_needed?).new(true) }
+    parent = RefreshStatus::Tracker.enqueue(
+      scope: RefreshStatus::MARKET_PRICE_SCOPE, total_count: 1, tracked_items: [ instrument.id ]
+    )
+    child_scope = RefreshCurrentMarketPriceJob.refresh_scope(instrument)
+    child = RefreshStatus::Tracker.enqueue(scope: child_scope, run_id: parent.run_id, total_count: 1)
+    RefreshStatus::Tracker.record_failure(child, RuntimeError.new("quote unavailable"))
+
+    build_job(service:, instruments: [ instrument ]).perform
+
+    assert_equal "failed", RefreshStatus::State.read(parent.scope).status
+    assert_equal "quote unavailable", RefreshStatus::State.read(parent.scope).error_message
+  end
+
   test "fails the coordinator when a child cannot be enqueued" do
     instrument = instruments(:petr4_bvmf)
     create_trade(instrument:, side: :buy, quantity: 1)
@@ -218,9 +327,14 @@ class RefreshTradedMarketPricesJobTest < ActiveJob::TestCase
     end
   end
 
-  def build_job(service:)
+  def build_job(service:, instruments: nil, &instrument_ids)
     RefreshTradedMarketPricesJob.new.tap do |job|
       job.define_singleton_method(:market_price_service) { service }
+      next unless instruments
+
+      job.define_singleton_method(:traded_instruments) do
+        Instrument.where(id: (instrument_ids ? instrument_ids.call : instruments.map(&:id)))
+      end
     end
   end
 

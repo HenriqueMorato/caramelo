@@ -125,6 +125,25 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal({ instrument_id: instrument.id }, report.second.fetch(:context))
   end
 
+  test "fails a parent batch when a non-retryable child fails" do
+    instrument = instruments(:petr4_bvmf)
+    failure = MarketPrice::ProviderFailure.new(provider_identifier: "fake", message: "invalid response")
+    service = Object.new
+    service.define_singleton_method(:refresh) { |**| raise failure }
+    batch = RefreshStatus::Tracker.enqueue(scope: "failed_child_batch", total_count: 1)
+    RefreshStatus::Tracker.enqueue(scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument), run_id: batch.run_id)
+
+    with_stubbed_method(Rails.error, :report, ->(*, **) { }) do
+      build_job(service:).perform(instrument, batch_scope: batch.scope, batch_run_id: batch.run_id)
+    end
+
+    parent = RefreshStatus::State.read(batch.scope)
+    child = RefreshStatus::State.read(RefreshCurrentMarketPriceJob.refresh_scope(instrument))
+    assert_equal "failed", parent.status
+    assert_equal 0, parent.processed_count
+    assert_equal "failed", child.status
+  end
+
   test "retries rate-limited provider failures using Retry-After" do
     instrument = instruments(:petr4_bvmf)
     failure = MarketPrice::ProviderFailure.new(
@@ -301,6 +320,7 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     state = RefreshStatus::State.read(scope)
     assert_equal "succeeded", state.status
     assert_equal 1, state.processed_count
+    assert_equal [ instrument.id.to_s ], state.completed_items
   end
 
   test "completes the instrument state when refreshing through a batch" do

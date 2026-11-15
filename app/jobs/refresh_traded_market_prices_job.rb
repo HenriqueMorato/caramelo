@@ -24,13 +24,16 @@ class RefreshTradedMarketPricesJob < ApplicationJob
 
   def perform
     instruments = traded_instruments
+    instrument_ids = instruments.pluck(:id)
     existing_refresh = RefreshStatus::State.read(RefreshStatus::MARKET_PRICE_SCOPE)
     RefreshStatus::Tracker.perform(
       scope: RefreshStatus::MARKET_PRICE_SCOPE,
-      total_count: instruments.count,
-      preserve_progress: existing_refresh&.active?
+      total_count: instrument_ids.length,
+      tracked_items: instrument_ids,
+      preserve_progress: existing_refresh&.active? && !existing_refresh.tracked_items.nil?
     ) do |refresh|
       instruments.find_each do |instrument|
+        progress_key = instrument.id.to_s
         unless market_price_service.supports?(instrument:)
           ActiveSupport::Notifications.instrument(
             "market_price.refresh",
@@ -38,21 +41,15 @@ class RefreshTradedMarketPricesJob < ApplicationJob
             provider: MarketData::YahooFinance::MARKET_CONFIGURATION.identifier,
             instrument_id: instrument.id
           )
-          RefreshStatus::Tracker.advance(refresh)
+          RefreshStatus::Tracker.advance(refresh, key: progress_key)
           next
         end
 
         lookup = market_price_service.read(instrument:)
         if lookup&.refresh_needed?
-          RefreshStatus::Tracker.enqueue(
-            scope: RefreshCurrentMarketPriceJob.refresh_scope(instrument), run_id: refresh.run_id, supersede: true
-          )
-          result = RefreshCurrentMarketPriceJob.enqueue_for(
-            instrument:, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE, batch_run_id: refresh.run_id
-          )
-          raise EnqueueFailure, "could not enqueue #{instrument.ticker} market-price refresh" unless result
+          break if enqueue_instrument_refresh(instrument:, refresh:) == :failed
         else
-          RefreshStatus::Tracker.advance(refresh)
+          RefreshStatus::Tracker.advance(refresh, key: progress_key)
         end
       end
     end
@@ -61,6 +58,29 @@ class RefreshTradedMarketPricesJob < ApplicationJob
   end
 
   private
+
+  def enqueue_instrument_refresh(instrument:, refresh:)
+    scope = RefreshCurrentMarketPriceJob.refresh_scope(instrument)
+    state = RefreshStatus::State.read(scope)
+    if state&.run_id == refresh.run_id
+      if state.status == "succeeded"
+        RefreshStatus::Tracker.advance(refresh, key: instrument.id)
+        return
+      end
+      if state.status == "failed"
+        error_message = state.error_message.presence || "#{instrument.ticker} market-price refresh failed"
+        RefreshStatus::Tracker.record_failure(refresh, RuntimeError.new(error_message))
+        return :failed
+      end
+    else
+      RefreshStatus::Tracker.enqueue(scope:, run_id: refresh.run_id, supersede: true)
+    end
+
+    result = RefreshCurrentMarketPriceJob.enqueue_for(
+      instrument:, batch_scope: RefreshStatus::MARKET_PRICE_SCOPE, batch_run_id: refresh.run_id
+    )
+    raise EnqueueFailure, "could not enqueue #{instrument.ticker} market-price refresh" unless result
+  end
 
   def market_price_service
     MarketPrice::Service.default

@@ -12,10 +12,10 @@ module RefreshStatus
     ].freeze
 
     attr_reader :scope, :run_id, :status, :started_at, :finished_at, :updated_at,
-      :error_class, :error_message, :processed_count, :total_count
+      :error_class, :error_message, :processed_count, :total_count, :completed_items, :tracked_items
 
     def initialize(scope:, run_id: nil, status:, started_at:, finished_at:, error_class:, error_message:,
-      processed_count:, total_count:, updated_at: nil)
+      processed_count:, total_count:, completed_items: nil, tracked_items: nil, updated_at: nil)
       @scope = scope
       @run_id = run_id
       @status = status
@@ -26,6 +26,8 @@ module RefreshStatus
       @error_message = error_message
       @processed_count = processed_count
       @total_count = total_count
+      @completed_items = completed_items&.map(&:to_s)&.uniq&.freeze
+      @tracked_items = tracked_items&.map(&:to_s)&.uniq&.freeze
       freeze
     end
 
@@ -98,21 +100,78 @@ module RefreshStatus
     end
 
     def self.write(scope:, run_id: nil, status:, started_at: nil, finished_at: nil, error_class: nil,
-      error_message: nil, processed_count: 0, total_count: nil, expected_run_id: EXPECTED_RUN_UNSET)
+      error_message: nil, processed_count: 0, total_count: nil, completed_items: nil, tracked_items: nil,
+      expected_run_id: EXPECTED_RUN_UNSET)
       with_lock(scope) do
         current = read(scope)
         if expected_run_id != EXPECTED_RUN_UNSET
           next if expected_run_id == NO_RUN ? current : current&.run_id != expected_run_id
         end
 
-        register(scope)
-        Rails.cache.write(key(scope), {
+        write_unlocked(
           scope:, run_id:, status:, started_at: serialize_time(started_at), finished_at: serialize_time(finished_at),
-          updated_at: serialize_time(Time.current), error_class:, error_message:, processed_count:, total_count:
-        })
-        state = read(scope)
-        register(scope)
-        state
+          updated_at: serialize_time(Time.current), error_class:, error_message:, processed_count:, total_count:,
+          completed_items:, tracked_items:
+        )
+      end
+    end
+
+    def self.advance(scope:, run_id:, item:)
+      with_lock(scope) do
+        current = read(scope)
+        next unless current && current.run_id == run_id
+        next current unless current.active?
+
+        item = item.to_s
+        next current if current.tracked_items && !current.tracked_items.include?(item)
+
+        completed_items = Array(current.completed_items)
+        next current if completed_items.include?(item)
+
+        processed_count = current.processed_count + 1
+        completed = current.total_count && processed_count >= current.total_count && !current.failed?
+        write_unlocked(
+          scope: current.scope,
+          run_id: current.run_id,
+          status: completed ? "succeeded" : current.status,
+          started_at: serialize_time(current.started_at),
+          finished_at: serialize_time(completed ? Time.current : current.finished_at),
+          updated_at: serialize_time(Time.current),
+          error_class: current.error_class,
+          error_message: current.error_message,
+          processed_count:,
+          total_count: current.total_count,
+          completed_items: completed_items | [ item ],
+          tracked_items: current.tracked_items
+        )
+      end
+    end
+
+    def self.reconcile(scope:, run_id:, total_count:, tracked_items:)
+      with_lock(scope) do
+        current = read(scope)
+        next unless current&.active? && current.run_id == run_id
+
+        tracked_items = tracked_items&.map(&:to_s)&.uniq || current.tracked_items
+        completed_items = if tracked_items
+          Array(current.completed_items).intersection(tracked_items)
+        else
+          current.completed_items
+        end
+        write_unlocked(
+          scope: current.scope,
+          run_id: current.run_id,
+          status: "running",
+          started_at: serialize_time(current.started_at || Time.current),
+          finished_at: serialize_time(current.finished_at),
+          updated_at: serialize_time(Time.current),
+          error_class: current.error_class,
+          error_message: current.error_message,
+          processed_count: tracked_items ? completed_items.length : current.processed_count,
+          total_count: total_count || current.total_count,
+          completed_items:,
+          tracked_items:
+        )
       end
     end
 
@@ -160,6 +219,18 @@ module RefreshStatus
       "#{key(scope)}:lock"
     end
 
+    def self.write_unlocked(scope:, run_id:, status:, started_at:, finished_at:, updated_at:, error_class:,
+      error_message:, processed_count:, total_count:, completed_items:, tracked_items:)
+      register(scope)
+      Rails.cache.write(key(scope), {
+        scope:, run_id:, status:, started_at:, finished_at:, updated_at:, error_class:, error_message:,
+        processed_count:, total_count:, completed_items:, tracked_items:
+      })
+      state = read(scope)
+      register(scope)
+      state
+    end
+
     def self.states_with_finish_time(status)
       scopes.filter_map do |scope|
         next if hidden_activity_scope?(scope)
@@ -177,6 +248,6 @@ module RefreshStatus
     end
 
     private_class_method :register, :serialize_time, :parse_time, :key, :states_with_finish_time,
-      :hidden_activity_scope?, :with_lock, :acquire_lock, :release_lock, :lock_key
+      :hidden_activity_scope?, :with_lock, :acquire_lock, :release_lock, :lock_key, :write_unlocked
   end
 end

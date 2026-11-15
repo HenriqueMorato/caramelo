@@ -1,6 +1,6 @@
 module RefreshStatus
   class Tracker
-    def self.enqueue(scope:, total_count: nil, run_id: nil, supersede: false)
+    def self.enqueue(scope:, total_count: nil, run_id: nil, supersede: false, tracked_items: nil)
       explicit_run_id = run_id.present?
       current = State.read(scope)
       current_run_id = current&.run_id
@@ -11,13 +11,14 @@ module RefreshStatus
       completed = total_count == 0
       state = State.write(
         scope:, run_id:, status: completed ? "succeeded" : "queued", total_count:,
-        finished_at: (Time.current if completed), expected_run_id: current ? current.run_id : State::NO_RUN
+        finished_at: (Time.current if completed), tracked_items:, completed_items: ([] if tracked_items),
+        expected_run_id: current ? current.run_id : State::NO_RUN
       )
       state ||= State.read(scope) || current
       broadcast(state)
     end
 
-    def self.perform(scope:, total_count: nil, preserve_progress: false, run_id: nil)
+    def self.perform(scope:, total_count: nil, preserve_progress: false, run_id: nil, tracked_items: nil)
       existing = State.read(scope)
       existing_run_id = existing&.run_id
       return existing if run_id && existing && existing_run_id != run_id
@@ -25,11 +26,11 @@ module RefreshStatus
 
       if preserve_progress && existing
         refresh = existing
-        return preserve(existing, run_id:) { |state| yield state }
+        return preserve(existing, run_id:, total_count:, tracked_items:) { |state| yield state }
       end
 
       expected_run_id = existing ? existing.run_id : State::NO_RUN
-      refresh = start(scope:, total_count:, run_id:, expected_run_id:)
+      refresh = start(scope:, total_count:, run_id:, tracked_items:, expected_run_id:)
       return State.read(scope) || existing unless refresh
 
       yield refresh
@@ -39,9 +40,19 @@ module RefreshStatus
       raise
     end
 
-    def self.advance(refresh)
-      latest = current_state(refresh)
+    def self.advance(refresh, key: nil)
+      latest = if key
+        State.advance(scope: refresh.scope, run_id: refresh.run_id, item: key)
+      else
+        current_state(refresh)
+      end
       return refresh unless latest
+
+      if key
+        finished = latest.finished_at.present?
+        broadcast(latest, health: finished && !latest.failed?, progress_only: !finished || latest.failed?)
+        return latest
+      end
 
       processed_count = latest.processed_count + 1
       failed = latest.failed?
@@ -88,7 +99,9 @@ module RefreshStatus
         error_class: attributes.fetch(:error_class, refresh.error_class),
         error_message: attributes.fetch(:error_message, refresh.error_message),
         processed_count: attributes.fetch(:processed_count, refresh.processed_count),
-        total_count: attributes.fetch(:total_count, refresh.total_count), expected_run_id: run_id
+        total_count: attributes.fetch(:total_count, refresh.total_count),
+        completed_items: attributes.fetch(:completed_items, refresh.completed_items),
+        tracked_items: attributes.fetch(:tracked_items, refresh.tracked_items), expected_run_id: run_id
       )
     end
 
@@ -99,21 +112,26 @@ module RefreshStatus
       state
     end
 
-    def self.start(scope:, total_count:, run_id:, expected_run_id:)
+    def self.start(scope:, total_count:, run_id:, tracked_items:, expected_run_id:)
       State.write(
         scope:, run_id: run_id || SecureRandom.uuid, status: "running", started_at: Time.current, total_count:,
-        expected_run_id:
+        tracked_items:, completed_items: ([] if tracked_items), expected_run_id:
       )
     end
 
-    def self.preserve(existing, run_id:)
+    def self.preserve(existing, run_id:, total_count:, tracked_items:)
       return existing unless existing.active? && (run_id.nil? || existing.run_id == run_id)
 
-      refresh = write(existing, status: "running", started_at: existing.started_at || Time.current)
+      refresh = State.reconcile(
+        scope: existing.scope,
+        run_id: existing.run_id,
+        total_count:,
+        tracked_items: normalize_items(tracked_items || existing.tracked_items)
+      )
       return State.read(existing.scope) || existing unless refresh
 
       yield refresh
-      State.read(refresh.scope) || refresh
+      complete(refresh) || State.read(refresh.scope) || refresh
     end
 
     def self.complete(refresh)
@@ -150,6 +168,10 @@ module RefreshStatus
       current_state(refresh).present?
     end
 
-    private_class_method :broadcast, :start, :preserve, :complete, :fail_refresh, :current_state
+    def self.normalize_items(items)
+      items&.map(&:to_s)&.uniq
+    end
+
+    private_class_method :broadcast, :start, :preserve, :complete, :fail_refresh, :current_state, :normalize_items
   end
 end

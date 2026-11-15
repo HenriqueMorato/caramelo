@@ -17,6 +17,52 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_predicate read_state, :frozen?
   end
 
+  test "advances each keyed item only once" do
+    state = RefreshStatus::Tracker.enqueue(scope: "keyed_batch", total_count: 2)
+
+    first = RefreshStatus::Tracker.advance(state, key: "instrument-1")
+    duplicate = RefreshStatus::Tracker.advance(first, key: "instrument-1")
+    completed = RefreshStatus::Tracker.advance(duplicate, key: "instrument-2")
+
+    assert_equal 1, duplicate.processed_count
+    assert_equal %w[instrument-1 instrument-2], completed.completed_items
+    assert_equal 2, completed.processed_count
+    assert_equal "succeeded", completed.status
+  end
+
+  test "ignores keyed progress for an item outside the tracked set" do
+    state = RefreshStatus::Tracker.enqueue(scope: "tracked_items", total_count: 1, tracked_items: [ "kept" ])
+
+    result = RefreshStatus::Tracker.advance(state, key: "removed")
+
+    assert_equal 0, result.processed_count
+    assert_empty result.completed_items
+    assert_equal "queued", result.status
+  end
+
+  test "does not reopen a batch that failed before progress was reconciled" do
+    state = RefreshStatus::Tracker.enqueue(scope: "reconcile_failure", total_count: 1, tracked_items: [ "item" ])
+    RefreshStatus::Tracker.record_failure(state, RuntimeError.new("child failed"))
+
+    result = RefreshStatus::Tracker.perform(
+      scope: state.scope, preserve_progress: true, tracked_items: [ "item" ]
+    ) { flunk "failed batch was reopened" }
+
+    assert_equal "failed", result.status
+    assert_equal "child failed", result.error_message
+  end
+
+  test "does not advance a terminal keyed batch" do
+    state = RefreshStatus::Tracker.enqueue(scope: "terminal_keyed_batch", total_count: 1, tracked_items: [ "item" ])
+    RefreshStatus::Tracker.record_failure(state, RuntimeError.new("child failed"))
+
+    result = RefreshStatus::Tracker.advance(state, key: "item")
+
+    assert_equal "failed", result.status
+    assert_equal 0, result.processed_count
+    assert_empty result.completed_items
+  end
+
   test "waits when another state writer owns the cache lock" do
     cache = ActiveSupport::Cache::MemoryStore.new
     attempts = 0
@@ -397,7 +443,7 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
   test "tracker keeps the existing refresh when preserving progress is fenced" do
     state = RefreshStatus::Tracker.enqueue(scope: "preserve_write_fenced", total_count: 1)
 
-    with_stubbed_method(RefreshStatus::Tracker, :write, ->(*, **) { nil }) do
+    with_stubbed_method(RefreshStatus::State, :reconcile, ->(**) { nil }) do
       result = RefreshStatus::Tracker.perform(scope: state.scope, preserve_progress: true) do
         flunk "preserved refresh should not run"
       end
