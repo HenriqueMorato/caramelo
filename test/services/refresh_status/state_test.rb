@@ -40,6 +40,24 @@ class RefreshStatus::StateTest < ActiveSupport::TestCase
     assert_equal "queued", result.status
   end
 
+  test "ignores advancement for a missing or superseded state" do
+    assert_nil RefreshStatus::State.advance(scope: "missing_advance", run_id: "run", item: "item")
+
+    RefreshStatus::State.write(scope: "superseded_advance", status: "running", run_id: "current")
+    assert_nil RefreshStatus::State.advance(scope: "superseded_advance", run_id: "old", item: "item")
+  end
+
+  test "ignores reconciliation for a missing or inactive state" do
+    assert_nil RefreshStatus::State.reconcile(
+      scope: "missing_reconcile", run_id: "run", total_count: 1, tracked_items: nil
+    )
+
+    RefreshStatus::State.write(scope: "inactive_reconcile", status: "succeeded", run_id: "run")
+    assert_nil RefreshStatus::State.reconcile(
+      scope: "inactive_reconcile", run_id: "run", total_count: 1, tracked_items: nil
+    )
+  end
+
   test "does not reopen a batch that failed before progress was reconciled" do
     state = RefreshStatus::Tracker.enqueue(scope: "reconcile_failure", total_count: 1, tracked_items: [ "item" ])
     RefreshStatus::Tracker.record_failure(state, RuntimeError.new("child failed"))

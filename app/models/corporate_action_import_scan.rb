@@ -27,11 +27,11 @@ class CorporateActionImportScan < ApplicationRecord
     queued? || running?
   end
 
-  def active_expired?(at: Time.current)
+  def active_expired?(at: Time.current, timeout: ACTIVE_TIMEOUT)
     return false unless active?
 
     active_since = started_at || updated_at || created_at
-    active_since && active_since < at - ACTIVE_TIMEOUT
+    active_since && active_since < at - timeout
   end
 
   def requested_range
@@ -52,12 +52,12 @@ class CorporateActionImportScan < ApplicationRecord
     end
   end
 
-  def claim!(from:, to:)
+  def claim!(from:, to:, timeout: ACTIVE_TIMEOUT)
     validate_requested_range!(from:, to:)
     request = nil
 
     with_lock do
-      next if active? && !active_expired?
+      next if active? && !active_expired?(timeout:)
 
       if active?
         update!(

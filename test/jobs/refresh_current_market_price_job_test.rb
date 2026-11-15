@@ -372,6 +372,28 @@ class RefreshCurrentMarketPriceJobTest < ActiveJob::TestCase
     assert_equal 0, RefreshStatus::State.read(scope).processed_count
   end
 
+  test "advances an active batch without an instrument key" do
+    job = RefreshCurrentMarketPriceJob.new
+    scope = "test_unkeyed_batch"
+    state = RefreshStatus::Tracker.enqueue(scope:, total_count: 1)
+
+    job.send(:advance_batch, scope, state.run_id)
+
+    assert_equal 1, RefreshStatus::State.read(scope).processed_count
+  end
+
+  test "ignores failure recording for missing or inactive batches" do
+    job = RefreshCurrentMarketPriceJob.new
+    error = RuntimeError.new("provider unavailable")
+    inactive_scope = "test_inactive_failure_batch"
+    RefreshStatus::State.write(scope: inactive_scope, status: "succeeded", run_id: "run")
+
+    job.send(:fail_batch, "missing_failure_batch", "run", error)
+    job.send(:fail_batch, inactive_scope, "run", error)
+
+    assert_equal "succeeded", RefreshStatus::State.read(inactive_scope).status
+  end
+
   test "reports an inactive batch as unavailable for work" do
     job = RefreshCurrentMarketPriceJob.new
     scope = "test_inactive_batch"

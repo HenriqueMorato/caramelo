@@ -9,6 +9,8 @@ class RecurringScheduleTest < ActiveSupport::TestCase
       assert_equal "every 5 minutes", schedules.fetch("refresh_traded_market_prices").fetch("schedule")
       assert_equal "RefreshTradedMarketPricesJob.enqueue_for",
         schedules.fetch("refresh_traded_market_prices").fetch("command")
+      assert_equal "every 2 minutes", schedules.fetch("recover_stale_market_data").fetch("schedule")
+      assert_equal "RecoverStaleMarketDataJob", schedules.fetch("recover_stale_market_data").fetch("class")
       assert_equal "CaptureMarketBenchmarkObservationsJob", schedules.fetch("capture_market_benchmark_observations").fetch("class")
       assert_equal "ScheduleCorporateActionImportsJob", schedules.fetch("scan_corporate_action_imports").fetch("class")
       assert_equal "CreateBackupJob", schedules.fetch("create_backup").fetch("class")
