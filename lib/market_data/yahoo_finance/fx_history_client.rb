@@ -8,7 +8,9 @@ module MarketData
 
         validate_range!(from:, to:)
         begin
-          response = transport.get(history_uri_for(value: pair.symbol, from:, to:))
+          response = transport.get(
+            history_uri_for(value: pair.symbol, from:, to: request_to(to))
+          )
           classify_status!(response)
 
           parse_rates(
@@ -48,15 +50,28 @@ module MarketData
         timestamps.zip(closes).filter_map do |timestamp, close|
           next if close.nil?
 
-          # Yahoo's daily candle timestamp is interpreted in UTC, matching the
-          # existing daily closing-price importer and keeping date derivation stable.
           observed_at = Time.at(Integer(timestamp)).utc
-          rate_date = observed_at.to_date
+          rate_date = rate_date_for(observed_at)
           next unless (from..to).cover?(rate_date)
 
           rate = normalize_rate(close)
           Rate.new(rate:, rate_date:, observed_at:)
         end
+      end
+
+      def rate_date_for(observed_at)
+        # Yahoo labels the FX candle covering Friday with a Sunday UTC timestamp
+        # because the currency market reopens then. Move weekend labels back to
+        # the preceding business day so Friday does not remain perpetually missing.
+        date = observed_at.to_date
+        date -= 1.day while date.saturday? || date.sunday?
+        date
+      end
+
+      def request_to(date)
+        # A Friday candle can be labelled Sunday by Yahoo, so include the
+        # following Sunday before BaseClient adds its exclusive day.
+        date + 2.days
       end
 
       def normalize_rate(value)

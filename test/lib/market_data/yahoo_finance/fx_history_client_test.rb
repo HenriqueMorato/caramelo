@@ -10,6 +10,17 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     assert_equal "USDBRL%3DX", transport.uri.path.split("/").last
   end
 
+  test "requests past the weekend label for a Friday range" do
+    transport = FakeTransport.new(response: response)
+
+    client_with(response, transport:).daily_rates(
+      base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 28), to: Date.new(2026, 8, 28)
+    )
+
+    query = URI.decode_www_form(transport.uri.query).to_h
+    assert_equal Time.zone.local(2026, 8, 31).to_i.to_s, query.fetch("period2")
+  end
+
   test "rejects inverted and future ranges" do
     assert_raises(ArgumentError) { client.daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current - 1) }
     assert_raises(ArgumentError) { client.daily_rates(base_currency: "USD", quote_currency: "BRL", from: Date.current, to: Date.current + 1) }
@@ -68,7 +79,7 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     end
   end
 
-  test "derives the rate date from the UTC candle timestamp" do
+  test "derives the rate date from a weekday UTC candle timestamp" do
     result = default_result.merge(
       timestamp: [ Time.utc(2026, 8, 24, 23, 59, 59).to_i ],
       indicators: { quote: [ { close: [ BigDecimal("5.4321") ] } ] }
@@ -79,6 +90,19 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     )
 
     assert_equal Date.new(2026, 8, 24), rates.first.rate_date
+  end
+
+  test "maps weekend FX candle timestamps to the preceding business day" do
+    result = default_result.merge(
+      timestamp: [ Time.utc(2026, 8, 30, 23).to_i ],
+      indicators: { quote: [ { close: [ BigDecimal("5.4321") ] } ] }
+    )
+
+    rates = client_with(response(result:)).daily_rates(
+      base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 28), to: Date.new(2026, 8, 28)
+    )
+
+    assert_equal Date.new(2026, 8, 28), rates.first.rate_date
   end
 
   test "discards boundary candles outside the requested date range" do

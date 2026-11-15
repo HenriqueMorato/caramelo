@@ -82,6 +82,7 @@ class HistoricalExchangeRate
     end
 
     def persist
+      purge_legacy_weekend_records
       observations.each_with_object(created: 0, updated: 0) do |observation, counts|
         record = HistoricalExchangeRate.find_or_initialize_by(
           base_currency: observation.base_currency, quote_currency: observation.quote_currency,
@@ -90,6 +91,23 @@ class HistoricalExchangeRate
         outcome = persist_observation(record, observation)
         counts[outcome] += 1
       end
+    end
+
+    def purge_legacy_weekend_records
+      return unless provider.identifier == MarketData::YahooFinance::FX_CONFIGURATION.identifier
+
+      legacy_dates = observations.filter_map do |observation|
+        observed_at = observation.observed_at
+        next unless observed_at
+
+        date = observed_at.utc.to_date
+        date if date.saturday? || date.sunday?
+      end.uniq
+      return if legacy_dates.empty?
+
+      HistoricalExchangeRate.where(
+        base_currency:, quote_currency:, provider: provider.identifier, rate_date: legacy_dates
+      ).delete_all
     end
 
     def expected_dates
