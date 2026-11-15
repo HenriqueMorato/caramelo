@@ -1,12 +1,14 @@
 module MarketData
   module YahooFinance
     class FxHistoryClient < BaseClient
+      SYMBOL_MISMATCH_RETRY_LIMIT = 2
       Rate = Data.define(:rate, :rate_date, :observed_at)
 
       def daily_rates(base_currency:, quote_currency:, from:, to:)
         pair = CurrencyPair.new(base_currency:, quote_currency:)
 
         validate_range!(from:, to:)
+        symbol_mismatch_retries = 0
         begin
           response = transport.get(
             history_uri_for(value: pair.symbol, from:, to: request_to(to))
@@ -17,6 +19,14 @@ module MarketData
             chart_result(response, expected: "expected exactly one FX history result"),
             base_currency: pair.base_currency, quote_currency: pair.quote_currency, from:, to:
           )
+        rescue InvalidResponse => error
+          if error.message == "response symbol does not match request" &&
+              symbol_mismatch_retries < SYMBOL_MISMATCH_RETRY_LIMIT
+            symbol_mismatch_retries += 1
+            retry
+          end
+
+          raise
         rescue JSON::ParserError, KeyError, TypeError, ArgumentError => error
           raise InvalidResponse, error.message
         end
@@ -47,7 +57,7 @@ module MarketData
         raise InvalidResponse, "FX history closes are malformed" unless closes.is_a?(Array)
         raise InvalidResponse, "FX history timestamps and closes differ in length" unless timestamps.length == closes.length
 
-        timestamps.zip(closes).filter_map do |timestamp, close|
+        rates = timestamps.zip(closes).filter_map do |timestamp, close|
           next if close.nil?
 
           observed_at = Time.at(Integer(timestamp)).utc
@@ -57,6 +67,7 @@ module MarketData
           rate = normalize_rate(close)
           Rate.new(rate:, rate_date:, observed_at:)
         end
+        deduplicate_rates(rates)
       end
 
       def rate_date_for(observed_at)
@@ -72,6 +83,22 @@ module MarketData
         # A Friday candle can be labelled Sunday by Yahoo, so include the
         # following Sunday before BaseClient adds its exclusive day.
         date + 2.days
+      end
+
+      def deduplicate_rates(rates)
+        rates.group_by(&:rate_date).values.map do |candidates|
+          weekday_rates, weekend_rates = candidates.partition { |rate| !weekend?(rate.observed_at.to_date) }
+          if weekday_rates.length > 1
+            raise InvalidResponse, "FX history contains duplicate weekday dates"
+          end
+
+          weekday_rate = weekday_rates.first
+          weekday_rate || weekend_rates.min_by(&:observed_at)
+        end.sort_by(&:rate_date)
+      end
+
+      def weekend?(date)
+        date.saturday? || date.sunday?
       end
 
       def normalize_rate(value)

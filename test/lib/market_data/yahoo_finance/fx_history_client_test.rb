@@ -105,6 +105,34 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     assert_equal Date.new(2026, 8, 28), rates.first.rate_date
   end
 
+  test "prefers the weekday close when a live weekend quote normalizes to the same date" do
+    result = default_result.merge(
+      timestamp: [ Time.utc(2026, 11, 13).to_i, Time.utc(2026, 11, 15, 17, 18, 1).to_i ],
+      indicators: { quote: [ { close: [ BigDecimal("5.64"), BigDecimal("5.66") ] } ] }
+    )
+
+    rates = client_with(response(result:)).daily_rates(
+      base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 11, 13), to: Date.new(2026, 11, 13)
+    )
+
+    assert_equal [ BigDecimal("5.64") ], rates.map(&:rate)
+  end
+
+  test "rejects conflicting weekday closes for one date" do
+    result = default_result.merge(
+      timestamp: [ Time.utc(2026, 11, 13).to_i, Time.utc(2026, 11, 13, 21).to_i ],
+      indicators: { quote: [ { close: [ BigDecimal("5.64"), BigDecimal("5.8") ] } ] }
+    )
+
+    error = assert_raises(MarketData::YahooFinance::InvalidResponse) do
+      client_with(response(result:)).daily_rates(
+        base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 11, 13), to: Date.new(2026, 11, 13)
+      )
+    end
+
+    assert_equal "FX history contains duplicate weekday dates", error.message
+  end
+
   test "discards boundary candles outside the requested date range" do
     result = default_result.merge(
       timestamp: [ Time.utc(2026, 8, 23, 21).to_i, Time.utc(2026, 8, 24, 21).to_i, Time.utc(2026, 8, 25, 21).to_i ],
@@ -142,6 +170,18 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "retries a transient mismatched symbol response" do
+    mismatched = response(result: default_result.merge(meta: default_result[:meta].merge(symbol: "EURBRL=X")))
+    transport = FakeTransport.new(response: mismatched, responses: [ mismatched, response ])
+
+    rates = client_with(response, transport:).daily_rates(
+      base_currency: "USD", quote_currency: "BRL", from: Date.new(2026, 8, 24), to: Date.new(2026, 8, 24)
+    )
+
+    assert_equal [ Date.new(2026, 8, 24) ], rates.map(&:rate_date)
+    assert_equal 2, transport.calls
+  end
+
   test "rejects float and non-positive historical rates" do
     assert_raises(MarketData::YahooFinance::InvalidResponse) { client.send(:normalize_rate, 1.2) }
 
@@ -165,10 +205,11 @@ class MarketData::YahooFinance::FxHistoryClientTest < ActiveSupport::TestCase
 
   private
 
-  FakeTransport = Struct.new(:response, :uri) do
+  FakeTransport = Struct.new(:response, :uri, :responses, :calls) do
     def get(uri)
       self.uri = uri
-      response
+      self.calls = calls.to_i + 1
+      responses&.shift || response
     end
   end
 
