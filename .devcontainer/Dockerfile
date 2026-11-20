@@ -1,5 +1,5 @@
-# Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=4.0.7
+# Make sure RUBY_VERSION matches the Ruby version in .ruby-version.
+ARG RUBY_VERSION=4.0.10
 FROM ghcr.io/rails/devcontainer/images/ruby:$RUBY_VERSION
 
 ARG CURL_IMPERSONATE_VERSION=2.1.1
